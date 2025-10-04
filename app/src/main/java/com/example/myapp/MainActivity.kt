@@ -71,26 +71,73 @@ private fun MenuButton(text: String, onClick: () -> Unit) {
 
 @Composable
 fun RandomGeneratorScreen(onBack: () -> Unit) {
-    ScreenTemplate(title = "Ici viendra le générateur aléatoire", onBack = onBack)
+    ScreenTemplate(title = "Générateur aléatoire", onBack = onBack) {
+        RandomIntSection()
+        Spacer(modifier = Modifier.height(24.dp))
+        RandomWordSection()
+    }
+}
+
+@Composable
+fun RandomIntSection() {
+    var min by remember { mutableStateOf("1") }
+    var max by remember { mutableStateOf("100") }
+    var result by remember { mutableStateOf<Int?>(null) }
+
+    Column {
+        Text("Nombre entier aléatoire")
+        Spacer(modifier = Modifier.height(8.dp))
+        Row {
+            OutlinedTextField(value = min, onValueChange = { min = it }, label = { Text("Min") }, modifier = Modifier.weight(1f))
+            Spacer(modifier = Modifier.width(8.dp))
+            OutlinedTextField(value = max, onValueChange = { max = it }, label = { Text("Max") }, modifier = Modifier.weight(1f))
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+        Button(onClick = {
+            val minInt = min.toIntOrNull() ?: 1
+            val maxInt = max.toIntOrNull() ?: 100
+            if (minInt <= maxInt) result = (minInt..maxInt).random()
+        }) {
+            Text("Générer")
+        }
+        result?.let { Text("Résultat: $it") }
+    }
+}
+
+@Composable
+fun RandomWordSection() {
+    val words = listOf("chat", "maison", "arbre", "soleil", "voiture")
+    var result by remember { mutableStateOf<String?>(null) }
+
+    Column {
+        Text("Mot aléatoire")
+        Spacer(modifier = Modifier.height(8.dp))
+        Button(onClick = { result = words.random() }) {
+            Text("Générer")
+        }
+        result?.let { Text("Résultat: $it") }
+    }
 }
 
 @Composable
 fun VolumeBoosterScreen(onBack: () -> Unit) {
-    ScreenTemplate(title = "Ici viendra le volume booster", onBack = onBack)
+    ScreenTemplate(title = "Ici viendra le volume booster", onBack = onBack, content = {})
 }
 
 @Composable
 fun FlashcardsScreen(onBack: () -> Unit) {
-    ScreenTemplate(title = "Ici viendront les flashcards", onBack = onBack)
+    ScreenTemplate(title = "Ici viendront les flashcards", onBack = onBack, content = {})
 }
 
 @Composable
-private fun ScreenTemplate(title: String, onBack: () -> Unit) {
+private fun ScreenTemplate(title: String, onBack: () -> Unit, content: @Composable () -> Unit) {
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
         Button(onClick = onBack) {
             Text("Retour")
         }
         Spacer(modifier = Modifier.height(16.dp))
         Text(title)
+        Spacer(modifier = Modifier.height(16.dp))
+        content()
     }
 }
