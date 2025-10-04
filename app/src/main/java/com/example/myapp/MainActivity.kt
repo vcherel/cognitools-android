@@ -4,12 +4,15 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.myapp.ui.theme.MyAppTheme
 
 class MainActivity : ComponentActivity() {
@@ -71,7 +74,7 @@ private fun MenuButton(text: String, onClick: () -> Unit) {
 
 @Composable
 fun RandomGeneratorScreen(onBack: () -> Unit) {
-    ScreenTemplate(title = "Générateur aléatoire", onBack = onBack) {
+    ScreenTemplate(onBack = onBack) {
         RandomIntSection()
         Spacer(modifier = Modifier.height(24.dp))
         RandomWordSection()
@@ -84,23 +87,49 @@ fun RandomIntSection() {
     var max by remember { mutableStateOf("100") }
     var result by remember { mutableStateOf<Int?>(null) }
 
-    Column {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text("Nombre entier aléatoire")
         Spacer(modifier = Modifier.height(8.dp))
         Row {
-            OutlinedTextField(value = min, onValueChange = { min = it }, label = { Text("Min") }, modifier = Modifier.weight(1f))
+            OutlinedTextField(
+                value = min,
+                onValueChange = { min = it },
+                label = { Text("Min") },
+                modifier = Modifier.weight(1f)
+            )
             Spacer(modifier = Modifier.width(8.dp))
-            OutlinedTextField(value = max, onValueChange = { max = it }, label = { Text("Max") }, modifier = Modifier.weight(1f))
+            OutlinedTextField(
+                value = max,
+                onValueChange = { max = it },
+                label = { Text("Max") },
+                modifier = Modifier.weight(1f)
+            )
         }
         Spacer(modifier = Modifier.height(8.dp))
-        Button(onClick = {
-            val minInt = min.toIntOrNull() ?: 1
-            val maxInt = max.toIntOrNull() ?: 100
-            if (minInt <= maxInt) result = (minInt..maxInt).random()
-        }) {
+        Button(
+            onClick = {
+                val minInt = min.toIntOrNull() ?: 1
+                val maxInt = max.toIntOrNull() ?: 100
+                if (minInt <= maxInt) result = (minInt..maxInt).random()
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(56.dp)
+        ) {
             Text("Générer")
         }
-        result?.let { Text("Résultat: $it") }
+        Spacer(modifier = Modifier.height(8.dp))
+        result?.let {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(80.dp)
+                    .background(Color.LightGray),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(text = it.toString(), fontSize = 32.sp)
+            }
+        }
     }
 }
 
@@ -109,35 +138,49 @@ fun RandomWordSection() {
     val words = listOf("chat", "maison", "arbre", "soleil", "voiture")
     var result by remember { mutableStateOf<String?>(null) }
 
-    Column {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text("Mot aléatoire")
         Spacer(modifier = Modifier.height(8.dp))
-        Button(onClick = { result = words.random() }) {
+        Button(
+            onClick = { result = words.random() },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(56.dp)
+        ) {
             Text("Générer")
         }
-        result?.let { Text("Résultat: $it") }
+        Spacer(modifier = Modifier.height(8.dp))
+        result?.let {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(80.dp)
+                    .background(Color.LightGray),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(text = it, fontSize = 32.sp)
+            }
+        }
     }
 }
 
 @Composable
 fun VolumeBoosterScreen(onBack: () -> Unit) {
-    ScreenTemplate(title = "Ici viendra le volume booster", onBack = onBack, content = {})
+    ScreenTemplate(onBack = onBack, content = {})
 }
 
 @Composable
 fun FlashcardsScreen(onBack: () -> Unit) {
-    ScreenTemplate(title = "Ici viendront les flashcards", onBack = onBack, content = {})
+    ScreenTemplate(onBack = onBack, content = {})
 }
 
 @Composable
-private fun ScreenTemplate(title: String, onBack: () -> Unit, content: @Composable () -> Unit) {
+private fun ScreenTemplate(onBack: () -> Unit, content: @Composable () -> Unit) {
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
         Button(onClick = onBack) {
             Text("Retour")
         }
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(title)
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(32.dp))
         content()
     }
 }
