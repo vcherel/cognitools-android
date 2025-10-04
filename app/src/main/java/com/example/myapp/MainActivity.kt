@@ -14,6 +14,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.myapp.ui.theme.MyAppTheme
+import androidx.activity.compose.BackHandler
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -74,7 +75,8 @@ private fun MenuButton(text: String, onClick: () -> Unit) {
 
 @Composable
 fun RandomGeneratorScreen(onBack: () -> Unit) {
-    ScreenTemplate(onBack = onBack) {
+    BackHandler { onBack() }
+    ScreenTemplate {
         RandomIntSection()
         Spacer(modifier = Modifier.height(24.dp))
         RandomWordSection()
@@ -166,20 +168,19 @@ fun RandomWordSection() {
 
 @Composable
 fun VolumeBoosterScreen(onBack: () -> Unit) {
-    ScreenTemplate(onBack = onBack, content = {})
+    BackHandler { onBack() }
+    ScreenTemplate(content = {})
 }
 
 @Composable
 fun FlashcardsScreen(onBack: () -> Unit) {
-    ScreenTemplate(onBack = onBack, content = {})
+    BackHandler { onBack() }
+    ScreenTemplate(content = {})
 }
 
 @Composable
-private fun ScreenTemplate(onBack: () -> Unit, content: @Composable () -> Unit) {
+private fun ScreenTemplate(content: @Composable () -> Unit) {
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-        Button(onClick = onBack) {
-            Text("Retour")
-        }
         Spacer(modifier = Modifier.height(32.dp))
         content()
     }
