@@ -26,7 +26,6 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun MainScreen() {
-    // État pour savoir quel écran afficher
     var currentScreen by remember { mutableStateOf("menu") }
 
     Scaffold { innerPadding ->
@@ -50,56 +49,48 @@ fun MenuScreen(onNavigate: (String) -> Unit) {
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Button(
-            onClick = { onNavigate("randomGenerator") },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(70.dp)
-        ) {
-            Text("Générateur aléatoire")
-        }
+        MenuButton(text = "Générateur aléatoire") { onNavigate("randomGenerator") }
         Spacer(modifier = Modifier.height(16.dp))
-        Button(
-            onClick = { onNavigate("volumeBooster") },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(70.dp)
-        ) {
-            Text("Volume booster")
-        }
+        MenuButton(text = "Volume booster") { onNavigate("volumeBooster") }
         Spacer(modifier = Modifier.height(16.dp))
-        Button(
-            onClick = { onNavigate("flashcards") },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(70.dp)
-        ) {
-            Text("Flashcards")
-        }
+        MenuButton(text = "Flashcards") { onNavigate("flashcards") }
     }
 }
 
-// Écrans vides pour l'instant
+@Composable
+private fun MenuButton(text: String, onClick: () -> Unit) {
+    Button(
+        onClick = onClick,
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(70.dp)
+    ) {
+        Text(text)
+    }
+}
+
 @Composable
 fun RandomGeneratorScreen(onBack: () -> Unit) {
-    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-        Button(onClick = onBack) { Text("Retour") }
-        Text("Ici viendra le générateur aléatoire")
-    }
+    ScreenTemplate(title = "Ici viendra le générateur aléatoire", onBack = onBack)
 }
 
 @Composable
 fun VolumeBoosterScreen(onBack: () -> Unit) {
-    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-        Button(onClick = onBack) { Text("Retour") }
-        Text("Ici viendra le volume booster")
-    }
+    ScreenTemplate(title = "Ici viendra le volume booster", onBack = onBack)
 }
 
 @Composable
 fun FlashcardsScreen(onBack: () -> Unit) {
+    ScreenTemplate(title = "Ici viendront les flashcards", onBack = onBack)
+}
+
+@Composable
+private fun ScreenTemplate(title: String, onBack: () -> Unit) {
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-        Button(onClick = onBack) { Text("Retour") }
-        Text("Ici viendront les flashcards")
+        Button(onClick = onBack) {
+            Text("Retour")
+        }
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(title)
     }
 }
