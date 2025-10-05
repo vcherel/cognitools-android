@@ -1,5 +1,6 @@
 package com.example.myapp
 
+import android.content.Context
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -15,6 +16,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.myapp.ui.theme.MyAppTheme
 import androidx.activity.compose.BackHandler
+import androidx.compose.ui.platform.LocalContext
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -77,6 +79,7 @@ private fun MenuButton(text: String, onClick: () -> Unit) {
 fun RandomGeneratorScreen(onBack: () -> Unit) {
     BackHandler { onBack() }
     ScreenTemplate {
+        Spacer(modifier = Modifier.height(96.dp))
         RandomIntSection()
         Spacer(modifier = Modifier.height(24.dp))
         RandomWordSection()
@@ -136,8 +139,14 @@ fun RandomIntSection() {
 }
 
 @Composable
-fun RandomWordSection() {
-    val words = listOf("chat", "maison", "arbre", "soleil", "voiture")
+fun RandomWordSection(context: Context = LocalContext.current) {
+    val words by remember {
+        mutableStateOf(
+            context.assets.open("words.txt")
+                .bufferedReader()
+                .useLines { it.toList() }
+        )
+    }
     var result by remember { mutableStateOf<String?>(null) }
 
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
