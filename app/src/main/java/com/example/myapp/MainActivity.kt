@@ -26,7 +26,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import androidx.datastore.preferences.core.edit
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -206,9 +206,28 @@ val Context.dataStore by preferencesDataStore("flashcards")
 @Composable
 fun FlashcardsScreen(onBack: () -> Unit) {
     BackHandler { onBack() } // Handle Android back button
-    val lists = remember { mutableStateListOf<String>() } // List of flashcard list names
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+
+    // Collect DataStore as State - automatically updates when data changes
+    val listsJson by context.dataStore.data
+        .map { prefs -> prefs[stringPreferencesKey("lists")] }
+        .collectAsState(initial = null)
+
+    // Derive the actual list from the JSON
+    val lists = remember(listsJson) {
+        listsJson?.let { Json.decodeFromString<List<String>>(it) } ?: emptyList()
+    }
+
+    // Helper function to update DataStore
+    fun updateLists(newLists: List<String>) {
+        scope.launch(Dispatchers.IO) {
+            val key = stringPreferencesKey("lists")
+            context.dataStore.edit { prefs ->
+                prefs[key] = Json.encodeToString(newLists)
+            }
+        }
+    }
 
     var showDialog by remember { mutableStateOf(false) } // Controls whether the add/rename dialog is visible
     var dialogTitle by remember { mutableStateOf("") } // Title of the dialog ("Nouvelle liste" or "Renommer la liste")
@@ -216,24 +235,6 @@ fun FlashcardsScreen(onBack: () -> Unit) {
     var dialogAction by remember { mutableStateOf<(String) -> Unit>({}) } // Action to perform when dialog is confirmed
     var editingIndex by remember { mutableStateOf<Int?>(null) } // Index of the list being edited (null if adding new)
 
-
-    // Load lists when screen starts
-    LaunchedEffect(Unit) {
-        val key = stringPreferencesKey("lists")
-        val prefs = context.dataStore.data.first()
-        val saved = prefs[key]
-        if (saved != null) lists.addAll(Json.decodeFromString(saved))
-    }
-
-    // Function to save lists
-    fun saveLists() {
-        scope.launch(Dispatchers.IO) {
-            val key = stringPreferencesKey("lists")
-            context.dataStore.edit { prefs ->
-                prefs[key] = Json.encodeToString(lists.toList()) // convert to regular List
-            }
-        }
-    }
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -271,11 +272,13 @@ fun FlashcardsScreen(onBack: () -> Unit) {
                                 onClick = {
                                     editingIndex = index // Remember which list is being edited
                                     dialogTitle = "Renommer la liste"
-                                    dialogValue = name // Pre-fill TextField with current name
+                                    dialogValue = name
                                     dialogAction = { newName ->
-                                        lists[editingIndex!!] = newName 
+                                        val updatedLists = lists.toMutableList()
+                                        updatedLists[editingIndex!!] = newName
+                                        updatedLists[index] = newName
+                                        updateLists(updatedLists)
                                         editingIndex = null
-                                        saveLists()                     // Rename the list and save
                                     }
                                     showDialog = true
                                 },
@@ -285,8 +288,9 @@ fun FlashcardsScreen(onBack: () -> Unit) {
                             }
                             Button(
                                 onClick = {
-                                    lists.removeAt(index)
-                                    saveLists()             // Remove list and save
+                                    val updatedLists = lists.toMutableList()
+                                    updatedLists.removeAt(index)
+                                    updateLists(updatedLists)
                                           },
                                 modifier = Modifier.weight(1f)
                             ) {
@@ -306,8 +310,9 @@ fun FlashcardsScreen(onBack: () -> Unit) {
                 dialogTitle = "Nouvelle liste"
                 dialogValue = "" // Empty text for new list
                 dialogAction = { newName ->
-                    lists.add(newName)
-                    saveLists()         // // Add new list and save
+                    val updatedLists = lists.toMutableList()
+                    updatedLists.add(newName)
+                    updateLists(updatedLists)
                 }
                 showDialog = true
             },
@@ -351,7 +356,6 @@ fun FlashcardsScreen(onBack: () -> Unit) {
         )
     }
 }
-
 
 @Composable
 private fun ScreenTemplate(content: @Composable () -> Unit) {
