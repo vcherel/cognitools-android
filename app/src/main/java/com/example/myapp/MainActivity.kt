@@ -16,6 +16,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.myapp.ui.theme.MyAppTheme
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.ui.platform.LocalContext
 
 class MainActivity : ComponentActivity() {
@@ -184,7 +186,124 @@ fun VolumeBoosterScreen(onBack: () -> Unit) {
 @Composable
 fun FlashcardsScreen(onBack: () -> Unit) {
     BackHandler { onBack() }
-    ScreenTemplate(content = {})
+    val lists = remember { mutableStateListOf<String>() }
+    var showDialog by remember { mutableStateOf(false) }
+    var dialogTitle by remember { mutableStateOf("") }
+    var dialogValue by remember { mutableStateOf("") }
+    var dialogAction by remember { mutableStateOf<(String) -> Unit>({}) }
+    var editingIndex by remember { mutableStateOf<Int?>(null) }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp)
+    ) {
+        Spacer(Modifier.height(16.dp))
+        Text("Mes listes", style = MaterialTheme.typography.headlineMedium)
+        Spacer(Modifier.height(16.dp))
+
+        // Liste des cartes
+        LazyColumn(modifier = Modifier.weight(1f)) {
+            itemsIndexed(lists) { index, name ->
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        // Ligne 1 : Nom de la liste
+                        Text(
+                            text = name,
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        // Ligne 2 : Les trois boutons
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Button(
+                                onClick = { /* ouvrir la liste */ },
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text("Ouvrir")
+                            }
+                            Button(
+                                onClick = {
+                                    editingIndex = index
+                                    dialogTitle = "Renommer la liste"
+                                    dialogValue = name
+                                    dialogAction = { newName ->
+                                        lists[editingIndex!!] = newName
+                                        editingIndex = null
+                                    }
+                                    showDialog = true
+                                },
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text("Renommer")
+                            }
+                            Button(
+                                onClick = { lists.removeAt(index) },
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text("Supprimer")
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        Spacer(Modifier.height(16.dp))
+
+        // Bouton pour créer une nouvelle liste
+        Button(
+            onClick = {
+                dialogTitle = "Nouvelle liste"
+                dialogValue = ""
+                dialogAction = { newName ->
+                    lists.add(newName)
+                }
+                showDialog = true
+            },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Créer une nouvelle liste")
+        }
+    }
+
+    // Dialog pour ajouter/renommer
+    if (showDialog) {
+        AlertDialog(
+            onDismissRequest = { showDialog = false },
+            title = { Text(dialogTitle) },
+            text = {
+                TextField(
+                    value = dialogValue,
+                    onValueChange = { dialogValue = it },
+                    label = { Text("Nom de la liste") }
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        if (dialogValue.isNotBlank()) {
+                            dialogAction(dialogValue)
+                            showDialog = false
+                        }
+                    }
+                ) {
+                    Text("OK")
+                }
+            },
+            dismissButton = {
+                Button(onClick = { showDialog = false }) {
+                    Text("Annuler")
+                }
+            }
+        )
+    }
 }
 
 @Composable
