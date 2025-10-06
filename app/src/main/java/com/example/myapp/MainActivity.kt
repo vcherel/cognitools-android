@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import androidx.datastore.preferences.core.edit
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.serialization.encodeToString
@@ -219,14 +220,13 @@ fun FlashcardsScreen(onBack: () -> Unit) {
 
     // Function to save lists
     fun saveLists() {
-        scope.launch {
+        scope.launch(Dispatchers.IO) {
             val key = stringPreferencesKey("lists")
             context.dataStore.edit { prefs ->
-                prefs[key] = Json.encodeToString(lists)
+                prefs[key] = Json.encodeToString(lists.toList()) // convert to regular List
             }
         }
     }
-
     Column(
         modifier = Modifier
             .fillMaxSize()
