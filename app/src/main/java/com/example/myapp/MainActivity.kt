@@ -32,8 +32,6 @@ import androidx.navigation.compose.rememberNavController
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
-import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
 import org.json.JSONArray
 import org.json.JSONObject
 import java.util.UUID
@@ -411,13 +409,46 @@ fun FlashcardsScreen(onBack: () -> Unit, navController: NavController) {
     }
 }
 
+data class FlashcardElement(val name: String, val definition: String) {
+    fun toJson(): JSONObject {
+        return JSONObject().apply {
+            put("name", name)
+            put("definition", definition)
+        }
+    }
+
+    companion object {
+        fun fromJson(json: JSONObject): FlashcardElement {
+            return FlashcardElement(
+                name = json.getString("name"),
+                definition = json.getString("definition")
+            )
+        }
+
+        fun listToJsonString(elements: List<FlashcardElement>): String {
+            val jsonArray = JSONArray()
+            elements.forEach { jsonArray.put(it.toJson()) }
+            return jsonArray.toString()
+        }
+
+        fun listFromJsonString(jsonString: String): List<FlashcardElement> {
+            return try {
+                val jsonArray = JSONArray(jsonString)
+                List(jsonArray.length()) { i -> fromJson(jsonArray.getJSONObject(i)) }
+            } catch (_: Exception) {
+                emptyList()
+            }
+        }
+    }
+}
+
 @Composable
 fun FlashcardElementsScreen(listId: String, onBack: () -> Unit) {
     BackHandler { onBack() }
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    // Get the list name for display (optional - you could pass it as parameter too)
+    // Get the list name for display
     val listsJson by context.dataStore.data
         .map { prefs -> prefs[stringPreferencesKey("lists")] }
         .collectAsState(initial = null)
@@ -436,19 +467,20 @@ fun FlashcardElementsScreen(listId: String, onBack: () -> Unit) {
         .collectAsState(initial = null)
 
     val elements = remember(elementsJson) {
-        elementsJson?.let { Json.decodeFromString<List<String>>(it) } ?: emptyList()
+        elementsJson?.let { FlashcardElement.listFromJsonString(it) } ?: emptyList()
     }
 
-    fun updateElements(newElements: List<String>) {
+    fun updateElements(newElements: List<FlashcardElement>) {
         scope.launch(Dispatchers.IO) {
             context.dataStore.edit { prefs ->
-                prefs[key] = Json.encodeToString(newElements)
+                prefs[key] = FlashcardElement.listToJsonString(newElements)
             }
         }
     }
 
     var showDialog by remember { mutableStateOf(false) }
-    var dialogValue by remember { mutableStateOf("") }
+    var dialogName by remember { mutableStateOf("") }
+    var dialogDefinition by remember { mutableStateOf("") }
     var editingIndex by remember { mutableStateOf<Int?>(null) }
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
@@ -457,22 +489,23 @@ fun FlashcardElementsScreen(listId: String, onBack: () -> Unit) {
         Spacer(Modifier.height(16.dp))
 
         LazyColumn(modifier = Modifier.weight(1f)) {
-            itemsIndexed(elements) { index, value ->
+            itemsIndexed(elements) { index, element ->
                 Card(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        Text(value, style = MaterialTheme.typography.titleMedium)
+                        Text(element.name, style = MaterialTheme.typography.titleMedium)
+                        Text(element.definition, style = MaterialTheme.typography.bodyMedium)
                         Spacer(Modifier.height(8.dp))
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                             Button(
                                 onClick = {
                                     editingIndex = index
-                                    dialogValue = value
+                                    dialogName = element.name
+                                    dialogDefinition = element.definition
                                     showDialog = true
                                 },
                                 modifier = Modifier.weight(1f)
-                            ) {
-                                Icon(Icons.Default.Edit, contentDescription = "Éditer")
-                            }
+                            ) { Icon(Icons.Default.Edit, contentDescription = "Éditer") }
+
                             Button(
                                 onClick = {
                                     val updated = elements.toMutableList()
@@ -480,9 +513,7 @@ fun FlashcardElementsScreen(listId: String, onBack: () -> Unit) {
                                     updateElements(updated)
                                 },
                                 modifier = Modifier.weight(1f)
-                            ) {
-                                Icon(Icons.Default.Delete, contentDescription = "Supprimer")
-                            }
+                            ) { Icon(Icons.Default.Delete, contentDescription = "Supprimer") }
                         }
                     }
                 }
@@ -493,14 +524,13 @@ fun FlashcardElementsScreen(listId: String, onBack: () -> Unit) {
 
         Button(
             onClick = {
-                dialogValue = ""
+                dialogName = ""
+                dialogDefinition = ""
                 editingIndex = null
                 showDialog = true
             },
             modifier = Modifier.fillMaxWidth().height(60.dp)
-        ) {
-            Text("Ajouter un élément")
-        }
+        ) { Text("Ajouter un élément") }
     }
 
     if (showDialog) {
@@ -508,22 +538,27 @@ fun FlashcardElementsScreen(listId: String, onBack: () -> Unit) {
             onDismissRequest = { showDialog = false },
             title = { Text(if (editingIndex == null) "Nouvel élément" else "Modifier élément") },
             text = {
-                TextField(
-                    value = dialogValue,
-                    onValueChange = { dialogValue = it },
-                    label = { Text("Texte de l'élément") }
-                )
+                Column {
+                    TextField(
+                        value = dialogName,
+                        onValueChange = { dialogName = it },
+                        label = { Text("Nom") }
+                    )
+                    TextField(
+                        value = dialogDefinition,
+                        onValueChange = { dialogDefinition = it },
+                        label = { Text("Définition") }
+                    )
+                }
             },
             confirmButton = {
                 Button(
                     onClick = {
-                        if (dialogValue.isNotBlank()) {
+                        if (dialogName.isNotBlank() && dialogDefinition.isNotBlank()) {
                             val updated = elements.toMutableList()
-                            if (editingIndex == null) {
-                                updated.add(dialogValue)
-                            } else {
-                                updated[editingIndex!!] = dialogValue
-                            }
+                            val newElement = FlashcardElement(dialogName, dialogDefinition)
+                            if (editingIndex == null) updated.add(newElement)
+                            else updated[editingIndex!!] = newElement
                             updateElements(updated)
                             showDialog = false
                         }

@@ -20,8 +20,6 @@ Put comments so that I know what is going on with the variables
 
 
 
-This app is a bit slow
+XXX
 Show me what is the best thing I could to to improve performances.
 Don't rewrite the code, make a short answer.
-
-The things that takes time are (from longer to short wait time):
