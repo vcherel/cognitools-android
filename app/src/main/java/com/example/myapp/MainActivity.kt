@@ -414,11 +414,22 @@ fun FlashcardsScreen(onBack: () -> Unit, navController: NavController) {
     }
 }
 
-data class FlashcardElement(val name: String, val definition: String) {
+data class FlashcardElement(
+    val name: String,
+    val definition: String,
+    var easeFactor: Double = 2.5,       // EF, starts at 2.5
+    var interval: Int = 0,               // interval in days
+    var repetitions: Int = 0,            // consecutive correct recalls
+    var lastReview: Long = System.currentTimeMillis() // timestamp in millis
+) {
     fun toJson(): JSONObject {
         return JSONObject().apply {
             put("name", name)
             put("definition", definition)
+            put("easeFactor", easeFactor)
+            put("interval", interval)
+            put("repetitions", repetitions)
+            put("lastReview", lastReview)
         }
     }
 
@@ -426,7 +437,11 @@ data class FlashcardElement(val name: String, val definition: String) {
         fun fromJson(json: JSONObject): FlashcardElement {
             return FlashcardElement(
                 name = json.getString("name"),
-                definition = json.getString("definition")
+                definition = json.getString("definition"),
+                easeFactor = json.optDouble("easeFactor", 2.5),
+                interval = json.optInt("interval", 0),
+                repetitions = json.optInt("repetitions", 0),
+                lastReview = json.optLong("lastReview", System.currentTimeMillis())
             )
         }
 
