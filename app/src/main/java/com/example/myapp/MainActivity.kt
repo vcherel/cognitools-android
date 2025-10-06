@@ -25,6 +25,10 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import androidx.datastore.preferences.core.edit
+import androidx.navigation.NavController
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -46,6 +50,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun MainScreen() {
     var currentScreen by remember { mutableStateOf("menu") }
+    val flashcardsNavController = rememberNavController() // NavController for flashcards only
 
     Scaffold { innerPadding ->
         Box(modifier = Modifier.padding(innerPadding)) {
@@ -53,11 +58,29 @@ fun MainScreen() {
                 "menu" -> MenuScreen(onNavigate = { screen -> currentScreen = screen })
                 "randomGenerator" -> RandomGeneratorScreen(onBack = { currentScreen = "menu" })
                 "volumeBooster" -> VolumeBoosterScreen(onBack = { currentScreen = "menu" })
-                "flashcards" -> FlashcardsScreen(onBack = { currentScreen = "menu" })
+                "flashcards" -> {
+                    // NavHost for flashcards lists & elements screens
+                    NavHost(navController = flashcardsNavController, startDestination = "lists") {
+                        composable("lists") {
+                            FlashcardsScreen(
+                                onBack = { currentScreen = "menu" },
+                                navController = flashcardsNavController
+                            )
+                        }
+                        composable("elements/{listName}") { backStackEntry ->
+                            val listName = backStackEntry.arguments?.getString("listName") ?: ""
+                            FlashcardElementsScreen(
+                                listName = listName,
+                                onBack = { flashcardsNavController.popBackStack() }
+                            )
+                        }
+                    }
+                }
             }
         }
     }
 }
+
 
 @Composable
 fun MenuScreen(onNavigate: (String) -> Unit) {
@@ -204,7 +227,7 @@ fun VolumeBoosterScreen(onBack: () -> Unit) {
 val Context.dataStore by preferencesDataStore("flashcards")
 
 @Composable
-fun FlashcardsScreen(onBack: () -> Unit) {
+fun FlashcardsScreen(onBack: () -> Unit, navController: NavController) {
     BackHandler { onBack() } // Handle Android back button
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -263,7 +286,7 @@ fun FlashcardsScreen(onBack: () -> Unit) {
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Button(
-                                onClick = { /* open the list */ },
+                                onClick = { navController.navigate("elements/${name}") },
                                 modifier = Modifier.weight(1f)
                             ) {
                                 Text("Ouvrir")
@@ -352,6 +375,122 @@ fun FlashcardsScreen(onBack: () -> Unit) {
                 Button(onClick = { showDialog = false }) {
                     Text("Annuler")
                 }
+            }
+        )
+    }
+}
+
+@Composable
+fun FlashcardElementsScreen(listName: String, onBack: () -> Unit) {
+    BackHandler { onBack() } // Handle Android back button
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+
+    // Collect elements for this list from DataStore
+    val key = stringPreferencesKey("elements_$listName")
+    val elementsJson by context.dataStore.data
+        .map { prefs -> prefs[key] }
+        .collectAsState(initial = null)
+
+    // Convert JSON to actual list of elements
+    val elements = remember(elementsJson) {
+        elementsJson?.let { Json.decodeFromString<List<String>>(it) } ?: emptyList()
+    }
+
+    // Helper to update elements in DataStore
+    fun updateElements(newElements: List<String>) {
+        scope.launch(Dispatchers.IO) {
+            context.dataStore.edit { prefs ->
+                prefs[key] = Json.encodeToString(newElements)
+            }
+        }
+    }
+
+    var showDialog by remember { mutableStateOf(false) } // Show add/edit dialog
+    var dialogValue by remember { mutableStateOf("") } // Current text in dialog
+    var editingIndex by remember { mutableStateOf<Int?>(null) } // Which element is being edited
+
+    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+        Spacer(Modifier.height(16.dp))
+        Text(listName, style = MaterialTheme.typography.headlineMedium)
+        Spacer(Modifier.height(16.dp))
+
+        LazyColumn(modifier = Modifier.weight(1f)) {
+            itemsIndexed(elements) { index, value ->
+                Card(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text(value, style = MaterialTheme.typography.titleMedium)
+                        Spacer(Modifier.height(8.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                            Button(
+                                onClick = {
+                                    editingIndex = index
+                                    dialogValue = value
+                                    showDialog = true
+                                },
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Icon(Icons.Default.Edit, contentDescription = "Éditer")
+                            }
+                            Button(
+                                onClick = {
+                                    val updated = elements.toMutableList()
+                                    updated.removeAt(index)
+                                    updateElements(updated)
+                                },
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Icon(Icons.Default.Delete, contentDescription = "Supprimer")
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        Spacer(Modifier.height(16.dp))
+
+        Button(
+            onClick = {
+                dialogValue = ""
+                editingIndex = null
+                showDialog = true
+            },
+            modifier = Modifier.fillMaxWidth().height(60.dp)
+        ) {
+            Text("Ajouter un élément")
+        }
+    }
+
+    if (showDialog) {
+        AlertDialog(
+            onDismissRequest = { showDialog = false },
+            title = { Text(if (editingIndex == null) "Nouvel élément" else "Modifier élément") },
+            text = {
+                TextField(
+                    value = dialogValue,
+                    onValueChange = { dialogValue = it },
+                    label = { Text("Texte de l'élément") }
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        if (dialogValue.isNotBlank()) {
+                            val updated = elements.toMutableList()
+                            if (editingIndex == null) {
+                                updated.add(dialogValue) // Add new element
+                            } else {
+                                updated[editingIndex!!] = dialogValue // Edit existing
+                            }
+                            updateElements(updated)
+                            showDialog = false
+                        }
+                    }
+                ) { Text("OK") }
+            },
+            dismissButton = {
+                Button(onClick = { showDialog = false }) { Text("Annuler") }
             }
         )
     }
