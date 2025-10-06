@@ -519,19 +519,24 @@ fun FlashcardElementsScreen(listId: String, onBack: () -> Unit) {
                 }
             }
         }
-
         Spacer(Modifier.height(16.dp))
-
-        Button(
-            onClick = {
-                dialogName = ""
-                dialogDefinition = ""
-                editingIndex = null
-                showDialog = true
-            },
-            modifier = Modifier.fillMaxWidth().height(60.dp)
-        ) { Text("Ajouter un élément") }
+        Row(modifier = Modifier.fillMaxWidth().height(80.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            Button(
+                onClick = { /*  */ },
+                modifier = Modifier.weight(1f).height(80.dp)
+            ) { Text("Jouer") }
+            Button(
+                onClick = {
+                    dialogName = ""
+                    dialogDefinition = ""
+                    editingIndex = null
+                    showDialog = true
+                },
+                modifier = Modifier.weight(1f).height(80.dp)
+            ) { Text("Ajouter") }
+        }
     }
+
 
     if (showDialog) {
         AlertDialog(
