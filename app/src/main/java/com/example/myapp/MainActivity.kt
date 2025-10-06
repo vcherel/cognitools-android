@@ -16,6 +16,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.myapp.ui.theme.MyAppTheme
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.text.KeyboardOptions
@@ -24,6 +25,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.style.TextAlign
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import androidx.datastore.preferences.core.edit
@@ -32,11 +34,13 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONObject
 import java.util.UUID
+import kotlin.math.roundToInt
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -603,6 +607,78 @@ fun FlashcardElementsScreen(listId: String, onBack: () -> Unit, navController: N
 @Composable
 fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
     BackHandler { onBack() }
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val dataStore = context.dataStore
+
+    var flashcards by remember { mutableStateOf(listOf<FlashcardElement>()) }
+    var currentIndex by remember { mutableIntStateOf(0) }
+    var showAnswer by remember { mutableStateOf(false) }
+
+    // Load flashcards
+    LaunchedEffect(listId) {
+        val key = "flashcards_$listId"
+        val saved = dataStore.data.map { it[stringPreferencesKey(key)] ?: "[]" }.first()
+        flashcards = FlashcardElement.listFromJsonString(saved)
+    }
+
+    fun saveFlashcards() {
+        scope.launch {
+            val key = stringPreferencesKey("flashcards_$listId")
+            dataStore.edit { it[key] = FlashcardElement.listToJsonString(flashcards) }
+        }
+    }
+
+    fun updateCard(correct: Boolean) {
+        val card = flashcards[currentIndex]
+        if (correct) {
+            card.repetitions++
+            card.easeFactor = maxOf(1.3, card.easeFactor + 0.1 - (5 - 5) * 0.08) // simplified quality = 5
+            card.interval = when (card.repetitions) {
+                1 -> 1
+                2 -> 6
+                else -> (card.interval * card.easeFactor).roundToInt()
+            }
+        } else {
+            card.repetitions = 0
+            card.interval = 1
+            card.easeFactor = maxOf(1.3, card.easeFactor - 0.2)
+        }
+        card.lastReview = System.currentTimeMillis()
+        saveFlashcards()
+    }
+
+    fun nextCard() {
+        val now = System.currentTimeMillis()
+        val dueCards = flashcards.filter { now - it.lastReview >= it.interval * 24 * 60 * 60 * 1000L }
+        if (dueCards.isNotEmpty()) {
+            currentIndex = flashcards.indexOf(dueCards.random())
+        }
+        showAnswer = false
+    }
+
+    Column(modifier = Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+        if (flashcards.isNotEmpty()) {
+            Card(modifier = Modifier
+                .fillMaxWidth(0.8f)
+                .height(200.dp)
+                .clickable { showAnswer = true }
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Text(text = if (showAnswer) flashcards[currentIndex].definition else flashcards[currentIndex].name, fontSize = 24.sp, textAlign = TextAlign.Center)
+                }
+            }
+
+            Spacer(Modifier.height(20.dp))
+            Row {
+                Button(onClick = { updateCard(false); nextCard() }) { Text("Jsp") }
+                Spacer(Modifier.width(16.dp))
+                Button(onClick = { updateCard(true); nextCard() }) { Text("EZ") }
+            }
+        } else {
+            Text("Fini !", fontSize = 20.sp)
+        }
+    }
 }
 
 @Composable
