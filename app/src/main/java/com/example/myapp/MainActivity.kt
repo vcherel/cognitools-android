@@ -34,7 +34,8 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.Serializable
+import org.json.JSONArray
+import org.json.JSONObject
 import java.util.UUID
 
 class MainActivity : ComponentActivity() {
@@ -227,12 +228,39 @@ fun VolumeBoosterScreen(onBack: () -> Unit) {
 
 val Context.dataStore by preferencesDataStore("flashcards")
 
-@Serializable
-data class FlashcardList(
-    val id: String = UUID.randomUUID().toString(),
-    val name: String
-)
+data class FlashcardList(val id: String = UUID.randomUUID().toString(), val name: String) {
+    fun toJson(): JSONObject {
+        return JSONObject().apply {
+            put("id", id)
+            put("name", name)
+        }
+    }
+    companion object {
+        fun fromJson(json: JSONObject): FlashcardList {
+            return FlashcardList(
+                id = json.getString("id"),
+                name = json.getString("name")
+            )
+        }
 
+        fun listToJsonString(lists: List<FlashcardList>): String {
+            val jsonArray = JSONArray()
+            lists.forEach { jsonArray.put(it.toJson()) }
+            return jsonArray.toString()
+        }
+
+        fun listFromJsonString(jsonString: String): List<FlashcardList> {
+            return try {
+                val jsonArray = JSONArray(jsonString)
+                List(jsonArray.length()) { i ->
+                    fromJson(jsonArray.getJSONObject(i))
+                }
+            } catch (_: Exception) {
+                emptyList()
+            }
+        }
+    }
+}
 
 @Composable
 fun FlashcardsScreen(onBack: () -> Unit, navController: NavController) {
@@ -247,7 +275,7 @@ fun FlashcardsScreen(onBack: () -> Unit, navController: NavController) {
 
     // Derive the actual list from the JSON
     val lists = remember(listsJson) {
-        listsJson?.let { Json.decodeFromString<List<FlashcardList>>(it) } ?: emptyList()
+        listsJson?.let { FlashcardList.listFromJsonString(it) } ?: emptyList()
     }
 
     // Helper function to update DataStore
@@ -255,7 +283,7 @@ fun FlashcardsScreen(onBack: () -> Unit, navController: NavController) {
         scope.launch(Dispatchers.IO) {
             val key = stringPreferencesKey("lists")
             context.dataStore.edit { prefs ->
-                prefs[key] = Json.encodeToString(newLists)
+                prefs[key] = FlashcardList.listToJsonString(newLists)
             }
         }
     }
@@ -396,7 +424,7 @@ fun FlashcardElementsScreen(listId: String, onBack: () -> Unit) {
 
     val listName = remember(listsJson, listId) {
         listsJson?.let { it ->
-            Json.decodeFromString<List<FlashcardList>>(it)
+            FlashcardList.listFromJsonString(it)
                 .find { it.id == listId }?.name
         } ?: ""
     }
