@@ -18,10 +18,12 @@ import com.example.myapp.ui.theme.MyAppTheme
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import androidx.datastore.preferences.core.edit
@@ -390,7 +392,8 @@ fun FlashcardsScreen(onBack: () -> Unit, navController: NavController) {
                 TextField(
                     value = dialogValue,
                     onValueChange = { dialogValue = it },
-                    label = { Text("Nom de la liste") }
+                    label = { Text("Nom de la liste")},
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences)
                 )
             },
             confirmButton = {
@@ -561,12 +564,14 @@ fun FlashcardElementsScreen(listId: String, onBack: () -> Unit, navController: N
                     TextField(
                         value = dialogName,
                         onValueChange = { dialogName = it },
-                        label = { Text("Nom") }
+                        label = { Text("Nom") },
+                        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences)
                     )
                     TextField(
                         value = dialogDefinition,
                         onValueChange = { dialogDefinition = it },
-                        label = { Text("Définition") }
+                        label = { Text("Définition") },
+                        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences)
                     )
                 }
             },
