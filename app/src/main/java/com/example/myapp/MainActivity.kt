@@ -19,6 +19,9 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Delete
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -185,13 +188,13 @@ fun VolumeBoosterScreen(onBack: () -> Unit) {
 
 @Composable
 fun FlashcardsScreen(onBack: () -> Unit) {
-    BackHandler { onBack() }
-    val lists = remember { mutableStateListOf<String>() }
-    var showDialog by remember { mutableStateOf(false) }
-    var dialogTitle by remember { mutableStateOf("") }
-    var dialogValue by remember { mutableStateOf("") }
-    var dialogAction by remember { mutableStateOf<(String) -> Unit>({}) }
-    var editingIndex by remember { mutableStateOf<Int?>(null) }
+    BackHandler { onBack() } // Handle Android back button
+    val lists = remember { mutableStateListOf<String>() } // List of flashcard list names
+    var showDialog by remember { mutableStateOf(false) } // Controls whether the add/rename dialog is visible
+    var dialogTitle by remember { mutableStateOf("") } // Title of the dialog ("Nouvelle liste" or "Renommer la liste")
+    var dialogValue by remember { mutableStateOf("") } // Current text in the dialog's TextField
+    var dialogAction by remember { mutableStateOf<(String) -> Unit>({}) } // Action to perform when dialog is confirmed
+    var editingIndex by remember { mutableStateOf<Int?>(null) } // Index of the list being edited (null if adding new)
 
     Column(
         modifier = Modifier
@@ -199,10 +202,10 @@ fun FlashcardsScreen(onBack: () -> Unit) {
             .padding(16.dp)
     ) {
         Spacer(Modifier.height(16.dp))
-        Text("Mes listes", style = MaterialTheme.typography.headlineMedium)
+        Text("Mes listes", style = MaterialTheme.typography.headlineMedium) // Screen title
         Spacer(Modifier.height(16.dp))
 
-        // Liste des cartes
+        // Display all lists in a scrollable column
         LazyColumn(modifier = Modifier.weight(1f)) {
             itemsIndexed(lists) { index, name ->
                 Card(
@@ -211,43 +214,41 @@ fun FlashcardsScreen(onBack: () -> Unit) {
                         .padding(vertical = 8.dp)
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        // Ligne 1 : Nom de la liste
                         Text(
-                            text = name,
+                            text = name, // List name
                             style = MaterialTheme.typography.titleMedium
                         )
                         Spacer(Modifier.height(8.dp))
-                        // Ligne 2 : Les trois boutons
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Button(
-                                onClick = { /* ouvrir la liste */ },
+                                onClick = { /* open the list */ },
                                 modifier = Modifier.weight(1f)
                             ) {
                                 Text("Ouvrir")
                             }
                             Button(
                                 onClick = {
-                                    editingIndex = index
+                                    editingIndex = index // Remember which list is being edited
                                     dialogTitle = "Renommer la liste"
-                                    dialogValue = name
+                                    dialogValue = name // Pre-fill TextField with current name
                                     dialogAction = { newName ->
-                                        lists[editingIndex!!] = newName
+                                        lists[editingIndex!!] = newName // Rename the list
                                         editingIndex = null
                                     }
                                     showDialog = true
                                 },
                                 modifier = Modifier.weight(1f)
                             ) {
-                                Text("Renommer")
+                                Icon(Icons.Default.Edit, contentDescription = "Éditer")
                             }
                             Button(
-                                onClick = { lists.removeAt(index) },
+                                onClick = { lists.removeAt(index) }, // Delete the list
                                 modifier = Modifier.weight(1f)
                             ) {
-                                Text("Supprimer")
+                                Icon(Icons.Default.Delete, contentDescription = "Supprimer")
                             }
                         }
                     }
@@ -257,30 +258,32 @@ fun FlashcardsScreen(onBack: () -> Unit) {
 
         Spacer(Modifier.height(16.dp))
 
-        // Bouton pour créer une nouvelle liste
+        // Button to create a new list
         Button(
             onClick = {
                 dialogTitle = "Nouvelle liste"
-                dialogValue = ""
+                dialogValue = "" // Empty text for new list
                 dialogAction = { newName ->
-                    lists.add(newName)
+                    lists.add(newName) // Add new list
                 }
                 showDialog = true
             },
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(60.dp)
         ) {
             Text("Créer une nouvelle liste")
         }
     }
 
-    // Dialog pour ajouter/renommer
+    // Dialog to add or rename a list
     if (showDialog) {
         AlertDialog(
             onDismissRequest = { showDialog = false },
-            title = { Text(dialogTitle) },
+            title = { Text(dialogTitle) }, // Dialog title
             text = {
                 TextField(
-                    value = dialogValue,
+                    value = dialogValue, // TextField input
                     onValueChange = { dialogValue = it },
                     label = { Text("Nom de la liste") }
                 )
@@ -289,7 +292,7 @@ fun FlashcardsScreen(onBack: () -> Unit) {
                 Button(
                     onClick = {
                         if (dialogValue.isNotBlank()) {
-                            dialogAction(dialogValue)
+                            dialogAction(dialogValue) // Execute add/rename action
                             showDialog = false
                         }
                     }
@@ -305,6 +308,7 @@ fun FlashcardsScreen(onBack: () -> Unit) {
         )
     }
 }
+
 
 @Composable
 private fun ScreenTemplate(content: @Composable () -> Unit) {
