@@ -22,6 +22,13 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Delete
+import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.preferencesDataStore
+import androidx.datastore.preferences.core.edit
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -186,15 +193,39 @@ fun VolumeBoosterScreen(onBack: () -> Unit) {
     ScreenTemplate(content = {})
 }
 
+val Context.dataStore by preferencesDataStore("flashcards")
+
 @Composable
 fun FlashcardsScreen(onBack: () -> Unit) {
     BackHandler { onBack() } // Handle Android back button
     val lists = remember { mutableStateListOf<String>() } // List of flashcard list names
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+
     var showDialog by remember { mutableStateOf(false) } // Controls whether the add/rename dialog is visible
     var dialogTitle by remember { mutableStateOf("") } // Title of the dialog ("Nouvelle liste" or "Renommer la liste")
     var dialogValue by remember { mutableStateOf("") } // Current text in the dialog's TextField
     var dialogAction by remember { mutableStateOf<(String) -> Unit>({}) } // Action to perform when dialog is confirmed
     var editingIndex by remember { mutableStateOf<Int?>(null) } // Index of the list being edited (null if adding new)
+
+
+    // Load lists when screen starts
+    LaunchedEffect(Unit) {
+        val key = stringPreferencesKey("lists")
+        val prefs = context.dataStore.data.first()
+        val saved = prefs[key]
+        if (saved != null) lists.addAll(Json.decodeFromString(saved))
+    }
+
+    // Function to save lists
+    fun saveLists() {
+        scope.launch {
+            val key = stringPreferencesKey("lists")
+            context.dataStore.edit { prefs ->
+                prefs[key] = Json.encodeToString(lists)
+            }
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -235,8 +266,9 @@ fun FlashcardsScreen(onBack: () -> Unit) {
                                     dialogTitle = "Renommer la liste"
                                     dialogValue = name // Pre-fill TextField with current name
                                     dialogAction = { newName ->
-                                        lists[editingIndex!!] = newName // Rename the list
+                                        lists[editingIndex!!] = newName 
                                         editingIndex = null
+                                        saveLists()                     // Rename the list and save
                                     }
                                     showDialog = true
                                 },
@@ -245,7 +277,10 @@ fun FlashcardsScreen(onBack: () -> Unit) {
                                 Icon(Icons.Default.Edit, contentDescription = "Éditer")
                             }
                             Button(
-                                onClick = { lists.removeAt(index) }, // Delete the list
+                                onClick = {
+                                    lists.removeAt(index)
+                                    saveLists()             // Remove list and save
+                                          },
                                 modifier = Modifier.weight(1f)
                             ) {
                                 Icon(Icons.Default.Delete, contentDescription = "Supprimer")
@@ -264,7 +299,8 @@ fun FlashcardsScreen(onBack: () -> Unit) {
                 dialogTitle = "Nouvelle liste"
                 dialogValue = "" // Empty text for new list
                 dialogAction = { newName ->
-                    lists.add(newName) // Add new list
+                    lists.add(newName)
+                    saveLists()         // // Add new list and save
                 }
                 showDialog = true
             },

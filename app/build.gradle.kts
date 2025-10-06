@@ -55,6 +55,8 @@ dependencies {
     implementation(libs.androidx.compose.material3)
     implementation(libs.ads.mobile.sdk)
     implementation(libs.androidx.compose.material.icons.extended)
+    implementation(libs.androidx.datastore.preferences)
+    implementation(libs.kotlinx.serialization.json)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
