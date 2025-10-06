@@ -400,28 +400,22 @@ fun FlashcardsScreen(onBack: () -> Unit, navController: NavController) {
                             dialogAction(dialogValue)
                             showDialog = false
                         }
-                    }
-                ) {
-                    Text("OK")
-                }
+                    },
+                    modifier = Modifier.height(50.dp)
+                ) { Text("OK") }
             },
             dismissButton = {
-                Button(onClick = { showDialog = false }) {
-                    Text("Annuler")
-                }
+                Button(
+                    onClick = { showDialog = false },
+                    modifier = Modifier.height(50.dp)
+                ) { Text("Annuler") }
             }
         )
     }
 }
 
-data class FlashcardElement(
-    val name: String,
-    val definition: String,
-    var easeFactor: Double = 2.5,       // EF, starts at 2.5
-    var interval: Int = 0,               // interval in days
-    var repetitions: Int = 0,            // consecutive correct recalls
-    var lastReview: Long = System.currentTimeMillis() // timestamp in millis
-) {
+
+data class FlashcardElement(val name: String, val definition: String, var easeFactor: Double = 2.5, var interval: Int = 0, var repetitions: Int = 0, var lastReview: Long = System.currentTimeMillis()) {
     fun toJson(): JSONObject {
         return JSONObject().apply {
             put("name", name)
@@ -587,11 +581,15 @@ fun FlashcardElementsScreen(listId: String, onBack: () -> Unit, navController: N
                             updateElements(updated)
                             showDialog = false
                         }
-                    }
+                    },
+                    modifier = Modifier.height(50.dp)
                 ) { Text("OK") }
             },
             dismissButton = {
-                Button(onClick = { showDialog = false }) { Text("Annuler") }
+                Button(
+                    onClick = { showDialog = false },
+                    modifier = Modifier.height(50.dp)
+                ) { Text("Annuler") }
             }
         )
     }
