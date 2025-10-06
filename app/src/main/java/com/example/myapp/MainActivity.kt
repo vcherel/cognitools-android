@@ -60,7 +60,7 @@ fun MainScreen() {
                 "randomGenerator" -> RandomGeneratorScreen(onBack = { currentScreen = "menu" })
                 "volumeBooster" -> VolumeBoosterScreen(onBack = { currentScreen = "menu" })
                 "flashcards" -> {
-                    // NavHost for flashcards lists & elements screens
+
                     NavHost(navController = flashcardsNavController, startDestination = "lists") {
                         composable("lists") {
                             FlashcardsScreen(
@@ -72,8 +72,13 @@ fun MainScreen() {
                             val listId = backStackEntry.arguments?.getString("listId") ?: ""
                             FlashcardElementsScreen(
                                 listId = listId,
+                                navController = flashcardsNavController,
                                 onBack = { flashcardsNavController.popBackStack() }
                             )
+                        }
+                        composable("game/{listId}") { backStackEntry ->
+                            val listId = backStackEntry.arguments?.getString("listId") ?: ""
+                            FlashcardGameScreen(listId = listId, onBack = { flashcardsNavController.popBackStack() })
                         }
                     }
                 }
@@ -443,7 +448,7 @@ data class FlashcardElement(val name: String, val definition: String) {
 }
 
 @Composable
-fun FlashcardElementsScreen(listId: String, onBack: () -> Unit) {
+fun FlashcardElementsScreen(listId: String, onBack: () -> Unit, navController: NavController) {
     BackHandler { onBack() }
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -522,7 +527,7 @@ fun FlashcardElementsScreen(listId: String, onBack: () -> Unit) {
         Spacer(Modifier.height(16.dp))
         Row(modifier = Modifier.fillMaxWidth().height(80.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             Button(
-                onClick = { /*  */ },
+                onClick = { navController.navigate("game/$listId") },
                 modifier = Modifier.weight(1f).height(80.dp)
             ) { Text("Jouer") }
             Button(
@@ -575,6 +580,11 @@ fun FlashcardElementsScreen(listId: String, onBack: () -> Unit) {
             }
         )
     }
+}
+
+@Composable
+fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
+    BackHandler { onBack() }
 }
 
 @Composable
