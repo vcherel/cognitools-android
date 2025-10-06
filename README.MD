@@ -11,33 +11,17 @@ Voilà les fonctionnalités souhaités :
 
 
 J'ai ce code dans ma MainActivity :
-@Composable
-private fun MenuButton(text: String, onClick: () -> Unit) {
-Button(
-onClick = onClick,
-modifier = Modifier
-.fillMaxWidth()
-.height(70.dp)
-) {
-Text(text)
-}
-}
+XXX
 
-@Composable
-fun FlashcardsScreen(onBack: () -> Unit) {
-BackHandler { onBack() }
-ScreenTemplate(content = {})
-}
+Donne moi un code simple permettant de ...
+Mets des commentaires pour que je comprenne bien ce qui se passe dans les variables.
 
 
-@Composable
-private fun ScreenTemplate(content: @Composable () -> Unit) {
-Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-Spacer(modifier = Modifier.height(32.dp))
-content()
-}
-}
 
-Donne moi un code simple permettant de créer des listes, les supprimer, les rennomer, ou entrer dans la liste.
 
-Mets des commentaires pour que je comprenne bien
+This app is a bit slow
+Show me the top 5 things I could to to improve performances.
+Classify them from most important to less one
+Don't rewrite the code, make a short answer
+
+The things that takes time are (from longer to short wait time):

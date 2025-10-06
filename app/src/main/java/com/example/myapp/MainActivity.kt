@@ -153,25 +153,32 @@ fun RandomIntSection() {
 
 @Composable
 fun RandomWordSection(context: Context = LocalContext.current) {
-    val words by remember {
-        mutableStateOf(
-            context.assets.open("words.txt")
+    var words by remember { mutableStateOf<List<String>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(true) }
+    var result by remember { mutableStateOf<String?>(null) }
+
+    // Load words asynchronously
+    LaunchedEffect(Unit) {
+        launch(Dispatchers.IO) {
+            val loadedWords = context.assets.open("words.txt")
                 .bufferedReader()
                 .useLines { it.toList() }
-        )
+            words = loadedWords
+            isLoading = false
+        }
     }
-    var result by remember { mutableStateOf<String?>(null) }
 
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text("Mot aléatoire")
         Spacer(modifier = Modifier.height(8.dp))
         Button(
-            onClick = { result = words.random() },
+            onClick = { if (words.isNotEmpty()) result = words.random() },
+            enabled = !isLoading, // Disable button while loading
             modifier = Modifier
                 .fillMaxWidth()
                 .height(56.dp)
         ) {
-            Text("Générer")
+            Text(if (isLoading) "Chargement..." else "Générer")
         }
         Spacer(modifier = Modifier.height(8.dp))
         result?.let {
