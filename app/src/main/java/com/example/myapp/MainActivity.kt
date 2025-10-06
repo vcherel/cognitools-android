@@ -364,7 +364,7 @@ fun FlashcardsScreen(onBack: () -> Unit, navController: NavController) {
                 dialogValue = ""
                 dialogAction = { newName ->
                     val updatedLists = lists.toMutableList()
-                    updatedLists.add(FlashcardList(name = newName))
+                    updatedLists.add(0, FlashcardList(name = newName))
                     updateLists(updatedLists)
                 }
                 showDialog = true
@@ -557,7 +557,7 @@ fun FlashcardElementsScreen(listId: String, onBack: () -> Unit) {
                         if (dialogName.isNotBlank() && dialogDefinition.isNotBlank()) {
                             val updated = elements.toMutableList()
                             val newElement = FlashcardElement(dialogName, dialogDefinition)
-                            if (editingIndex == null) updated.add(newElement)
+                            if (editingIndex == null) updated.add(0, newElement)
                             else updated[editingIndex!!] = newElement
                             updateElements(updated)
                             showDialog = false
