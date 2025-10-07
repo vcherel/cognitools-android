@@ -300,11 +300,13 @@ fun exportFlashcards(lists: List<FlashcardList>, allFlashcards: List<FlashcardEl
         put("lists", JSONArray().apply {
             lists.forEach { list ->
                 put(JSONObject().apply {
-                    put("id", list.id)
                     put("name", list.name)
                     put("flashcards", JSONArray().apply {
                         flashcardsMap[list.id]?.forEach { card ->
-                            put(card.toJson())
+                            put(JSONObject().apply {
+                                put("name", card.name)
+                                put("definition", card.definition)
+                            })
                         }
                     })
                 })
@@ -319,12 +321,15 @@ fun exportFlashcards(lists: List<FlashcardList>, allFlashcards: List<FlashcardEl
 
 suspend fun loadFlashcardData(context: Context): Pair<List<FlashcardList>, List<FlashcardElement>> {
     val prefs = context.dataStore.data.first()
-    val listsJson = prefs[stringPreferencesKey("flashcard_lists")] ?: "[]"
-    val flashcardsJson = prefs[stringPreferencesKey("flashcard_elements")] ?: "[]"
-
+    val listsJson = prefs[stringPreferencesKey("lists")] ?: "[]"
     val lists = FlashcardList.listFromJsonString(JSONArray(listsJson).toString())
-    val flashcards = FlashcardElement.listFromJsonString(JSONArray(flashcardsJson).toString())
-    return lists to flashcards
+
+    val allFlashcards = lists.flatMap { list ->
+        val flashcardsJson = prefs[stringPreferencesKey("elements_${list.id}")] ?: "[]"
+        FlashcardElement.listFromJsonString(JSONArray(flashcardsJson).toString())
+    }
+
+    return lists to allFlashcards
 }
 
 @Composable
