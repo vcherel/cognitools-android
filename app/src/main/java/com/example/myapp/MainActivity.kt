@@ -2,6 +2,8 @@ package com.example.myapp
 
 import android.content.Context
 import android.os.Bundle
+import android.os.Environment
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -51,11 +53,15 @@ import androidx.navigation.NavController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONObject
+import java.io.File
+import java.io.FileOutputStream
 import java.util.UUID
 import kotlin.math.roundToInt
 
@@ -288,6 +294,39 @@ data class FlashcardList(val id: String = UUID.randomUUID().toString(), val name
     }
 }
 
+fun exportFlashcards(lists: List<FlashcardList>, allFlashcards: List<FlashcardElement>) {
+    val flashcardsMap = allFlashcards.groupBy { it.listId }
+    val exportJson = JSONObject().apply {
+        put("lists", JSONArray().apply {
+            lists.forEach { list ->
+                put(JSONObject().apply {
+                    put("id", list.id)
+                    put("name", list.name)
+                    put("flashcards", JSONArray().apply {
+                        flashcardsMap[list.id]?.forEach { card ->
+                            put(card.toJson())
+                        }
+                    })
+                })
+            }
+        })
+    }
+
+    val downloadsFolder = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+    val file = File(downloadsFolder, "flashcards_export.json")
+    FileOutputStream(file).use { it.write(exportJson.toString().toByteArray()) }
+}
+
+suspend fun loadFlashcardData(context: Context): Pair<List<FlashcardList>, List<FlashcardElement>> {
+    val prefs = context.dataStore.data.first()
+    val listsJson = prefs[stringPreferencesKey("flashcard_lists")] ?: "[]"
+    val flashcardsJson = prefs[stringPreferencesKey("flashcard_elements")] ?: "[]"
+
+    val lists = FlashcardList.listFromJsonString(JSONArray(listsJson).toString())
+    val flashcards = FlashcardElement.listFromJsonString(JSONArray(flashcardsJson).toString())
+    return lists to flashcards
+}
+
 @Composable
 fun FlashcardsScreen(onBack: () -> Unit, navController: NavController) {
     BackHandler { onBack() }
@@ -332,7 +371,13 @@ fun FlashcardsScreen(onBack: () -> Unit, navController: NavController) {
         ) {
             Text("Mes listes", style = MaterialTheme.typography.headlineMedium)
             Row {
-                IconButton(onClick = { /* TODO: Export */ }) {
+                IconButton(onClick = {
+                    CoroutineScope(Dispatchers.IO).launch {
+                        val (lists, flashcards) = loadFlashcardData(context)
+                        exportFlashcards(lists, flashcards)
+                    }
+                    Toast.makeText(context, "Exported to Downloads", Toast.LENGTH_SHORT).show()
+                }) {
                     Icon(Icons.Default.Upload, contentDescription = "Exporter")
                 }
                 IconButton(onClick = { /* TODO: Import */ }) {
@@ -443,9 +488,21 @@ fun FlashcardsScreen(onBack: () -> Unit, navController: NavController) {
     }
 }
 
-data class FlashcardElement(val name: String, val definition: String, var easeFactor: Double = 2.5, var interval: Int = 0, var repetitions: Int = 0, var lastReview: Long = System.currentTimeMillis(), var totalWins: Int = 0, var totalLosses: Int = 0, var score: Double? = null) {
+data class FlashcardElement(
+    val listId: String,
+    val name: String,
+    val definition: String,
+    var easeFactor: Double = 2.5,
+    var interval: Int = 0,
+    var repetitions: Int = 0,
+    var lastReview: Long = System.currentTimeMillis(),
+    var totalWins: Int = 0,
+    var totalLosses: Int = 0,
+    var score: Double? = null
+) {
     fun toJson(): JSONObject {
         return JSONObject().apply {
+            put("listId", listId)
             put("name", name)
             put("definition", definition)
             put("easeFactor", easeFactor)
@@ -461,6 +518,7 @@ data class FlashcardElement(val name: String, val definition: String, var easeFa
     companion object {
         fun fromJson(json: JSONObject): FlashcardElement {
             return FlashcardElement(
+                listId = json.getString("listId"),
                 name = json.getString("name"),
                 definition = json.getString("definition"),
                 easeFactor = json.optDouble("easeFactor", 2.5),
@@ -489,7 +547,6 @@ data class FlashcardElement(val name: String, val definition: String, var easeFa
         }
     }
 }
-
 fun isDue(card: FlashcardElement): Boolean {
     val now = System.currentTimeMillis()
     val intervalMs = card.interval * 60 * 1000L // interval is in minutes
@@ -744,7 +801,7 @@ fun FlashcardElementsScreen(listId: String, onBack: () -> Unit, navController: N
                             onDone = {
                                 if (dialogName.isNotBlank() && dialogDefinition.isNotBlank()) {
                                     val updated = elements.toMutableList()
-                                    val newElement = FlashcardElement(dialogName, dialogDefinition)
+                                    val newElement = FlashcardElement(listId, dialogName, dialogDefinition)
                                     if (editingIndex == null) updated.add(0, newElement)
                                     else updated[editingIndex!!] = newElement
                                     updateElements(updated)
@@ -761,7 +818,7 @@ fun FlashcardElementsScreen(listId: String, onBack: () -> Unit, navController: N
                     onClick = {
                         if (dialogName.isNotBlank() && dialogDefinition.isNotBlank()) {
                             val updated = elements.toMutableList()
-                            val newElement = FlashcardElement(dialogName, dialogDefinition)
+                            val newElement = FlashcardElement(listId, dialogName, dialogDefinition)
                             if (editingIndex == null) updated.add(0, newElement)
                             else updated[editingIndex!!] = newElement
                             updateElements(updated)
