@@ -471,6 +471,13 @@ data class FlashcardElement(val name: String, val definition: String, var easeFa
     }
 }
 
+// Function to check if a card is due for review
+fun isDue(card: FlashcardElement): Boolean {
+    val now = System.currentTimeMillis()
+    val intervalMs = card.interval * 24 * 60 * 60 * 1000L
+    return (now - card.lastReview) >= intervalMs
+}
+
 @Composable
 fun FlashcardElementsScreen(listId: String, onBack: () -> Unit, navController: NavController) {
     BackHandler { onBack() }
@@ -520,13 +527,24 @@ fun FlashcardElementsScreen(listId: String, onBack: () -> Unit, navController: N
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(listName, style = MaterialTheme.typography.headlineMedium)
-            IconButton(onClick = {
-                val resetElements = elements.map {
-                    it.copy(easeFactor = 2.5, interval = 0, repetitions = 0, lastReview = System.currentTimeMillis())
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = {
+                    val resetElements = elements.map {
+                        it.copy(easeFactor = 2.5, interval = 0, repetitions = 0, lastReview = System.currentTimeMillis())
+                    }
+                    updateElements(resetElements)
+                }) {
+                    Icon(Icons.Default.Restore, contentDescription = "Réinitialiser")
                 }
-                updateElements(resetElements)
-            }) {
-                Icon(Icons.Default.Restore, contentDescription = "Réinitialiser")
+                Spacer(Modifier.width(8.dp))
+                Box(
+                    modifier = Modifier
+                        .height(24.dp)
+                        .width(1.dp)
+                        .background(Color.Gray)
+                )
+                Spacer(Modifier.width(8.dp))
+                Text("${elements.count { isDue(it) }} à réviser", style = MaterialTheme.typography.bodyMedium)
             }
         }
         Spacer(Modifier.height(16.dp))
@@ -644,13 +662,6 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
     var showDefinition by remember { mutableStateOf(false) }
     var cardOffset by remember { mutableFloatStateOf(0f) }
     var isProcessingSwipe by remember { mutableStateOf(false) }
-
-    // Function to check if a card is due for review
-    fun isDue(card: FlashcardElement): Boolean {
-        val now = System.currentTimeMillis()
-        val intervalMs = card.interval * 24 * 60 * 60 * 1000L
-        return (now - card.lastReview) >= intervalMs
-    }
 
     // Load and filter due cards
     LaunchedEffect(elementsJson) {
