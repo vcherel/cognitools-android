@@ -32,7 +32,9 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Restore
+import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -323,7 +325,21 @@ fun FlashcardsScreen(onBack: () -> Unit, navController: NavController) {
             .padding(16.dp)
     ) {
         Spacer(Modifier.height(16.dp))
-        Text("Mes listes", style = MaterialTheme.typography.headlineMedium)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("Mes listes", style = MaterialTheme.typography.headlineMedium)
+            Row {
+                IconButton(onClick = { /* TODO: Export */ }) {
+                    Icon(Icons.Default.Upload, contentDescription = "Exporter")
+                }
+                IconButton(onClick = { /* TODO: Import */ }) {
+                    Icon(Icons.Default.Download, contentDescription = "Importer")
+                }
+            }
+        }
         Spacer(Modifier.height(16.dp))
 
         LazyColumn(modifier = Modifier.weight(1f)) {
