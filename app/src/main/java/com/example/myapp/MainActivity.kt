@@ -778,30 +778,18 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
                             .pointerInput(Unit) {
                                 detectDragGestures(
                                     onDragEnd = {
-                                        if (showDefinition) {
-                                            when {
-                                                cardOffset < -200 -> {
-                                                    // Swipe left = Correct
-                                                    handleAnswer(true)
-                                                }
-                                                cardOffset > 200 -> {
-                                                    // Swipe right = Incorrect
-                                                    handleAnswer(false)
-                                                }
-                                            }
+                                        when {
+                                            cardOffset < -200 -> handleAnswer(true)  // Swipe left = Correct
+                                            cardOffset > 200 -> handleAnswer(false)  // Swipe right = Incorrect
                                         }
                                         cardOffset = 0f
                                     }
                                 ) { change, dragAmount ->
                                     change.consume()
-                                    if (showDefinition) {
-                                        cardOffset += dragAmount.x
-                                    }
+                                    cardOffset += dragAmount.x
                                 }
                             }
-                            .clickable {
-                                if (!showDefinition) showDefinition = true
-                            },
+                            .clickable { if (!showDefinition) showDefinition = true },
                         elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
                     ) {
                         Box(
@@ -840,7 +828,7 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
                     }
 
                     // Swipe indicators
-                    if (showDefinition && cardOffset != 0f) {
+                    if (cardOffset != 0f) {
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
