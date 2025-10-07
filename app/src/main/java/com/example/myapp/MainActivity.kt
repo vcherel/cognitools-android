@@ -20,6 +20,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.material.icons.Icons
@@ -31,8 +32,11 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
@@ -527,7 +531,12 @@ fun FlashcardElementsScreen(listId: String, onBack: () -> Unit, navController: N
             Row(verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = {
                     val resetElements = elements.map {
-                        it.copy(easeFactor = 2.5, interval = 0, repetitions = 0, lastReview = System.currentTimeMillis())
+                        it.copy(
+                            easeFactor = 2.5,
+                            interval = 0,
+                            repetitions = 0,
+                            lastReview = System.currentTimeMillis()
+                        )
                     }
                     updateElements(resetElements)
                 }) {
@@ -541,7 +550,10 @@ fun FlashcardElementsScreen(listId: String, onBack: () -> Unit, navController: N
                         .background(Color.Gray)
                 )
                 Spacer(Modifier.width(8.dp))
-                Text("${elements.count { isDue(it) }} à réviser", style = MaterialTheme.typography.bodyMedium)
+                Text(
+                    "${elements.count { isDue(it) }} à réviser",
+                    style = MaterialTheme.typography.bodyMedium
+                )
             }
         }
         Spacer(Modifier.height(16.dp))
@@ -566,7 +578,8 @@ fun FlashcardElementsScreen(listId: String, onBack: () -> Unit, navController: N
                             )
                             val timeUntilReview = remember(element.lastReview, element.interval) {
                                 val now = System.currentTimeMillis()
-                                val nextReviewTime = element.lastReview + (element.interval * 60 * 1000L) // interval is in minutes
+                                val nextReviewTime =
+                                    element.lastReview + (element.interval * 60 * 1000L) // interval is in minutes
                                 val diffMs = nextReviewTime - now
 
                                 when {
@@ -636,7 +649,10 @@ fun FlashcardElementsScreen(listId: String, onBack: () -> Unit, navController: N
             }
         }
         Spacer(Modifier.height(16.dp))
-        Row(modifier = Modifier.fillMaxWidth().height(80.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth().height(80.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
             Button(
                 onClick = { navController.navigate("game/$listId") },
                 modifier = Modifier.weight(1f).height(80.dp)
@@ -653,6 +669,7 @@ fun FlashcardElementsScreen(listId: String, onBack: () -> Unit, navController: N
         }
     }
 
+    val focusRequester2 = remember { FocusRequester() }
 
     if (showDialog) {
         AlertDialog(
@@ -664,13 +681,35 @@ fun FlashcardElementsScreen(listId: String, onBack: () -> Unit, navController: N
                         value = dialogName,
                         onValueChange = { dialogName = it },
                         label = { Text("Nom") },
-                        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences)
+                        keyboardOptions = KeyboardOptions(
+                            capitalization = KeyboardCapitalization.Sentences,
+                            imeAction = ImeAction.Next
+                        ),
+                        keyboardActions = KeyboardActions(
+                            onNext = { focusRequester2.requestFocus() }
+                        )
                     )
                     TextField(
                         value = dialogDefinition,
                         onValueChange = { dialogDefinition = it },
                         label = { Text("Définition") },
-                        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences)
+                        keyboardOptions = KeyboardOptions(
+                            capitalization = KeyboardCapitalization.Sentences,
+                            imeAction = ImeAction.Done
+                        ),
+                        keyboardActions = KeyboardActions(
+                            onDone = {
+                                if (dialogName.isNotBlank() && dialogDefinition.isNotBlank()) {
+                                    val updated = elements.toMutableList()
+                                    val newElement = FlashcardElement(dialogName, dialogDefinition)
+                                    if (editingIndex == null) updated.add(0, newElement)
+                                    else updated[editingIndex!!] = newElement
+                                    updateElements(updated)
+                                    showDialog = false
+                                }
+                            }
+                        ),
+                        modifier = Modifier.focusRequester(focusRequester2)
                     )
                 }
             },
