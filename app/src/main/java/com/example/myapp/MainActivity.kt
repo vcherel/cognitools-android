@@ -16,10 +16,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.myapp.ui.theme.MyAppTheme
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.platform.LocalContext
@@ -613,12 +615,20 @@ fun FlashcardElementsScreen(listId: String, onBack: () -> Unit, navController: N
                                     9 -> Color(0xFF33FF00)
                                     else -> Color(0xFF00CC00) // green
                                 }
-                                Text(
-                                    "${element.score?.toInt() ?: 0}",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = scoreColor,
-                                    fontWeight = FontWeight.Bold
-                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Box(
+                                    contentAlignment = Alignment.Center,
+                                    modifier = Modifier
+                                        .size(24.dp) // adjust size as needed
+                                        .border(width = 2.dp, color = scoreColor, shape = CircleShape)
+                                ) {
+                                    Text(
+                                        "${element.score?.toInt() ?: 0}",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = scoreColor,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
                             }
                         }
                         Text(element.definition, style = MaterialTheme.typography.bodyMedium)
