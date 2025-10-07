@@ -335,14 +335,7 @@ suspend fun loadFlashcardData(context: Context): Pair<List<FlashcardList>, List<
 }
 
 fun importFlashcards(context: Context) {
-    val downloadsFolder = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-    val file = File(downloadsFolder, "flashcards_export.json")
-    if (!file.exists()) {
-        Toast.makeText(context, "Export file not found", Toast.LENGTH_SHORT).show()
-        return
-    }
-
-    val jsonString = file.readText()
+    val jsonString = context.assets.open("flashcards_import.json").bufferedReader().use { it.readText() }
 
     CoroutineScope(Dispatchers.IO).launch {
         val success = importFlashcardsData(context, jsonString)
