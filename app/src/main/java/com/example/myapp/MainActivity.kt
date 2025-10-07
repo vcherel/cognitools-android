@@ -325,6 +325,7 @@ fun FlashcardsScreen(onBack: () -> Unit, navController: NavController) {
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 8.dp)
+                        .clickable { navController.navigate("elements/${flashcardList.id}") }
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text(
@@ -334,17 +335,9 @@ fun FlashcardsScreen(onBack: () -> Unit, navController: NavController) {
                         Spacer(Modifier.height(8.dp))
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            horizontalArrangement = Arrangement.End
                         ) {
-                            Button(
-                                onClick = {
-                                    navController.navigate("elements/${flashcardList.id}")
-                                },
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Text("Ouvrir")
-                            }
-                            Button(
+                            IconButton(
                                 onClick = {
                                     dialogTitle = "Renommer la liste"
                                     dialogValue = flashcardList.name
@@ -354,18 +347,16 @@ fun FlashcardsScreen(onBack: () -> Unit, navController: NavController) {
                                         updateLists(updatedLists)
                                     }
                                     showDialog = true
-                                },
-                                modifier = Modifier.weight(1f)
+                                }
                             ) {
                                 Icon(Icons.Default.Edit, contentDescription = "Éditer")
                             }
-                            Button(
+                            IconButton(
                                 onClick = {
                                     val updatedLists = lists.toMutableList()
                                     updatedLists.removeAt(index)
                                     updateLists(updatedLists)
-                                },
-                                modifier = Modifier.weight(1f)
+                                }
                             ) {
                                 Icon(Icons.Default.Delete, contentDescription = "Supprimer")
                             }
@@ -471,7 +462,6 @@ data class FlashcardElement(val name: String, val definition: String, var easeFa
     }
 }
 
-// Function to check if a card is due for review
 fun isDue(card: FlashcardElement): Boolean {
     val now = System.currentTimeMillis()
     val intervalMs = card.interval * 24 * 60 * 60 * 1000L
@@ -551,8 +541,12 @@ fun FlashcardElementsScreen(listId: String, onBack: () -> Unit, navController: N
 
         LazyColumn(modifier = Modifier.weight(1f)) {
             itemsIndexed(elements) { index, element ->
-                Card(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
-                    Column(modifier = Modifier.padding(16.dp)) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp)
+                ) {
+                    Column(modifier = Modifier.padding(10.dp)) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -585,25 +579,29 @@ fun FlashcardElementsScreen(listId: String, onBack: () -> Unit, navController: N
                         }
                         Text(element.definition, style = MaterialTheme.typography.bodyMedium)
                         Spacer(Modifier.height(8.dp))
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                            Button(
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.End
+                        ) {
+                            IconButton(
                                 onClick = {
                                     editingIndex = index
                                     dialogName = element.name
                                     dialogDefinition = element.definition
                                     showDialog = true
-                                },
-                                modifier = Modifier.weight(1f)
-                            ) { Icon(Icons.Default.Edit, contentDescription = "Éditer") }
-
-                            Button(
+                                }
+                            ) {
+                                Icon(Icons.Default.Edit, contentDescription = "Éditer")
+                            }
+                            IconButton(
                                 onClick = {
                                     val updated = elements.toMutableList()
                                     updated.removeAt(index)
                                     updateElements(updated)
-                                },
-                                modifier = Modifier.weight(1f)
-                            ) { Icon(Icons.Default.Delete, contentDescription = "Supprimer") }
+                                }
+                            ) {
+                                Icon(Icons.Default.Delete, contentDescription = "Supprimer")
+                            }
                         }
                     }
                 }
