@@ -420,7 +420,6 @@ fun FlashcardsScreen(onBack: () -> Unit, navController: NavController) {
     }
 }
 
-
 data class FlashcardElement(val name: String, val definition: String, var easeFactor: Double = 2.5, var interval: Int = 0, var repetitions: Int = 0, var lastReview: Long = System.currentTimeMillis()) {
     fun toJson(): JSONObject {
         return JSONObject().apply {
@@ -464,7 +463,7 @@ data class FlashcardElement(val name: String, val definition: String, var easeFa
 
 fun isDue(card: FlashcardElement): Boolean {
     val now = System.currentTimeMillis()
-    val intervalMs = card.interval * 24 * 60 * 60 * 1000L
+    val intervalMs = card.interval * 60 * 1000L // interval is in minutes
     return (now - card.lastReview) >= intervalMs
 }
 
@@ -559,7 +558,7 @@ fun FlashcardElementsScreen(listId: String, onBack: () -> Unit, navController: N
                             )
                             val timeUntilReview = remember(element.lastReview, element.interval) {
                                 val now = System.currentTimeMillis()
-                                val nextReviewTime = element.lastReview + (element.interval * 24 * 60 * 60 * 1000L)
+                                val nextReviewTime = element.lastReview + (element.interval * 60 * 1000L) // interval is in minutes
                                 val diffMs = nextReviewTime - now
 
                                 when {
@@ -702,7 +701,6 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
         }
     }
 
-    // Function to update card with SM-2 algorithm
     fun updateCardWithSM2(card: FlashcardElement, quality: Int): FlashcardElement {
         var newEF = card.easeFactor + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02))
         if (newEF < 1.3) newEF = 1.3
@@ -710,15 +708,14 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
         val newReps = if (quality >= 3) card.repetitions + 1 else 0
 
         val newInterval = when {
-            quality < 3 -> 0 // Reset interval if failed
-            newReps == 1 -> 1
-            newReps == 2 -> 6
-            else -> (card.interval * newEF).toInt()
+            quality < 3 -> 2.0 // Reset to initial interval if failed
+            newReps == 1 -> 2.0 // Start at 2 minutes for first successful review
+            else -> card.interval * newEF // Pure exponential growth from here on
         }
 
         return card.copy(
             easeFactor = newEF,
-            interval = newInterval,
+            interval = newInterval.toInt(), // Store as integer minutes (or use Double if FlashcardElement supports it)
             repetitions = newReps,
             lastReview = System.currentTimeMillis()
         )
