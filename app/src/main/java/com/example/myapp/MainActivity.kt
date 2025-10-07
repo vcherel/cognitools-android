@@ -29,6 +29,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
@@ -513,7 +514,21 @@ fun FlashcardElementsScreen(listId: String, onBack: () -> Unit, navController: N
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
         Spacer(Modifier.height(16.dp))
-        Text(listName, style = MaterialTheme.typography.headlineMedium)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(listName, style = MaterialTheme.typography.headlineMedium)
+            IconButton(onClick = {
+                val resetElements = elements.map {
+                    it.copy(easeFactor = 2.5, interval = 0, repetitions = 0, lastReview = System.currentTimeMillis())
+                }
+                updateElements(resetElements)
+            }) {
+                Icon(Icons.Default.Restore, contentDescription = "Réinitialiser")
+            }
+        }
         Spacer(Modifier.height(16.dp))
 
         LazyColumn(modifier = Modifier.weight(1f)) {
