@@ -16,14 +16,25 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.myapp.ui.theme.MyAppTheme
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.IntOffset
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import androidx.datastore.preferences.core.edit
@@ -121,7 +132,8 @@ private fun MenuButton(text: String, onClick: () -> Unit) {
 @Composable
 fun RandomGeneratorScreen(onBack: () -> Unit) {
     BackHandler { onBack() }
-    ScreenTemplate {
+    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+        Spacer(modifier = Modifier.height(32.dp))
         Spacer(modifier = Modifier.height(96.dp))
         RandomIntSection()
         Spacer(modifier = Modifier.height(24.dp))
@@ -228,7 +240,6 @@ fun RandomWordSection(context: Context = LocalContext.current) {
 @Composable
 fun VolumeBoosterScreen(onBack: () -> Unit) {
     BackHandler { onBack() }
-    ScreenTemplate(content = {})
 }
 
 val Context.dataStore by preferencesDataStore("flashcards")
@@ -603,12 +614,309 @@ fun FlashcardElementsScreen(listId: String, onBack: () -> Unit, navController: N
 @Composable
 fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
     BackHandler { onBack() }
-}
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
 
-@Composable
-private fun ScreenTemplate(content: @Composable () -> Unit) {
-    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-        Spacer(modifier = Modifier.height(32.dp))
-        content()
+    // Load elements from DataStore
+    val key = stringPreferencesKey("elements_$listId")
+    val elementsJson by context.dataStore.data
+        .map { prefs -> prefs[key] }
+        .collectAsState(initial = null)
+
+    var allElements by remember { mutableStateOf<List<FlashcardElement>>(emptyList()) }
+    var dueCards by remember { mutableStateOf<List<FlashcardElement>>(emptyList()) }
+    var currentCard by remember { mutableStateOf<FlashcardElement?>(null) }
+    var showDefinition by remember { mutableStateOf(false) }
+    var cardOffset by remember { mutableFloatStateOf(0f) }
+    var isProcessingSwipe by remember { mutableStateOf(false) }
+
+    // Function to check if a card is due for review
+    fun isDue(card: FlashcardElement): Boolean {
+        val now = System.currentTimeMillis()
+        val intervalMs = card.interval * 24 * 60 * 60 * 1000L
+        return (now - card.lastReview) >= intervalMs
+    }
+
+    // Load and filter due cards
+    LaunchedEffect(elementsJson) {
+        elementsJson?.let {
+            val loaded = FlashcardElement.listFromJsonString(it)
+            allElements = loaded
+            dueCards = loaded.filter { card -> isDue(card) }
+            if (currentCard == null && dueCards.isNotEmpty()) {
+                currentCard = dueCards.random()
+            }
+        }
+    }
+
+    // Function to update card with SM-2 algorithm
+    fun updateCardWithSM2(card: FlashcardElement, quality: Int): FlashcardElement {
+        var newEF = card.easeFactor + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02))
+        if (newEF < 1.3) newEF = 1.3
+
+        val newReps = if (quality >= 3) card.repetitions + 1 else 0
+
+        val newInterval = when {
+            quality < 3 -> 0 // Reset interval if failed
+            newReps == 1 -> 1
+            newReps == 2 -> 6
+            else -> (card.interval * newEF).toInt()
+        }
+
+        return card.copy(
+            easeFactor = newEF,
+            interval = newInterval,
+            repetitions = newReps,
+            lastReview = System.currentTimeMillis()
+        )
+    }
+
+    // Function to save updated elements
+    fun saveElements(updated: List<FlashcardElement>) {
+        scope.launch(Dispatchers.IO) {
+            context.dataStore.edit { prefs ->
+                prefs[key] = FlashcardElement.listToJsonString(updated)
+            }
+        }
+    }
+
+    // Handle card swipe/answer
+    fun handleAnswer(wasCorrect: Boolean) {
+        if (isProcessingSwipe) return
+        isProcessingSwipe = true
+
+        currentCard?.let { card ->
+            val quality = if (wasCorrect) 4 else 2 // 4 = correct, 2 = incorrect
+            val updatedCard = updateCardWithSM2(card, quality)
+
+            // Update the card in allElements
+            val updatedElements = allElements.map {
+                if (it.name == card.name && it.definition == card.definition) updatedCard else it
+            }
+            allElements = updatedElements
+            saveElements(updatedElements)
+
+            // Update due cards list
+            dueCards = updatedElements.filter { isDue(it) }
+
+            // Move to next card
+            showDefinition = false
+            currentCard = if (dueCards.isNotEmpty()) dueCards.random() else null
+            isProcessingSwipe = false
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            // Header
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = onBack) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Retour")
+                }
+                Text(
+                    text = "Cartes à réviser: ${dueCards.size}",
+                    style = MaterialTheme.typography.titleMedium
+                )
+            }
+
+            Spacer(Modifier.height(32.dp))
+
+            // Main content
+            if (currentCard != null) {
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    // Card
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(400.dp)
+                            .offset { IntOffset(cardOffset.toInt(), 0) }
+                            .pointerInput(Unit) {
+                                detectDragGestures(
+                                    onDragEnd = {
+                                        if (showDefinition) {
+                                            when {
+                                                cardOffset < -200 -> {
+                                                    // Swipe left = Correct
+                                                    handleAnswer(true)
+                                                }
+                                                cardOffset > 200 -> {
+                                                    // Swipe right = Incorrect
+                                                    handleAnswer(false)
+                                                }
+                                            }
+                                        }
+                                        cardOffset = 0f
+                                    }
+                                ) { change, dragAmount ->
+                                    change.consume()
+                                    if (showDefinition) {
+                                        cardOffset += dragAmount.x
+                                    }
+                                }
+                            }
+                            .clickable {
+                                if (!showDefinition) showDefinition = true
+                            },
+                        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(24.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
+                            ) {
+                                Text(
+                                    text = currentCard!!.name,
+                                    style = MaterialTheme.typography.headlineMedium,
+                                    textAlign = TextAlign.Center,
+                                    fontWeight = FontWeight.Bold
+                                )
+
+                                if (showDefinition) {
+                                    Spacer(Modifier.height(24.dp))
+                                    HorizontalDivider(
+                                        Modifier,
+                                        DividerDefaults.Thickness,
+                                        DividerDefaults.color
+                                    )
+                                    Spacer(Modifier.height(24.dp))
+                                    Text(
+                                        text = currentCard!!.definition,
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        textAlign = TextAlign.Center
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // Swipe indicators
+                    if (showDefinition && cardOffset != 0f) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(32.dp),
+                            contentAlignment = if (cardOffset < 0) Alignment.CenterStart else Alignment.CenterEnd
+                        ) {
+                            Icon(
+                                imageVector = if (cardOffset < 0) Icons.Default.Check else Icons.Default.Close,
+                                contentDescription = null,
+                                tint = if (cardOffset < 0) Color.Green else Color.Red,
+                                modifier = Modifier.size(64.dp)
+                            )
+                        }
+                    }
+                }
+
+                Spacer(Modifier.height(32.dp))
+
+                // Instructions
+                if (!showDefinition) {
+                    Text(
+                        text = "Appuyez sur la carte pour révéler la définition",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                } else {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = "Glissez à gauche si vous connaissiez",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Color.Green
+                        )
+                        Text(
+                            text = "Glissez à droite si vous ne connaissiez pas",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Color.Red
+                        )
+
+                        Spacer(Modifier.height(16.dp))
+
+                        // Alternative buttons
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            Button(
+                                onClick = { handleAnswer(true) },
+                                modifier = Modifier.weight(1f).height(56.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = Color.Green)
+                            ) {
+                                Icon(Icons.Default.Check, contentDescription = null)
+                                Spacer(Modifier.width(8.dp))
+                                Text("Je savais")
+                            }
+                            Button(
+                                onClick = { handleAnswer(false) },
+                                modifier = Modifier.weight(1f).height(56.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
+                            ) {
+                                Icon(Icons.Default.Close, contentDescription = null)
+                                Spacer(Modifier.width(8.dp))
+                                Text("Je ne savais pas")
+                            }
+                        }
+                    }
+                }
+            } else {
+                // No cards due
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(32.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.CheckCircle,
+                        contentDescription = null,
+                        tint = Color.Green,
+                        modifier = Modifier.size(80.dp)
+                    )
+                    Spacer(Modifier.height(16.dp))
+                    Text(
+                        text = "Félicitations !",
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        text = "Vous avez révisé toutes les cartes disponibles",
+                        style = MaterialTheme.typography.bodyLarge,
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(Modifier.height(32.dp))
+                    Button(
+                        onClick = onBack,
+                        modifier = Modifier.fillMaxWidth().height(56.dp)
+                    ) {
+                        Text("Retour")
+                    }
+                }
+            }
+        }
     }
 }
