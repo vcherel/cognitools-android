@@ -725,9 +725,18 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
             // Update due cards list
             dueCards = updatedElements.filter { isDue(it) }
 
-            // Move to next card
+            // Move to next card (exclude current card)
             showDefinition = false
-            currentCard = if (dueCards.isNotEmpty()) dueCards.random() else null
+            val availableCards = dueCards.filter {
+                it.name != card.name || it.definition != card.definition
+            }
+            currentCard = if (availableCards.isNotEmpty()) {
+                availableCards.random()
+            } else if (dueCards.isNotEmpty()) {
+                dueCards.random() // Fallback if only one card due
+            } else {
+                null
+            }
             isProcessingSwipe = false
         }
     }
