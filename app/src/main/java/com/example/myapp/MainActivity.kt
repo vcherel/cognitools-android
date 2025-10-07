@@ -535,7 +535,10 @@ fun FlashcardElementsScreen(listId: String, onBack: () -> Unit, navController: N
                             easeFactor = 2.5,
                             interval = 0,
                             repetitions = 0,
-                            lastReview = System.currentTimeMillis()
+                            lastReview = System.currentTimeMillis(),
+                            totalWins = 0,
+                            totalLosses = 0,
+                            score = null
                         )
                     }
                     updateElements(resetElements)
