@@ -49,6 +49,7 @@ import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONObject
 import java.util.UUID
+import kotlin.math.roundToInt
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -420,7 +421,7 @@ fun FlashcardsScreen(onBack: () -> Unit, navController: NavController) {
     }
 }
 
-data class FlashcardElement(val name: String, val definition: String, var easeFactor: Double = 2.5, var interval: Int = 0, var repetitions: Int = 0, var lastReview: Long = System.currentTimeMillis()) {
+data class FlashcardElement(val name: String, val definition: String, var easeFactor: Double = 2.5, var interval: Int = 0, var repetitions: Int = 0, var lastReview: Long = System.currentTimeMillis(), var totalWins: Int = 0, var totalLosses: Int = 0, var score: Double? = null) {
     fun toJson(): JSONObject {
         return JSONObject().apply {
             put("name", name)
@@ -429,6 +430,9 @@ data class FlashcardElement(val name: String, val definition: String, var easeFa
             put("interval", interval)
             put("repetitions", repetitions)
             put("lastReview", lastReview)
+            put("totalWins", totalWins)
+            put("totalLosses", totalLosses)
+            put("score", score)
         }
     }
 
@@ -440,7 +444,10 @@ data class FlashcardElement(val name: String, val definition: String, var easeFa
                 easeFactor = json.optDouble("easeFactor", 2.5),
                 interval = json.optInt("interval", 0),
                 repetitions = json.optInt("repetitions", 0),
-                lastReview = json.optLong("lastReview", System.currentTimeMillis())
+                lastReview = json.optLong("lastReview", System.currentTimeMillis()),
+                totalWins = json.optInt("totalWins", 0),
+                totalLosses = json.optInt("totalLosses", 0),
+                score = json.optDouble("score").takeIf { !json.isNull("score") }
             )
         }
 
@@ -702,22 +709,36 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
     }
 
     fun updateCardWithSM2(card: FlashcardElement, quality: Int): FlashcardElement {
+        // Update ease factor
         var newEF = card.easeFactor + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02))
         if (newEF < 1.3) newEF = 1.3
 
+        // Update repetitions
         val newReps = if (quality >= 3) card.repetitions + 1 else 0
 
+        // Update interval with difficulty adjustment
+        val difficultyMultiplier = if (card.score != null) (11 - card.score!!) / 10 else 1.0
         val newInterval = when {
-            quality < 3 -> 2.0 // Reset to initial interval if failed
-            newReps == 1 -> 2.0 // Start at 2 minutes for first successful review
-            else -> card.interval * newEF // Pure exponential growth from here on
+            quality < 3 -> 2.0 // Reset if failed
+            newReps == 1 -> 2.0 // First successful review
+            else -> card.interval * newEF * difficultyMultiplier // Adjust interval by difficulty
         }
+
+        // Update total wins/losses
+        val newWins = card.totalWins + if (quality >= 3) 1 else 0
+        val newLosses = card.totalLosses + if (quality < 3) 1 else 0
+
+        // Update score out of 10 (percentage of correct answers)
+        val newScore = ((newWins.toDouble() / (newWins + newLosses)) * 10).roundToInt().coerceIn(0, 10)
 
         return card.copy(
             easeFactor = newEF,
-            interval = newInterval.toInt(), // Store as integer minutes (or use Double if FlashcardElement supports it)
+            interval = newInterval.toInt(),
             repetitions = newReps,
-            lastReview = System.currentTimeMillis()
+            lastReview = System.currentTimeMillis(),
+            totalWins = newWins,
+            totalLosses = newLosses,
+            score = newScore.toDouble()
         )
     }
 
