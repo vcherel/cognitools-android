@@ -584,10 +584,24 @@ fun FlashcardElementsScreen(listId: String, onBack: () -> Unit, navController: N
                                     style = MaterialTheme.typography.bodySmall,
                                     color = if (isDue(element)) Color(0xFF009900) else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
+                                val scoreColor = when (element.score?.toInt() ?: 0) {
+                                    0 -> Color(0xFFFF0000) // red
+                                    1 -> Color(0xFFFF3300)
+                                    2 -> Color(0xFFFF6600)
+                                    3 -> Color(0xFFFF9900) // orange
+                                    4 -> Color(0xFFFFCC00)
+                                    5 -> Color(0xFFFFFF00) // yellow
+                                    6 -> Color(0xFFCCFF00)
+                                    7 -> Color(0xFF99FF00)
+                                    8 -> Color(0xFF66FF00)
+                                    9 -> Color(0xFF33FF00)
+                                    else -> Color(0xFF00CC00) // green
+                                }
                                 Text(
-                                    "Score: ${element.score?.toInt() ?: 0}",
+                                    "${element.score?.toInt() ?: 0}",
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = scoreColor,
+                                    fontWeight = FontWeight.Bold
                                 )
                             }
                         }
