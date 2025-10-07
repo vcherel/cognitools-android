@@ -58,6 +58,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
@@ -332,6 +333,69 @@ suspend fun loadFlashcardData(context: Context): Pair<List<FlashcardList>, List<
     return lists to allFlashcards
 }
 
+fun importFlashcards(context: Context) {
+    val downloadsFolder = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+    val file = File(downloadsFolder, "flashcards_export.json")
+    if (!file.exists()) {
+        Toast.makeText(context, "Export file not found", Toast.LENGTH_SHORT).show()
+        return
+    }
+
+    val jsonString = file.readText()
+
+    CoroutineScope(Dispatchers.IO).launch {
+        val success = importFlashcardsData(context, jsonString)
+        withContext(Dispatchers.Main) {
+            if (success) {
+                Toast.makeText(context, "Flashcards imported successfully", Toast.LENGTH_SHORT).show()
+            } else {
+                Toast.makeText(context, "Failed to import flashcards", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+}
+
+suspend fun importFlashcardsData(context: Context, jsonString: String): Boolean {
+    return try {
+        val json = JSONObject(jsonString)
+        val listsJsonArray = json.getJSONArray("lists")
+
+        val lists = mutableListOf<FlashcardList>()
+        val allFlashcards = mutableListOf<FlashcardElement>()
+
+        for (i in 0 until listsJsonArray.length()) {
+            val listJson = listsJsonArray.getJSONObject(i)
+            val list = FlashcardList(name = listJson.getString("name"))
+            lists.add(list)
+
+            val flashcardsJsonArray = listJson.getJSONArray("flashcards")
+            for (j in 0 until flashcardsJsonArray.length()) {
+                val cardJson = flashcardsJsonArray.getJSONObject(j)
+                val card = FlashcardElement(
+                    listId = list.id,
+                    name = cardJson.getString("name"),
+                    definition = cardJson.getString("definition")
+                )
+                allFlashcards.add(card)
+            }
+        }
+
+        context.dataStore.edit { prefs ->
+            prefs[stringPreferencesKey("lists")] =
+                JSONArray(lists.map { JSONObject().apply { put("id", it.id); put("name", it.name) } }).toString()
+
+            lists.forEach { list ->
+                val cardsForList = allFlashcards.filter { it.listId == list.id }
+                prefs[stringPreferencesKey("elements_${list.id}")] =
+                    JSONArray(cardsForList.map { JSONObject().apply { put("listId", it.listId); put("name", it.name); put("definition", it.definition) } }).toString()
+            }
+        }
+        true
+    } catch (_: Exception) {
+        false
+    }
+}
+
 @Composable
 fun FlashcardsScreen(onBack: () -> Unit, navController: NavController) {
     BackHandler { onBack() }
@@ -385,7 +449,7 @@ fun FlashcardsScreen(onBack: () -> Unit, navController: NavController) {
                 }) {
                     Icon(Icons.Default.Upload, contentDescription = "Exporter")
                 }
-                IconButton(onClick = { /* TODO: Import */ }) {
+                IconButton(onClick = { importFlashcards(context) }) {
                     Icon(Icons.Default.Download, contentDescription = "Importer")
                 }
             }
