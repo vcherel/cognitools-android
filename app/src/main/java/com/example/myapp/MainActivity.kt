@@ -65,6 +65,7 @@ import java.io.File
 import java.io.FileOutputStream
 import java.util.UUID
 import kotlin.math.roundToInt
+import kotlin.random.Random
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -925,6 +926,7 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
     var showDefinition by remember { mutableStateOf(false) }
     var cardOffset by remember { mutableFloatStateOf(0f) }
     var isProcessingSwipe by remember { mutableStateOf(false) }
+    var showFront by remember { mutableStateOf(true) }
 
     // Load and filter due cards
     LaunchedEffect(elementsJson) {
@@ -1006,9 +1008,13 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
                 it.name != card.name || it.definition != card.definition
             }
             currentCard = if (availableCards.isNotEmpty()) {
-                availableCards.random()
+                val card = availableCards.random()
+                showFront = Random.nextBoolean() // Randomly show front or back
+                card
             } else if (dueCards.isNotEmpty()) {
-                dueCards.random() // Fallback if only one card due
+                val card = dueCards.random()
+                showFront = Random.nextBoolean()
+                card
             } else {
                 null
             }
@@ -1087,7 +1093,7 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
                                 verticalArrangement = Arrangement.Center
                             ) {
                                 Text(
-                                    text = currentCard!!.name,
+                                    text = if (showFront) currentCard!!.name else currentCard!!.definition,
                                     style = MaterialTheme.typography.headlineMedium,
                                     textAlign = TextAlign.Center,
                                     fontWeight = FontWeight.Bold
@@ -1102,7 +1108,7 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
                                     )
                                     Spacer(Modifier.height(24.dp))
                                     Text(
-                                        text = currentCard!!.definition,
+                                        text = if (showFront) currentCard!!.definition else currentCard!!.name,
                                         style = MaterialTheme.typography.bodyLarge,
                                         textAlign = TextAlign.Center
                                     )
