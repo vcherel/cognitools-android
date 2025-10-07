@@ -64,7 +64,6 @@ import org.json.JSONObject
 import java.io.File
 import java.io.FileOutputStream
 import java.util.UUID
-import kotlin.math.roundToInt
 import kotlin.random.Random
 
 class MainActivity : ComponentActivity() {
@@ -941,20 +940,26 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
         // Update repetitions
         val newReps = if (quality >= 3) card.repetitions + 1 else 0
 
-        // Update interval with difficulty adjustment
-        val difficultyMultiplier = if (card.score != null) (11 - card.score!!) / 10 else 1.0
-        val newInterval = when {
-            quality < 3 -> 2.0 // Reset if failed
-            newReps == 1 -> 2.0 // First successful review
-            else -> card.interval * newEF * difficultyMultiplier // Adjust interval by difficulty
-        }
-
-        // Update total wins/losses
+        // Update total wins/losses FIRST
         val newWins = card.totalWins + if (quality >= 3) 1 else 0
         val newLosses = card.totalLosses + if (quality < 3) 1 else 0
 
-        // Update score out of 10 (percentage of correct answers)
-        val newScore = ((newWins.toDouble() / (newWins + newLosses)) * 10).roundToInt().coerceIn(0, 10)
+        // Calculate new score
+        val newScore = ((newWins.toDouble() / (newWins + newLosses)) * 10).coerceIn(0.0, 10.0)
+
+        // Update interval
+        val newInterval = when {
+            quality < 3 -> {
+                // Cards you struggle with (low score) get shorter intervals
+                val baseInterval = 2.0
+                val difficultyMultiplier = if (newScore < 5.0) 0.5 else 1.0
+                baseInterval * difficultyMultiplier
+            }
+            newReps == 1 -> 2.0 // First successful review: 2 minutes
+            else -> {
+                card.interval * newEF
+            }
+        }
 
         return card.copy(
             easeFactor = newEF,
@@ -963,7 +968,7 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
             lastReview = System.currentTimeMillis(),
             totalWins = newWins,
             totalLosses = newLosses,
-            score = newScore.toDouble()
+            score = newScore
         )
     }
 
