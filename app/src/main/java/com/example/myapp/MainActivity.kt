@@ -832,52 +832,29 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
                 }
 
                 Spacer(Modifier.height(32.dp))
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Spacer(Modifier.height(16.dp))
 
-                // Instructions
-                if (!showDefinition) {
-                    Text(
-                        text = "Appuyez sur la carte pour révéler la définition",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                } else {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(
-                            text = "Glissez à gauche si vous connaissiez",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = Color.Green
-                        )
-                        Text(
-                            text = "Glissez à droite si vous ne connaissiez pas",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = Color.Red
-                        )
-
-                        Spacer(Modifier.height(16.dp))
-
-                        // Alternative buttons
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    // Alternative buttons
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        Button(
+                            onClick = { handleAnswer(true) },
+                            modifier = Modifier.weight(1f).height(90.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color.Green)
                         ) {
-                            Button(
-                                onClick = { handleAnswer(true) },
-                                modifier = Modifier.weight(1f).height(56.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = Color.Green)
-                            ) {
-                                Icon(Icons.Default.Check, contentDescription = null)
-                                Spacer(Modifier.width(8.dp))
-                                Text("Je savais")
-                            }
-                            Button(
-                                onClick = { handleAnswer(false) },
-                                modifier = Modifier.weight(1f).height(56.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
-                            ) {
-                                Icon(Icons.Default.Close, contentDescription = null)
-                                Spacer(Modifier.width(8.dp))
-                                Text("Je ne savais pas")
-                            }
+                            Icon(Icons.Default.Check, contentDescription = null, tint = Color.Black)
+                            Spacer(Modifier.width(8.dp))
+                        }
+                        Button(
+                            onClick = { handleAnswer(false) },
+                            modifier = Modifier.weight(1f).height(90.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
+                        ) {
+                            Icon(Icons.Default.Close, contentDescription = null)
+                            Spacer(Modifier.width(8.dp))
                         }
                     }
                 }

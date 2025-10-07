@@ -38,3 +38,30 @@ Ease factor (EF) – how easy the card is for you.
 Interval (I) – days/hours until the next review.
 Repetition count (n) – number of consecutive correct recalls.
 Last review time – to calculate when it’s due next.
+
+Examples :
+Scullery – Arrière-cuisine
+Grate – Grille
+Slab – Dalle
+Dripping – Graisse
+Waistcoat – Gilet
+Stiff – Raide
+Stern – Sombre
+Rag – Chiffon
+Scornful – Méprisant
+Boned – Désossé
+Bodice – Corsage
+Hooped – Cerclé
+Cognoscenti – Connaisseurs
+Frock – Robe
+Glossy – Brillant
+Lace – Dentelle
+Corrugated – Ondulé
+Mahogany – Acajou
+Twinkled – Scintillé
+Vicar – Curé
+Snap – Claquement
+Tin – Étain
+Mantelpiece – Cheminée
+Leaped – Sauté
+Trouser – Pantalon
