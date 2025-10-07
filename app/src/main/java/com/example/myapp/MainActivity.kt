@@ -526,39 +526,48 @@ fun FlashcardElementsScreen(listId: String, onBack: () -> Unit, navController: N
         Spacer(Modifier.height(16.dp))
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(listName, style = MaterialTheme.typography.headlineMedium)
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = {
-                    val resetElements = elements.map {
-                        it.copy(
-                            easeFactor = 2.5,
-                            interval = 0,
-                            repetitions = 0,
-                            lastReview = System.currentTimeMillis(),
-                            totalWins = 0,
-                            totalLosses = 0,
-                            score = null
-                        )
+            // Left Column
+            Column(modifier = Modifier.weight(1f)) {
+                Text(listName, style = MaterialTheme.typography.headlineMedium)
+            }
+
+            // Spacer to push right column to the end
+            Spacer(modifier = Modifier.width(16.dp))
+
+            // Right Column
+            Column(horizontalAlignment = Alignment.End) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = {
+                        val resetElements = elements.map {
+                            it.copy(
+                                easeFactor = 2.5,
+                                interval = 0,
+                                repetitions = 0,
+                                lastReview = System.currentTimeMillis(),
+                                totalWins = 0,
+                                totalLosses = 0,
+                                score = null
+                            )
+                        }
+                        updateElements(resetElements)
+                    }) {
+                        Icon(Icons.Default.Restore, contentDescription = "Réinitialiser")
                     }
-                    updateElements(resetElements)
-                }) {
-                    Icon(Icons.Default.Restore, contentDescription = "Réinitialiser")
+                    Spacer(Modifier.width(8.dp))
+                    Box(
+                        modifier = Modifier
+                            .height(24.dp)
+                            .width(1.dp)
+                            .background(Color.Gray)
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        "${elements.count { isDue(it) }} à réviser",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
                 }
-                Spacer(Modifier.width(8.dp))
-                Box(
-                    modifier = Modifier
-                        .height(24.dp)
-                        .width(1.dp)
-                        .background(Color.Gray)
-                )
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    "${elements.count { isDue(it) }} à réviser",
-                    style = MaterialTheme.typography.bodyMedium
-                )
             }
         }
         Spacer(Modifier.height(16.dp))
@@ -576,50 +585,55 @@ fun FlashcardElementsScreen(listId: String, onBack: () -> Unit, navController: N
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.Top
                         ) {
-                            Text(
-                                element.name,
-                                style = MaterialTheme.typography.titleMedium,
-                                modifier = Modifier.weight(1f)
-                            )
-                            val timeUntilReview = remember(element.lastReview, element.interval) {
-                                val now = System.currentTimeMillis()
-                                val nextReviewTime =
-                                    element.lastReview + (element.interval * 60 * 1000L) // interval is in minutes
-                                val diffMs = nextReviewTime - now
-
-                                when {
-                                    diffMs <= 0 -> "Maintenant"
-                                    diffMs < 60 * 60 * 1000 -> "${(diffMs / (60 * 1000)).toInt()}min"
-                                    diffMs < 24 * 60 * 60 * 1000 -> "${(diffMs / (60 * 60 * 1000)).toInt()}h"
-                                    diffMs < 7 * 24 * 60 * 60 * 1000 -> "${(diffMs / (24 * 60 * 60 * 1000)).toInt()}j"
-                                    diffMs < 30 * 24 * 60 * 60 * 1000L -> "${(diffMs / (7 * 24 * 60 * 60 * 1000)).toInt()}sem"
-                                    else -> "${(diffMs / (30 * 24 * 60 * 60 * 1000L)).toInt()}mois"
-                                }
+                            // Left column for element name & definition
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    element.name,
+                                    style = MaterialTheme.typography.titleMedium
+                                )
+                                Text(element.definition, style = MaterialTheme.typography.bodyMedium)
                             }
+
+                            // Right column for review time & score
                             Column(horizontalAlignment = Alignment.End) {
+                                val timeUntilReview = remember(element.lastReview, element.interval) {
+                                    val now = System.currentTimeMillis()
+                                    val nextReviewTime =
+                                        element.lastReview + (element.interval * 60 * 1000L)
+                                    val diffMs = nextReviewTime - now
+
+                                    when {
+                                        diffMs <= 0 -> "Maintenant"
+                                        diffMs < 60 * 60 * 1000 -> "${(diffMs / (60 * 1000)).toInt()}min"
+                                        diffMs < 24 * 60 * 60 * 1000 -> "${(diffMs / (60 * 60 * 1000)).toInt()}h"
+                                        diffMs < 7 * 24 * 60 * 60 * 1000 -> "${(diffMs / (24 * 60 * 60 * 1000)).toInt()}j"
+                                        diffMs < 30 * 24 * 60 * 60 * 1000L -> "${(diffMs / (7 * 24 * 60 * 60 * 1000)).toInt()}sem"
+                                        else -> "${(diffMs / (30 * 24 * 60 * 60 * 1000L)).toInt()}mois"
+                                    }
+                                }
                                 Text(
                                     timeUntilReview,
                                     style = MaterialTheme.typography.bodySmall,
                                     color = if (isDue(element)) Color(0xFF009900) else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                                 val scoreColor = when (element.score?.toInt() ?: 0) {
-                                    0 -> Color(0xFFFF0000) // red
+                                    0 -> Color(0xFFFF0000)
                                     1 -> Color(0xFFFF3300)
                                     2 -> Color(0xFFFF6600)
-                                    3 -> Color(0xFFFF9900) // orange
+                                    3 -> Color(0xFFFF9900)
                                     4 -> Color(0xFFFFCC00)
-                                    5 -> Color(0xFFFFFF00) // yellow
+                                    5 -> Color(0xFFFFFF00)
                                     6 -> Color(0xFFCCFF00)
                                     7 -> Color(0xFF99FF00)
                                     8 -> Color(0xFF66FF00)
                                     9 -> Color(0xFF33FF00)
-                                    else -> Color(0xFF00CC00) // green
+                                    else -> Color(0xFF00CC00)
                                 }
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Box(
                                     contentAlignment = Alignment.Center,
                                     modifier = Modifier
-                                        .size(24.dp) // adjust size as needed
+                                        .size(24.dp)
                                         .border(width = 2.dp, color = scoreColor, shape = CircleShape)
                                 ) {
                                     Text(
@@ -631,7 +645,6 @@ fun FlashcardElementsScreen(listId: String, onBack: () -> Unit, navController: N
                                 }
                             }
                         }
-                        Text(element.definition, style = MaterialTheme.typography.bodyMedium)
                         Spacer(Modifier.height(8.dp))
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -661,6 +674,7 @@ fun FlashcardElementsScreen(listId: String, onBack: () -> Unit, navController: N
                 }
             }
         }
+
         Spacer(Modifier.height(16.dp))
         Row(
             modifier = Modifier.fillMaxWidth().height(80.dp),
