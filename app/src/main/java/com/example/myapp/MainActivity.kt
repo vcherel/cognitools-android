@@ -499,7 +499,8 @@ fun FlashcardElementsScreen(listId: String, onBack: () -> Unit, navController: N
         .collectAsState(initial = null)
 
     val elements = remember(elementsJson) {
-        elementsJson?.let { FlashcardElement.listFromJsonString(it) } ?: emptyList()
+        elementsJson?.let { FlashcardElement.listFromJsonString(it) }
+            ?.sortedBy { it.lastReview + it.interval * 60 * 1000L } ?: emptyList()
     }
 
     fun updateElements(newElements: List<FlashcardElement>) {
@@ -577,11 +578,18 @@ fun FlashcardElementsScreen(listId: String, onBack: () -> Unit, navController: N
                                     else -> "${(diffMs / (30 * 24 * 60 * 60 * 1000L)).toInt()}mois"
                                 }
                             }
-                            Text(
-                                timeUntilReview,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = if (isDue(element)) Color(0xFF009900) else MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                            Column(horizontalAlignment = Alignment.End) {
+                                Text(
+                                    timeUntilReview,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = if (isDue(element)) Color(0xFF009900) else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Text(
+                                    "Score: ${element.score?.toInt() ?: 0}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                         }
                         Text(element.definition, style = MaterialTheme.typography.bodyMedium)
                         Spacer(Modifier.height(8.dp))
