@@ -553,7 +553,36 @@ fun FlashcardElementsScreen(listId: String, onBack: () -> Unit, navController: N
             itemsIndexed(elements) { index, element ->
                 Card(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        Text(element.name, style = MaterialTheme.typography.titleMedium)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.Top
+                        ) {
+                            Text(
+                                element.name,
+                                style = MaterialTheme.typography.titleMedium,
+                                modifier = Modifier.weight(1f)
+                            )
+                            val timeUntilReview = remember(element.lastReview, element.interval) {
+                                val now = System.currentTimeMillis()
+                                val nextReviewTime = element.lastReview + (element.interval * 24 * 60 * 60 * 1000L)
+                                val diffMs = nextReviewTime - now
+
+                                when {
+                                    diffMs <= 0 -> "Maintenant"
+                                    diffMs < 60 * 60 * 1000 -> "${(diffMs / (60 * 1000)).toInt()}min"
+                                    diffMs < 24 * 60 * 60 * 1000 -> "${(diffMs / (60 * 60 * 1000)).toInt()}h"
+                                    diffMs < 7 * 24 * 60 * 60 * 1000 -> "${(diffMs / (24 * 60 * 60 * 1000)).toInt()}j"
+                                    diffMs < 30 * 24 * 60 * 60 * 1000L -> "${(diffMs / (7 * 24 * 60 * 60 * 1000)).toInt()}sem"
+                                    else -> "${(diffMs / (30 * 24 * 60 * 60 * 1000L)).toInt()}mois"
+                                }
+                            }
+                            Text(
+                                timeUntilReview,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = if (isDue(element)) Color(0xFF009900) else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                         Text(element.definition, style = MaterialTheme.typography.bodyMedium)
                         Spacer(Modifier.height(8.dp))
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
