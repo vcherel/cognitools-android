@@ -35,7 +35,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Download
-import androidx.compose.material.icons.filled.Restore
+import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.ui.focus.FocusRequester
@@ -639,12 +639,16 @@ fun FlashcardElementsScreen(listId: String, onBack: () -> Unit, navController: N
         .map { prefs -> prefs[key] }
         .collectAsState(initial = null)
 
-    val elements = remember(elementsJson) {
-        elementsJson?.let { FlashcardElement.listFromJsonString(it) }
-            ?.sortedBy { it.lastReview + it.interval * 60 * 1000L } ?: emptyList()
+    var elements by remember(elementsJson) {
+        mutableStateOf(
+            elementsJson?.let { FlashcardElement.listFromJsonString(it) }
+                ?.sortedBy { it.lastReview + it.interval * 60 * 1000L }
+                ?: emptyList()
+        )
     }
 
     fun updateElements(newElements: List<FlashcardElement>) {
+        elements = newElements
         scope.launch(Dispatchers.IO) {
             context.dataStore.edit { prefs ->
                 prefs[key] = FlashcardElement.listToJsonString(newElements)
@@ -656,6 +660,7 @@ fun FlashcardElementsScreen(listId: String, onBack: () -> Unit, navController: N
     var dialogName by remember { mutableStateOf("") }
     var dialogDefinition by remember { mutableStateOf("") }
     var editingIndex by remember { mutableStateOf<Int?>(null) }
+    var sortAscending by remember { mutableStateOf(true) }
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
         Spacer(Modifier.height(16.dp))
@@ -675,20 +680,15 @@ fun FlashcardElementsScreen(listId: String, onBack: () -> Unit, navController: N
             Column(horizontalAlignment = Alignment.End) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     IconButton(onClick = {
-                        val resetElements = elements.map {
-                            it.copy(
-                                easeFactor = 2.5,
-                                interval = 0,
-                                repetitions = 0,
-                                lastReview = System.currentTimeMillis(),
-                                totalWins = 0,
-                                totalLosses = 0,
-                                score = null
-                            )
+                        val sorted = if (sortAscending) {
+                            elements.sortedBy { it.interval }
+                        } else {
+                            elements.sortedByDescending { it.interval }
                         }
-                        updateElements(resetElements)
+                        updateElements(sorted)
+                        sortAscending = !sortAscending
                     }) {
-                        Icon(Icons.Default.Restore, contentDescription = "Réinitialiser")
+                        Icon(Icons.Default.SwapVert, contentDescription = "Trier")
                     }
                     Spacer(Modifier.width(8.dp))
                     Box(
