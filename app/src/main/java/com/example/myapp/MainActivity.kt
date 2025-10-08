@@ -691,6 +691,7 @@ fun FlashcardElementsScreen(listId: String, onBack: () -> Unit, navController: N
     var sortAscending by remember { mutableStateOf(true) }
     var searchQuery by remember { mutableStateOf("") }
     var needsSorting by remember { mutableStateOf(false) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
 
     // Apply sorting when needed
     LaunchedEffect(needsSorting, elements) {
@@ -781,11 +782,18 @@ fun FlashcardElementsScreen(listId: String, onBack: () -> Unit, navController: N
                                     element.name,
                                     style = MaterialTheme.typography.titleMedium
                                 )
-                                Text(element.definition, style = MaterialTheme.typography.bodyMedium)
+                                Text(
+                                    element.definition,
+                                    style = MaterialTheme.typography.bodyLarge
+                                )
                             }
 
                             // Right column for review time & score
-                            Column(horizontalAlignment = Alignment.End) {
+                            Column(
+                                horizontalAlignment = Alignment.End,
+                                verticalArrangement = Arrangement.Top,
+                                modifier = Modifier.width(IntrinsicSize.Min)
+                            ) {
                                 val timeUntilReview = remember(element.lastReview, element.interval) {
                                     val now = System.currentTimeMillis()
                                     val nextReviewTime = element.lastReview + (element.interval * 60 * 1000L)
@@ -805,6 +813,7 @@ fun FlashcardElementsScreen(listId: String, onBack: () -> Unit, navController: N
                                     style = MaterialTheme.typography.bodySmall,
                                     color = if (isDue(element)) Color(0xFF009900) else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
+
                                 val scoreColor = when (element.score?.toInt() ?: 0) {
                                     0 -> Color(0xFFFF0000)
                                     1 -> Color(0xFFFF3300)
@@ -818,45 +827,47 @@ fun FlashcardElementsScreen(listId: String, onBack: () -> Unit, navController: N
                                     9 -> Color(0xFF33FF00)
                                     else -> Color(0xFF00CC00)
                                 }
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Box(
-                                    contentAlignment = Alignment.Center,
-                                    modifier = Modifier
-                                        .size(24.dp)
-                                        .border(width = 2.dp, color = scoreColor, shape = CircleShape)
-                                ) {
-                                    Text(
-                                        "${element.score?.toInt() ?: 0}",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = scoreColor,
-                                        fontWeight = FontWeight.Bold
-                                    )
+
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Box(
+                                        contentAlignment = Alignment.Center,
+                                        modifier = Modifier
+                                            .size(24.dp)
+                                            .border(width = 2.dp, color = scoreColor, shape = CircleShape)
+                                    ) {
+                                        Text(
+                                            "${element.score?.toInt() ?: 0}",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = scoreColor,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    IconButton(
+                                        onClick = {
+                                            editingIndex = elements.indexOf(element)
+                                            dialogName = element.name
+                                            dialogDefinition = element.definition
+                                            showDialog = true
+                                        },
+                                        modifier = Modifier.size(24.dp)
+                                    ) {
+                                        Icon(Icons.Default.Edit, contentDescription = "Éditer", modifier = Modifier.size(20.dp))
+                                    }
+
+                                    IconButton(
+                                        onClick = { showDeleteDialog = true },
+                                        modifier = Modifier.size(24.dp)
+                                    ) {
+                                        Icon(Icons.Default.Delete, contentDescription = "Supprimer", modifier = Modifier.size(20.dp))
+                                    }
                                 }
                             }
                         }
+
                         Spacer(Modifier.height(8.dp))
-
-                        var showDeleteDialog by remember { mutableStateOf(false) }
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.End
-                        ) {
-                            IconButton(
-                                onClick = {
-                                    editingIndex = elements.indexOf(element)
-                                    dialogName = element.name
-                                    dialogDefinition = element.definition
-                                    showDialog = true
-                                }
-                            ) {
-                                Icon(Icons.Default.Edit, contentDescription = "Éditer")
-                            }
-
-                            IconButton(onClick = { showDeleteDialog = true }) {
-                                Icon(Icons.Default.Delete, contentDescription = "Supprimer")
-                            }
-                        }
 
                         if (showDeleteDialog) {
                             AlertDialog(
@@ -875,11 +886,11 @@ fun FlashcardElementsScreen(listId: String, onBack: () -> Unit, navController: N
                                 }
                             )
                         }
-
                     }
                 }
             }
         }
+
 
         Spacer(Modifier.height(16.dp))
         Row(
