@@ -664,6 +664,22 @@ fun FlashcardElementsScreen(listId: String, onBack: () -> Unit, navController: N
     var sortAscending by remember { mutableStateOf(true) }
     var searchQuery by remember { mutableStateOf("") }
 
+    // Track if we need to apply sorting
+    var needsSorting by remember { mutableStateOf(false) }
+
+    // Apply sorting when needed
+    LaunchedEffect(needsSorting, elements) {
+        if (needsSorting && elements.isNotEmpty()) {
+            val sorted = if (sortAscending) {
+                elements.sortedBy { it.interval }
+            } else {
+                elements.sortedByDescending { it.interval }
+            }
+            elements = sorted
+            needsSorting = false
+        }
+    }
+
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
         Spacer(Modifier.height(16.dp))
         Row(
@@ -682,13 +698,8 @@ fun FlashcardElementsScreen(listId: String, onBack: () -> Unit, navController: N
             Column(horizontalAlignment = Alignment.End) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     IconButton(onClick = {
-                        val sorted = if (sortAscending) {
-                            elements.sortedBy { it.interval }
-                        } else {
-                            elements.sortedByDescending { it.interval }
-                        }
-                        updateElements(sorted)
                         sortAscending = !sortAscending
+                        needsSorting = true
                     }) {
                         Icon(Icons.Default.SwapVert, contentDescription = "Trier")
                     }
@@ -805,7 +816,7 @@ fun FlashcardElementsScreen(listId: String, onBack: () -> Unit, navController: N
                         ) {
                             IconButton(
                                 onClick = {
-                                    editingIndex = index
+                                    editingIndex = elements.indexOf(element)
                                     dialogName = element.name
                                     dialogDefinition = element.definition
                                     showDialog = true
@@ -816,7 +827,7 @@ fun FlashcardElementsScreen(listId: String, onBack: () -> Unit, navController: N
                             IconButton(
                                 onClick = {
                                     val updated = elements.toMutableList()
-                                    updated.removeAt(index)
+                                    updated.remove(element)
                                     updateElements(updated)
                                 }
                             ) {
