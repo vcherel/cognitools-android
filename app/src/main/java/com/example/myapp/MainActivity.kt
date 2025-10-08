@@ -1080,15 +1080,27 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
                             .clickable { if (!showDefinition) showDefinition = true },
                         elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
                     ) {
+                        val scoreColor = when (currentCard?.score?.toInt() ?: 0) {
+                            0 -> Color(0xFFFF0000)
+                            1 -> Color(0xFFFF3300)
+                            2 -> Color(0xFFFF6600)
+                            3 -> Color(0xFFFF9900)
+                            4 -> Color(0xFFFFCC00)
+                            5 -> Color(0xFFFFFF00)
+                            6 -> Color(0xFFCCFF00)
+                            7 -> Color(0xFF99FF00)
+                            8 -> Color(0xFF66FF00)
+                            9 -> Color(0xFF33FF00)
+                            else -> Color(0xFF00CC00)
+                        }
+
                         Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(24.dp),
-                            contentAlignment = Alignment.Center
+                            modifier = Modifier.fillMaxSize()
                         ) {
                             Column(
                                 horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.Center
+                                verticalArrangement = Arrangement.Center,
+                                modifier = Modifier.align(Alignment.Center)
                             ) {
                                 Text(
                                     text = if (showFront != showDefinition) currentCard!!.name else currentCard!!.definition,
@@ -1111,6 +1123,23 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
                                         textAlign = TextAlign.Center
                                     )
                                 }
+                            }
+
+                            // Score circle at top right
+                            Box(
+                                contentAlignment = Alignment.Center,
+                                modifier = Modifier
+                                    .align(Alignment.TopEnd)
+                                    .padding(16.dp)
+                                    .size(36.dp)
+                                    .border(width = 3.dp, color = scoreColor, shape = CircleShape)
+                            ) {
+                                Text(
+                                    "${currentCard?.score?.toInt() ?: 0}",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = scoreColor,
+                                    fontWeight = FontWeight.Bold
+                                )
                             }
                         }
                     }
