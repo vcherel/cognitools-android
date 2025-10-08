@@ -484,13 +484,27 @@ fun FlashcardsScreen(onBack: () -> Unit, navController: NavController) {
                             ) {
                                 Icon(Icons.Default.Edit, contentDescription = "Éditer")
                             }
-                            IconButton(
-                                onClick = {
-                                    listsState.removeAt(index)
-                                    updateLists(listsState)
-                                }
-                            ) {
+                            var showDeleteDialog by remember { mutableStateOf(false) }
+
+                            IconButton(onClick = { showDeleteDialog = true }) {
                                 Icon(Icons.Default.Delete, contentDescription = "Supprimer")
+                            }
+
+                            if (showDeleteDialog) {
+                                AlertDialog(
+                                    onDismissRequest = { showDeleteDialog = false },
+                                    title = { Text("T'es sûr ??") },
+                                    confirmButton = {
+                                        TextButton(onClick = {
+                                            listsState.removeAt(index)
+                                            updateLists(listsState)
+                                            showDeleteDialog = false
+                                        }) { Text("Oui t'inquiète") }
+                                    },
+                                    dismissButton = {
+                                        TextButton(onClick = { showDeleteDialog = false }) { Text("Oula non merci") }
+                                    }
+                                )
                             }
                         }
                     }
@@ -808,6 +822,9 @@ fun FlashcardElementsScreen(listId: String, onBack: () -> Unit, navController: N
                             }
                         }
                         Spacer(Modifier.height(8.dp))
+
+                        var showDeleteDialog by remember { mutableStateOf(false) }
+
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.End
@@ -822,16 +839,30 @@ fun FlashcardElementsScreen(listId: String, onBack: () -> Unit, navController: N
                             ) {
                                 Icon(Icons.Default.Edit, contentDescription = "Éditer")
                             }
-                            IconButton(
-                                onClick = {
-                                    val updated = elements.toMutableList()
-                                    updated.remove(element)
-                                    updateElements(updated)
-                                }
-                            ) {
+
+                            IconButton(onClick = { showDeleteDialog = true }) {
                                 Icon(Icons.Default.Delete, contentDescription = "Supprimer")
                             }
                         }
+
+                        if (showDeleteDialog) {
+                            AlertDialog(
+                                onDismissRequest = { showDeleteDialog = false },
+                                title = { Text("T'es sûr ??") },
+                                confirmButton = {
+                                    TextButton(onClick = {
+                                        val updated = elements.toMutableList()
+                                        updated.remove(element)
+                                        updateElements(updated)
+                                        showDeleteDialog = false
+                                    }) { Text("Oui t'inquiète") }
+                                },
+                                dismissButton = {
+                                    TextButton(onClick = { showDeleteDialog = false }) { Text("Oula non merci") }
+                                }
+                            )
+                        }
+
                     }
                 }
             }
