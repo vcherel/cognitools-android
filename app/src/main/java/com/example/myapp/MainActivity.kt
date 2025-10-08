@@ -355,33 +355,64 @@ suspend fun importFlashcardsData(context: Context, jsonString: String): Boolean 
         val json = JSONObject(jsonString)
         val listsJsonArray = json.getJSONArray("lists")
 
-        val lists = mutableListOf<FlashcardList>()
-        val allFlashcards = mutableListOf<FlashcardElement>()
+        // Read existing lists and elements
+        val prefs = context.dataStore.data.first()
+        val existingListsJson = prefs[stringPreferencesKey("lists")]?.let { JSONArray(it) } ?: JSONArray()
+        val existingLists = mutableListOf<FlashcardList>()
+        for (i in 0 until existingListsJson.length()) {
+            val obj = existingListsJson.getJSONObject(i)
+            existingLists.add(FlashcardList(id = obj.getString("id"), name = obj.getString("name")))
+        }
 
+        val existingElements = mutableListOf<FlashcardElement>()
+        existingLists.forEach { list ->
+            val key = stringPreferencesKey("elements_${list.id}")
+            val cardsJson = prefs[key]?.let { JSONArray(it) } ?: JSONArray()
+            for (i in 0 until cardsJson.length()) {
+                val obj = cardsJson.getJSONObject(i)
+                existingElements.add(
+                    FlashcardElement(
+                        listId = obj.getString("listId"),
+                        name = obj.getString("name"),
+                        definition = obj.getString("definition")
+                    )
+                )
+            }
+        }
+
+        // Parse imported lists and cards
+        val newLists = mutableListOf<FlashcardList>()
+        val newElements = mutableListOf<FlashcardElement>()
         for (i in 0 until listsJsonArray.length()) {
             val listJson = listsJsonArray.getJSONObject(i)
             val list = FlashcardList(name = listJson.getString("name"))
-            lists.add(list)
+            newLists.add(list)
 
             val flashcardsJsonArray = listJson.getJSONArray("flashcards")
             for (j in 0 until flashcardsJsonArray.length()) {
                 val cardJson = flashcardsJsonArray.getJSONObject(j)
-                val card = FlashcardElement(
-                    listId = list.id,
-                    name = cardJson.getString("name"),
-                    definition = cardJson.getString("definition")
+                newElements.add(
+                    FlashcardElement(
+                        listId = list.id,
+                        name = cardJson.getString("name"),
+                        definition = cardJson.getString("definition")
+                    )
                 )
-                allFlashcards.add(card)
             }
         }
 
-        context.dataStore.edit { prefs ->
-            prefs[stringPreferencesKey("lists")] =
-                JSONArray(lists.map { JSONObject().apply { put("id", it.id); put("name", it.name) } }).toString()
+        // Merge existing and new
+        val allLists = existingLists + newLists
+        val allElements = existingElements + newElements
 
-            lists.forEach { list ->
-                val cardsForList = allFlashcards.filter { it.listId == list.id }
-                prefs[stringPreferencesKey("elements_${list.id}")] =
+        // Save back to DataStore
+        context.dataStore.edit { store ->
+            store[stringPreferencesKey("lists")] =
+                JSONArray(allLists.map { JSONObject().apply { put("id", it.id); put("name", it.name) } }).toString()
+
+            allLists.forEach { list ->
+                val cardsForList = allElements.filter { it.listId == list.id }
+                store[stringPreferencesKey("elements_${list.id}")] =
                     JSONArray(cardsForList.map { JSONObject().apply { put("listId", it.listId); put("name", it.name); put("definition", it.definition) } }).toString()
             }
         }
