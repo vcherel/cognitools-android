@@ -951,13 +951,13 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
         val newInterval = when {
             quality < 3 -> {
                 // Cards you struggle with (low score) get shorter intervals
-                val baseInterval = 2.0
+                val baseInterval = 3.0
                 val difficultyMultiplier = if (newScore < 5.0) 0.5 else 1.0
                 baseInterval * difficultyMultiplier
             }
-            newReps == 1 -> 2.0 // First successful review: 2 minutes
+            newReps == 1 -> 7.0
             else -> {
-                card.interval * newEF
+                1.5 * card.interval * newEF
             }
         }
 
