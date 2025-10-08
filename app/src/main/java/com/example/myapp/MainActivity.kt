@@ -398,7 +398,6 @@ fun FlashcardsScreen(onBack: () -> Unit, navController: NavController) {
 
     val listsState = remember { mutableStateListOf<FlashcardList>() }
 
-    // Collect DataStore as State
     val listsJson by context.dataStore.data
         .map { prefs -> prefs[stringPreferencesKey("lists")] }
         .collectAsState(initial = null)
@@ -417,6 +416,13 @@ fun FlashcardsScreen(onBack: () -> Unit, navController: NavController) {
                 prefs[key] = FlashcardList.listToJsonString(newLists)
             }
         }
+    }
+
+    var flashcards by remember { mutableStateOf<List<FlashcardElement>>(emptyList()) }
+
+    LaunchedEffect(Unit) {
+        val (_, cards) = loadFlashcardData(context)
+        flashcards = cards
     }
 
     var showDialog by remember { mutableStateOf(false) }
@@ -462,10 +468,24 @@ fun FlashcardsScreen(onBack: () -> Unit, navController: NavController) {
                         .clickable { navController.navigate("elements/${flashcardList.id}") }
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        Text(
-                            text = flashcardList.name,
-                            style = MaterialTheme.typography.titleMedium
-                        )
+                        val dueCount = flashcards.count { it.listId == flashcardList.id && isDue(it) }
+
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(8.dp)
+                        ) {
+                            Column {
+                                Text(flashcardList.name, style = MaterialTheme.typography.titleMedium)
+                                Spacer(Modifier.height(4.dp))
+                                Text(
+                                    "$dueCount à réviser",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = Color.Gray
+                                )
+                            }
+                        }
+
                         Spacer(Modifier.height(8.dp))
                         Row(
                             modifier = Modifier.fillMaxWidth(),
