@@ -401,19 +401,20 @@ suspend fun importFlashcardsData(context: Context, jsonString: String): Boolean 
             }
         }
 
-        // Merge existing and new
-        val allLists = existingLists + newLists
-        val allElements = existingElements + newElements
-
-        // Save back to DataStore
         context.dataStore.edit { store ->
-            store[stringPreferencesKey("lists")] =
-                JSONArray(allLists.map { JSONObject().apply { put("id", it.id); put("name", it.name) } }).toString()
+            val updatedListsJson = JSONArray(existingLists.map { JSONObject().apply { put("id", it.id); put("name", it.name) } })
+            newLists.forEach { list ->
+                updatedListsJson.put(JSONObject().apply { put("id", list.id); put("name", list.name) })
+            }
+            store[stringPreferencesKey("lists")] = updatedListsJson.toString()
 
-            allLists.forEach { list ->
-                val cardsForList = allElements.filter { it.listId == list.id }
-                store[stringPreferencesKey("elements_${list.id}")] =
-                    JSONArray(cardsForList.map { JSONObject().apply { put("listId", it.listId); put("name", it.name); put("definition", it.definition) } }).toString()
+            newLists.forEach { list ->
+                val key = stringPreferencesKey("elements_${list.id}")
+                val cardsJson = JSONArray()
+                newElements.filter { it.listId == list.id }.forEach { card ->
+                    cardsJson.put(JSONObject().apply { put("listId", card.listId); put("name", card.name); put("definition", card.definition) })
+                }
+                store[key] = cardsJson.toString()
             }
         }
         true
