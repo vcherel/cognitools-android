@@ -1085,7 +1085,7 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
             else -> {
                 // If we don't click on card, we see the card even less
                 val qualityMultiplier = if (showDefinition) 1.0 else 1.5
-                // 1.3 is here to make interval longers quicker
+                // 1.3 is here to make interval longer quicker
                 1.3 * card.interval * newEF * qualityMultiplier
             }
         }
