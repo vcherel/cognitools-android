@@ -40,6 +40,8 @@ import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material.icons.filled.Upload
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -837,7 +839,13 @@ fun FlashcardElementsScreen(listId: String, onBack: () -> Unit, navController: N
                                     ) {
                                         Text(
                                             "${element.score?.toInt() ?: 0}",
-                                            style = MaterialTheme.typography.bodySmall,
+                                            style = MaterialTheme.typography.bodySmall.copy(
+                                                shadow = Shadow(
+                                                    color = Color.Black,
+                                                    offset = Offset(0f, 0f),
+                                                    blurRadius = 1f
+                                                )
+                                            ),
                                             color = scoreColor,
                                             fontWeight = FontWeight.Bold
                                         )
@@ -1211,7 +1219,13 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
                             ) {
                                 Text(
                                     "${currentCard?.score?.toInt() ?: 0}",
-                                    style = MaterialTheme.typography.bodyLarge,
+                                    style = MaterialTheme.typography.bodyLarge.copy(
+                                        shadow = Shadow(
+                                            color = Color.Black,
+                                            offset = Offset(0f, 0f),
+                                            blurRadius = 4f
+                                        )
+                                    ),
                                     color = scoreColor,
                                     fontWeight = FontWeight.Bold
                                 )
