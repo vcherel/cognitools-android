@@ -1070,15 +1070,23 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
 
         // Update interval
         val newInterval = when {
+            // Cards you struggle with get shorter intervals
             quality < 3 -> {
-                // Cards you struggle with (low score) get shorter intervals
-                val baseInterval = 3.0
-                val difficultyMultiplier = if (newScore < 5.0) 0.5 else 1.0
-                baseInterval * difficultyMultiplier
+                when {
+                    newScore < 4 -> 1.0
+                    newScore in 4.0..6.99 -> 2.0
+                    else -> 3.0
+                }
             }
-            newReps == 1 -> 7.0
+
+            // On the first win we have to wait 6 minutes
+            newReps == 1 -> 6.0
+
             else -> {
-                1.5 * card.interval * newEF
+                // If we don't click on card, we see the card even less
+                val qualityMultiplier = if (showDefinition) 1.0 else 1.5
+                // 1.3 is here to make interval longers quicker
+                1.3 * card.interval * newEF * qualityMultiplier
             }
         }
 
