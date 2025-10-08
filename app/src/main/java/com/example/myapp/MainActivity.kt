@@ -1091,7 +1091,7 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
                                 verticalArrangement = Arrangement.Center
                             ) {
                                 Text(
-                                    text = if (showFront) currentCard!!.name else currentCard!!.definition,
+                                    text = if (showFront != showDefinition) currentCard!!.name else currentCard!!.definition,
                                     style = MaterialTheme.typography.headlineMedium,
                                     textAlign = TextAlign.Center,
                                     fontWeight = FontWeight.Bold
@@ -1106,7 +1106,7 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
                                     )
                                     Spacer(Modifier.height(24.dp))
                                     Text(
-                                        text = if (showFront) currentCard!!.definition else currentCard!!.name,
+                                        text = if (showFront) currentCard!!.name else currentCard!!.definition,
                                         style = MaterialTheme.typography.bodyLarge,
                                         textAlign = TextAlign.Center
                                     )
