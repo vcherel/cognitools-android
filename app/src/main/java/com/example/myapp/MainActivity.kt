@@ -470,12 +470,8 @@ fun FlashcardsScreen(onBack: () -> Unit, navController: NavController) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         val dueCount = flashcards.count { it.listId == flashcardList.id && isDue(it) }
 
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(8.dp)
-                        ) {
-                            Column {
+                        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+                            Column(modifier = Modifier.weight(1f)) {
                                 Text(flashcardList.name, style = MaterialTheme.typography.titleMedium)
                                 Spacer(Modifier.height(4.dp))
                                 Text(
@@ -484,47 +480,44 @@ fun FlashcardsScreen(onBack: () -> Unit, navController: NavController) {
                                     color = Color.Gray
                                 )
                             }
-                        }
 
-                        Spacer(Modifier.height(8.dp))
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.End
-                        ) {
-                            IconButton(
-                                onClick = {
-                                    dialogTitle = "Renommer la liste"
-                                    dialogValue = flashcardList.name
-                                    dialogAction = { newName ->
-                                        listsState[index] = flashcardList.copy(name = newName)
-                                        updateLists(listsState)
-                                    }
-                                    showDialog = true
-                                }
-                            ) {
-                                Icon(Icons.Default.Edit, contentDescription = "Éditer")
-                            }
-                            var showDeleteDialog by remember { mutableStateOf(false) }
-
-                            IconButton(onClick = { showDeleteDialog = true }) {
-                                Icon(Icons.Default.Delete, contentDescription = "Supprimer")
-                            }
-
-                            if (showDeleteDialog) {
-                                AlertDialog(
-                                    onDismissRequest = { showDeleteDialog = false },
-                                    title = { Text("T'es sûr ??") },
-                                    confirmButton = {
-                                        TextButton(onClick = {
-                                            listsState.removeAt(index)
+                            Row {
+                                IconButton(
+                                    onClick = {
+                                        dialogTitle = "Renommer la liste"
+                                        dialogValue = flashcardList.name
+                                        dialogAction = { newName ->
+                                            listsState[index] = flashcardList.copy(name = newName)
                                             updateLists(listsState)
-                                            showDeleteDialog = false
-                                        }) { Text("Oui t'inquiète") }
-                                    },
-                                    dismissButton = {
-                                        TextButton(onClick = { showDeleteDialog = false }) { Text("Oula non merci") }
+                                        }
+                                        showDialog = true
                                     }
-                                )
+                                ) {
+                                    Icon(Icons.Default.Edit, contentDescription = "Éditer")
+                                }
+
+                                var showDeleteDialog by remember { mutableStateOf(false) }
+
+                                IconButton(onClick = { showDeleteDialog = true }) {
+                                    Icon(Icons.Default.Delete, contentDescription = "Supprimer")
+                                }
+
+                                if (showDeleteDialog) {
+                                    AlertDialog(
+                                        onDismissRequest = { showDeleteDialog = false },
+                                        title = { Text("T'es sûr ??") },
+                                        confirmButton = {
+                                            TextButton(onClick = {
+                                                listsState.removeAt(index)
+                                                updateLists(listsState)
+                                                showDeleteDialog = false
+                                            }) { Text("Oui t'inquiète") }
+                                        },
+                                        dismissButton = {
+                                            TextButton(onClick = { showDeleteDialog = false }) { Text("Oula non merci") }
+                                        }
+                                    )
+                                }
                             }
                         }
                     }
