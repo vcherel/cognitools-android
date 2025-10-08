@@ -35,6 +35,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material3.HorizontalDivider
@@ -661,6 +662,7 @@ fun FlashcardElementsScreen(listId: String, onBack: () -> Unit, navController: N
     var dialogDefinition by remember { mutableStateOf("") }
     var editingIndex by remember { mutableStateOf<Int?>(null) }
     var sortAscending by remember { mutableStateOf(true) }
+    var searchQuery by remember { mutableStateOf("") }
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
         Spacer(Modifier.height(16.dp))
@@ -707,8 +709,24 @@ fun FlashcardElementsScreen(listId: String, onBack: () -> Unit, navController: N
         }
         Spacer(Modifier.height(16.dp))
 
+        TextField(
+            value = searchQuery,
+            onValueChange = { searchQuery = it },
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = { Text("Rechercher...") },
+            singleLine = true,
+            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) }
+        )
+
+        Spacer(Modifier.height(16.dp))
+
+        val filteredElements = elements.filter {
+            it.name.contains(searchQuery, ignoreCase = true) ||
+                    it.definition.contains(searchQuery, ignoreCase = true)
+        }
+
         LazyColumn(modifier = Modifier.weight(1f)) {
-            itemsIndexed(elements) { index, element ->
+            itemsIndexed(filteredElements) { index, element ->
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
