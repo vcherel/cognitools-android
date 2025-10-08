@@ -663,17 +663,15 @@ fun FlashcardElementsScreen(listId: String, onBack: () -> Unit, navController: N
     var editingIndex by remember { mutableStateOf<Int?>(null) }
     var sortAscending by remember { mutableStateOf(true) }
     var searchQuery by remember { mutableStateOf("") }
-
-    // Track if we need to apply sorting
     var needsSorting by remember { mutableStateOf(false) }
 
     // Apply sorting when needed
     LaunchedEffect(needsSorting, elements) {
         if (needsSorting && elements.isNotEmpty()) {
             val sorted = if (sortAscending) {
-                elements.sortedBy { it.interval }
+                elements.sortedBy { it.lastReview + (it.interval * 60 * 1000L) }
             } else {
-                elements.sortedByDescending { it.interval }
+                elements.sortedByDescending { it.lastReview + (it.interval * 60 * 1000L) }
             }
             elements = sorted
             needsSorting = false
@@ -736,6 +734,7 @@ fun FlashcardElementsScreen(listId: String, onBack: () -> Unit, navController: N
                     it.definition.contains(searchQuery, ignoreCase = true)
         }
 
+        // List of elements
         LazyColumn(modifier = Modifier.weight(1f)) {
             itemsIndexed(filteredElements) { index, element ->
                 Card(
@@ -762,8 +761,7 @@ fun FlashcardElementsScreen(listId: String, onBack: () -> Unit, navController: N
                             Column(horizontalAlignment = Alignment.End) {
                                 val timeUntilReview = remember(element.lastReview, element.interval) {
                                     val now = System.currentTimeMillis()
-                                    val nextReviewTime =
-                                        element.lastReview + (element.interval * 60 * 1000L)
+                                    val nextReviewTime = element.lastReview + (element.interval * 60 * 1000L)
                                     val diffMs = nextReviewTime - now
 
                                     when {
