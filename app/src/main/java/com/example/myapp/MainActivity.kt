@@ -472,11 +472,11 @@ fun FlashcardsScreen(onBack: () -> Unit, navController: NavController) {
 
                         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
                             Column(modifier = Modifier.weight(1f)) {
-                                Text(flashcardList.name, style = MaterialTheme.typography.titleMedium)
+                                Text(flashcardList.name, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                                 Spacer(Modifier.height(4.dp))
                                 Text(
                                     "$dueCount à réviser",
-                                    style = MaterialTheme.typography.bodyMedium,
+                                    style = MaterialTheme.typography.bodyLarge,
                                     color = Color.Gray
                                 )
                             }
@@ -1192,12 +1192,6 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
                                 )
 
                                 if (showDefinition) {
-                                    Spacer(Modifier.height(24.dp))
-                                    HorizontalDivider(
-                                        Modifier,
-                                        DividerDefaults.Thickness,
-                                        DividerDefaults.color
-                                    )
                                     Spacer(Modifier.height(24.dp))
                                     Text(
                                         text = if (showFront) currentCard!!.name else currentCard!!.definition,
