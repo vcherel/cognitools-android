@@ -1338,23 +1338,98 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
                     // Alternative buttons
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                        horizontalArrangement = Arrangement.spacedBy(20.dp)
                     ) {
-                        Button(
-                            onClick = { handleAnswer(true) },
-                            modifier = Modifier.weight(1f).height(90.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = Color.Green)
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(140.dp)
                         ) {
-                            Icon(Icons.Default.Check, contentDescription = null, tint = Color.Black)
-                            Spacer(Modifier.width(8.dp))
+                            // Shadow layer
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .offset(y = 6.dp)
+                                    .background(
+                                        Color(0xFF2E7D32),
+                                        RoundedCornerShape(16.dp)
+                                    )
+                            )
+                            // Main button
+                            Button(
+                                onClick = { handleAnswer(true) },
+                                modifier = Modifier.fillMaxSize(),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = Color(0xFF66BB6A)
+                                ),
+                                shape = RoundedCornerShape(16.dp),
+                                contentPadding = PaddingValues(0.dp)
+                            ) {
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.Center
+                                ) {
+                                    Icon(
+                                        Icons.Default.Check,
+                                        contentDescription = null,
+                                        tint = Color.White,
+                                        modifier = Modifier.size(56.dp)
+                                    )
+                                    Spacer(Modifier.height(8.dp))
+                                    Text(
+                                        "YES",
+                                        fontSize = 22.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White
+                                    )
+                                }
+                            }
                         }
-                        Button(
-                            onClick = { handleAnswer(false) },
-                            modifier = Modifier.weight(1f).height(90.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
+
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(140.dp)
                         ) {
-                            Icon(Icons.Default.Close, contentDescription = null)
-                            Spacer(Modifier.width(8.dp))
+                            // Shadow layer
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .offset(y = 6.dp)
+                                    .background(
+                                        Color(0xFFC62828),
+                                        RoundedCornerShape(16.dp)
+                                    )
+                            )
+                            // Main button
+                            Button(
+                                onClick = { handleAnswer(false) },
+                                modifier = Modifier.fillMaxSize(),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = Color(0xFFEF5350)
+                                ),
+                                shape = RoundedCornerShape(16.dp),
+                                contentPadding = PaddingValues(0.dp)
+                            ) {
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.Center
+                                ) {
+                                    Icon(
+                                        Icons.Default.Close,
+                                        contentDescription = null,
+                                        tint = Color.White,
+                                        modifier = Modifier.size(56.dp)
+                                    )
+                                    Spacer(Modifier.height(8.dp))
+                                    Text(
+                                        "NO",
+                                        fontSize = 22.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White
+                                    )
+                                }
+                            }
                         }
                     }
                 }
