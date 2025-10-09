@@ -1220,7 +1220,7 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
 
         if (cardOffset != 0f) {
             val swipeProgress = (kotlin.math.abs(cardOffset) / 200f).coerceIn(0f, 1f)
-            val shadowColor = if (cardOffset < 0) Color.Green else Color.Red
+            val shadowColor = if (cardOffset < 0) Color(0xFF66BB6A) else Color(0xFFEF5350)
 
             Box(
                 modifier = Modifier
@@ -1229,9 +1229,9 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
                         brush = if (cardOffset < 0) {
                             Brush.radialGradient(
                                 colors = listOf(
-                                    shadowColor.copy(alpha = swipeProgress * 0.5f),
-                                    shadowColor.copy(alpha = swipeProgress * 0.3f),
-                                    shadowColor.copy(alpha = swipeProgress * 0.1f),
+                                    shadowColor.copy(alpha = swipeProgress * 0.8f),
+                                    shadowColor.copy(alpha = swipeProgress * 0.6f),
+                                    shadowColor.copy(alpha = swipeProgress * 0.2f),
                                     Color.Transparent
                                 ),
                                 center = Offset(0f, 0.5f),
@@ -1240,9 +1240,9 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
                         } else {
                             Brush.radialGradient(
                                 colors = listOf(
-                                    shadowColor.copy(alpha = swipeProgress * 0.5f),
-                                    shadowColor.copy(alpha = swipeProgress * 0.3f),
-                                    shadowColor.copy(alpha = swipeProgress * 0.1f),
+                                    shadowColor.copy(alpha = swipeProgress * 0.8f),
+                                    shadowColor.copy(alpha = swipeProgress * 0.6f),
+                                    shadowColor.copy(alpha = swipeProgress * 0.2f),
                                     Color.Transparent
                                 ),
                                 center = Offset(Float.POSITIVE_INFINITY, 0.5f),
