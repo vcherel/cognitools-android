@@ -18,12 +18,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.myapp.ui.theme.MyAppTheme
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.platform.LocalContext
@@ -129,23 +131,45 @@ fun MenuScreen(onNavigate: (String) -> Unit) {
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        MenuButton(text = "Générateur aléatoire") { onNavigate("randomGenerator") }
+        MyButton(text = "Générateur aléatoire") { onNavigate("randomGenerator") }
         Spacer(modifier = Modifier.height(16.dp))
-        MenuButton(text = "Volume booster") { onNavigate("volumeBooster") }
+        MyButton(text = "Volume booster") { onNavigate("volumeBooster") }
         Spacer(modifier = Modifier.height(16.dp))
-        MenuButton(text = "Flashcards") { onNavigate("flashcards") }
+        MyButton(text = "Flashcards") { onNavigate("flashcards") }
     }
 }
 
 @Composable
-private fun MenuButton(text: String, onClick: () -> Unit) {
+private fun MyButton(text: String, onClick: () -> Unit) {
     Button(
         onClick = onClick,
+        colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
+        shape = RoundedCornerShape(50),
+        contentPadding = PaddingValues(),
+        border = BorderStroke(2.dp, Color(0xFFB0BEC5)),
         modifier = Modifier
             .fillMaxWidth()
-            .height(70.dp)
+            .height(90.dp)
+            .padding(horizontal = 20.dp, vertical = 10.dp)
     ) {
-        Text(text)
+        Box(
+            modifier = Modifier
+                .background(
+                    brush = Brush.horizontalGradient(
+                        listOf(Color(0xFF0D47A1), Color(0xFF1976D2))
+                    ),
+                    shape = RoundedCornerShape(50)
+                )
+                .fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text,
+                color = Color.White,
+                fontSize = 24.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+        }
     }
 }
 
@@ -169,7 +193,12 @@ fun RandomIntSection() {
     var result by remember { mutableStateOf<Int?>(null) }
 
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text("Nombre entier aléatoire")
+        Text(
+            "Nombre entier aléatoire",
+            color = Color.Black,
+            fontSize = 20.sp,
+            fontWeight = FontWeight.SemiBold
+        )
         Spacer(modifier = Modifier.height(8.dp))
         Row {
             OutlinedTextField(
@@ -187,17 +216,10 @@ fun RandomIntSection() {
             )
         }
         Spacer(modifier = Modifier.height(8.dp))
-        Button(
-            onClick = {
-                val minInt = min.toIntOrNull() ?: 1
-                val maxInt = max.toIntOrNull() ?: 100
-                if (minInt <= maxInt) result = (minInt..maxInt).random()
-            },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp)
-        ) {
-            Text("Générer")
+        MyButton(text = "Générer") {
+            val minInt = min.toIntOrNull() ?: 1
+            val maxInt = max.toIntOrNull() ?: 100
+            if (minInt <= maxInt) result = (minInt..maxInt).random()
         }
         Spacer(modifier = Modifier.height(8.dp))
         result?.let {
@@ -232,17 +254,17 @@ fun RandomWordSection(context: Context = LocalContext.current) {
     }
 
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text("Mot aléatoire")
+        Text(
+            "Mot aléatoire",
+            color = Color.Black,
+            fontSize = 20.sp,
+            fontWeight = FontWeight.SemiBold
+        )
         Spacer(modifier = Modifier.height(8.dp))
-        Button(
-            onClick = { if (words.isNotEmpty()) result = words.random() },
-            enabled = !isLoading, // Disable button while loading
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp)
-        ) {
-            Text(if (isLoading) "Chargement..." else "Générer")
-        }
+        MyButton(
+            text = if (isLoading) "Chargement..." else "Générer",
+            onClick = { if (words.isNotEmpty()) result = words.random() }
+        )
         Spacer(modifier = Modifier.height(8.dp))
         result?.let {
             Box(
@@ -562,7 +584,8 @@ fun FlashcardsScreen(onBack: () -> Unit, navController: NavController) {
 
         Spacer(Modifier.height(16.dp))
 
-        Button(
+        MyButton(
+            text = "Créer une nouvelle liste",
             onClick = {
                 dialogTitle = "Nouvelle liste"
                 dialogValue = ""
@@ -571,13 +594,9 @@ fun FlashcardsScreen(onBack: () -> Unit, navController: NavController) {
                     updateLists(listsState)
                 }
                 showDialog = true
-            },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(60.dp)
-        ) {
-            Text("Créer une nouvelle liste")
-        }
+            }
+        )
+
     }
 
     if (showDialog) {
