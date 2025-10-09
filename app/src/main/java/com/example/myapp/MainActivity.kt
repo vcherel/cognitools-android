@@ -1,5 +1,6 @@
 package com.example.myapp
 
+import android.content.ClipboardManager
 import android.content.Context
 import android.os.Bundle
 import android.os.Environment
@@ -35,6 +36,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Download
@@ -642,71 +644,83 @@ fun FlashcardsScreen(onBack: () -> Unit, navController: NavController) {
                                             }
                                         },
                                         confirmButton = {
-                                            Button(
-                                                onClick = {
-                                                    if (bulkImportText.isNotBlank()) {
-                                                        // Parse the text and create flashcards
-                                                        val lines = bulkImportText.split("\n")
-                                                            .map { it.trim() }
-                                                            .filter { it.isNotBlank() }
+                                            Row(
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                modifier = Modifier.fillMaxWidth()
+                                            ) {
+                                                IconButton(onClick = {
+                                                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                                    val clipData = clipboard.primaryClip
+                                                    if (clipData != null && clipData.itemCount > 0) {
+                                                        bulkImportText = clipData.getItemAt(0).text?.toString() ?: ""
+                                                    }
+                                                }) {
+                                                    Icon(Icons.Default.ContentPaste, contentDescription = "Coller")
+                                                }
 
-                                                        val newElements = lines.mapNotNull { line ->
-                                                            val parts = line.split("-", limit = 2)
-                                                            if (parts.size == 2) {
-                                                                val name = parts[0].trim()
-                                                                val definition = parts[1].trim()
-                                                                if (name.isNotBlank() && definition.isNotBlank()) {
-                                                                    FlashcardElement(
-                                                                        listId = selectedListId,
-                                                                        name = name,
-                                                                        definition = definition
-                                                                    )
+                                                Button(
+                                                    onClick = { showBulkImportDialog = false },
+                                                    modifier = Modifier.height(50.dp)
+                                                ) {
+                                                    Text("Annuler")
+                                                }
+
+                                                Button(
+                                                    onClick = {
+                                                        if (bulkImportText.isNotBlank()) {
+                                                            val lines = bulkImportText.split("\n")
+                                                                .map { it.trim() }
+                                                                .filter { it.isNotBlank() }
+
+                                                            val newElements = lines.mapNotNull { line ->
+                                                                val parts = line.split("-", limit = 2)
+                                                                if (parts.size == 2) {
+                                                                    val name = parts[0].trim()
+                                                                    val definition = parts[1].trim()
+                                                                    if (name.isNotBlank() && definition.isNotBlank()) {
+                                                                        FlashcardElement(
+                                                                            listId = selectedListId,
+                                                                            name = name,
+                                                                            definition = definition
+                                                                        )
+                                                                    } else null
                                                                 } else null
-                                                            } else null
-                                                        }
+                                                            }
 
-                                                        if (newElements.isNotEmpty()) {
-                                                            // Load current elements and add new ones
-                                                            scope.launch(Dispatchers.IO) {
-                                                                val key = stringPreferencesKey("elements_$selectedListId")
-                                                                val currentJson = context.dataStore.data
-                                                                    .map { prefs -> prefs[key] }
-                                                                    .first()
+                                                            if (newElements.isNotEmpty()) {
+                                                                scope.launch(Dispatchers.IO) {
+                                                                    val key = stringPreferencesKey("elements_$selectedListId")
+                                                                    val currentJson = context.dataStore.data
+                                                                        .map { prefs -> prefs[key] }
+                                                                        .first()
 
-                                                                val currentElements = currentJson?.let {
-                                                                    FlashcardElement.listFromJsonString(it)
-                                                                } ?: emptyList()
+                                                                    val currentElements = currentJson?.let {
+                                                                        FlashcardElement.listFromJsonString(it)
+                                                                    } ?: emptyList()
 
-                                                                val updatedElements = newElements + currentElements
+                                                                    val updatedElements = newElements + currentElements
 
-                                                                context.dataStore.edit { prefs ->
-                                                                    prefs[key] = FlashcardElement.listToJsonString(updatedElements)
-                                                                }
+                                                                    context.dataStore.edit { prefs ->
+                                                                        prefs[key] = FlashcardElement.listToJsonString(updatedElements)
+                                                                    }
 
-                                                                withContext(Dispatchers.Main) {
-                                                                    Toast.makeText(
-                                                                        context,
-                                                                        "${newElements.size} carte(s) ajoutée(s)",
-                                                                        Toast.LENGTH_SHORT
-                                                                    ).show()
+                                                                    withContext(Dispatchers.Main) {
+                                                                        Toast.makeText(
+                                                                            context,
+                                                                            "${newElements.size} carte(s) ajoutée(s)",
+                                                                            Toast.LENGTH_SHORT
+                                                                        ).show()
+                                                                    }
                                                                 }
                                                             }
-                                                        }
 
-                                                        showBulkImportDialog = false
-                                                    }
-                                                },
-                                                modifier = Modifier.height(50.dp)
-                                            ) {
-                                                Text("Importer")
-                                            }
-                                        },
-                                        dismissButton = {
-                                            Button(
-                                                onClick = { showBulkImportDialog = false },
-                                                modifier = Modifier.height(50.dp)
-                                            ) {
-                                                Text("Annuler")
+                                                            showBulkImportDialog = false
+                                                        }
+                                                    },
+                                                    modifier = Modifier.height(50.dp)
+                                                ) {
+                                                    Text("Importer")
+                                                }
                                             }
                                         }
                                     )
