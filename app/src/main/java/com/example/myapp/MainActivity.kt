@@ -156,7 +156,7 @@ private fun MyButton(text: String, modifier: Modifier = Modifier, onClick: () ->
             modifier = Modifier
                 .background(
                     brush = Brush.horizontalGradient(
-                        listOf(Color(0xFF0D47A1), Color(0xFF1976D2))
+                        listOf(Color(0xFF78909C), Color(0xFF90A4AE))
                     ),
                     shape = RoundedCornerShape(50)
                 )
