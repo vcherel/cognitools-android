@@ -1121,7 +1121,7 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
         // Update repetitions
         val newReps = if (quality >= 3) card.repetitions + 1 else 0
 
-        // Update total wins/losses FIRST
+        // Update total wins/losses
         val newWins = card.totalWins + if (quality >= 3) 1 else 0
         val newLosses = card.totalLosses + if (quality < 3) 1 else 0
 
@@ -1132,21 +1132,18 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
         val newInterval = when {
             // Cards you struggle with get shorter intervals
             quality < 3 -> {
-                when {
-                    // To avoid having only cards we don't know, randomly push cards to 1h wait
-                    (newScore < 1 && Math.random() < 0.25) -> 61.0
-                    newScore < 2 -> 1.0
-                    newScore < 4 -> 3.0
-                    newScore < 6 -> 5.0
-                    else -> 6.0
-                }
+                val chance = Math.random()
+                val probability = ((2.5 - newScore) / 2.5 * 0.33).coerceIn(0.0, 0.33)
+                if (newScore < 2.5 && chance < probability) 61.0
+                else newScore.coerceAtLeast(1.0) // min between 1 and score
             }
 
             // On the first win we have to wait 6 minutes
             newReps == 1 -> 6.0
 
             else -> {
-                1.3 * card.interval * newEF
+                val randomMultiplier = 0.8 + Math.random() * 1.2
+                card.interval * newEF * randomMultiplier
             }
         }
 
@@ -1160,6 +1157,7 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
             score = newScore
         )
     }
+
 
     // Function to save updated elements
     fun saveElements(updated: List<FlashcardElement>) {
