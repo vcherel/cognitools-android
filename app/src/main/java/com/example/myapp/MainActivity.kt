@@ -307,6 +307,7 @@ data class FlashcardList(val id: String = UUID.randomUUID().toString(), val name
         }
     }
     companion object {
+        private val cache = mutableMapOf<String, List<FlashcardList>>()
         fun fromJson(json: JSONObject): FlashcardList {
             return FlashcardList(
                 id = json.getString("id"),
@@ -321,13 +322,13 @@ data class FlashcardList(val id: String = UUID.randomUUID().toString(), val name
         }
 
         fun listFromJsonString(jsonString: String): List<FlashcardList> {
-            return try {
-                val jsonArray = JSONArray(jsonString)
-                List(jsonArray.length()) { i ->
-                    fromJson(jsonArray.getJSONObject(i))
+            return cache.getOrPut(jsonString) {
+                try {
+                    val jsonArray = JSONArray(jsonString)
+                    List(jsonArray.length()) { i -> fromJson(jsonArray.getJSONObject(i)) }
+                } catch (_: Exception) {
+                    emptyList()
                 }
-            } catch (_: Exception) {
-                emptyList()
             }
         }
     }
@@ -813,6 +814,7 @@ data class FlashcardElement(
     }
 
     companion object {
+        private val cache = mutableMapOf<String, List<FlashcardElement>>()
         fun fromJson(json: JSONObject): FlashcardElement {
             return FlashcardElement(
                 listId = json.getString("listId"),
@@ -835,11 +837,13 @@ data class FlashcardElement(
         }
 
         fun listFromJsonString(jsonString: String): List<FlashcardElement> {
-            return try {
-                val jsonArray = JSONArray(jsonString)
-                List(jsonArray.length()) { i -> fromJson(jsonArray.getJSONObject(i)) }
-            } catch (_: Exception) {
-                emptyList()
+            return cache.getOrPut(jsonString) {
+                try {
+                    val jsonArray = JSONArray(jsonString)
+                    List(jsonArray.length()) { i -> fromJson(jsonArray.getJSONObject(i)) }
+                } catch (_: Exception) {
+                    emptyList()
+                }
             }
         }
     }
