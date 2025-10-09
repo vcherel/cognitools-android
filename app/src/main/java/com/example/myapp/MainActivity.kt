@@ -1484,12 +1484,32 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.CheckCircle,
-                        contentDescription = null,
-                        tint = Color.Green,
-                        modifier = Modifier.size(80.dp)
-                    )
+                    Box(
+                        modifier = Modifier
+                            .size(100.dp)
+                    ) {
+                        // Shadow layer
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .offset(y = 6.dp)
+                                .background(Color(0xFF2E7D32), RoundedCornerShape(24.dp))
+                        )
+                        // Main icon background
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(Color(0xFF66BB6A), RoundedCornerShape(24.dp)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.CheckCircle,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(80.dp)
+                            )
+                        }
+                    }
                     Spacer(Modifier.height(16.dp))
                     Text(
                         text = "Félicitations !",
