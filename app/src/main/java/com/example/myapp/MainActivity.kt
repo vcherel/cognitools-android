@@ -554,7 +554,7 @@ fun FlashcardsScreen(onBack: () -> Unit, navController: NavController) {
 
         // List of flashcard lists
         LazyColumn(modifier = Modifier.weight(1f)) {
-            itemsIndexed(lists) { index, flashcardList ->
+            itemsIndexed(items = lists, key = { _, item -> item.id }) { index, flashcardList ->
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -997,7 +997,7 @@ fun FlashcardElementsScreen(listId: String, onBack: () -> Unit, navController: N
             modifier = Modifier.weight(1f),
             state = listState
         ) {
-            itemsIndexed(filteredElements) { index, element ->
+            itemsIndexed(filteredElements, key = { _, item -> "${item.listId}_${item.name}_${item.definition}" }) { index, element ->
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
