@@ -1019,6 +1019,17 @@ fun FlashcardElementsScreen(listId: String, onBack: () -> Unit, navController: N
     val focusRequester2 = remember { FocusRequester() }
 
     if (showDialog) {
+        fun saveElement() {
+            if (dialogName.isNotBlank() && dialogDefinition.isNotBlank()) {
+                val updated = elements.toMutableList()
+                val newElement = FlashcardElement(listId, dialogName, dialogDefinition)
+                if (editingIndex == null) updated.add(0, newElement)
+                else updated[editingIndex!!] = newElement
+                updateElements(updated)
+                showDialog = false
+            }
+        }
+
         AlertDialog(
             onDismissRequest = { showDialog = false },
             title = { Text(if (editingIndex == null) "Nouvel élément" else "Modifier élément") },
@@ -1044,34 +1055,14 @@ fun FlashcardElementsScreen(listId: String, onBack: () -> Unit, navController: N
                             capitalization = KeyboardCapitalization.Sentences,
                             imeAction = ImeAction.Done
                         ),
-                        keyboardActions = KeyboardActions(
-                            onDone = {
-                                if (dialogName.isNotBlank() && dialogDefinition.isNotBlank()) {
-                                    val updated = elements.toMutableList()
-                                    val newElement = FlashcardElement(listId, dialogName, dialogDefinition)
-                                    if (editingIndex == null) updated.add(0, newElement)
-                                    else updated[editingIndex!!] = newElement
-                                    updateElements(updated)
-                                    showDialog = false
-                                }
-                            }
-                        ),
+                        keyboardActions = KeyboardActions(onDone = { saveElement() }),
                         modifier = Modifier.focusRequester(focusRequester2)
                     )
                 }
             },
             confirmButton = {
                 Button(
-                    onClick = {
-                        if (dialogName.isNotBlank() && dialogDefinition.isNotBlank()) {
-                            val updated = elements.toMutableList()
-                            val newElement = FlashcardElement(listId, dialogName, dialogDefinition)
-                            if (editingIndex == null) updated.add(0, newElement)
-                            else updated[editingIndex!!] = newElement
-                            updateElements(updated)
-                            showDialog = false
-                        }
-                    },
+                    onClick = { saveElement() },
                     modifier = Modifier.height(50.dp)
                 ) { Text("OK") }
             },
