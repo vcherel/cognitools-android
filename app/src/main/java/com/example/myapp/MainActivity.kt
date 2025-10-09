@@ -177,6 +177,9 @@ private fun MyButton(text: String, modifier: Modifier = Modifier, onClick: () ->
 fun RandomGeneratorScreen(onBack: () -> Unit) {
     BackHandler { onBack() }
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+        IconButton(onClick = onBack) {
+            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Retour")
+        }
         Spacer(modifier = Modifier.height(32.dp))
         Spacer(modifier = Modifier.height(96.dp))
         RandomIntSection()
@@ -282,6 +285,11 @@ fun RandomWordSection(context: Context = LocalContext.current) {
 @Composable
 fun VolumeBoosterScreen(onBack: () -> Unit) {
     BackHandler { onBack() }
+    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+        IconButton(onClick = onBack) {
+            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Retour")
+        }
+    }
 }
 
 val Context.dataStore by preferencesDataStore("flashcards")
@@ -497,7 +505,12 @@ fun FlashcardsScreen(onBack: () -> Unit, navController: NavController) {
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("Mes listes", style = MaterialTheme.typography.headlineMedium)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onBack) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Retour")
+                }
+                Text("Mes listes", style = MaterialTheme.typography.headlineMedium)
+            }
             Row {
                 IconButton(onClick = {
                     CoroutineScope(Dispatchers.IO).launch {
