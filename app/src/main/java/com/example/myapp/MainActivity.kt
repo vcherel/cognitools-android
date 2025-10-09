@@ -46,6 +46,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -131,10 +132,23 @@ fun MenuScreen(onNavigate: (String) -> Unit) {
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        Text(
+            text = "Bienvenue!",
+            style = MaterialTheme.typography.headlineLarge,
+            textAlign = TextAlign.Center
+        )
+        Spacer(modifier = Modifier.height(32.dp))
+        Text(
+            text = "Choisis une option pour commencer :",
+            style = MaterialTheme.typography.titleMedium,
+            fontStyle = FontStyle.Italic,
+            textAlign = TextAlign.Center
+        )
+        Spacer(modifier = Modifier.height(32.dp))
         MyButton(text = "Générateur aléatoire") { onNavigate("randomGenerator") }
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(40.dp))
         MyButton(text = "Volume booster") { onNavigate("volumeBooster") }
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(40.dp))
         MyButton(text = "Flashcards") { onNavigate("flashcards") }
     }
 }
