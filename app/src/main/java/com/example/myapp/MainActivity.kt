@@ -664,7 +664,7 @@ fun FlashcardsScreen(onBack: () -> Unit, navController: NavController) {
     }
 }
 
-    data class FlashcardElement(
+data class FlashcardElement(
     val listId: String,
     val name: String,
     val definition: String,
@@ -951,7 +951,7 @@ fun FlashcardElementsScreen(listId: String, onBack: () -> Unit, navController: N
                                     Spacer(modifier = Modifier.width(4.dp))
                                     IconButton(
                                         onClick = {
-                                            editingIndex = elements.indexOf(element)
+                                            editingIndex = elements.indexOfFirst { it === element }
                                             dialogName = element.name
                                             dialogDefinition = element.definition
                                             showDialog = true
