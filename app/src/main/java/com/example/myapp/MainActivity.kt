@@ -744,7 +744,7 @@ fun FlashcardElementsScreen(listId: String, onBack: () -> Unit, navController: N
     var sortAscending by remember { mutableStateOf(true) }
     var searchQuery by remember { mutableStateOf("") }
     var needsSorting by remember { mutableStateOf(false) }
-    var showDeleteDialog by remember { mutableStateOf(false) }
+    var elementToDelete by remember { mutableStateOf<FlashcardElement?>(null) }
 
     // Apply sorting when needed
     LaunchedEffect(needsSorting, elements) {
@@ -917,33 +917,13 @@ fun FlashcardElementsScreen(listId: String, onBack: () -> Unit, navController: N
                                     }
 
                                     IconButton(
-                                        onClick = { showDeleteDialog = true },
+                                        onClick = { elementToDelete = element },
                                         modifier = Modifier.size(24.dp)
                                     ) {
                                         Icon(Icons.Default.Delete, contentDescription = "Supprimer", modifier = Modifier.size(20.dp))
                                     }
                                 }
                             }
-                        }
-
-                        Spacer(Modifier.height(8.dp))
-
-                        if (showDeleteDialog) {
-                            AlertDialog(
-                                onDismissRequest = { showDeleteDialog = false },
-                                title = { Text("T'es sûr ??") },
-                                confirmButton = {
-                                    TextButton(onClick = {
-                                        val updated = elements.toMutableList()
-                                        updated.remove(element)
-                                        updateElements(updated)
-                                        showDeleteDialog = false
-                                    }) { Text("Oui t'inquiète") }
-                                },
-                                dismissButton = {
-                                    TextButton(onClick = { showDeleteDialog = false }) { Text("Oula non merci") }
-                                }
-                            )
                         }
                     }
                 }
@@ -970,6 +950,25 @@ fun FlashcardElementsScreen(listId: String, onBack: () -> Unit, navController: N
                 showDialog = true
             }
         }
+    }
+
+    // Delete confirmation dialog
+    elementToDelete?.let { element ->
+        AlertDialog(
+            onDismissRequest = { elementToDelete = null },
+            title = { Text("T'es sûr ??") },
+            confirmButton = {
+                TextButton(onClick = {
+                    val updated = elements.toMutableList()
+                    updated.remove(element)
+                    updateElements(updated)
+                    elementToDelete = null
+                }) { Text("Oui t'inquiète") }
+            },
+            dismissButton = {
+                TextButton(onClick = { elementToDelete = null }) { Text("Oula non merci") }
+            }
+        )
     }
 
     val focusRequester2 = remember { FocusRequester() }
