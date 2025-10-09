@@ -961,7 +961,12 @@ fun FlashcardElementsScreen(listId: String, onBack: () -> Unit, navController: N
                                     Spacer(modifier = Modifier.width(4.dp))
                                     IconButton(
                                         onClick = {
-                                            editingIndex = elements.indexOfFirst { it === element }
+                                            editingIndex = elements.indexOfFirst {
+                                                it.listId == element.listId &&
+                                                        it.name == element.name &&
+                                                        it.definition == element.definition &&
+                                                        it.lastReview == element.lastReview
+                                            }
                                             dialogName = element.name
                                             dialogDefinition = element.definition
                                             showDialog = true
