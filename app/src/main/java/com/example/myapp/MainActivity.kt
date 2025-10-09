@@ -465,7 +465,6 @@ fun FlashcardsScreen(onBack: () -> Unit, navController: NavController) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    var flashcards by remember { mutableStateOf<List<FlashcardElement>>(emptyList()) }
     var showDialog by remember { mutableStateOf(false) }
     var dialogTitle by remember { mutableStateOf("") }
     var dialogValue by remember { mutableStateOf("") }
@@ -473,6 +472,19 @@ fun FlashcardsScreen(onBack: () -> Unit, navController: NavController) {
     var showBulkImportDialog by remember { mutableStateOf(false) }
     var bulkImportText by remember { mutableStateOf("") }
     var selectedListId by remember { mutableStateOf("") }
+
+    val flashcards by remember {
+        context.dataStore.data.map { prefs ->
+            val listsJson = prefs[stringPreferencesKey("lists")] ?: "[]"
+            val lists = FlashcardList.listFromJsonString(listsJson)
+
+            lists.flatMap { list ->
+                val key = stringPreferencesKey("elements_${list.id}")
+                val cardsJson = prefs[key] ?: "[]"
+                FlashcardElement.listFromJsonString(cardsJson)
+            }
+        }
+    }.collectAsState(initial = emptyList())
 
     val lists by remember {
         context.dataStore.data.map { prefs ->
@@ -493,11 +505,6 @@ fun FlashcardsScreen(onBack: () -> Unit, navController: NavController) {
     }
 
     BackHandler { onBack() }
-
-    LaunchedEffect(Unit) {
-        val (_, cards) = loadFlashcardData(context)
-        flashcards = cards
-    }
 
     Column(
         modifier = Modifier
@@ -793,6 +800,7 @@ fun FlashcardsScreen(onBack: () -> Unit, navController: NavController) {
 }
 
 data class FlashcardElement(
+    val id: String = UUID.randomUUID().toString(),
     val listId: String,
     val name: String,
     val definition: String,
@@ -806,6 +814,7 @@ data class FlashcardElement(
 ) {
     fun toJson(): JSONObject {
         return JSONObject().apply {
+            put("id", id)
             put("listId", listId)
             put("name", name)
             put("definition", definition)
@@ -823,6 +832,7 @@ data class FlashcardElement(
         private val cache = mutableMapOf<String, List<FlashcardElement>>()
         fun fromJson(json: JSONObject): FlashcardElement {
             return FlashcardElement(
+                id = json.optString("id", UUID.randomUUID().toString()), // optString to handle old data
                 listId = json.getString("listId"),
                 name = json.getString("name"),
                 definition = json.getString("definition"),
@@ -1086,12 +1096,7 @@ fun FlashcardElementsScreen(listId: String, onBack: () -> Unit, navController: N
                                     Spacer(modifier = Modifier.width(4.dp))
                                     IconButton(
                                         onClick = {
-                                            editingIndex = elements.indexOfFirst {
-                                                it.listId == element.listId &&
-                                                        it.name == element.name &&
-                                                        it.definition == element.definition &&
-                                                        it.lastReview == element.lastReview
-                                            }
+                                            editingIndex = elements.indexOfFirst { it.id == element.id }
                                             dialogName = element.name
                                             dialogDefinition = element.definition
                                             showDialog = true
@@ -1144,8 +1149,7 @@ fun FlashcardElementsScreen(listId: String, onBack: () -> Unit, navController: N
             title = { Text("T'es sûr ??") },
             confirmButton = {
                 TextButton(onClick = {
-                    val updated = elements.toMutableList()
-                    updated.remove(element)
+                    val updated = elements.filterNot { it.id == elementToDelete!!.id }
                     updateElements(updated)
                     elementToDelete = null
                 }) { Text("Oui t'inquiète") }
@@ -1162,7 +1166,7 @@ fun FlashcardElementsScreen(listId: String, onBack: () -> Unit, navController: N
         fun saveElement() {
             if (dialogName.isNotBlank() && dialogDefinition.isNotBlank()) {
                 val updated = elements.toMutableList()
-                val newElement = FlashcardElement(listId, dialogName, dialogDefinition)
+                val newElement = FlashcardElement(listId = listId, name = dialogName, definition = dialogDefinition)
                 if (editingIndex == null) updated.add(0, newElement)
                 else updated[editingIndex!!] = newElement
                 updateElements(updated)
@@ -1333,7 +1337,7 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
             // Move to next card (exclude current card)
             showDefinition = false
             val availableCards = dueCards.filter {
-                it.name != card.name || it.definition != card.definition
+                it.id != card.id
             }
             currentCard = if (availableCards.isNotEmpty()) {
                 val card = availableCards.random()
