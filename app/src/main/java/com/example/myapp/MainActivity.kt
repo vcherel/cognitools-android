@@ -1117,7 +1117,7 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
         }
     }
 
-    fun updateCardWithSM2(card: FlashcardElement, quality: Int): FlashcardElement {
+    fun updateCardWithSM2(card: FlashcardElement, quality: Int /* quality = 2 if lost, 4 if won */): FlashcardElement {
         // Update ease factor
         var newEF = card.easeFactor + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02))
         if (newEF < 1.3) newEF = 1.3
@@ -1142,9 +1142,12 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
             // Cards you struggle with get shorter intervals
             quality < 3 -> {
                 when {
-                    newScore < 4 -> 1.0
-                    newScore in 4.0..6.99 -> 2.0
-                    else -> 3.0
+                    // To avoid having only cards we don't know, randomly push cards to 1h wait
+                    (newScore < 1 && Math.random() < 0.25) -> 61.0
+                    newScore < 2 -> 1.0
+                    newScore < 4 -> 3.0
+                    newScore < 6 -> 5.0
+                    else -> 6.0
                 }
             }
 
