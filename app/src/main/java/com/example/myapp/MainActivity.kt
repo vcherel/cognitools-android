@@ -872,7 +872,7 @@ fun FlashcardElementsScreen(listId: String, onBack: () -> Unit, navController: N
                                         Text(
                                             "${element.score?.toInt() ?: 0}",
                                             style = MaterialTheme.typography.bodySmall.copy(
-                                                shadow = if (element.score?.toInt() == 1 || element.score?.toInt() == 2  || element.score?.toInt() == 3  || element.score?.toInt() == 10) null else Shadow(
+                                                shadow = if ((element.score?.toInt() ?: 0) <= 3 || element.score?.toInt() == 10) null else Shadow(
                                                     color = Color.Black,
                                                     offset = Offset(0f, 0f),
                                                     blurRadius = 1f
@@ -1260,7 +1260,7 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
                                 Text(
                                     "${currentCard?.score?.toInt() ?: 0}",
                                     style = MaterialTheme.typography.bodyLarge.copy(
-                                        shadow = if (currentCard?.score?.toInt() == 1 || currentCard?.score?.toInt() == 2  || currentCard?.score?.toInt() == 3  || currentCard?.score?.toInt() == 10) null else Shadow(
+                                        shadow = if ((currentCard?.score?.toInt() ?: 0) <= 3 || currentCard?.score?.toInt() == 10) null else Shadow(
                                             color = Color.Black,
                                             offset = Offset(0f, 0f),
                                             blurRadius = 4f
