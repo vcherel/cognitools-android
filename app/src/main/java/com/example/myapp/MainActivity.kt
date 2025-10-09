@@ -48,6 +48,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.platform.SoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -780,9 +781,13 @@ fun FlashcardElementsScreen(listId: String, onBack: () -> Unit, navController: N
 
     BackHandler {
         when {
-            searchQuery.isNotEmpty() -> searchQuery = ""
-            keyboardController != null -> keyboardController.hide()
-            else -> onBack()
+            searchQuery.isNotEmpty() -> {
+                searchQuery = ""
+                return@BackHandler
+            }
+            else -> {
+                onBack()
+            }
         }
     }
 
