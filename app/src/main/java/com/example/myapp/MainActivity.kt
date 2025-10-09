@@ -463,10 +463,6 @@ suspend fun importFlashcardsData(context: Context, jsonString: String): Boolean 
 fun FlashcardsScreen(onBack: () -> Unit, navController: NavController) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val listsState = remember { mutableStateListOf<FlashcardList>() }
-    val listsJson by context.dataStore.data
-        .map { prefs -> prefs[stringPreferencesKey("lists")] }
-        .collectAsState(initial = null)
 
     var flashcards by remember { mutableStateOf<List<FlashcardElement>>(emptyList()) }
     var showDialog by remember { mutableStateOf(false) }
@@ -476,6 +472,14 @@ fun FlashcardsScreen(onBack: () -> Unit, navController: NavController) {
     var showBulkImportDialog by remember { mutableStateOf(false) }
     var bulkImportText by remember { mutableStateOf("") }
     var selectedListId by remember { mutableStateOf("") }
+
+    val lists by remember {
+        context.dataStore.data.map { prefs ->
+            prefs[stringPreferencesKey("lists")]?.let {
+                FlashcardList.listFromJsonString(it)
+            } ?: emptyList()
+        }
+    }.collectAsState(initial = emptyList())
 
     // Helper function to update DataStore
     fun updateLists(newLists: List<FlashcardList>) {
@@ -488,12 +492,6 @@ fun FlashcardsScreen(onBack: () -> Unit, navController: NavController) {
     }
 
     BackHandler { onBack() }
-
-    // Update the state when DataStore changes
-    LaunchedEffect(listsJson) {
-        listsState.clear()
-        listsJson?.let { listsState.addAll(FlashcardList.listFromJsonString(it)) }
-    }
 
     LaunchedEffect(Unit) {
         val (_, cards) = loadFlashcardData(context)
@@ -546,7 +544,7 @@ fun FlashcardsScreen(onBack: () -> Unit, navController: NavController) {
 
         // List of flashcard lists
         LazyColumn(modifier = Modifier.weight(1f)) {
-            itemsIndexed(listsState) { index, flashcardList ->
+            itemsIndexed(lists) { index, flashcardList ->
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -588,9 +586,11 @@ fun FlashcardsScreen(onBack: () -> Unit, navController: NavController) {
                                     dialogTitle = "Renommer la liste"
                                     dialogValue = flashcardList.name
                                     dialogAction = { newName ->
-                                        listsState[index] = flashcardList.copy(name = newName)
-                                        updateLists(listsState)
+                                        val updated = lists.toMutableList()
+                                        updated[index] = flashcardList.copy(name = newName)
+                                        updateLists(updated)
                                     }
+
                                     showDialog = true
                                 }) {
                                     Icon(Icons.Default.Edit, contentDescription = "Éditer")
@@ -607,8 +607,9 @@ fun FlashcardsScreen(onBack: () -> Unit, navController: NavController) {
                                         title = { Text("T'es sûr ??") },
                                         confirmButton = {
                                             TextButton(onClick = {
-                                                listsState.removeAt(index)
-                                                updateLists(listsState)
+                                                val updated = lists.toMutableList()
+                                                updated.removeAt(index)
+                                                updateLists(updated)
                                                 showDeleteDialog = false
                                             }) { Text("Oui t'inquiète") }
                                         },
@@ -741,8 +742,9 @@ fun FlashcardsScreen(onBack: () -> Unit, navController: NavController) {
                 dialogTitle = "Nouvelle liste"
                 dialogValue = ""
                 dialogAction = { newName ->
-                    listsState.add(0, FlashcardList(name = newName))
-                    updateLists(listsState)
+                    val updated = lists.toMutableList()
+                    updated.add(0, FlashcardList(name = newName))
+                    updateLists(updated)
                 }
                 showDialog = true
             }
