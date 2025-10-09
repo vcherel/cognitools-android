@@ -1225,10 +1225,12 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
+        val greenColor = Color(0xFF56C92F)
+        val redColor = Color(0xFFDE1E1E)
 
         if (cardOffset != 0f) {
             val swipeProgress = (kotlin.math.abs(cardOffset) / 200f).coerceIn(0f, 1f)
-            val shadowColor = if (cardOffset < 0) Color(0xFF66BB6A) else Color(0xFFEF5350)
+            val shadowColor = if (cardOffset < 0) greenColor else redColor
 
             Box(
                 modifier = Modifier
@@ -1410,7 +1412,7 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
                                 onClick = { handleAnswer(true) },
                                 modifier = Modifier.fillMaxSize(),
                                 colors = ButtonDefaults.buttonColors(
-                                    containerColor = Color(0xFF66BB6A)
+                                    containerColor = greenColor
                                 ),
                                 shape = RoundedCornerShape(16.dp),
                                 contentPadding = PaddingValues(0.dp)
@@ -1447,7 +1449,7 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
                                     .fillMaxSize()
                                     .offset(y = 6.dp)
                                     .background(
-                                        Color(0xFFC62828),
+                                        Color(0xFF7A0707),
                                         RoundedCornerShape(16.dp)
                                     )
                             )
@@ -1456,7 +1458,7 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
                                 onClick = { handleAnswer(false) },
                                 modifier = Modifier.fillMaxSize(),
                                 colors = ButtonDefaults.buttonColors(
-                                    containerColor = Color(0xFFEF5350)
+                                    containerColor = redColor
                                 ),
                                 shape = RoundedCornerShape(16.dp),
                                 contentPadding = PaddingValues(0.dp)
@@ -1507,7 +1509,7 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
-                                .background(Color(0xFF66BB6A), RoundedCornerShape(24.dp)),
+                                .background(greenColor, RoundedCornerShape(24.dp)),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
