@@ -140,14 +140,14 @@ fun MenuScreen(onNavigate: (String) -> Unit) {
 }
 
 @Composable
-private fun MyButton(text: String, onClick: () -> Unit) {
+private fun MyButton(text: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
     Button(
         onClick = onClick,
         colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
         shape = RoundedCornerShape(50),
         contentPadding = PaddingValues(),
         border = BorderStroke(2.dp, Color(0xFFB0BEC5)),
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .height(90.dp)
             .padding(horizontal = 20.dp, vertical = 10.dp)
@@ -172,7 +172,6 @@ private fun MyButton(text: String, onClick: () -> Unit) {
         }
     }
 }
-
 
 @Composable
 fun RandomGeneratorScreen(onBack: () -> Unit) {
@@ -951,25 +950,25 @@ fun FlashcardElementsScreen(listId: String, onBack: () -> Unit, navController: N
             }
         }
 
-
         Spacer(Modifier.height(16.dp))
         Row(
-            modifier = Modifier.fillMaxWidth().height(80.dp),
+            modifier = Modifier.fillMaxWidth().height(100.dp),
             horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Button(
-                onClick = { navController.navigate("game/$listId") },
-                modifier = Modifier.weight(1f).height(80.dp)
-            ) { Text("Jouer") }
-            Button(
-                onClick = {
-                    dialogName = ""
-                    dialogDefinition = ""
-                    editingIndex = null
-                    showDialog = true
-                },
-                modifier = Modifier.weight(1f).height(80.dp)
-            ) { Text("Ajouter") }
+            MyButton(
+                text = "Jouer",
+                modifier = Modifier.weight(1f).height(100.dp)
+            ) { navController.navigate("game/$listId") }
+
+            MyButton(
+                text = "Ajouter",
+                modifier = Modifier.weight(1f).height(100.dp)
+            ) {
+                dialogName = ""
+                dialogDefinition = ""
+                editingIndex = null
+                showDialog = true
+            }
         }
     }
 
