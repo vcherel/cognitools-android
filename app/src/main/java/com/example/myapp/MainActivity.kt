@@ -149,6 +149,7 @@ private fun MenuButton(text: String, onClick: () -> Unit) {
     }
 }
 
+
 @Composable
 fun RandomGeneratorScreen(onBack: () -> Unit) {
     BackHandler { onBack() }
@@ -1165,24 +1166,26 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
                     .fillMaxSize()
                     .background(
                         brush = if (cardOffset < 0) {
-                            Brush.horizontalGradient(
+                            Brush.radialGradient(
                                 colors = listOf(
-                                    shadowColor.copy(alpha = swipeProgress * 0.4f),
-                                    shadowColor.copy(alpha = swipeProgress * 0.2f),
+                                    shadowColor.copy(alpha = swipeProgress * 0.5f),
+                                    shadowColor.copy(alpha = swipeProgress * 0.3f),
+                                    shadowColor.copy(alpha = swipeProgress * 0.1f),
                                     Color.Transparent
                                 ),
-                                startX = 0f,
-                                endX = 600f
+                                center = Offset(0f, 0.5f),
+                                radius = 800f
                             )
                         } else {
-                            Brush.horizontalGradient(
+                            Brush.radialGradient(
                                 colors = listOf(
-                                    Color.Transparent,
-                                    shadowColor.copy(alpha = swipeProgress * 0.2f),
-                                    shadowColor.copy(alpha = swipeProgress * 0.4f)
+                                    shadowColor.copy(alpha = swipeProgress * 0.5f),
+                                    shadowColor.copy(alpha = swipeProgress * 0.3f),
+                                    shadowColor.copy(alpha = swipeProgress * 0.1f),
+                                    Color.Transparent
                                 ),
-                                startX = 0f,
-                                endX = Float.POSITIVE_INFINITY
+                                center = Offset(Float.POSITIVE_INFINITY, 0.5f),
+                                radius = 800f
                             )
                         }
                     )
