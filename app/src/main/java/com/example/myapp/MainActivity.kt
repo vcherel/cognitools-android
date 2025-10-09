@@ -24,6 +24,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
@@ -500,17 +501,26 @@ fun FlashcardsScreen(onBack: () -> Unit, navController: NavController) {
             .padding(16.dp)
     ) {
         Spacer(Modifier.height(16.dp))
+
+        // Top bar
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.weight(1f)
+            ) {
                 IconButton(onClick = onBack) {
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Retour")
                 }
-                Text("Mes listes", style = MaterialTheme.typography.headlineMedium)
+                Text(
+                    "Mes listes",
+                    style = MaterialTheme.typography.headlineMedium,
+                    modifier = Modifier.padding(start = 8.dp)
+                )
             }
+
             Row {
                 IconButton(onClick = {
                     CoroutineScope(Dispatchers.IO).launch {
@@ -526,8 +536,10 @@ fun FlashcardsScreen(onBack: () -> Unit, navController: NavController) {
                 }
             }
         }
+
         Spacer(Modifier.height(16.dp))
 
+        // List of flashcard lists
         LazyColumn(modifier = Modifier.weight(1f)) {
             itemsIndexed(listsState) { index, flashcardList ->
                 Card(
@@ -537,11 +549,19 @@ fun FlashcardsScreen(onBack: () -> Unit, navController: NavController) {
                         .clickable { navController.navigate("elements/${flashcardList.id}") }
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        val dueCount = flashcards.count { it.listId == flashcardList.id && isDue(it) }
+                        val dueCount =
+                            flashcards.count { it.listId == flashcardList.id && isDue(it) }
 
-                        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.Top
+                        ) {
                             Column(modifier = Modifier.weight(1f)) {
-                                Text(flashcardList.name, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                                Text(
+                                    flashcardList.name,
+                                    style = MaterialTheme.typography.titleLarge,
+                                    fontWeight = FontWeight.Bold
+                                )
                                 Spacer(Modifier.height(4.dp))
                                 Text(
                                     "$dueCount à réviser",
@@ -551,22 +571,19 @@ fun FlashcardsScreen(onBack: () -> Unit, navController: NavController) {
                             }
 
                             Row {
-                                IconButton(
-                                    onClick = {
-                                        dialogTitle = "Renommer la liste"
-                                        dialogValue = flashcardList.name
-                                        dialogAction = { newName ->
-                                            listsState[index] = flashcardList.copy(name = newName)
-                                            updateLists(listsState)
-                                        }
-                                        showDialog = true
+                                IconButton(onClick = {
+                                    dialogTitle = "Renommer la liste"
+                                    dialogValue = flashcardList.name
+                                    dialogAction = { newName ->
+                                        listsState[index] = flashcardList.copy(name = newName)
+                                        updateLists(listsState)
                                     }
-                                ) {
+                                    showDialog = true
+                                }) {
                                     Icon(Icons.Default.Edit, contentDescription = "Éditer")
                                 }
 
                                 var showDeleteDialog by remember { mutableStateOf(false) }
-
                                 IconButton(onClick = { showDeleteDialog = true }) {
                                     Icon(Icons.Default.Delete, contentDescription = "Supprimer")
                                 }
@@ -583,7 +600,9 @@ fun FlashcardsScreen(onBack: () -> Unit, navController: NavController) {
                                             }) { Text("Oui t'inquiète") }
                                         },
                                         dismissButton = {
-                                            TextButton(onClick = { showDeleteDialog = false }) { Text("Oula non merci") }
+                                            TextButton(onClick = {
+                                                showDeleteDialog = false
+                                            }) { Text("Oula non merci") }
                                         }
                                     )
                                 }
@@ -596,6 +615,7 @@ fun FlashcardsScreen(onBack: () -> Unit, navController: NavController) {
 
         Spacer(Modifier.height(16.dp))
 
+        // Button to create a new list
         MyButton(
             text = "Créer une nouvelle liste",
             onClick = {
@@ -608,9 +628,9 @@ fun FlashcardsScreen(onBack: () -> Unit, navController: NavController) {
                 showDialog = true
             }
         )
-
     }
 
+// Dialog for creating or renaming a list
     if (showDialog) {
         AlertDialog(
             onDismissRequest = { showDialog = false },
@@ -619,7 +639,7 @@ fun FlashcardsScreen(onBack: () -> Unit, navController: NavController) {
                 TextField(
                     value = dialogValue,
                     onValueChange = { dialogValue = it },
-                    label = { Text("Nom de la liste")},
+                    label = { Text("Nom de la liste") },
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences)
                 )
             },
@@ -644,7 +664,7 @@ fun FlashcardsScreen(onBack: () -> Unit, navController: NavController) {
     }
 }
 
-data class FlashcardElement(
+    data class FlashcardElement(
     val listId: String,
     val name: String,
     val definition: String,
@@ -714,6 +734,7 @@ fun FlashcardElementsScreen(listId: String, onBack: () -> Unit, navController: N
     BackHandler { onBack() }
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val listState = rememberLazyListState()
 
     // Get the list name for display
     val listsJson by context.dataStore.data
@@ -780,7 +801,15 @@ fun FlashcardElementsScreen(listId: String, onBack: () -> Unit, navController: N
         ) {
             // Left Column
             Column(modifier = Modifier.weight(1f)) {
-                Text(listName, style = MaterialTheme.typography.headlineMedium)
+                Text(
+                    listName,
+                    style = MaterialTheme.typography.headlineMedium,
+                    modifier = Modifier.clickable {
+                        scope.launch {
+                            listState.scrollToItem(0)
+                        }
+                    }
+                )
             }
 
             // Spacer to push right column to the end
@@ -829,7 +858,10 @@ fun FlashcardElementsScreen(listId: String, onBack: () -> Unit, navController: N
         }
 
         // List of elements
-        LazyColumn(modifier = Modifier.weight(1f)) {
+        LazyColumn(
+            modifier = Modifier.weight(1f),
+            state = listState
+        ) {
             itemsIndexed(filteredElements) { index, element ->
                 Card(
                     modifier = Modifier
