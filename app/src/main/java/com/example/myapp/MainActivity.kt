@@ -1078,6 +1078,11 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
         var newEF = card.easeFactor + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02))
         if (newEF < 1.3) newEF = 1.3
 
+        // Bonus if didn't see answer
+        if (!showDefinition) {
+            newEF *= 1.05
+        }
+
         // Update repetitions
         val newReps = if (quality >= 3) card.repetitions + 1 else 0
 
@@ -1103,10 +1108,7 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
             newReps == 1 -> 6.0
 
             else -> {
-                // If we don't click on card, we see the card even less
-                val qualityMultiplier = if (showDefinition) 1.0 else 1.5
-                // 1.3 is here to make interval longer quicker
-                1.3 * card.interval * newEF * qualityMultiplier
+                1.3 * card.interval * newEF
             }
         }
 
