@@ -186,15 +186,19 @@ private fun MyButton(text: String, modifier: Modifier = Modifier, onClick: () ->
 
 @Composable
 fun RandomGeneratorScreen(onBack: () -> Unit, context: Context = LocalContext.current) {
+    BackHandler { onBack() }
+
+    // Integer state
     var min by remember { mutableStateOf("1") }
     var max by remember { mutableStateOf("100") }
     var intResult by remember { mutableStateOf<Int?>(null) }
+
+    // Word state
     var words by remember { mutableStateOf<List<String>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var wordResult by remember { mutableStateOf<String?>(null) }
 
-    BackHandler { onBack() }
-
+    // Load words
     LaunchedEffect(Unit) {
         launch(Dispatchers.IO) {
             val loadedWords = context.assets.open("words.txt")
@@ -205,45 +209,62 @@ fun RandomGeneratorScreen(onBack: () -> Unit, context: Context = LocalContext.cu
         }
     }
 
-    Column(modifier = Modifier.fillMaxSize().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        IconButton(onClick = onBack) {
-            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Retour")
-        }
-        Spacer(modifier = Modifier.height(64.dp))
-
-        // Random Integer Section
-        Text("Nombre entier aléatoire", fontSize = 20.sp, fontWeight = FontWeight.SemiBold, color = Color.Black)
-        Spacer(modifier = Modifier.height(8.dp))
-        Row {
-            OutlinedTextField(value = min, onValueChange = { min = it }, label = { Text("Min") }, modifier = Modifier.weight(1f))
-            Spacer(modifier = Modifier.width(8.dp))
-            OutlinedTextField(value = max, onValueChange = { max = it }, label = { Text("Max") }, modifier = Modifier.weight(1f))
-        }
-        Spacer(modifier = Modifier.height(8.dp))
-        MyButton("Générer") {
-            val minInt = min.toIntOrNull() ?: 1
-            val maxInt = max.toIntOrNull() ?: 100
-            if (minInt <= maxInt) intResult = (minInt..maxInt).random()
-        }
-        Spacer(modifier = Modifier.height(8.dp))
-        intResult?.let {
-            Box(modifier = Modifier.fillMaxWidth().height(80.dp).background(Color.LightGray), contentAlignment = Alignment.Center) {
-                Text(it.toString(), fontSize = 32.sp)
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 20.dp, vertical = 40.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(24.dp)
+    ) {
+        // Back button aligned to the start (left)
+        Row(modifier = Modifier.fillMaxWidth()) {
+            IconButton(onClick = onBack) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Retour")
             }
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
+        // Random Integer Section
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text("Nombre entier aléatoire", fontSize = 20.sp, fontWeight = FontWeight.SemiBold, color = Color.Black)
+
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedTextField(value = min, onValueChange = { min = it }, label = { Text("Min") }, modifier = Modifier.weight(1f))
+                OutlinedTextField(value = max, onValueChange = { max = it }, label = { Text("Max") }, modifier = Modifier.weight(1f))
+            }
+
+            MyButton("Générer") {
+                val minInt = min.toIntOrNull() ?: 1
+                val maxInt = max.toIntOrNull() ?: 100
+                if (minInt <= maxInt) intResult = (minInt..maxInt).random()
+            }
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(80.dp)
+                    .background(Color(0xFFEFEFEF), shape = RoundedCornerShape(20.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(text = intResult?.toString() ?: "", fontSize = 32.sp)
+            }
+        }
 
         // Random Word Section
-        Text("Mot aléatoire", fontSize = 20.sp, fontWeight = FontWeight.SemiBold, color = Color.Black)
-        Spacer(modifier = Modifier.height(8.dp))
-        MyButton(text = if (isLoading) "Chargement..." else "Générer") {
-            if (words.isNotEmpty()) wordResult = words.random()
-        }
-        Spacer(modifier = Modifier.height(8.dp))
-        wordResult?.let {
-            Box(modifier = Modifier.fillMaxWidth().height(80.dp).background(Color.LightGray), contentAlignment = Alignment.Center) {
-                Text(it, fontSize = 32.sp)
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text("Mot aléatoire", fontSize = 20.sp, fontWeight = FontWeight.SemiBold, color = Color.Black)
+
+            MyButton(text = if (isLoading) "Chargement..." else "Générer") {
+                if (words.isNotEmpty()) wordResult = words.random()
+            }
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(80.dp)
+                    .background(Color(0xFFEFEFEF), shape = RoundedCornerShape(20.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(text = wordResult ?: "", fontSize = 32.sp)
             }
         }
     }
