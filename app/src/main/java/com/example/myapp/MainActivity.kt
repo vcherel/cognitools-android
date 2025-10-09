@@ -41,6 +41,7 @@ import androidx.compose.material.icons.filled.Upload
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
@@ -1154,6 +1155,40 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
+
+        if (cardOffset != 0f) {
+            val swipeProgress = (kotlin.math.abs(cardOffset) / 200f).coerceIn(0f, 1f)
+            val shadowColor = if (cardOffset < 0) Color.Green else Color.Red
+
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        brush = if (cardOffset < 0) {
+                            Brush.horizontalGradient(
+                                colors = listOf(
+                                    shadowColor.copy(alpha = swipeProgress * 0.4f),
+                                    shadowColor.copy(alpha = swipeProgress * 0.2f),
+                                    Color.Transparent
+                                ),
+                                startX = 0f,
+                                endX = 600f
+                            )
+                        } else {
+                            Brush.horizontalGradient(
+                                colors = listOf(
+                                    Color.Transparent,
+                                    shadowColor.copy(alpha = swipeProgress * 0.2f),
+                                    shadowColor.copy(alpha = swipeProgress * 0.4f)
+                                ),
+                                startX = 0f,
+                                endX = Float.POSITIVE_INFINITY
+                            )
+                        }
+                    )
+            )
+        }
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -1270,23 +1305,6 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
                                     fontWeight = FontWeight.Bold
                                 )
                             }
-                        }
-                    }
-
-                    // Swipe indicators
-                    if (cardOffset != 0f) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(32.dp),
-                            contentAlignment = if (cardOffset < 0) Alignment.CenterStart else Alignment.CenterEnd
-                        ) {
-                            Icon(
-                                imageVector = if (cardOffset < 0) Icons.Default.Check else Icons.Default.Close,
-                                contentDescription = null,
-                                tint = if (cardOffset < 0) Color.Green else Color.Red,
-                                modifier = Modifier.size(64.dp)
-                            )
                         }
                     }
                 }
