@@ -31,6 +31,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
@@ -470,6 +471,9 @@ fun FlashcardsScreen(onBack: () -> Unit, navController: NavController) {
     var dialogTitle by remember { mutableStateOf("") }
     var dialogValue by remember { mutableStateOf("") }
     var dialogAction by remember { mutableStateOf<(String) -> Unit>({}) }
+    var showBulkImportDialog by remember { mutableStateOf(false) }
+    var bulkImportText by remember { mutableStateOf("") }
+    var selectedListId by remember { mutableStateOf("") }
 
     // Helper function to update DataStore
     fun updateLists(newLists: List<FlashcardList>) {
@@ -571,6 +575,14 @@ fun FlashcardsScreen(onBack: () -> Unit, navController: NavController) {
 
                             Row {
                                 IconButton(onClick = {
+                                    selectedListId = flashcardList.id
+                                    showBulkImportDialog = true
+                                    bulkImportText = ""
+                                }) {
+                                    Icon(Icons.Default.Add, contentDescription = "Ajouter")
+                                }
+
+                                IconButton(onClick = {
                                     dialogTitle = "Renommer la liste"
                                     dialogValue = flashcardList.name
                                     dialogAction = { newName ->
@@ -605,6 +617,100 @@ fun FlashcardsScreen(onBack: () -> Unit, navController: NavController) {
                                         }
                                     )
                                 }
+
+                                if (showBulkImportDialog) {
+                                    AlertDialog(
+                                        onDismissRequest = { showBulkImportDialog = false },
+                                        title = { Text("Importer des cartes") },
+                                        text = {
+                                            Column {
+                                                Text(
+                                                    "Collez vos cartes au format :\nNom - Définition",
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = Color.Gray,
+                                                    modifier = Modifier.padding(bottom = 8.dp)
+                                                )
+                                                TextField(
+                                                    value = bulkImportText,
+                                                    onValueChange = { bulkImportText = it },
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .height(200.dp),
+                                                    placeholder = { Text("Exemple:\nMot 1 - Définition 1\nMot 2 - Définition 2") },
+                                                    maxLines = 10
+                                                )
+                                            }
+                                        },
+                                        confirmButton = {
+                                            Button(
+                                                onClick = {
+                                                    if (bulkImportText.isNotBlank()) {
+                                                        // Parse the text and create flashcards
+                                                        val lines = bulkImportText.split("\n")
+                                                            .map { it.trim() }
+                                                            .filter { it.isNotBlank() }
+
+                                                        val newElements = lines.mapNotNull { line ->
+                                                            val parts = line.split("-", limit = 2)
+                                                            if (parts.size == 2) {
+                                                                val name = parts[0].trim()
+                                                                val definition = parts[1].trim()
+                                                                if (name.isNotBlank() && definition.isNotBlank()) {
+                                                                    FlashcardElement(
+                                                                        listId = selectedListId,
+                                                                        name = name,
+                                                                        definition = definition
+                                                                    )
+                                                                } else null
+                                                            } else null
+                                                        }
+
+                                                        if (newElements.isNotEmpty()) {
+                                                            // Load current elements and add new ones
+                                                            scope.launch(Dispatchers.IO) {
+                                                                val key = stringPreferencesKey("elements_$selectedListId")
+                                                                val currentJson = context.dataStore.data
+                                                                    .map { prefs -> prefs[key] }
+                                                                    .first()
+
+                                                                val currentElements = currentJson?.let {
+                                                                    FlashcardElement.listFromJsonString(it)
+                                                                } ?: emptyList()
+
+                                                                val updatedElements = newElements + currentElements
+
+                                                                context.dataStore.edit { prefs ->
+                                                                    prefs[key] = FlashcardElement.listToJsonString(updatedElements)
+                                                                }
+
+                                                                withContext(Dispatchers.Main) {
+                                                                    Toast.makeText(
+                                                                        context,
+                                                                        "${newElements.size} carte(s) ajoutée(s)",
+                                                                        Toast.LENGTH_SHORT
+                                                                    ).show()
+                                                                }
+                                                            }
+                                                        }
+
+                                                        showBulkImportDialog = false
+                                                    }
+                                                },
+                                                modifier = Modifier.height(50.dp)
+                                            ) {
+                                                Text("Importer")
+                                            }
+                                        },
+                                        dismissButton = {
+                                            Button(
+                                                onClick = { showBulkImportDialog = false },
+                                                modifier = Modifier.height(50.dp)
+                                            ) {
+                                                Text("Annuler")
+                                            }
+                                        }
+                                    )
+                                }
                             }
                         }
                     }
@@ -629,7 +735,7 @@ fun FlashcardsScreen(onBack: () -> Unit, navController: NavController) {
         )
     }
 
-// Dialog for creating or renaming a list
+    // Dialog for creating or renaming a list
     if (showDialog) {
         AlertDialog(
             onDismissRequest = { showDialog = false },
