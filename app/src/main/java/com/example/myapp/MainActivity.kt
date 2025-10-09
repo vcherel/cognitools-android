@@ -543,6 +543,15 @@ fun FlashcardsScreen(onBack: () -> Unit, navController: NavController) {
 
         Spacer(Modifier.height(16.dp))
 
+        val dueCountMap by remember(flashcards) {
+            derivedStateOf {
+                flashcards
+                    .filter { isDue(it) }
+                    .groupingBy { it.listId }
+                    .eachCount()
+            }
+        }
+
         // List of flashcard lists
         LazyColumn(modifier = Modifier.weight(1f)) {
             itemsIndexed(lists) { index, flashcardList ->
@@ -553,9 +562,6 @@ fun FlashcardsScreen(onBack: () -> Unit, navController: NavController) {
                         .clickable { navController.navigate("elements/${flashcardList.id}") }
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        val dueCount =
-                            flashcards.count { it.listId == flashcardList.id && isDue(it) }
-
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.Top
@@ -568,7 +574,7 @@ fun FlashcardsScreen(onBack: () -> Unit, navController: NavController) {
                                 )
                                 Spacer(Modifier.height(4.dp))
                                 Text(
-                                    "$dueCount à réviser",
+                                    "${dueCountMap[flashcardList.id] ?: 0} à réviser",
                                     style = MaterialTheme.typography.bodyLarge,
                                     color = Color.Gray
                                 )
