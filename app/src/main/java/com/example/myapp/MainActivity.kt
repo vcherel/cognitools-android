@@ -47,6 +47,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -456,21 +457,18 @@ suspend fun importFlashcardsData(context: Context, jsonString: String): Boolean 
 
 @Composable
 fun FlashcardsScreen(onBack: () -> Unit, navController: NavController) {
-    BackHandler { onBack() }
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-
     val listsState = remember { mutableStateListOf<FlashcardList>() }
-
     val listsJson by context.dataStore.data
         .map { prefs -> prefs[stringPreferencesKey("lists")] }
         .collectAsState(initial = null)
 
-    // Update the state when DataStore changes
-    LaunchedEffect(listsJson) {
-        listsState.clear()
-        listsJson?.let { listsState.addAll(FlashcardList.listFromJsonString(it)) }
-    }
+    var flashcards by remember { mutableStateOf<List<FlashcardElement>>(emptyList()) }
+    var showDialog by remember { mutableStateOf(false) }
+    var dialogTitle by remember { mutableStateOf("") }
+    var dialogValue by remember { mutableStateOf("") }
+    var dialogAction by remember { mutableStateOf<(String) -> Unit>({}) }
 
     // Helper function to update DataStore
     fun updateLists(newLists: List<FlashcardList>) {
@@ -482,17 +480,18 @@ fun FlashcardsScreen(onBack: () -> Unit, navController: NavController) {
         }
     }
 
-    var flashcards by remember { mutableStateOf<List<FlashcardElement>>(emptyList()) }
+    BackHandler { onBack() }
+
+    // Update the state when DataStore changes
+    LaunchedEffect(listsJson) {
+        listsState.clear()
+        listsJson?.let { listsState.addAll(FlashcardList.listFromJsonString(it)) }
+    }
 
     LaunchedEffect(Unit) {
         val (_, cards) = loadFlashcardData(context)
         flashcards = cards
     }
-
-    var showDialog by remember { mutableStateOf(false) }
-    var dialogTitle by remember { mutableStateOf("") }
-    var dialogValue by remember { mutableStateOf("") }
-    var dialogAction by remember { mutableStateOf<(String) -> Unit>({}) }
 
     Column(
         modifier = Modifier
@@ -730,10 +729,19 @@ fun isDue(card: FlashcardElement): Boolean {
 
 @Composable
 fun FlashcardElementsScreen(listId: String, onBack: () -> Unit, navController: NavController) {
-    BackHandler { onBack() }
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
+    val keyboardController = LocalSoftwareKeyboardController.current
+
+    var showDialog by remember { mutableStateOf(false) }
+    var dialogName by remember { mutableStateOf("") }
+    var dialogDefinition by remember { mutableStateOf("") }
+    var editingIndex by remember { mutableStateOf<Int?>(null) }
+    var sortAscending by remember { mutableStateOf(true) }
+    var searchQuery by remember { mutableStateOf("") }
+    var needsSorting by remember { mutableStateOf(false) }
+    var elementToDelete by remember { mutableStateOf<FlashcardElement?>(null) }
 
     // Get the list name for display
     val listsJson by context.dataStore.data
@@ -770,14 +778,13 @@ fun FlashcardElementsScreen(listId: String, onBack: () -> Unit, navController: N
         }
     }
 
-    var showDialog by remember { mutableStateOf(false) }
-    var dialogName by remember { mutableStateOf("") }
-    var dialogDefinition by remember { mutableStateOf("") }
-    var editingIndex by remember { mutableStateOf<Int?>(null) }
-    var sortAscending by remember { mutableStateOf(true) }
-    var searchQuery by remember { mutableStateOf("") }
-    var needsSorting by remember { mutableStateOf(false) }
-    var elementToDelete by remember { mutableStateOf<FlashcardElement?>(null) }
+    BackHandler {
+        when {
+            searchQuery.isNotEmpty() -> searchQuery = ""
+            keyboardController != null -> keyboardController.hide()
+            else -> onBack()
+        }
+    }
 
     // Apply sorting when needed
     LaunchedEffect(needsSorting, elements) {
@@ -1077,11 +1084,8 @@ fun FlashcardElementsScreen(listId: String, onBack: () -> Unit, navController: N
 
 @Composable
 fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
-    BackHandler { onBack() }
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-
-    // Load elements from DataStore
     val key = stringPreferencesKey("elements_$listId")
     val elementsJson by context.dataStore.data
         .map { prefs -> prefs[key] }
@@ -1094,6 +1098,8 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
     var cardOffset by remember { mutableFloatStateOf(0f) }
     var isProcessingSwipe by remember { mutableStateOf(false) }
     var showFront by remember { mutableStateOf(true) }
+
+    BackHandler { onBack() }
 
     // Load and filter due cards
     LaunchedEffect(elementsJson) {
