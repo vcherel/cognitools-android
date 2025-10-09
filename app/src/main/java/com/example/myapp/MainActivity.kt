@@ -872,7 +872,6 @@ fun FlashcardElementsScreen(listId: String, onBack: () -> Unit, navController: N
     var editingIndex by remember { mutableStateOf<Int?>(null) }
     var sortAscending by remember { mutableStateOf(true) }
     var searchQuery by remember { mutableStateOf("") }
-    var needsSorting by remember { mutableStateOf(false) }
     var elementToDelete by remember { mutableStateOf<FlashcardElement?>(null) }
 
     // Get the list name for display
@@ -887,22 +886,25 @@ fun FlashcardElementsScreen(listId: String, onBack: () -> Unit, navController: N
         } ?: ""
     }
 
-    // Use ID to store/retrieve elements
     val key = stringPreferencesKey("elements_$listId")
-    val elementsJson by context.dataStore.data
-        .map { prefs -> prefs[key] }
-        .collectAsState(initial = null)
+    val elements by remember {
+        context.dataStore.data
+            .map { prefs ->
+                prefs[key]?.let { FlashcardElement.listFromJsonString(it) } ?: emptyList()
+            }
+    }.collectAsState(initial = emptyList())
 
-    var elements by remember(elementsJson) {
-        mutableStateOf(
-            elementsJson?.let { FlashcardElement.listFromJsonString(it) }
-                ?.sortedBy { it.lastReview + it.interval * 60 * 1000L }
-                ?: emptyList()
-        )
+    val sortedElements by remember(elements, sortAscending) {
+        derivedStateOf {
+            if (sortAscending) {
+                elements.sortedBy { it.lastReview + (it.interval * 60 * 1000L) }
+            } else {
+                elements.sortedByDescending { it.lastReview + (it.interval * 60 * 1000L) }
+            }
+        }
     }
 
     fun updateElements(newElements: List<FlashcardElement>) {
-        elements = newElements
         scope.launch(Dispatchers.IO) {
             context.dataStore.edit { prefs ->
                 prefs[key] = FlashcardElement.listToJsonString(newElements)
@@ -919,19 +921,6 @@ fun FlashcardElementsScreen(listId: String, onBack: () -> Unit, navController: N
             else -> {
                 onBack()
             }
-        }
-    }
-
-    // Apply sorting when needed
-    LaunchedEffect(needsSorting, elements) {
-        if (needsSorting && elements.isNotEmpty()) {
-            val sorted = if (sortAscending) {
-                elements.sortedBy { it.lastReview + (it.interval * 60 * 1000L) }
-            } else {
-                elements.sortedByDescending { it.lastReview + (it.interval * 60 * 1000L) }
-            }
-            elements = sorted
-            needsSorting = false
         }
     }
 
@@ -962,7 +951,6 @@ fun FlashcardElementsScreen(listId: String, onBack: () -> Unit, navController: N
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     IconButton(onClick = {
                         sortAscending = !sortAscending
-                        needsSorting = true
                     }) {
                         Icon(Icons.Default.SwapVert, contentDescription = "Trier")
                     }
@@ -994,9 +982,14 @@ fun FlashcardElementsScreen(listId: String, onBack: () -> Unit, navController: N
 
         Spacer(Modifier.height(16.dp))
 
-        val filteredElements = elements.filter {
-            it.name.contains(searchQuery, ignoreCase = true) ||
-                    it.definition.contains(searchQuery, ignoreCase = true)
+        val filteredElements by remember(sortedElements, searchQuery) {
+            derivedStateOf {
+                if (searchQuery.isEmpty()) sortedElements
+                else sortedElements.filter {
+                    it.name.contains(searchQuery, ignoreCase = true) ||
+                            it.definition.contains(searchQuery, ignoreCase = true)
+                }
+            }
         }
 
         // List of elements
