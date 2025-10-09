@@ -18,7 +18,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.myapp.ui.theme.MyAppTheme
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
@@ -47,8 +46,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.platform.SoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -144,34 +141,45 @@ fun MenuScreen(onNavigate: (String) -> Unit) {
 
 @Composable
 private fun MyButton(text: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
-    Button(
-        onClick = onClick,
-        colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
-        shape = RoundedCornerShape(50),
-        contentPadding = PaddingValues(),
-        border = BorderStroke(2.dp, Color(0xFFB0BEC5)),
+    Box(
         modifier = modifier
             .fillMaxWidth()
             .height(90.dp)
-            .padding(horizontal = 20.dp, vertical = 10.dp)
     ) {
+        // Shadow layer
         Box(
             modifier = Modifier
-                .background(
-                    brush = Brush.horizontalGradient(
-                        listOf(Color(0xFF78909C), Color(0xFF90A4AE))
-                    ),
-                    shape = RoundedCornerShape(50)
-                )
-                .fillMaxSize(),
-            contentAlignment = Alignment.Center
+                .fillMaxSize()
+                .offset(y = 6.dp)
+                .background(Color(0xFFB0BEC5), RoundedCornerShape(50))
+        )
+
+        // Main button
+        Button(
+            onClick = onClick,
+            modifier = Modifier.fillMaxSize(),
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFECEFF1)),
+            shape = RoundedCornerShape(50),
+            contentPadding = PaddingValues(0.dp)
         ) {
-            Text(
-                text,
-                color = Color.White,
-                fontSize = 24.sp,
-                fontWeight = FontWeight.SemiBold
-            )
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        brush = Brush.horizontalGradient(
+                            listOf(Color(0xFFECEFF1), Color(0xFFCFD8DC))
+                        ),
+                        shape = RoundedCornerShape(50)
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text,
+                    color = Color.Black,
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
         }
     }
 }
@@ -733,7 +741,6 @@ fun FlashcardElementsScreen(listId: String, onBack: () -> Unit, navController: N
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
-    val keyboardController = LocalSoftwareKeyboardController.current
 
     var showDialog by remember { mutableStateOf(false) }
     var dialogName by remember { mutableStateOf("") }
