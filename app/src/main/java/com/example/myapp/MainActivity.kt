@@ -181,8 +181,7 @@ fun RandomGeneratorScreen(onBack: () -> Unit) {
         IconButton(onClick = onBack) {
             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Retour")
         }
-        Spacer(modifier = Modifier.height(32.dp))
-        Spacer(modifier = Modifier.height(96.dp))
+        Spacer(modifier = Modifier.height(64.dp))
         RandomIntSection()
         Spacer(modifier = Modifier.height(24.dp))
         RandomWordSection()
