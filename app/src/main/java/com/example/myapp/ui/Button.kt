@@ -135,20 +135,24 @@ fun MySwitch(isBoostEnabled: Boolean, onToggle: (Boolean) -> Unit, modifier: Mod
                     text = "Boost",
                     color = if (isBoostEnabled) Color.White else Color.Black,
                     fontSize = 30.sp,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(start = 20.dp)
                 )
 
-                Switch(
-                    checked = isBoostEnabled,
-                    onCheckedChange = onToggle,
-                    colors = SwitchDefaults.colors(
-                        checkedThumbColor = Color.White,
-                        checkedTrackColor = Color(0xFF0D47A1),
-                        uncheckedThumbColor = Color.White,
-                        uncheckedTrackColor = Color(0xFFB0BEC5)
-                    ),
-                    modifier = Modifier.scale(1.4f)
-                )
+                Box(modifier = Modifier.padding(end = 20.dp)) {
+                    Switch(
+                        checked = isBoostEnabled,
+                        onCheckedChange = onToggle,
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Color.White,
+                            checkedTrackColor = Color(0xFF0D47A1),
+                            uncheckedThumbColor = Color.White,
+                            uncheckedTrackColor = Color(0xFFB0BEC5)
+                        ),
+                        modifier = Modifier.scale(1.4f)
+                    )
+                }
+
             }
         }
     }
