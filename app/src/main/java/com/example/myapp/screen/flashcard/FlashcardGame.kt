@@ -1,4 +1,4 @@
-package com.example.myapp
+package com.example.myapp.screen.flashcard
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
@@ -62,6 +62,7 @@ import com.example.myapp.models.isDue
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlin.math.abs
 import kotlin.random.Random
 
 @Composable
@@ -207,7 +208,7 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
         val redColor = Color(0xFFDE1E1E)
 
         if (cardOffset != 0f) {
-            val swipeProgress = (kotlin.math.abs(cardOffset) / 200f).coerceIn(0f, 1f)
+            val swipeProgress = (abs(cardOffset) / 200f).coerceIn(0f, 1f)
             val shadowColor = if (cardOffset < 0) greenColor else redColor
 
             Box(

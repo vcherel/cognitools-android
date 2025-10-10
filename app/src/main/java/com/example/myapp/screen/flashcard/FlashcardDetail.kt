@@ -1,4 +1,4 @@
-package com.example.myapp
+package com.example.myapp.screen.flashcard
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background

@@ -1,4 +1,4 @@
-package com.example.myapp
+package com.example.myapp.screen.flashcard
 
 import android.content.ClipboardManager
 import android.content.Context

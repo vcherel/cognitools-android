@@ -19,6 +19,11 @@ import androidx.core.content.ContextCompat
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.example.myapp.screen.flashcard.FlashcardDetailScreen
+import com.example.myapp.screen.flashcard.FlashcardGameScreen
+import com.example.myapp.screen.flashcard.FlashcardListsScreen
+import com.example.myapp.screen.RandomGeneratorScreen
+import com.example.myapp.screen.VolumeBoosterScreen
 import com.example.myapp.ui.MyButton
 
 class MainActivity : ComponentActivity() {
@@ -83,7 +88,9 @@ fun MainScreen() {
                         }
                         composable("game/{listId}") { backStackEntry ->
                             val listId = backStackEntry.arguments?.getString("listId") ?: ""
-                            FlashcardGameScreen(listId = listId, onBack = { flashcardsNavController.popBackStack() })
+                            FlashcardGameScreen(
+                                listId = listId,
+                                onBack = { flashcardsNavController.popBackStack() })
                         }
                     }
                 }
