@@ -68,14 +68,14 @@ fun MainScreen() {
 
                     NavHost(navController = flashcardsNavController, startDestination = "lists") {
                         composable("lists") {
-                            FlashcardsScreen(
+                            FlashcardListsScreen(
                                 onBack = { currentScreen = "menu" },
                                 navController = flashcardsNavController
                             )
                         }
                         composable("elements/{listId}") { backStackEntry ->
                             val listId = backStackEntry.arguments?.getString("listId") ?: ""
-                            FlashcardElementsScreen(
+                            FlashcardDetailScreen(
                                 listId = listId,
                                 navController = flashcardsNavController,
                                 onBack = { flashcardsNavController.popBackStack() }
