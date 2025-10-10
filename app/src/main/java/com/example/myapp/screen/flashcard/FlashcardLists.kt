@@ -48,6 +48,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.navigation.NavController
@@ -231,23 +232,33 @@ fun FlashcardListsScreen(onBack: () -> Unit, navController: NavController) {
                                     AlertDialog(
                                         onDismissRequest = { showDeleteDialog = false },
                                         title = { Text("T'es sûr ??") },
+                                        text = null,
                                         confirmButton = {
-                                            MyButton(
-                                                text = "Oui t'inquiète",
-                                                onClick = {
-                                                val updated = lists.toMutableList()
-                                                updated.removeAt(index)
-                                                updateLists(updated)
-                                                showDeleteDialog = false
-                                                }
-                                            )
-                                        },
-                                        dismissButton = {
-                                            TextButton(onClick = {
-                                                showDeleteDialog = false
-                                            }) { Text("Oula non merci") }
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                            ) {
+                                                MyButton(
+                                                    text = "Oula non merci",
+                                                    onClick = { showDeleteDialog = false },
+                                                    modifier = Modifier.weight(1f).height(50.dp),
+                                                    fontSize = 14.sp
+                                                )
+                                                MyButton(
+                                                    text = "Oui t'inquiète",
+                                                    onClick = {
+                                                        val updated = lists.toMutableList()
+                                                        updated.removeAt(index)
+                                                        updateLists(updated)
+                                                        showDeleteDialog = false
+                                                    },
+                                                    modifier = Modifier.weight(1f).height(50.dp),
+                                                    fontSize = 14.sp
+                                                )
+                                            }
                                         }
                                     )
+
                                 }
 
                                 if (showBulkImportDialog) {
@@ -392,23 +403,25 @@ fun FlashcardListsScreen(onBack: () -> Unit, navController: NavController) {
                 )
             },
             confirmButton = {
-                MyButton(
-                    text = "Ok",
-                    onClick = {
-                        if (dialogValue.isNotBlank()) {
-                            dialogAction(dialogValue)
-                            showDialog = false
-                        }
-                    },
-                    modifier = Modifier.height(50.dp)
-                )
-            },
-            dismissButton = {
-                MyButton(
-                    text = "Annuler",
-                    onClick = { showDialog = false },
-                    modifier = Modifier.height(50.dp)
-                )
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    MyButton(
+                        text = "Annuler",
+                        onClick = { showDialog = false },
+                        modifier = Modifier.weight(1f).height(50.dp),
+                        fontSize = 14.sp
+                    )
+                    MyButton(
+                        text = "Ok",
+                        onClick = {
+                            if (dialogValue.isNotBlank()) {
+                                dialogAction(dialogValue)
+                                showDialog = false
+                            }
+                        },
+                        modifier = Modifier.weight(1f).height(50.dp),
+                        fontSize = 14.sp
+                    )
+                }
             }
         )
     }

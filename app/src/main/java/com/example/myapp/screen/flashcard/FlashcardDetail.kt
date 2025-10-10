@@ -28,13 +28,11 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -56,6 +54,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.navigation.NavController
@@ -348,19 +347,30 @@ fun FlashcardDetailScreen(listId: String, onBack: () -> Unit, navController: Nav
         AlertDialog(
             onDismissRequest = { elementToDelete = null },
             title = { Text("T'es sûr ??") },
+            text = null,
             confirmButton = {
-                MyButton(text = "Oui t'inquiète", onClick = {
-                    val updated = elements.filterNot { it.id == elementToDelete!!.id }
-                    updateElements(updated)
-                    elementToDelete = null
-                })
-            },
-            dismissButton = {
-                MyButton(
-                    text = "Oula non merci",
-                    onClick = { elementToDelete = null })
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    MyButton(
+                        text = "Oula non merci",
+                        onClick = { elementToDelete = null },
+                        modifier = Modifier.weight(1f).height(50.dp),
+                        fontSize = 14.sp
+                    )
+                    MyButton(
+                        text = "Oui t'inquiète",
+                        onClick = {
+                            val updated = elements.filterNot { it.id == elementToDelete!!.id }
+                            updateElements(updated)
+                            elementToDelete = null
+                        },
+                        modifier = Modifier.weight(1f).height(50.dp),
+                        fontSize = 14.sp
+                    )
+                }
             }
-
         )
     }
 
@@ -409,19 +419,25 @@ fun FlashcardDetailScreen(listId: String, onBack: () -> Unit, navController: Nav
                 }
             },
             confirmButton = {
-                MyButton(
-                    text = "Ok",
-                    onClick = { saveElement() },
-                    modifier = Modifier.height(50.dp)
-                )
-            },
-            dismissButton = {
-                MyButton(
-                    text = "Annuler",
-                    onClick = { showDialog = false },
-                    modifier = Modifier.height(50.dp)
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    MyButton(
+                        text = "Annuler",
+                        onClick = { showDialog = false },
+                        modifier = Modifier.weight(1f).height(50.dp),
+                        fontSize = 14.sp
+                    )
+                    MyButton(
+                        text = "Ok",
+                        onClick = { saveElement() },
+                        modifier = Modifier.weight(1f).height(50.dp),
+                        fontSize = 14.sp
+                    )
+                }
             }
         )
+
     }
 }

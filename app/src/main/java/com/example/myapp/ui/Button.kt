@@ -29,11 +29,12 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 @Composable
-fun MyButton(text: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
+fun MyButton(text: String, modifier: Modifier = Modifier, fontSize : TextUnit = 24.sp, onClick: () -> Unit) {
     var isPressed by remember { mutableStateOf(false) }
 
     Box(
@@ -80,7 +81,7 @@ fun MyButton(text: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
             Text(
                 text,
                 color = if (isPressed) Color.White else Color.Black,
-                fontSize = 24.sp,
+                fontSize = fontSize,
                 fontWeight = FontWeight.SemiBold
             )
         }
