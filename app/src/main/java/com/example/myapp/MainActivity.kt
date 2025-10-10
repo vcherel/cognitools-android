@@ -2,8 +2,10 @@ package com.example.myapp
 
 import android.content.ClipboardManager
 import android.content.Context
+import android.os.Build
 import android.os.Bundle
 import android.os.Environment
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -19,6 +21,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.myapp.ui.theme.MyAppTheme
 import androidx.activity.compose.BackHandler
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
@@ -55,6 +58,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
+import androidx.core.content.ContextCompat
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import androidx.datastore.preferences.core.edit
@@ -76,15 +80,37 @@ import java.util.UUID
 import kotlin.random.Random
 
 class MainActivity : ComponentActivity() {
+    private val requestPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted: Boolean ->
+        if (isGranted) {
+            Log.d("MainActivity", "Notification permission granted")
+        } else {
+            Log.d("MainActivity", "Notification permission denied")
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // Request notification permission for Android 13+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(
+                    this,
+                    android.Manifest.permission.POST_NOTIFICATIONS
+                ) != android.content.pm.PackageManager.PERMISSION_GRANTED
+            ) {
+                requestPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
+
         enableEdgeToEdge()
         setContent {
             MyAppTheme {
                 MainScreen()
             }
         }
-    }
+        }
 }
 
 @Composable
@@ -465,6 +491,11 @@ fun FlashcardsScreen(onBack: () -> Unit, navController: NavController) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
+    // Create notification channel on first composition
+    LaunchedEffect(Unit) {
+        createNotificationChannel(context)
+    }
+
     var showDialog by remember { mutableStateOf(false) }
     var dialogTitle by remember { mutableStateOf("") }
     var dialogValue by remember { mutableStateOf("") }
@@ -556,6 +587,15 @@ fun FlashcardsScreen(onBack: () -> Unit, navController: NavController) {
                     .filter { isDue(it) }
                     .groupingBy { it.listId }
                     .eachCount()
+            }
+        }
+
+        // Calculate total due count and send notification if >= 50
+        val totalDueCount = dueCountMap.values.sum()
+
+        LaunchedEffect(totalDueCount) {
+            if (totalDueCount >= 50) {
+                sendReviewNotification(context, totalDueCount)
             }
         }
 
