@@ -57,7 +57,6 @@ import com.example.myapp.data.exportFlashcards
 import com.example.myapp.data.importFlashcards
 import com.example.myapp.data.loadFlashcardData
 import com.example.myapp.helper.createNotificationChannel
-import com.example.myapp.helper.sendReviewNotification
 import com.example.myapp.models.FlashcardElement
 import com.example.myapp.models.FlashcardList
 import com.example.myapp.models.isDue
@@ -170,15 +169,6 @@ fun FlashcardListsScreen(onBack: () -> Unit, navController: NavController) {
                     .filter { isDue(it) }
                     .groupingBy { it.listId }
                     .eachCount()
-            }
-        }
-
-        // Calculate total due count and send notification if >= 50
-        val totalDueCount = dueCountMap.values.sum()
-
-        LaunchedEffect(totalDueCount) {
-            if (totalDueCount >= 50) {
-                sendReviewNotification(context, totalDueCount)
             }
         }
 
