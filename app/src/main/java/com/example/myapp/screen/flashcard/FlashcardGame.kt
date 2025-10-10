@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -59,6 +60,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import com.example.myapp.data.dataStore
 import com.example.myapp.models.FlashcardElement
 import com.example.myapp.models.isDue
+import com.example.myapp.ui.MyButton
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -211,6 +213,7 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
             val swipeProgress = (abs(cardOffset) / 200f).coerceIn(0f, 1f)
             val shadowColor = if (cardOffset < 0) greenColor else redColor
 
+            // Shadow at corners
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -294,7 +297,10 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
                                     cardOffset += dragAmount.x
                                 }
                             }
-                            .clickable { if (!showDefinition) showDefinition = true },
+                            .clickable(
+                                indication = null,
+                                interactionSource = remember { MutableInteractionSource() }
+                            ) { if (!showDefinition) showDefinition = true },
                         elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
                     ) {
                         val scoreColor = when (currentCard?.score?.toInt() ?: 0) {
@@ -512,12 +518,11 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
                         textAlign = TextAlign.Center
                     )
                     Spacer(Modifier.height(32.dp))
-                    Button(
+                    MyButton(
+                        text = "Retour",
                         onClick = onBack,
                         modifier = Modifier.fillMaxWidth().height(56.dp)
-                    ) {
-                        Text("Retour")
-                    }
+                    )
                 }
             }
         }

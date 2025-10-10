@@ -25,7 +25,6 @@ import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -233,12 +232,15 @@ fun FlashcardListsScreen(onBack: () -> Unit, navController: NavController) {
                                         onDismissRequest = { showDeleteDialog = false },
                                         title = { Text("T'es sûr ??") },
                                         confirmButton = {
-                                            TextButton(onClick = {
+                                            MyButton(
+                                                text = "Oui t'inquiète",
+                                                onClick = {
                                                 val updated = lists.toMutableList()
                                                 updated.removeAt(index)
                                                 updateLists(updated)
                                                 showDeleteDialog = false
-                                            }) { Text("Oui t'inquiète") }
+                                                }
+                                            )
                                         },
                                         dismissButton = {
                                             TextButton(onClick = {
@@ -283,17 +285,17 @@ fun FlashcardListsScreen(onBack: () -> Unit, navController: NavController) {
                                                         bulkImportText = clipData.getItemAt(0).text?.toString() ?: ""
                                                     }
                                                 }) {
-                                                    Icon(Icons.Default.ContentPaste, contentDescription = "Coller")
+                                                    Icon(Icons.Default.ContentPaste, contentDescription = "Coller", tint=Color.Black)
                                                 }
 
-                                                Button(
+                                                MyButton(
+                                                    text = "Annuler",
                                                     onClick = { showBulkImportDialog = false },
                                                     modifier = Modifier.height(50.dp)
-                                                ) {
-                                                    Text("Annuler")
-                                                }
+                                                )
 
-                                                Button(
+                                                MyButton(
+                                                    text = "Importer",
                                                     onClick = {
                                                         if (bulkImportText.isNotBlank()) {
                                                             val lines = bulkImportText.split("\n")
@@ -346,9 +348,7 @@ fun FlashcardListsScreen(onBack: () -> Unit, navController: NavController) {
                                                         }
                                                     },
                                                     modifier = Modifier.height(50.dp)
-                                                ) {
-                                                    Text("Importer")
-                                                }
+                                                )
                                             }
                                         }
                                     )
@@ -392,7 +392,8 @@ fun FlashcardListsScreen(onBack: () -> Unit, navController: NavController) {
                 )
             },
             confirmButton = {
-                Button(
+                MyButton(
+                    text = "Ok",
                     onClick = {
                         if (dialogValue.isNotBlank()) {
                             dialogAction(dialogValue)
@@ -400,13 +401,14 @@ fun FlashcardListsScreen(onBack: () -> Unit, navController: NavController) {
                         }
                     },
                     modifier = Modifier.height(50.dp)
-                ) { Text("OK") }
+                )
             },
             dismissButton = {
-                Button(
+                MyButton(
+                    text = "Annuler",
                     onClick = { showDialog = false },
                     modifier = Modifier.height(50.dp)
-                ) { Text("Annuler") }
+                )
             }
         )
     }

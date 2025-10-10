@@ -349,15 +349,18 @@ fun FlashcardDetailScreen(listId: String, onBack: () -> Unit, navController: Nav
             onDismissRequest = { elementToDelete = null },
             title = { Text("T'es sûr ??") },
             confirmButton = {
-                TextButton(onClick = {
+                MyButton(text = "Oui t'inquiète", onClick = {
                     val updated = elements.filterNot { it.id == elementToDelete!!.id }
                     updateElements(updated)
                     elementToDelete = null
-                }) { Text("Oui t'inquiète") }
+                })
             },
             dismissButton = {
-                TextButton(onClick = { elementToDelete = null }) { Text("Oula non merci") }
+                MyButton(
+                    text = "Oula non merci",
+                    onClick = { elementToDelete = null })
             }
+
         )
     }
 
@@ -406,16 +409,18 @@ fun FlashcardDetailScreen(listId: String, onBack: () -> Unit, navController: Nav
                 }
             },
             confirmButton = {
-                Button(
+                MyButton(
+                    text = "Ok",
                     onClick = { saveElement() },
                     modifier = Modifier.height(50.dp)
-                ) { Text("OK") }
+                )
             },
             dismissButton = {
-                Button(
+                MyButton(
+                    text = "Annuler",
                     onClick = { showDialog = false },
                     modifier = Modifier.height(50.dp)
-                ) { Text("Annuler") }
+                )
             }
         )
     }
