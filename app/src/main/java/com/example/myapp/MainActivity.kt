@@ -1251,7 +1251,7 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
         }
     }
 
-    fun updateCardWithSM2(card: FlashcardElement, quality: Int /* quality = 2 if lost, 4 if won */): FlashcardElement {
+    fun updateCards(card: FlashcardElement, quality: Int /* quality = 2 if lost, 4 if won */): FlashcardElement {
         // Update ease factor
         var newEF = card.easeFactor + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02))
         if (newEF < 1.3) newEF = 1.3
@@ -1282,7 +1282,7 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
                 // 1/3 chance that the card come back a bit later
                 if (Math.random() < 0.33) newScore.coerceAtLeast(1.0)
 
-                else 1.0
+                else 0.0
             }
 
             // On the first win we have to wait 6 minutes
@@ -1322,7 +1322,7 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
 
         currentCard?.let { card ->
             val quality = if (wasCorrect) 4 else 2 // 4 = correct, 2 = incorrect
-            val updatedCard = updateCardWithSM2(card, quality)
+            val updatedCard = updateCards(card, quality)
 
             // Update the card in allElements
             val updatedElements = allElements.map {
