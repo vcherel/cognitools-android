@@ -12,7 +12,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.example.myapp.ui.BoostSwitch
+import com.example.myapp.ui.MySwitch
 
 @Composable
 fun VolumeBoosterScreen(onBack: () -> Unit) {
@@ -79,7 +79,7 @@ fun VolumeBoosterScreen(onBack: () -> Unit) {
 
         Spacer(modifier = Modifier.height(48.dp))
 
-        BoostSwitch(
+        MySwitch(
             isBoostEnabled = isBoostEnabled,
             onToggle = { enabled ->
                 loudnessEnhancer?.let { enhancer ->

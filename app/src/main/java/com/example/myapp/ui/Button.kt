@@ -76,7 +76,7 @@ fun MyButton(text: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
 }
 
 @Composable
-fun BoostSwitch(isBoostEnabled: Boolean, onToggle: (Boolean) -> Unit, modifier: Modifier = Modifier) {
+fun MySwitch(isBoostEnabled: Boolean, onToggle: (Boolean) -> Unit, modifier: Modifier = Modifier) {
     Box(
         modifier = modifier
             .width(300.dp)
