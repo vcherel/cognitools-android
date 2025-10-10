@@ -960,6 +960,9 @@ fun FlashcardElementsScreen(listId: String, onBack: () -> Unit, navController: N
             Column(horizontalAlignment = Alignment.End) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     IconButton(onClick = {
+                        scope.launch {
+                            listState.scrollToItem(0)
+                        }
                         sortAscending = !sortAscending
                     }) {
                         Icon(Icons.Default.SwapVert, contentDescription = "Trier")
