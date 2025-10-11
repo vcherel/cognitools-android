@@ -300,8 +300,8 @@ fun FlashcardListsScreen(onBack: () -> Unit, navController: NavController) {
                                         },
                                         confirmButton = {
                                             Row(
-                                                horizontalArrangement = Arrangement.SpaceBetween,
-                                                modifier = Modifier.fillMaxWidth()
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
                                             ) {
                                                 IconButton(onClick = {
                                                     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
@@ -316,11 +316,12 @@ fun FlashcardListsScreen(onBack: () -> Unit, navController: NavController) {
                                                 MyButton(
                                                     text = "Annuler",
                                                     onClick = { showBulkImportDialog = false },
-                                                    modifier = Modifier.height(50.dp)
+                                                    modifier = Modifier.weight(1f).height(50.dp),
+                                                    fontSize = 14.sp
                                                 )
 
                                                 MyButton(
-                                                    text = "Importer",
+                                                    text = "Ok",
                                                     onClick = {
                                                         if (bulkImportText.isNotBlank()) {
                                                             val lines = bulkImportText.split("\n")
@@ -372,7 +373,8 @@ fun FlashcardListsScreen(onBack: () -> Unit, navController: NavController) {
                                                             showBulkImportDialog = false
                                                         }
                                                     },
-                                                    modifier = Modifier.height(50.dp)
+                                                    modifier = Modifier.weight(1f).height(50.dp),
+                                                    fontSize = 14.sp
                                                 )
                                             }
                                         }
