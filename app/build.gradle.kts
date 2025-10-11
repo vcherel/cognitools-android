@@ -60,5 +60,5 @@ dependencies {
     implementation(libs.androidx.compose.ui.text)
     implementation(libs.androidx.compose.ui.unit)
     implementation(libs.androidx.work.runtime.ktx)
-    debugImplementation(libs.androidx.compose.ui.tooling)
+    implementation(libs.androidx.core.splashscreen)
 }
