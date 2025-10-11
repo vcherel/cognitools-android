@@ -76,48 +76,54 @@ fun UndercoverScreen(onBack: () -> Unit) {
                         players = generatePlayers(settings)
                         currentPlayerIndex = 0
                         currentRound = 1
-                        gameState = GameState.PlayerSetup(0)
+                        gameState = GameState.PlayerSetup(
+                            0,
+                            showWord = false
+                        )
                     }
                 )
             }
             is GameState.PlayerSetup -> {
-                PlayerSetupScreen(
-                    playerIndex = state.playerIndex,
-                    totalPlayers = settings.playerCount,
-                    onNameEntered = { name ->
-                        if (state.playerIndex < settings.playerCount - 1) {
-                            gameState = GameState.PlayerSetup(state.playerIndex + 1)
-                        } else {
-                            assignRolesAndWords(players, settings)
-                            gameState = GameState.ShowWord(0, false)
+                if (!state.showWord) {
+                    // Name entry phase
+                    PlayerSetupScreen(
+                        playerIndex = state.playerIndex,
+                        totalPlayers = settings.playerCount,
+                        onNameEntered = { name ->
+                            players = players.toMutableList().apply {
+                                if (state.playerIndex < size) {
+                                    this[state.playerIndex] = this[state.playerIndex].copy(name = name)
+                                }
+                            }
+
+                            // After entering name, assign roles if this is the last player
+                            if (state.playerIndex == settings.playerCount - 1) {
+                                assignRolesAndWords(players, settings)
+                            }
+
+                            // Move to show word for this player
+                            gameState = GameState.PlayerSetup(state.playerIndex, true)
                         }
-                        players = players.toMutableList().apply {
-                            if (state.playerIndex < size) {
-                                this[state.playerIndex] = this[state.playerIndex].copy(name = name)
+                    )
+                } else {
+                    // Show word phase
+                    ShowWordScreen(
+                        player = players[state.playerIndex],
+                        playerIndex = state.playerIndex,
+                        totalPlayers = players.size,
+                        settings = settings,
+                        onNext = {
+                            if (state.playerIndex < players.size - 1) {
+                                // Move to next player's name entry
+                                gameState = GameState.PlayerSetup(state.playerIndex + 1, false)
+                            } else {
+                                // All players done, start game
+                                currentPlayerIndex = Random.nextInt(players.filter { !it.isEliminated }.size)
+                                gameState = GameState.RoundMenu
                             }
                         }
-                    }
-                )
-            }
-            is GameState.ShowWord -> {
-                ShowWordScreen(
-                    player = players[state.playerIndex],
-                    playerIndex = state.playerIndex,
-                    totalPlayers = players.size,
-                    showWord = state.showWord,
-                    settings = settings,
-                    onShowWord = {
-                        gameState = GameState.ShowWord(state.playerIndex, true)
-                    },
-                    onNext = {
-                        if (state.playerIndex < players.size - 1) {
-                            gameState = GameState.ShowWord(state.playerIndex + 1, false)
-                        } else {
-                            currentPlayerIndex = Random.nextInt(players.filter { !it.isEliminated }.size)
-                            gameState = GameState.RoundMenu
-                        }
-                    }
-                )
+                    )
+                }
             }
             is GameState.RoundMenu -> {
                 RoundMenuScreen(
@@ -196,8 +202,7 @@ fun UndercoverScreen(onBack: () -> Unit) {
 
 sealed class GameState {
     object Settings : GameState()
-    data class PlayerSetup(val playerIndex: Int) : GameState()
-    data class ShowWord(val playerIndex: Int, val showWord: Boolean) : GameState()
+    data class PlayerSetup(val playerIndex: Int, val showWord: Boolean) : GameState()
     object RoundMenu : GameState()
     object Voting : GameState()
     data class EliminationResult(val player: Player, val gameOver: Boolean) : GameState()

@@ -81,17 +81,17 @@ fun ShowWordScreen(
     player: Player,
     playerIndex: Int,
     totalPlayers: Int,
-    showWord: Boolean,
     settings: GameSettings,
-    onShowWord: () -> Unit,
     onNext: () -> Unit
 ) {
+    var wordRevealed by remember { mutableStateOf(false) }
+
     Column(
         modifier = Modifier.fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        if (!showWord) {
+        if (!wordRevealed) {
             Text(
                 "${player.name}, it's your turn!",
                 style = MaterialTheme.typography.headlineMedium
@@ -106,7 +106,7 @@ fun ShowWordScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            Button(onClick = onShowWord) {
+            Button(onClick = { wordRevealed = true }) {
                 Text("Show My Word")
             }
         } else {
