@@ -1,11 +1,8 @@
 package com.example.myapp
 
-import android.animation.ObjectAnimator
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
-import android.view.View
-import android.view.animation.AnticipateInterpolator
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
@@ -17,8 +14,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.core.animation.doOnEnd
+import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.navigation.compose.NavHost
@@ -43,51 +41,10 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        val splashScreen = installSplashScreen()
-
+        installSplashScreen()
         super.onCreate(savedInstanceState)
 
-        // Configure splash screen animation
-        splashScreen.setOnExitAnimationListener { splashScreenView ->
-            val scaleX = ObjectAnimator.ofFloat(
-                splashScreenView.iconView,
-                View.SCALE_X,
-                1f,
-                1.5f
-            )
-            val scaleY = ObjectAnimator.ofFloat(
-                splashScreenView.iconView,
-                View.SCALE_Y,
-                1f,
-                1.5f
-            )
-            val alpha = ObjectAnimator.ofFloat(
-                splashScreenView.iconView,
-                View.ALPHA,
-                1f,
-                0f
-            )
-
-            scaleX.interpolator = AnticipateInterpolator()
-            scaleY.interpolator = AnticipateInterpolator()
-            alpha.interpolator = AnticipateInterpolator()
-
-            scaleX.duration = 500L
-            scaleY.duration = 500L
-            alpha.duration = 500L
-
-            // Remove splash screen when animation ends
-            alpha.doOnEnd {
-                splashScreenView.remove()
-            }
-
-            // Start all animations together
-            scaleX.start()
-            scaleY.start()
-            alpha.start()
-        }
-
-        // Request notification permission for Android 13+
+        // Request notification permission (lightweight check)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (ContextCompat.checkSelfPermission(
                     this,
@@ -108,7 +65,6 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun MainScreen() {
     var currentScreen by remember { mutableStateOf("menu") }
-    val flashcardsNavController = rememberNavController() // NavController for flashcards only
 
     Scaffold { innerPadding ->
         Box(modifier = Modifier.padding(innerPadding)) {
@@ -116,32 +72,37 @@ fun MainScreen() {
                 "menu" -> MenuScreen(onNavigate = { screen -> currentScreen = screen })
                 "randomGenerator" -> RandomGeneratorScreen(onBack = { currentScreen = "menu" })
                 "volumeBooster" -> VolumeBoosterScreen(onBack = { currentScreen = "menu" })
-                "flashcards" -> {
-
-                    NavHost(navController = flashcardsNavController, startDestination = "lists") {
-                        composable("lists") {
-                            FlashcardListsScreen(
-                                onBack = { currentScreen = "menu" },
-                                navController = flashcardsNavController
-                            )
-                        }
-                        composable("elements/{listId}") { backStackEntry ->
-                            val listId = backStackEntry.arguments?.getString("listId") ?: ""
-                            FlashcardDetailScreen(
-                                listId = listId,
-                                navController = flashcardsNavController,
-                                onBack = { flashcardsNavController.popBackStack() }
-                            )
-                        }
-                        composable("game/{listId}") { backStackEntry ->
-                            val listId = backStackEntry.arguments?.getString("listId") ?: ""
-                            FlashcardGameScreen(
-                                listId = listId,
-                                onBack = { flashcardsNavController.popBackStack() })
-                        }
-                    }
-                }
+                "flashcards" -> FlashcardsNavGraph(onBack = { currentScreen = "menu" })
             }
+        }
+    }
+}
+
+@Composable
+fun FlashcardsNavGraph(onBack: () -> Unit) {
+    val navController = rememberNavController()
+
+    NavHost(navController = navController, startDestination = "lists") {
+        composable("lists") {
+            FlashcardListsScreen(
+                onBack = onBack,
+                navController = navController
+            )
+        }
+        composable("elements/{listId}") { backStackEntry ->
+            val listId = backStackEntry.arguments?.getString("listId") ?: ""
+            FlashcardDetailScreen(
+                listId = listId,
+                navController = navController,
+                onBack = { navController.popBackStack() }
+            )
+        }
+        composable("game/{listId}") { backStackEntry ->
+            val listId = backStackEntry.arguments?.getString("listId") ?: ""
+            FlashcardGameScreen(
+                listId = listId,
+                onBack = { navController.popBackStack() }
+            )
         }
     }
 }

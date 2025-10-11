@@ -8,6 +8,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -29,6 +30,7 @@ import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -37,8 +39,6 @@ import androidx.compose.material3.TextField
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -60,7 +60,6 @@ import com.example.myapp.data.dataStore
 import com.example.myapp.data.exportFlashcards
 import com.example.myapp.data.importFlashcards
 import com.example.myapp.data.loadFlashcardData
-import com.example.myapp.helper.createNotificationChannel
 import com.example.myapp.models.FlashcardElement
 import com.example.myapp.models.FlashcardList
 import com.example.myapp.models.isDue
@@ -78,11 +77,7 @@ fun FlashcardListsScreen(onBack: () -> Unit, navController: NavController) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    // Create notification channel on first composition
-    LaunchedEffect(Unit) {
-        createNotificationChannel(context)
-    }
-
+    // State variables
     var showDialog by remember { mutableStateOf(false) }
     var dialogTitle by remember { mutableStateOf("") }
     var dialogValue by remember { mutableStateOf("") }
@@ -91,29 +86,54 @@ fun FlashcardListsScreen(onBack: () -> Unit, navController: NavController) {
     var bulkImportText by remember { mutableStateOf("") }
     var selectedListId by remember { mutableStateOf("") }
 
-    val flashcards by remember {
-        context.dataStore.data.map { prefs ->
-            val listsJson = prefs[stringPreferencesKey("lists")] ?: "[]"
-            val lists = FlashcardList.listFromJsonString(listsJson)
+    // Load lists asynchronously - start empty, load in background
+    var lists by remember { mutableStateOf<List<FlashcardList>>(emptyList()) }
+    var flashcards by remember { mutableStateOf<List<FlashcardElement>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(true) }
 
-            lists.flatMap { list ->
+    // Load data asynchronously on first composition
+    LaunchedEffect(Unit) {
+        withContext(Dispatchers.IO) {
+            val prefs = context.dataStore.data.first()
+
+            // Load lists
+            val listsJson = prefs[stringPreferencesKey("lists")] ?: "[]"
+            val loadedLists = FlashcardList.listFromJsonString(listsJson)
+
+            // Load all flashcards
+            val loadedFlashcards = loadedLists.flatMap { list ->
                 val key = stringPreferencesKey("elements_${list.id}")
                 val cardsJson = prefs[key] ?: "[]"
                 FlashcardElement.listFromJsonString(cardsJson)
             }
-        }
-    }.collectAsState(initial = emptyList())
 
-    val lists by remember {
-        context.dataStore.data.map { prefs ->
-            prefs[stringPreferencesKey("lists")]?.let {
-                FlashcardList.listFromJsonString(it)
-            } ?: emptyList()
+            withContext(Dispatchers.Main) {
+                lists = loadedLists
+                flashcards = loadedFlashcards
+                isLoading = false
+            }
         }
-    }.collectAsState(initial = emptyList())
+    }
+
+    // Compute due count only when flashcards change, but on background thread
+    var dueCountMap by remember { mutableStateOf<Map<String, Int>>(emptyMap()) }
+
+    LaunchedEffect(flashcards) {
+        withContext(Dispatchers.Default) {
+            val newDueCountMap = flashcards
+                .filter { isDue(it) }
+                .groupingBy { it.listId }
+                .eachCount()
+
+            withContext(Dispatchers.Main) {
+                dueCountMap = newDueCountMap
+            }
+        }
+    }
 
     // Helper function to update DataStore
     fun updateLists(newLists: List<FlashcardList>) {
+        lists = newLists // Update UI immediately
         scope.launch(Dispatchers.IO) {
             val key = stringPreferencesKey("lists")
             context.dataStore.edit { prefs ->
@@ -168,203 +188,45 @@ fun FlashcardListsScreen(onBack: () -> Unit, navController: NavController) {
 
         Spacer(Modifier.height(16.dp))
 
-        val dueCountMap by remember(flashcards) {
-            derivedStateOf {
-                flashcards
-                    .filter { isDue(it) }
-                    .groupingBy { it.listId }
-                    .eachCount()
+        // Show loading indicator while data loads
+        if (isLoading) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .weight(1f),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator()
             }
-        }
-
-        // List of flashcard lists
-        LazyColumn(modifier = Modifier.weight(1f)) {
-            itemsIndexed(items = lists, key = { _, item -> item.id }) { index, flashcardList ->
-                val interactionSource = remember { MutableInteractionSource() }
-                val isPressed by interactionSource.collectIsPressedAsState()
-
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 8.dp)
-                        .scale(if (isPressed) 0.95f else 1f)
-                        .clickable(
-                            interactionSource = interactionSource,
-                            indication = ripple()
-                        ) {
-                            navController.navigate("elements/${flashcardList.id}")
+        } else {
+            // List of flashcard lists
+            LazyColumn(modifier = Modifier.weight(1f)) {
+                itemsIndexed(items = lists, key = { _, item -> item.id }) { index, flashcardList ->
+                    FlashcardListItem(
+                        flashcardList = flashcardList,
+                        dueCount = dueCountMap[flashcardList.id] ?: 0,
+                        onNavigate = { navController.navigate("elements/${flashcardList.id}") },
+                        onBulkImport = {
+                            selectedListId = flashcardList.id
+                            showBulkImportDialog = true
+                            bulkImportText = ""
                         },
-                    elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.Top
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    flashcardList.name,
-                                    style = MaterialTheme.typography.titleLarge,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Spacer(Modifier.height(4.dp))
-                                Text(
-                                    "${dueCountMap[flashcardList.id] ?: 0} à réviser",
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    color = Color.Gray
-                                )
+                        onRename = { newName ->
+                            dialogTitle = "Renommer la liste"
+                            dialogValue = flashcardList.name
+                            dialogAction = { newName ->
+                                val updated = lists.toMutableList()
+                                updated[index] = flashcardList.copy(name = newName)
+                                updateLists(updated)
                             }
-
-                            Row {
-                                IconButton(onClick = {
-                                    selectedListId = flashcardList.id
-                                    showBulkImportDialog = true
-                                    bulkImportText = ""
-                                }) {
-                                    Icon(Icons.Default.Add, contentDescription = "Ajouter")
-                                }
-
-                                IconButton(onClick = {
-                                    dialogTitle = "Renommer la liste"
-                                    dialogValue = flashcardList.name
-                                    dialogAction = { newName ->
-                                        val updated = lists.toMutableList()
-                                        updated[index] = flashcardList.copy(name = newName)
-                                        updateLists(updated)
-                                    }
-
-                                    showDialog = true
-                                }) {
-                                    Icon(Icons.Default.Edit, contentDescription = "Éditer")
-                                }
-
-                                var showDeleteDialog by remember { mutableStateOf(false) }
-                                IconButton(onClick = { showDeleteDialog = true }) {
-                                    Icon(Icons.Default.Delete, contentDescription = "Supprimer")
-                                }
-
-                                ShowAlertDialog(
-                                    show = showDeleteDialog,
-                                    onDismiss = { showDeleteDialog = false },
-                                    title = "T'es sûr ??",
-                                    onCancel = { showDeleteDialog = false },
-                                    onConfirm = {
-                                        val updated = lists.toMutableList()
-                                        updated.removeAt(index)
-                                        updateLists(updated)
-                                        showDeleteDialog = false
-                                    },
-                                    cancelText = "Oula non merci",
-                                    confirmText = "Oui t'inquiète"
-                                )
-
-                                if (showBulkImportDialog) {
-                                    AlertDialog(
-                                        onDismissRequest = { showBulkImportDialog = false },
-                                        title = { Text("Importer des cartes") },
-                                        text = {
-                                            Column {
-                                                Text(
-                                                    "Collez vos cartes au format :\nNom - Définition",
-                                                    style = MaterialTheme.typography.bodySmall,
-                                                    color = Color.Gray,
-                                                    modifier = Modifier.padding(bottom = 8.dp)
-                                                )
-                                                TextField(
-                                                    value = bulkImportText,
-                                                    onValueChange = { bulkImportText = it },
-                                                    modifier = Modifier
-                                                        .fillMaxWidth()
-                                                        .height(200.dp),
-                                                    placeholder = { Text("Exemple:\nMot 1 - Définition 1\nMot 2 - Définition 2") },
-                                                    maxLines = 10
-                                                )
-                                            }
-                                        },
-                                        confirmButton = {
-                                            Row(
-                                                modifier = Modifier.fillMaxWidth(),
-                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                            ) {
-                                                IconButton(onClick = {
-                                                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                                    val clipData = clipboard.primaryClip
-                                                    if (clipData != null && clipData.itemCount > 0) {
-                                                        bulkImportText = clipData.getItemAt(0).text?.toString() ?: ""
-                                                    }
-                                                }) {
-                                                    Icon(Icons.Default.ContentPaste, contentDescription = "Coller", tint=Color.Black)
-                                                }
-
-                                                MyButton(
-                                                    text = "Annuler",
-                                                    onClick = { showBulkImportDialog = false },
-                                                    modifier = Modifier.weight(1f).height(50.dp),
-                                                    fontSize = 14.sp
-                                                )
-
-                                                MyButton(
-                                                    text = "Ok",
-                                                    onClick = {
-                                                        if (bulkImportText.isNotBlank()) {
-                                                            val lines = bulkImportText.split("\n")
-                                                                .map { it.trim() }
-                                                                .filter { it.isNotBlank() }
-
-                                                            val newElements = lines.mapNotNull { line ->
-                                                                val parts = line.split("-", limit = 2)
-                                                                if (parts.size == 2) {
-                                                                    val name = parts[0].trim()
-                                                                    val definition = parts[1].trim()
-                                                                    if (name.isNotBlank() && definition.isNotBlank()) {
-                                                                        FlashcardElement(
-                                                                            listId = selectedListId,
-                                                                            name = name,
-                                                                            definition = definition
-                                                                        )
-                                                                    } else null
-                                                                } else null
-                                                            }
-
-                                                            if (newElements.isNotEmpty()) {
-                                                                scope.launch(Dispatchers.IO) {
-                                                                    val key = stringPreferencesKey("elements_$selectedListId")
-                                                                    val currentJson = context.dataStore.data
-                                                                        .map { prefs -> prefs[key] }
-                                                                        .first()
-
-                                                                    val currentElements = currentJson?.let {
-                                                                        FlashcardElement.listFromJsonString(it)
-                                                                    } ?: emptyList()
-
-                                                                    val updatedElements = newElements + currentElements
-
-                                                                    context.dataStore.edit { prefs ->
-                                                                        prefs[key] = FlashcardElement.listToJsonString(updatedElements)
-                                                                    }
-
-                                                                    withContext(Dispatchers.Main) {
-                                                                        Toast.makeText(
-                                                                            context,
-                                                                            "${newElements.size} carte(s) ajoutée(s)",
-                                                                            Toast.LENGTH_SHORT
-                                                                        ).show()
-                                                                    }
-                                                                }
-                                                            }
-                                                            showBulkImportDialog = false
-                                                        }
-                                                    },
-                                                    modifier = Modifier.weight(1f).height(50.dp),
-                                                    fontSize = 14.sp
-                                                )
-                                            }
-                                        }
-                                    )
-                                }
-                            }
+                            showDialog = true
+                        },
+                        onDelete = {
+                            val updated = lists.toMutableList()
+                            updated.removeAt(index)
+                            updateLists(updated)
                         }
-                    }
+                    )
                 }
             }
         }
@@ -387,6 +249,68 @@ fun FlashcardListsScreen(onBack: () -> Unit, navController: NavController) {
         )
     }
 
+    // Bulk import dialog
+    if (showBulkImportDialog) {
+        BulkImportDialog(
+            bulkImportText = bulkImportText,
+            onTextChange = { bulkImportText = it },
+            onDismiss = { showBulkImportDialog = false },
+            onConfirm = {
+                if (bulkImportText.isNotBlank()) {
+                    val lines = bulkImportText.split("\n")
+                        .map { it.trim() }
+                        .filter { it.isNotBlank() }
+
+                    val newElements = lines.mapNotNull { line ->
+                        val parts = line.split("-", limit = 2)
+                        if (parts.size == 2) {
+                            val name = parts[0].trim()
+                            val definition = parts[1].trim()
+                            if (name.isNotBlank() && definition.isNotBlank()) {
+                                FlashcardElement(
+                                    listId = selectedListId,
+                                    name = name,
+                                    definition = definition
+                                )
+                            } else null
+                        } else null
+                    }
+
+                    if (newElements.isNotEmpty()) {
+                        scope.launch(Dispatchers.IO) {
+                            val key = stringPreferencesKey("elements_$selectedListId")
+                            val currentJson = context.dataStore.data
+                                .map { prefs -> prefs[key] }
+                                .first()
+
+                            val currentElements = currentJson?.let {
+                                FlashcardElement.listFromJsonString(it)
+                            } ?: emptyList()
+
+                            val updatedElements = newElements + currentElements
+
+                            context.dataStore.edit { prefs ->
+                                prefs[key] = FlashcardElement.listToJsonString(updatedElements)
+                            }
+
+                            // Update local state
+                            withContext(Dispatchers.Main) {
+                                flashcards = updatedElements
+                                Toast.makeText(
+                                    context,
+                                    "${newElements.size} carte(s) ajoutée(s)",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        }
+                    }
+                    showBulkImportDialog = false
+                }
+            },
+            context = context
+        )
+    }
+
     // Dialog for creating or renaming a list
     ShowAlertDialog(
         show = showDialog,
@@ -405,6 +329,147 @@ fun FlashcardListsScreen(onBack: () -> Unit, navController: NavController) {
             if (dialogValue.isNotBlank()) {
                 dialogAction(dialogValue)
                 showDialog = false
+            }
+        }
+    )
+}
+
+@Composable
+private fun FlashcardListItem(
+    flashcardList: FlashcardList,
+    dueCount: Int,
+    onNavigate: () -> Unit,
+    onBulkImport: () -> Unit,
+    onRename: (String) -> Unit,
+    onDelete: () -> Unit
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    var showDeleteDialog by remember { mutableStateOf(false) }
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp)
+            .scale(if (isPressed) 0.95f else 1f)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = ripple()
+            ) { onNavigate() },
+        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.Top
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        flashcardList.name,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        "$dueCount à réviser",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = Color.Gray
+                    )
+                }
+
+                Row {
+                    IconButton(onClick = onBulkImport) {
+                        Icon(Icons.Default.Add, contentDescription = "Ajouter")
+                    }
+
+                    IconButton(onClick = { onRename(flashcardList.name) }) {
+                        Icon(Icons.Default.Edit, contentDescription = "Éditer")
+                    }
+
+                    IconButton(onClick = { showDeleteDialog = true }) {
+                        Icon(Icons.Default.Delete, contentDescription = "Supprimer")
+                    }
+                }
+            }
+        }
+    }
+
+    ShowAlertDialog(
+        show = showDeleteDialog,
+        onDismiss = { showDeleteDialog = false },
+        title = "T'es sûr ??",
+        onCancel = { showDeleteDialog = false },
+        onConfirm = {
+            onDelete()
+            showDeleteDialog = false
+        },
+        cancelText = "Oula non merci",
+        confirmText = "Oui t'inquiète"
+    )
+}
+
+@Composable
+private fun BulkImportDialog(
+    bulkImportText: String,
+    onTextChange: (String) -> Unit,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit,
+    context: Context
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Importer des cartes") },
+        text = {
+            Column {
+                Text(
+                    "Collez vos cartes au format :\nNom - Définition",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.Gray,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+                TextField(
+                    value = bulkImportText,
+                    onValueChange = onTextChange,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(200.dp),
+                    placeholder = { Text("Exemple:\nMot 1 - Définition 1\nMot 2 - Définition 2") },
+                    maxLines = 10
+                )
+            }
+        },
+        confirmButton = {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                IconButton(onClick = {
+                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                    val clipData = clipboard.primaryClip
+                    if (clipData != null && clipData.itemCount > 0) {
+                        onTextChange(clipData.getItemAt(0).text?.toString() ?: "")
+                    }
+                }) {
+                    Icon(Icons.Default.ContentPaste, contentDescription = "Coller", tint = Color.Black)
+                }
+
+                MyButton(
+                    text = "Annuler",
+                    onClick = onDismiss,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(50.dp),
+                    fontSize = 14.sp
+                )
+
+                MyButton(
+                    text = "Ok",
+                    onClick = onConfirm,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(50.dp),
+                    fontSize = 14.sp
+                )
             }
         }
     )

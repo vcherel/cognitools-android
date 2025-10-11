@@ -2,8 +2,8 @@ package com.example.myapp.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -20,71 +20,78 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 @Composable
-fun MyButton(text: String,
-             modifier: Modifier = Modifier,
-             fontSize : TextUnit = 24.sp,
-             onClick: () -> Unit) {
-    var isPressed by remember { mutableStateOf(false) }
+fun MyButton(
+    text: String,
+    modifier: Modifier = Modifier,
+    fontSize: TextUnit = 24.sp,
+    onClick: () -> Unit
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
 
     Box(
         modifier = modifier
             .fillMaxWidth()
             .height(90.dp)
-            .pointerInput(Unit) {
-                detectTapGestures(
-                    onPress = {
-                        isPressed = true
-                        tryAwaitRelease()
-                        isPressed = false
-                        onClick()
-                    }
-                )
-            }
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick
+            )
     ) {
         // Shadow layer
+        val shadowColor = remember(isPressed) {
+            if (isPressed) Color(0xFF1565C0) else Color(0xFFB0BEC5)
+        }
+
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .offset(y = 6.dp)
                 .background(
-                    color = if (isPressed) Color(0xFF1565C0) else Color(0xFFB0BEC5),
+                    color = shadowColor,
                     shape = RoundedCornerShape(35)
                 )
         )
 
         // Main button
+        val gradient = remember(isPressed) {
+            Brush.horizontalGradient(
+                listOf(
+                    if (isPressed) Color(0xFF2196F3) else Color(0xFFECEFF1),
+                    if (isPressed) Color(0xFF1976D2) else Color(0xFFCFD8DC)
+                )
+            )
+        }
+
+        val textColor = remember(isPressed) {
+            if (isPressed) Color.White else Color.Black
+        }
+
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(
-                    brush = Brush.horizontalGradient(
-                        listOf(
-                            if (isPressed) Color(0xFF2196F3) else Color(0xFFECEFF1),
-                            if (isPressed) Color(0xFF1976D2) else Color(0xFFCFD8DC)
-                        )
-                    ),
+                    brush = gradient,
                     shape = RoundedCornerShape(35)
                 ),
             contentAlignment = Alignment.Center
         ) {
             Text(
                 text,
-                color = if (isPressed) Color.White else Color.Black,
+                color = textColor,
                 fontSize = fontSize,
                 fontWeight = FontWeight.SemiBold
             )

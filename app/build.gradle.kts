@@ -18,28 +18,42 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // Enable vector drawable support for older APIs
+        vectorDrawables.useSupportLibrary = true
     }
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true  // Remove unused resources
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
         }
     }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
+
     kotlin {
         compilerOptions {
             jvmTarget = JvmTarget.JVM_11
         }
     }
+
     buildFeatures {
         compose = true
+        buildConfig = false  // Disable if not using BuildConfig
+    }
+
+    packaging {
+        resources {
+            excludes += "/META-INF/{AL2.0,LGPL2.1}"
+        }
     }
 }
 
@@ -47,18 +61,30 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
+
+    // Compose BOM for version alignment
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
-    implementation(libs.ads.mobile.sdk)
     implementation(libs.androidx.compose.material.icons.extended)
+
+    // Navigation
+    implementation(libs.androidx.navigation.compose)
+
+    // DataStore
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.kotlinx.serialization.json)
-    implementation(libs.androidx.navigation.compose)
+
+    // WorkManager with explicit startup config
+    implementation(libs.androidx.work.runtime.ktx)
+    implementation(libs.androidx.startup.runtime)  // Add this for manual initialization
+
+    // Splash screen
+    implementation(libs.androidx.core.splashscreen)
+
+    // Text and unit utilities
     implementation(libs.androidx.compose.ui.text)
     implementation(libs.androidx.compose.ui.unit)
-    implementation(libs.androidx.work.runtime.ktx)
-    implementation(libs.androidx.core.splashscreen)
 }
