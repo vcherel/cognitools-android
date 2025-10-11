@@ -65,6 +65,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlin.math.abs
+import kotlin.math.pow
 import kotlin.random.Random
 
 @Composable
@@ -136,7 +137,9 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
             newReps == 1 -> 6.0
 
             else -> {
-                val randomMultiplier = 0.8 + Math.random() * 1.2
+                // Low score have less chance to have times 2 multiplier
+                val randomFactor = Math.random().pow(1.0 + ((10 - newScore) / 10.0))
+                val randomMultiplier = 0.8 + randomFactor * 1.2 // Multiplier from 0.8 to 2 on the time
                 card.interval * newEF * randomMultiplier
             }
         }
@@ -151,7 +154,6 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
             score = newScore
         )
     }
-
 
     // Function to save updated elements
     fun saveElements(updated: List<FlashcardElement>) {
