@@ -28,6 +28,7 @@ import com.example.myapp.screen.flashcard.FlashcardDetailScreen
 import com.example.myapp.screen.flashcard.FlashcardGameScreen
 import com.example.myapp.screen.flashcard.FlashcardListsScreen
 import com.example.myapp.screen.RandomGeneratorScreen
+import com.example.myapp.screen.UndercoverScreen
 import com.example.myapp.screen.VolumeBoosterScreen
 import com.example.myapp.ui.MyButton
 
@@ -115,6 +116,7 @@ fun MainScreen() {
                 "randomGenerator" -> RandomGeneratorScreen(onBack = { currentScreen = "menu" })
                 "volumeBooster" -> VolumeBoosterScreen(onBack = { currentScreen = "menu" })
                 "flashcards" -> FlashcardsNavGraph(onBack = { currentScreen = "menu" })
+                "undercover" -> UndercoverScreen(onBack = { currentScreen = "menu" })
             }
         }
     }
@@ -176,5 +178,7 @@ fun MenuScreen(onNavigate: (String) -> Unit) {
         MyButton(text = "Volume booster") { onNavigate("volumeBooster") }
         Spacer(modifier = Modifier.height(40.dp))
         MyButton(text = "Flashcards") { onNavigate("flashcards") }
+        Spacer(modifier = Modifier.height(40.dp))
+        MyButton(text = "Undercover") { onNavigate("undercover") }
     }
 }
