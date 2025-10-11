@@ -14,8 +14,11 @@ fun generatePlayers(settings: GameSettings): List<Player> {
 
 fun assignRolesAndWords(players: List<Player>, settings: GameSettings): List<Player> {
     val wordPair = wordPairs.random()
-    val civilianWord = wordPair.first
-    val impostorWord = wordPair.second
+    val (civilianWord, impostorWord) = if (Random.nextBoolean()) {
+        wordPair.first to wordPair.second
+    } else {
+        wordPair.second to wordPair.first
+    }
 
     // Random order of players
     val indices = players.indices.shuffled().toMutableList()
@@ -41,7 +44,7 @@ fun assignRolesAndWords(players: List<Player>, settings: GameSettings): List<Pla
     }
 
     // Assign Impostors
-    repeat(impostorCount ?: 0) {
+    repeat(impostorCount) {
         val idx = indices[nextIndex++]
         updatedPlayers[idx] = updatedPlayers[idx].copy(role = PlayerRole.IMPOSTOR, word = impostorWord)
     }

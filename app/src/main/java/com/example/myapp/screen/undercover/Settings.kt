@@ -72,16 +72,17 @@ fun SettingsScreen(
         Spacer(modifier = Modifier.height(16.dp))
 
         // Maximum impostors: ensure at least 2 civilians remain
-        val maxImpostors = ((settings.playerCount - settings.mrWhiteCount - 1) / 2).coerceAtLeast(1)
+        val maxImpostors = ((settings.playerCount - settings.mrWhiteCount - 1) / 2).coerceAtLeast(0)
 
         NumberSetting(
             label = "Number of Impostors",
             value = settings.impostorCount,
             onValueChange = { newImpostorCount ->
-                val coercedImpostorCount = newImpostorCount.coerceIn(1, maxImpostors)
-                // Recalculate max Mr. White based on new impostor count
-                val newMaxMrWhite = settings.playerCount - 2 * coercedImpostorCount - 1
-                val adjustedMrWhite = settings.mrWhiteCount.coerceIn(0, newMaxMrWhite.coerceAtLeast(0))
+                val coercedImpostorCount = newImpostorCount.coerceIn(0, maxImpostors)
+                val minMrWhite = if (coercedImpostorCount == 0) 1 else 0
+                val newMaxMrWhite = (settings.playerCount - 2 * coercedImpostorCount - 1).coerceAtLeast(minMrWhite)
+                val adjustedMrWhite = settings.mrWhiteCount.coerceIn(minMrWhite, newMaxMrWhite)
+
                 onSettingsChange(
                     settings.copy(
                         impostorCount = coercedImpostorCount,
@@ -89,23 +90,28 @@ fun SettingsScreen(
                     )
                 )
             },
-            min = 1,
+            min = 0,
             max = maxImpostors,
             enabled = !settings.randomComposition
         )
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Calculate max Mr. White: ensure at least 2 civilians remain
-        val maxMrWhite = (settings.playerCount - 2 * settings.impostorCount - 1).coerceAtLeast(0)
+        val minMrWhite = if (settings.impostorCount == 0) 1 else 0
+        val maxMrWhite = (settings.playerCount - 2 * settings.impostorCount - 1).coerceAtLeast(minMrWhite)
 
         NumberSetting(
             label = "Number of Mr. Whites",
             value = settings.mrWhiteCount,
             onValueChange = { newMrWhiteCount ->
                 val coercedMrWhite = newMrWhiteCount.coerceIn(0, maxMrWhite)
-                val newMaxImpostors = (settings.playerCount - coercedMrWhite - 1) / 2
-                val adjustedImpostorCount = settings.impostorCount.coerceIn(1, newMaxImpostors)
+                var adjustedImpostorCount = settings.impostorCount
+
+                // If Mr. White goes to 0 and impostors are 0, increase impostors to 1
+                if (coercedMrWhite == 0 && adjustedImpostorCount == 0) {
+                    adjustedImpostorCount = 1
+                }
+
                 onSettingsChange(
                     settings.copy(
                         mrWhiteCount = coercedMrWhite,
