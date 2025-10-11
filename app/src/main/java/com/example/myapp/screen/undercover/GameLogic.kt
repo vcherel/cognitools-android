@@ -17,51 +17,39 @@ fun assignRolesAndWords(players: List<Player>, settings: GameSettings): List<Pla
     val civilianWord = wordPair.first
     val impostorWord = wordPair.second
 
-    val indices = players.indices.toMutableList()
-    indices.shuffle()
+    // Random order of players
+    val indices = players.indices.shuffled().toMutableList()
 
+    // Determine number of impostors and Mr. Whites
     var impostorCount = settings.impostorCount
-    val mrWhiteCount = settings.mrWhiteCount
+    // 50% chance not to have a Mr. White
+    val mrWhiteCount = if (settings.randomComposition) Random.nextInt(0, 2) else settings.mrWhiteCount
 
+    // If composition is random, pick a random impostor count
     if (settings.randomComposition) {
         val maxImpostors = (settings.playerCount - mrWhiteCount) / 2
         impostorCount = Random.nextInt(1, maxImpostors + 1)
     }
 
     val updatedPlayers = players.toMutableList()
-    var assigned = 0
+    var nextIndex = 0
 
     // Assign Mr. White
     repeat(mrWhiteCount) {
-        if (assigned < indices.size) {
-            val idx = indices[assigned]
-            updatedPlayers[idx] = updatedPlayers[idx].copy(
-                role = PlayerRole.MR_WHITE,
-                word = ""
-            )
-            assigned++
-        }
+        val idx = indices[nextIndex++]
+        updatedPlayers[idx] = updatedPlayers[idx].copy(role = PlayerRole.MR_WHITE, word = "")
     }
 
     // Assign Impostors
     repeat(impostorCount ?: 0) {
-        if (assigned < indices.size) {
-            val idx = indices[assigned]
-            updatedPlayers[idx] = updatedPlayers[idx].copy(
-                role = PlayerRole.IMPOSTOR,
-                word = impostorWord
-            )
-            assigned++
-        }
+        val idx = indices[nextIndex++]
+        updatedPlayers[idx] = updatedPlayers[idx].copy(role = PlayerRole.IMPOSTOR, word = impostorWord)
     }
 
     // Assign Civilians
-    for (i in assigned until indices.size) {
+    for (i in nextIndex until indices.size) {
         val idx = indices[i]
-        updatedPlayers[idx] = updatedPlayers[idx].copy(
-            role = PlayerRole.CIVILIAN,
-            word = civilianWord
-        )
+        updatedPlayers[idx] = updatedPlayers[idx].copy(role = PlayerRole.CIVILIAN, word = civilianWord)
     }
 
     return updatedPlayers

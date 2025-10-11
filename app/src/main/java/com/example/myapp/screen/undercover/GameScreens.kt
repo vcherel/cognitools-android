@@ -121,7 +121,6 @@ fun ShowWordScreen(
                 Text(
                     "You are Mr. White!",
                     style = MaterialTheme.typography.headlineLarge,
-                    color = Color.Red,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
@@ -134,7 +133,6 @@ fun ShowWordScreen(
                 Text(
                     "You are an Impostor!",
                     style = MaterialTheme.typography.headlineLarge,
-                    color = Color(0xFFFF6600),
                     fontWeight = FontWeight.Bold
                 )
                 Spacer(modifier = Modifier.height(16.dp))
