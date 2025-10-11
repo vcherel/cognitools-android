@@ -72,7 +72,7 @@ fun SettingsScreen(
         Spacer(modifier = Modifier.height(16.dp))
 
         // Maximum impostors: ensure at least 2 civilians remain
-        val maxImpostors = (settings.playerCount - settings.mrWhiteCount - 2).coerceAtLeast(1)
+        val maxImpostors = ((settings.playerCount - settings.mrWhiteCount - 1) / 2).coerceAtLeast(1)
 
         NumberSetting(
             label = "Number of Impostors",
@@ -97,7 +97,7 @@ fun SettingsScreen(
         Spacer(modifier = Modifier.height(16.dp))
 
         // Calculate max Mr. White: ensure at least 2 civilians remain
-        val maxMrWhite = (settings.playerCount - settings.impostorCount - 2).coerceIn(0, 1)
+        val maxMrWhite = (settings.playerCount - 2 * settings.impostorCount - 1).coerceAtLeast(0)
 
         NumberSetting(
             label = "Number of Mr. Whites",
