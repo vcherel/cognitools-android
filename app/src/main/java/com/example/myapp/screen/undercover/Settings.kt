@@ -27,10 +27,6 @@ fun SettingsScreen(
         modifier = Modifier.fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text("Game Settings", style = MaterialTheme.typography.headlineMedium)
-
-        Spacer(modifier = Modifier.height(24.dp))
-
         // Player count
         NumberSetting(
             label = "Number of Players",
