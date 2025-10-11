@@ -73,7 +73,8 @@ fun UndercoverScreen(onBack: () -> Unit) {
                     settings = settings,
                     onSettingsChange = { settings = it },
                     onStart = {
-                        players = generatePlayers(settings)
+                        val newPlayers = generatePlayers(settings)
+                        players = assignRolesAndWords(newPlayers, settings)
                         currentPlayerIndex = 0
                         currentRound = 1
                         gameState = GameState.PlayerSetup(
@@ -94,11 +95,6 @@ fun UndercoverScreen(onBack: () -> Unit) {
                                 if (state.playerIndex < size) {
                                     this[state.playerIndex] = this[state.playerIndex].copy(name = name)
                                 }
-                            }
-
-                            // After entering name, assign roles if this is the last player
-                            if (state.playerIndex == settings.playerCount - 1) {
-                                assignRolesAndWords(players, settings)
                             }
 
                             // Move to show word for this player

@@ -2,10 +2,10 @@ package com.example.myapp.screen.undercover
 
 data class Player(
     val name: String,
-    var role: PlayerRole,
-    var word: String,
-    var isEliminated: Boolean = false,
-    var points: Int = 0
+    val role: PlayerRole,
+    val word: String,
+    val isEliminated: Boolean = false,
+    val points: Int = 0
 )
 
 enum class PlayerRole {
