@@ -2,7 +2,7 @@ package com.example.myapp
 
 import android.app.Application
 import androidx.work.Configuration
-import com.example.myapp.helper.createNotificationChannel
+import com.example.myapp.screen.flashcard.createNotificationChannel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -24,7 +24,7 @@ class MyApplication : Application(), Configuration.Provider {
     }
 
     private fun initializeWorkManager() {
-        com.example.myapp.helper.scheduleFlashcardReminders(this)
+        com.example.myapp.screen.flashcard.scheduleFlashcardReminders(this)
     }
 
     // Provide custom WorkManager configuration for on-demand initialization
