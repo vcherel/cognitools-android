@@ -28,12 +28,27 @@ fun SettingsScreen(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         // Player count
+        // Player count
         NumberSetting(
             label = "Number of Players",
             value = settings.playerCount,
-            onValueChange = {
-                val newCount = it.coerceIn(3, 20)
-                onSettingsChange(settings.copy(playerCount = newCount))
+            onValueChange = { newPlayerCount ->
+                val coercedCount = newPlayerCount.coerceIn(3, 20)
+                // Ensure: Civilians > Impostors, meaning playerCount > 2 * impostorCount + mrWhiteCount
+                val maxImpostors = (coercedCount - settings.mrWhiteCount - 1) / 2
+                val adjustedImpostorCount = settings.impostorCount.coerceIn(1, maxImpostors.coerceAtLeast(1))
+
+                // Recalculate max Mr. White based on adjusted impostor count
+                val maxMrWhite = coercedCount - 2 * adjustedImpostorCount - 1
+                val adjustedMrWhite = settings.mrWhiteCount.coerceIn(0, maxMrWhite.coerceAtLeast(0))
+
+                onSettingsChange(
+                    settings.copy(
+                        playerCount = coercedCount,
+                        impostorCount = adjustedImpostorCount,
+                        mrWhiteCount = adjustedMrWhite
+                    )
+                )
             },
             min = 3,
             max = 20
@@ -56,15 +71,23 @@ fun SettingsScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // This ensures at least half the players are civilians
-        val maxImpostors = ((settings.playerCount - settings.mrWhiteCount - 1) / 2).coerceAtLeast(1)
+        // Maximum impostors: ensure at least 2 civilians remain
+        val maxImpostors = (settings.playerCount - settings.mrWhiteCount - 2).coerceAtLeast(1)
 
         NumberSetting(
             label = "Number of Impostors",
             value = settings.impostorCount,
-            onValueChange = {
-                val newCount = it.coerceIn(1, maxImpostors)
-                onSettingsChange(settings.copy(impostorCount = newCount))
+            onValueChange = { newImpostorCount ->
+                val coercedImpostorCount = newImpostorCount.coerceIn(1, maxImpostors)
+                // Recalculate max Mr. White based on new impostor count
+                val newMaxMrWhite = settings.playerCount - 2 * coercedImpostorCount - 1
+                val adjustedMrWhite = settings.mrWhiteCount.coerceIn(0, newMaxMrWhite.coerceAtLeast(0))
+                onSettingsChange(
+                    settings.copy(
+                        impostorCount = coercedImpostorCount,
+                        mrWhiteCount = adjustedMrWhite
+                    )
+                )
             },
             min = 1,
             max = maxImpostors,
@@ -73,15 +96,25 @@ fun SettingsScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Mr. White count (disabled if random)
+        // Calculate max Mr. White: ensure at least 2 civilians remain
+        val maxMrWhite = (settings.playerCount - settings.impostorCount - 2).coerceIn(0, 1)
+
         NumberSetting(
             label = "Number of Mr. Whites",
             value = settings.mrWhiteCount,
-            onValueChange = {
-                onSettingsChange(settings.copy(mrWhiteCount = it.coerceIn(0, 1)))
+            onValueChange = { newMrWhiteCount ->
+                val coercedMrWhite = newMrWhiteCount.coerceIn(0, maxMrWhite)
+                val newMaxImpostors = (settings.playerCount - coercedMrWhite - 1) / 2
+                val adjustedImpostorCount = settings.impostorCount.coerceIn(1, newMaxImpostors)
+                onSettingsChange(
+                    settings.copy(
+                        mrWhiteCount = coercedMrWhite,
+                        impostorCount = adjustedImpostorCount
+                    )
+                )
             },
             min = 0,
-            max = 1,
+            max = maxMrWhite,
             enabled = !settings.randomComposition
         )
 
