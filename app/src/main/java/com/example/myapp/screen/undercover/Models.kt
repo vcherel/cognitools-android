@@ -14,8 +14,8 @@ enum class PlayerRole {
 
 data class GameSettings(
     val playerCount: Int = 4,
-    val impostorCount: Int? = null,
-    val mrWhiteCount: Int = 1,
+    val impostorCount: Int = 1,
+    val mrWhiteCount: Int = 0,
     val randomComposition: Boolean = true,
     val impostorsKnowRole: Boolean = false
 )

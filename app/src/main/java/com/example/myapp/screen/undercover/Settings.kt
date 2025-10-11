@@ -56,17 +56,18 @@ fun SettingsScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Impostor count (disabled if random)
+        // This ensures at least half the players are civilians
+        val maxImpostors = ((settings.playerCount - settings.mrWhiteCount - 1) / 2).coerceAtLeast(1)
+
         NumberSetting(
             label = "Number of Impostors",
-            value = settings.impostorCount ?: 0,
+            value = settings.impostorCount,
             onValueChange = {
-                val maxImpostors = (settings.playerCount - settings.mrWhiteCount) / 2
                 val newCount = it.coerceIn(1, maxImpostors)
                 onSettingsChange(settings.copy(impostorCount = newCount))
             },
             min = 1,
-            max = (settings.playerCount - settings.mrWhiteCount) / 2,
+            max = maxImpostors,
             enabled = !settings.randomComposition
         )
 
