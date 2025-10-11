@@ -65,6 +65,7 @@ import com.example.myapp.models.FlashcardElement
 import com.example.myapp.models.FlashcardList
 import com.example.myapp.models.isDue
 import com.example.myapp.ui.MyButton
+import com.example.myapp.ui.ShowAlertDialog
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -242,38 +243,20 @@ fun FlashcardListsScreen(onBack: () -> Unit, navController: NavController) {
                                     Icon(Icons.Default.Delete, contentDescription = "Supprimer")
                                 }
 
-                                if (showDeleteDialog) {
-                                    AlertDialog(
-                                        onDismissRequest = { showDeleteDialog = false },
-                                        title = { Text("T'es sûr ??") },
-                                        text = null,
-                                        confirmButton = {
-                                            Row(
-                                                modifier = Modifier.fillMaxWidth(),
-                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                            ) {
-                                                MyButton(
-                                                    text = "Oula non merci",
-                                                    onClick = { showDeleteDialog = false },
-                                                    modifier = Modifier.weight(1f).height(50.dp),
-                                                    fontSize = 14.sp
-                                                )
-                                                MyButton(
-                                                    text = "Oui t'inquiète",
-                                                    onClick = {
-                                                        val updated = lists.toMutableList()
-                                                        updated.removeAt(index)
-                                                        updateLists(updated)
-                                                        showDeleteDialog = false
-                                                    },
-                                                    modifier = Modifier.weight(1f).height(50.dp),
-                                                    fontSize = 14.sp
-                                                )
-                                            }
-                                        }
-                                    )
-
-                                }
+                                ShowAlertDialog(
+                                    show = showDeleteDialog,
+                                    onDismiss = { showDeleteDialog = false },
+                                    title = "T'es sûr ??",
+                                    onCancel = { showDeleteDialog = false },
+                                    onConfirm = {
+                                        val updated = lists.toMutableList()
+                                        updated.removeAt(index)
+                                        updateLists(updated)
+                                        showDeleteDialog = false
+                                    },
+                                    cancelText = "Oula non merci",
+                                    confirmText = "Oui t'inquiète"
+                                )
 
                                 if (showBulkImportDialog) {
                                     AlertDialog(
@@ -369,7 +352,6 @@ fun FlashcardListsScreen(onBack: () -> Unit, navController: NavController) {
                                                                     }
                                                                 }
                                                             }
-
                                                             showBulkImportDialog = false
                                                         }
                                                     },
@@ -406,39 +388,24 @@ fun FlashcardListsScreen(onBack: () -> Unit, navController: NavController) {
     }
 
     // Dialog for creating or renaming a list
-    if (showDialog) {
-        AlertDialog(
-            onDismissRequest = { showDialog = false },
-            title = { Text(dialogTitle) },
-            text = {
-                TextField(
-                    value = dialogValue,
-                    onValueChange = { dialogValue = it },
-                    label = { Text("Nom de la liste") },
-                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences)
-                )
-            },
-            confirmButton = {
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    MyButton(
-                        text = "Annuler",
-                        onClick = { showDialog = false },
-                        modifier = Modifier.weight(1f).height(50.dp),
-                        fontSize = 14.sp
-                    )
-                    MyButton(
-                        text = "Ok",
-                        onClick = {
-                            if (dialogValue.isNotBlank()) {
-                                dialogAction(dialogValue)
-                                showDialog = false
-                            }
-                        },
-                        modifier = Modifier.weight(1f).height(50.dp),
-                        fontSize = 14.sp
-                    )
-                }
+    ShowAlertDialog(
+        show = showDialog,
+        onDismiss = { showDialog = false },
+        title = dialogTitle,
+        textContent = {
+            TextField(
+                value = dialogValue,
+                onValueChange = { dialogValue = it },
+                label = { Text("Nom de la liste") },
+                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences)
+            )
+        },
+        onCancel = { showDialog = false },
+        onConfirm = {
+            if (dialogValue.isNotBlank()) {
+                dialogAction(dialogValue)
+                showDialog = false
             }
-        )
-    }
+        }
+    )
 }

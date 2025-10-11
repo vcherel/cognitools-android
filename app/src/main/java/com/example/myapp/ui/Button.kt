@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.runtime.getValue
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
@@ -34,7 +35,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 @Composable
-fun MyButton(text: String, modifier: Modifier = Modifier, fontSize : TextUnit = 24.sp, onClick: () -> Unit) {
+fun MyButton(text: String,
+             modifier: Modifier = Modifier,
+             fontSize : TextUnit = 24.sp,
+             onClick: () -> Unit) {
     var isPressed by remember { mutableStateOf(false) }
 
     Box(
@@ -89,7 +93,9 @@ fun MyButton(text: String, modifier: Modifier = Modifier, fontSize : TextUnit = 
 }
 
 @Composable
-fun MySwitch(isBoostEnabled: Boolean, onToggle: (Boolean) -> Unit, modifier: Modifier = Modifier) {
+fun MySwitch(isBoostEnabled: Boolean,
+             onToggle: (Boolean) -> Unit,
+             modifier: Modifier = Modifier) {
     Box(
         modifier = modifier
             .width(300.dp)
@@ -155,5 +161,45 @@ fun MySwitch(isBoostEnabled: Boolean, onToggle: (Boolean) -> Unit, modifier: Mod
 
             }
         }
+    }
+}
+
+@Composable
+fun ShowAlertDialog(show: Boolean,
+    onDismiss: () -> Unit,
+    title: String,
+    textContent: (@Composable () -> Unit)? = null,
+    confirmText: String = "Ok",
+    cancelText: String? = "Annuler",
+    onConfirm: () -> Unit,
+    onCancel: (() -> Unit)? = null
+) {
+    if (show) {
+        AlertDialog(
+            onDismissRequest = onDismiss,
+            title = { Text(title) },
+            text = textContent,
+            confirmButton = {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    if (onCancel != null && cancelText != null) {
+                        MyButton(
+                            text = cancelText,
+                            onClick = onCancel,
+                            modifier = Modifier.weight(1f).height(50.dp),
+                            fontSize = 14.sp
+                        )
+                    }
+                    MyButton(
+                        text = confirmText,
+                        onClick = onConfirm,
+                        modifier = Modifier.weight(1f).height(50.dp),
+                        fontSize = 14.sp
+                    )
+                }
+            }
+        )
     }
 }

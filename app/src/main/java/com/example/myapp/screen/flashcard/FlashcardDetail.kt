@@ -27,7 +27,6 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SwapVert
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -55,7 +54,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.navigation.NavController
@@ -64,6 +62,7 @@ import com.example.myapp.models.FlashcardList
 import com.example.myapp.models.FlashcardElement
 import com.example.myapp.models.isDue
 import com.example.myapp.ui.MyButton
+import com.example.myapp.ui.ShowAlertDialog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -346,33 +345,18 @@ fun FlashcardDetailScreen(listId: String, onBack: () -> Unit, navController: Nav
 
     // Delete confirmation dialog
     elementToDelete?.let { element ->
-        AlertDialog(
-            onDismissRequest = { elementToDelete = null },
-            title = { Text("T'es sûr ??") },
-            text = null,
-            confirmButton = {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    MyButton(
-                        text = "Oula non merci",
-                        onClick = { elementToDelete = null },
-                        modifier = Modifier.weight(1f).height(50.dp),
-                        fontSize = 14.sp
-                    )
-                    MyButton(
-                        text = "Oui t'inquiète",
-                        onClick = {
-                            val updated = elements.filterNot { it.id == elementToDelete!!.id }
-                            updateElements(updated)
-                            elementToDelete = null
-                        },
-                        modifier = Modifier.weight(1f).height(50.dp),
-                        fontSize = 14.sp
-                    )
-                }
-            }
+        ShowAlertDialog(
+            show = true,
+            onDismiss = { elementToDelete = null },
+            title = "T'es sûr ??",
+            onCancel = { elementToDelete = null },
+            onConfirm = {
+                val updated = elements.filterNot { it.id == elementToDelete!!.id }
+                updateElements(updated)
+                elementToDelete = null
+            },
+            cancelText = "Oula non merci",
+            confirmText = "Oui t'inquiète"
         )
     }
 
@@ -390,56 +374,31 @@ fun FlashcardDetailScreen(listId: String, onBack: () -> Unit, navController: Nav
             }
         }
 
-        AlertDialog(
-            onDismissRequest = { showDialog = false },
-            title = { Text(if (editingIndex == null) "Nouvel élément" else "Modifier élément") },
-            text = {
+        ShowAlertDialog(
+            show = true,
+            onDismiss = { showDialog = false },
+            title = if (editingIndex == null) "Nouvel élément" else "Modifier élément",
+            textContent = {
                 Column {
                     TextField(
                         value = dialogName,
                         onValueChange = { dialogName = it },
                         label = { Text("Nom") },
-                        keyboardOptions = KeyboardOptions(
-                            capitalization = KeyboardCapitalization.Sentences,
-                            imeAction = ImeAction.Next
-                        ),
-                        keyboardActions = KeyboardActions(
-                            onNext = { focusRequester2.requestFocus() }
-                        )
+                        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Next),
+                        keyboardActions = KeyboardActions(onNext = { focusRequester2.requestFocus() })
                     )
                     TextField(
                         value = dialogDefinition,
                         onValueChange = { dialogDefinition = it },
                         label = { Text("Définition") },
-                        keyboardOptions = KeyboardOptions(
-                            capitalization = KeyboardCapitalization.Sentences,
-                            imeAction = ImeAction.Done
-                        ),
+                        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Done),
                         keyboardActions = KeyboardActions(onDone = { saveElement() }),
                         modifier = Modifier.focusRequester(focusRequester2)
                     )
                 }
             },
-            confirmButton = {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    MyButton(
-                        text = "Annuler",
-                        onClick = { showDialog = false },
-                        modifier = Modifier.weight(1f).height(50.dp),
-                        fontSize = 14.sp
-                    )
-                    MyButton(
-                        text = "Ok",
-                        onClick = { saveElement() },
-                        modifier = Modifier.weight(1f).height(50.dp),
-                        fontSize = 14.sp
-                    )
-                }
-            }
+            onCancel = { showDialog = false },
+            onConfirm = { saveElement() }
         )
-
     }
 }
