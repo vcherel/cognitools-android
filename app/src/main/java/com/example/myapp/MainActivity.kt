@@ -28,7 +28,7 @@ import com.example.myapp.screen.flashcard.FlashcardDetailScreen
 import com.example.myapp.screen.flashcard.FlashcardGameScreen
 import com.example.myapp.screen.flashcard.FlashcardListsScreen
 import com.example.myapp.screen.RandomGeneratorScreen
-import com.example.myapp.screen.UndercoverScreen
+import com.example.myapp.screen.undercover.UndercoverScreen
 import com.example.myapp.screen.VolumeBoosterScreen
 import com.example.myapp.ui.MyButton
 

@@ -1,0 +1,34 @@
+package com.example.myapp.screen.undercover
+
+data class Player(
+    val name: String,
+    var role: PlayerRole,
+    var word: String,
+    var isEliminated: Boolean = false,
+    var points: Int = 0
+)
+
+enum class PlayerRole {
+    CIVILIAN, IMPOSTOR, MR_WHITE
+}
+
+data class GameSettings(
+    val playerCount: Int = 4,
+    val impostorCount: Int? = null,
+    val mrWhiteCount: Int = 1,
+    val randomComposition: Boolean = true,
+    val impostorsKnowRole: Boolean = false
+)
+
+val wordPairs = listOf(
+    "Dog" to "Cat",
+    "Coffee" to "Tea",
+    "Pizza" to "Burger",
+    "Car" to "Bike",
+    "Summer" to "Winter",
+    "Ocean" to "Lake",
+    "Book" to "Magazine",
+    "Guitar" to "Piano",
+    "Apple" to "Orange",
+    "Football" to "Basketball"
+)
