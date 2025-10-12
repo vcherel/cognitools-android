@@ -410,11 +410,21 @@ fun GameOverScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            Text(
-                "Game Over!",
-                style = MaterialTheme.typography.headlineLarge,
-                fontWeight = FontWeight.Bold
-            )
+
+            if (!(lastEliminated.role == PlayerRole.MR_WHITE && !civiliansWon)) {
+                Text(
+                    "Game Over!",
+                    style = MaterialTheme.typography.headlineLarge,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+            else {
+                Text(
+                    "Bien joué c'était ça!",
+                    style = MaterialTheme.typography.headlineLarge,
+                    fontWeight = FontWeight.Bold
+                )
+            }
 
             Spacer(modifier = Modifier.height(24.dp))
 
@@ -432,33 +442,35 @@ fun GameOverScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            Text(
-                "${lastEliminated.name} was eliminated",
-                style = MaterialTheme.typography.bodyLarge
-            )
+            if (!(lastEliminated.role == PlayerRole.MR_WHITE && !civiliansWon)) {
+                Text(
+                    "${lastEliminated.name} was eliminated",
+                    style = MaterialTheme.typography.bodyLarge
+                )
 
-            Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-            val roleText = when (lastEliminated.role) {
-                PlayerRole.CIVILIAN -> "Civilian"
-                PlayerRole.IMPOSTOR -> "Impostor"
-                PlayerRole.MR_WHITE -> "Mr. White"
+                val roleText = when (lastEliminated.role) {
+                    PlayerRole.CIVILIAN -> "Civilian"
+                    PlayerRole.IMPOSTOR -> "Impostor"
+                    PlayerRole.MR_WHITE -> "Mr. White"
+                }
+
+                val roleColor = when (lastEliminated.role) {
+                    PlayerRole.CIVILIAN -> Color.Blue
+                    PlayerRole.IMPOSTOR -> Color(0xFFFF6600)
+                    PlayerRole.MR_WHITE -> Color.Red
+                }
+
+                Text(
+                    "Role: $roleText",
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = roleColor
+                )
+
+                Spacer(modifier = Modifier.height(32.dp))
             }
-
-            val roleColor = when (lastEliminated.role) {
-                PlayerRole.CIVILIAN -> Color.Blue
-                PlayerRole.IMPOSTOR -> Color(0xFFFF6600)
-                PlayerRole.MR_WHITE -> Color.Red
-            }
-
-            Text(
-                "Role: $roleText",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-                color = roleColor
-            )
-
-            Spacer(modifier = Modifier.height(32.dp))
 
             Button(onClick = { showScoreboard = true }) {
                 Text("View Scoreboard")
