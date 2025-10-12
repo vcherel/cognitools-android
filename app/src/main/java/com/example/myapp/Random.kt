@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -89,7 +90,7 @@ fun RandomGeneratorScreen(onBack: () -> Unit, context: Context = LocalContext.cu
     ) {
         // Random Integer Section
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text("Nombre entier aléatoire", fontSize = 20.sp, fontWeight = FontWeight.SemiBold, color = Color.Black)
+            Text("Nombre entier aléatoire", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color.Black)
 
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(value = min, onValueChange = { min = it }, label = { Text("Min") }, modifier = Modifier.weight(1f))
@@ -113,9 +114,11 @@ fun RandomGeneratorScreen(onBack: () -> Unit, context: Context = LocalContext.cu
             }
         }
 
+        Spacer(Modifier.height(32.dp))
+
         // Random Word Section
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text("Mot aléatoire", fontSize = 20.sp, fontWeight = FontWeight.SemiBold, color = Color.Black)
+            Text("Mot aléatoire", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color.Black)
 
             MyButton(text = if (isLoading) "Chargement..." else "Générer") {
                 if (words.isNotEmpty()) wordResult = words.random()

@@ -189,7 +189,7 @@ fun FlashcardListsScreen(onBack: () -> Unit, navController: NavController) {
                     .weight(1f),
                 contentAlignment = Alignment.Center
             ) {
-                CircularProgressIndicator()
+                CircularProgressIndicator(color = Color.Black)
             }
         } else {
             // List of flashcard lists
