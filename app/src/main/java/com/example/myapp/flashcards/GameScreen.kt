@@ -121,13 +121,12 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
             // If we fail, the card comes again quickly
             quality < 3 -> {
                 // Randomly send the card far away if we struggle too much with it
-                val probability = ((2.5 - newScore) / 2.5 * 0.33).coerceIn(0.0, 0.33)
-                if (newScore < 2.5 && Math.random() < probability) 61.0
-
-                // 1/3 chance that the card come back a bit later
-                if (Math.random() < 0.33) newScore.coerceAtLeast(1.0)
-
-                else 0.0
+                val probability = ((2.5 - newScore) / 2.5 * 0.40).coerceIn(0.0, 0.40)  // Only cards with score < 2.5, 40% chance maximum when score = 0
+                when {
+                    (newScore < 2.5 && Math.random() < probability) -> 60 + Math.random() * 120
+                    (Math.random() < 0.33) -> newScore.coerceAtLeast(1.0)
+                    else -> 0.0
+                }
             }
 
             // On the first win we have to wait 6 minutes
