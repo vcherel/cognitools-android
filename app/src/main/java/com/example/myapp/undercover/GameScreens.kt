@@ -409,6 +409,27 @@ fun GameOverScreen(
                 style = MaterialTheme.typography.bodyLarge
             )
 
+            Spacer(modifier = Modifier.height(16.dp))
+
+            val roleText = when (lastEliminated.role) {
+                PlayerRole.CIVILIAN -> "Civilian"
+                PlayerRole.IMPOSTOR -> "Impostor"
+                PlayerRole.MR_WHITE -> "Mr. White"
+            }
+
+            val roleColor = when (lastEliminated.role) {
+                PlayerRole.CIVILIAN -> Color.Blue
+                PlayerRole.IMPOSTOR -> Color(0xFFFF6600)
+                PlayerRole.MR_WHITE -> Color.Red
+            }
+
+            Text(
+                "Role: $roleText",
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+                color = roleColor
+            )
+
             Spacer(modifier = Modifier.height(32.dp))
 
             Button(onClick = { showScoreboard = true }) {

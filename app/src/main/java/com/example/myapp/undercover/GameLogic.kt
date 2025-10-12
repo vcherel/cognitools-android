@@ -41,7 +41,11 @@ fun assignRolesAndWords(players: List<Player>, settings: GameSettings): List<Pla
     // If composition is random, pick a random impostor count
     if (settings.randomComposition) {
         val maxImpostors = ((settings.playerCount - mrWhiteCount) / 2) - 1
-        impostorCount = Random.nextInt(1, maxImpostors + 1)
+        impostorCount = if (maxImpostors >= 1) {
+            Random.nextInt(1, maxImpostors + 1)
+        } else {
+            0 // It means there is at least 1 Mr White
+        }
     }
 
     val updatedPlayers = players.toMutableList()
