@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardActions
@@ -75,29 +76,53 @@ fun PlayerSetupScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Text("Player ${playerIndex + 1} of $totalPlayers", style = MaterialTheme.typography.headlineMedium)
+        Text(
+            "Player ${playerIndex + 1} of $totalPlayers",
+            style = MaterialTheme.typography.headlineMedium
+        )
         Spacer(modifier = Modifier.height(24.dp))
         Text("Enter your name:")
         Spacer(modifier = Modifier.height(16.dp))
 
-        OutlinedTextField(
-            value = name,
-            onValueChange = { name = it },
-            label = { Text("Name") },
-            singleLine = true,
-            isError = errorMessage != null,
-            supportingText = errorMessage?.let { { Text(it) } },
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-            keyboardActions = KeyboardActions(onDone = {
-                if (isNameValid) {
-                    onNameEntered(name)
-                    name = ""
-                }
-            }),
-            modifier = Modifier.focusRequester(focusRequester)
-        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            OutlinedTextField(
+                value = name,
+                onValueChange = { name = it },
+                label = { Text("Name") },
+                singleLine = true,
+                isError = errorMessage != null,
+                supportingText = errorMessage?.let { { Text(it) } },
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = {
+                    if (isNameValid) {
+                        onNameEntered(name)
+                        name = ""
+                    }
+                }),
+                modifier = Modifier
+                    .weight(1f)
+                    .focusRequester(focusRequester)
+            )
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            Button(
+                onClick = {
+                    if (isNameValid) {
+                        onNameEntered(name)
+                        name = ""
+                    }
+                },
+                enabled = isNameValid
+            ) {
+                Text("OK")
+            }
+        }
     }
 }
+
 @Composable
 fun ShowWordScreen(
     player: Player,
@@ -190,7 +215,7 @@ fun ShowWordScreen(
 }
 
 @Composable
-fun RoundMenuScreen(
+fun PlayScreen(
     round: Int,
     players: List<Player>,
     currentPlayerIndex: Int,
@@ -422,17 +447,6 @@ fun GameOverScreen(
             }
         }
 
-        val winnerColor = when {
-            civiliansWon -> Color.Blue
-            lastEliminated.role == PlayerRole.MR_WHITE -> Color.Red
-            else -> when {
-                activeRoles.contains(PlayerRole.MR_WHITE) && activeRoles.contains(PlayerRole.IMPOSTOR) ->
-                    Color.Magenta
-                activeRoles.contains(PlayerRole.IMPOSTOR) -> Color(0xFFFF6600)
-                else -> Color.Red
-            }
-        }
-
         Column(
             modifier = Modifier.fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -454,8 +468,7 @@ fun GameOverScreen(
 
             Text(
                 winnerText,
-                style = MaterialTheme.typography.headlineMedium,
-                color = winnerColor
+                style = MaterialTheme.typography.headlineMedium
             )
 
             Spacer(modifier = Modifier.height(16.dp))

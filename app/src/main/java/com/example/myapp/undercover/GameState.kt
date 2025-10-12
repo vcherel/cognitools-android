@@ -116,7 +116,7 @@ fun UndercoverScreen(onBack: () -> Unit) {
                 }
             }
             is GameState.RoundMenu -> {
-                RoundMenuScreen(
+                PlayScreen(
                     round = state.currentRound,
                     players = state.players,
                     currentPlayerIndex = state.currentPlayerIndex,
