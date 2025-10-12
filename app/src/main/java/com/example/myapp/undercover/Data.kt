@@ -1,5 +1,6 @@
 package com.example.myapp.undercover
 
+// 1. Player-related data
 data class Player(
     val name: String,
     val role: PlayerRole,
@@ -12,6 +13,7 @@ enum class PlayerRole {
     CIVILIAN, IMPOSTOR, MR_WHITE
 }
 
+// 2. Game settings
 data class GameSettings(
     val playerCount: Int = 4,
     val impostorCount: Int = 1,
@@ -20,6 +22,7 @@ data class GameSettings(
     val impostorsKnowRole: Boolean = false
 )
 
+// 3. Word pairs
 val wordPairs = listOf(
     "Dog" to "Cat",
     "Coffee" to "Tea",
@@ -33,10 +36,11 @@ val wordPairs = listOf(
     "Football" to "Basketball"
 )
 
+// 4. Game state representations
 sealed class GameState {
     object Settings : GameState()
     data class PlayerSetup(val playerIndex: Int, val showWord: Boolean) : GameState()
-    object RoundMenu : GameState()
+    object PlayMenu : GameState()
     object Voting : GameState()
     data class EliminationResult(val player: Player, val gameOver: Boolean) : GameState()
     data class MrWhiteGuess(val player: Player, val correctWord: String, val lastEliminated: Player?) : GameState()
@@ -52,7 +56,7 @@ data class UndercoverGameState(
     val allPlayersScores: Map<String, Int> = emptyMap()
 )
 
-// Win condition enum
+// 5. Win condition and scoring
 enum class WinCondition {
     CiviliansWin,
     ImpostorsWin,

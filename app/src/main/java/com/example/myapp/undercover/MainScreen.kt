@@ -108,14 +108,14 @@ fun UndercoverScreen(onBack: () -> Unit) {
                                 val activeCount = state.players.activePlayers().size
                                 state = state.copy(
                                     currentPlayerIndex = if (activeCount > 0) Random.nextInt(activeCount) else 0,
-                                    gameState = GameState.RoundMenu
+                                    gameState = GameState.PlayMenu
                                 )
                             }
                         }
                     )
                 }
             }
-            is GameState.RoundMenu -> {
+            is GameState.PlayMenu -> {
                 PlayScreen(
                     round = state.currentRound,
                     players = state.players,
@@ -194,7 +194,7 @@ fun UndercoverScreen(onBack: () -> Unit) {
                         state = state.copy(
                             currentRound = state.currentRound + 1,
                             currentPlayerIndex = nextPlayerIndex,
-                            gameState = GameState.RoundMenu
+                            gameState = GameState.PlayMenu
                         )
                     }
                 )
@@ -267,7 +267,7 @@ fun UndercoverScreen(onBack: () -> Unit) {
                                             players = updatedPlayers,
                                             currentRound = state.currentRound + 1,
                                             currentPlayerIndex = nextPlayerIndex,
-                                            gameState = GameState.RoundMenu
+                                            gameState = GameState.PlayMenu
                                         )
                                     }
                                 }
