@@ -131,85 +131,62 @@ fun ShowWordScreen(
     settings: GameSettings,
     onNext: () -> Unit
 ) {
-    var wordRevealed by remember { mutableStateOf(false) }
-
     Column(
         modifier = Modifier.fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        if (!wordRevealed) {
+        Text(
+            player.name,
+            style = MaterialTheme.typography.headlineMedium
+        )
+        Spacer(modifier = Modifier.height(24.dp))
+
+        if (player.role == PlayerRole.MR_WHITE) {
             Text(
-                "${player.name}, it's your turn!",
-                style = MaterialTheme.typography.headlineMedium
+                "You are Mr. White!",
+                style = MaterialTheme.typography.headlineLarge,
+                fontWeight = FontWeight.Bold
             )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
             Text(
-                "Make sure others don't see the screen.",
+                "You have no word. Listen carefully and blend in!",
+                style = MaterialTheme.typography.bodyLarge,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(16.dp)
+            )
+        } else if (player.role == PlayerRole.IMPOSTOR && settings.impostorsKnowRole) {
+            Text(
+                "You are an Impostor!",
+                style = MaterialTheme.typography.headlineLarge,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                "Your word:",
                 style = MaterialTheme.typography.bodyLarge
             )
-
-            Spacer(modifier = Modifier.height(32.dp))
-
-            Button(onClick = { wordRevealed = true }) {
-                Text("Show My Word")
-            }
+            Text(
+                player.word,
+                style = MaterialTheme.typography.headlineLarge,
+                fontWeight = FontWeight.Bold
+            )
         } else {
             Text(
-                player.name,
-                style = MaterialTheme.typography.headlineMedium
+                "Your word:",
+                style = MaterialTheme.typography.bodyLarge
             )
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                player.word,
+                style = MaterialTheme.typography.headlineLarge,
+                fontWeight = FontWeight.Bold
+            )
+        }
 
-            Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(32.dp))
 
-            if (player.role == PlayerRole.MR_WHITE) {
-                Text(
-                    "You are Mr. White!",
-                    style = MaterialTheme.typography.headlineLarge,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    "You have no word. Listen carefully and blend in!",
-                    style = MaterialTheme.typography.bodyLarge,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(16.dp)
-                )
-            } else if (player.role == PlayerRole.IMPOSTOR && settings.impostorsKnowRole) {
-                Text(
-                    "You are an Impostor!",
-                    style = MaterialTheme.typography.headlineLarge,
-                    fontWeight = FontWeight.Bold
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-                Text(
-                    "Your word:",
-                    style = MaterialTheme.typography.bodyLarge
-                )
-                Text(
-                    player.word,
-                    style = MaterialTheme.typography.headlineLarge,
-                    fontWeight = FontWeight.Bold
-                )
-            } else {
-                Text(
-                    "Your word:",
-                    style = MaterialTheme.typography.bodyLarge
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-                Text(
-                    player.word,
-                    style = MaterialTheme.typography.headlineLarge,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-
-            Spacer(modifier = Modifier.height(32.dp))
-
-            Button(onClick = onNext) {
-                Text(if (playerIndex < totalPlayers - 1) "Next Player" else "Start Game")
-            }
+        Button(onClick = onNext) {
+            Text(if (playerIndex < totalPlayers - 1) "Next Player" else "Start Game")
         }
     }
 }
