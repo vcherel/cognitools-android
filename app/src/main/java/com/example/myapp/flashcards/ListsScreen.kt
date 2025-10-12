@@ -288,7 +288,7 @@ fun FlashcardListsScreen(onBack: () -> Unit, navController: NavController) {
 
                             // Update local state
                             withContext(Dispatchers.Main) {
-                                flashcards = updatedElements
+                                flashcards = flashcards + updatedElements
                                 Toast.makeText(
                                     context,
                                     "${newElements.size} carte(s) ajoutée(s)",
