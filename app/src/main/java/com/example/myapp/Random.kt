@@ -84,9 +84,9 @@ fun RandomGeneratorScreen(onBack: () -> Unit, context: Context = LocalContext.cu
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 20.dp, vertical = 40.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+            .padding(top = 120.dp)
+            .padding(horizontal = 20.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
         // Random Integer Section
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
