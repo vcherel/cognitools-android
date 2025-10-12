@@ -22,6 +22,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -36,14 +37,34 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 
+const val MAX_NAME_LENGTH = 30
+
 @Composable
 fun PlayerSetupScreen(
     playerIndex: Int,
     totalPlayers: Int,
+    existingNames: List<String>,
     onNameEntered: (String) -> Unit
 ) {
     var name by remember { mutableStateOf("") }
     val focusRequester = remember { FocusRequester() }
+
+    val isNameValid by remember {
+        derivedStateOf {
+            name.isNotBlank() && name.length <= MAX_NAME_LENGTH && existingNames.none { it.equals(name, ignoreCase = true) }
+        }
+    }
+
+    val errorMessage by remember {
+        derivedStateOf {
+            when {
+                name.isBlank() -> null
+                name.length > MAX_NAME_LENGTH -> "Name too long (max $MAX_NAME_LENGTH characters)"
+                existingNames.any { it.equals(name, ignoreCase = true) } -> "Name already taken"
+                else -> null
+            }
+        }
+    }
 
     LaunchedEffect(Unit) {
         focusRequester.requestFocus()
@@ -64,9 +85,11 @@ fun PlayerSetupScreen(
             onValueChange = { name = it },
             label = { Text("Name") },
             singleLine = true,
+            isError = errorMessage != null,
+            supportingText = errorMessage?.let { { Text(it) } },
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
             keyboardActions = KeyboardActions(onDone = {
-                if (name.isNotBlank()) {
+                if (isNameValid) {
                     onNameEntered(name)
                     name = ""
                 }
@@ -75,7 +98,6 @@ fun PlayerSetupScreen(
         )
     }
 }
-
 @Composable
 fun ShowWordScreen(
     player: Player,
@@ -246,7 +268,7 @@ fun VotingScreen(
     var selectedPlayer by remember { mutableStateOf<Player?>(null) }
     var showConfirmation by remember { mutableStateOf(false) }
 
-    val activePlayers = players.filter { !it.isEliminated }
+    val activePlayers by remember { derivedStateOf { players.activePlayers() } }
 
     Column(
         modifier = Modifier.fillMaxSize(),
@@ -385,24 +407,29 @@ fun GameOverScreen(
     var showScoreboard by remember { mutableStateOf(false) }
 
     if (!showScoreboard) {
+        val activePlayers by remember { derivedStateOf { players.activePlayers() } }
+        val activeRoles by remember { derivedStateOf { activePlayers.map { it.role }.toSet() } }
+
         val winnerText = when {
             civiliansWon -> "Civilians Win!"
-            lastEliminated.role == PlayerRole.MR_WHITE -> {
-                val mrWhites = players.filter { it.role == PlayerRole.MR_WHITE && !it.isEliminated }
-                if (mrWhites.isNotEmpty()) {  // It should be empty, has the winning Mr White
-                    "Mr White (${mrWhites.joinToString { lastEliminated.name }}) Win!"
-                } else {
-                    "Mr White Win!"
-                }
+            lastEliminated.role == PlayerRole.MR_WHITE -> "Mr White (${lastEliminated.name}) Wins!"
+            else -> when {
+                activeRoles.contains(PlayerRole.MR_WHITE) && activeRoles.contains(PlayerRole.IMPOSTOR) ->
+                    "Impostor and Mr White Win!"
+                activeRoles.contains(PlayerRole.IMPOSTOR) -> "Impostor Win!"
+                activeRoles.contains(PlayerRole.MR_WHITE) -> "Mr White Win!"
+                else -> "Impostors Win!"
             }
-            else -> {
-                val activeRoles = players.filter { !it.isEliminated }.map { it.role }.toSet()
-                when {
-                    activeRoles.contains(PlayerRole.MR_WHITE) && activeRoles.contains(PlayerRole.IMPOSTOR) -> "Impostor and Mr White Win!"
-                    activeRoles.contains(PlayerRole.IMPOSTOR) -> "Impostor Win!"
-                    activeRoles.contains(PlayerRole.MR_WHITE) -> "Mr White Win!"
-                    else -> "Impostors Win!"
-                }
+        }
+
+        val winnerColor = when {
+            civiliansWon -> Color.Blue
+            lastEliminated.role == PlayerRole.MR_WHITE -> Color.Red
+            else -> when {
+                activeRoles.contains(PlayerRole.MR_WHITE) && activeRoles.contains(PlayerRole.IMPOSTOR) ->
+                    Color.Magenta
+                activeRoles.contains(PlayerRole.IMPOSTOR) -> Color(0xFFFF6600)
+                else -> Color.Red
             }
         }
 
@@ -411,34 +438,24 @@ fun GameOverScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
+            val headerText = if (lastEliminated.role == PlayerRole.MR_WHITE && !civiliansWon) {
+                "Bien joué c'était ça!"
+            } else {
+                "Game Over!"
+            }
 
-            if (!(lastEliminated.role == PlayerRole.MR_WHITE && !civiliansWon)) {
-                Text(
-                    "Game Over!",
-                    style = MaterialTheme.typography.headlineLarge,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-            else {
-                Text(
-                    "Bien joué c'était ça!",
-                    style = MaterialTheme.typography.headlineLarge,
-                    fontWeight = FontWeight.Bold
-                )
-            }
+            Text(
+                headerText,
+                style = MaterialTheme.typography.headlineLarge,
+                fontWeight = FontWeight.Bold
+            )
 
             Spacer(modifier = Modifier.height(24.dp))
 
             Text(
                 winnerText,
                 style = MaterialTheme.typography.headlineMedium,
-                color = when (winnerText) {
-                    "Civilians Win!" -> Color.Blue
-                    "Mr White Win!" -> Color.Red
-                    "Impostor Win!" -> Color(0xFFFF6600)
-                    "Impostor and Mr White Win!" -> Color.Magenta
-                    else -> Color.Black
-                }
+                color = winnerColor
             )
 
             Spacer(modifier = Modifier.height(16.dp))

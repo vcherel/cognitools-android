@@ -16,30 +16,23 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import kotlin.collections.set
 import kotlin.random.Random
 
 @Composable
 fun UndercoverScreen(onBack: () -> Unit) {
-    var gameState by remember { mutableStateOf<GameState>(GameState.Settings) }
-    var settings by remember { mutableStateOf(GameSettings()) }
-    var players by remember { mutableStateOf<List<Player>>(emptyList()) }
-    var currentPlayerIndex by remember { mutableIntStateOf(0) }
-    var currentRound by remember { mutableIntStateOf(1) }
-    var allPlayersScores by remember { mutableStateOf<Map<String, Int>>(emptyMap()) }
+    var state by remember { mutableStateOf(UndercoverGameState()) }
 
     BackHandler {
-        if (gameState is GameState.Settings) {
+        if (state.gameState is GameState.Settings) {
             onBack()
         } else {
-            gameState = GameState.Settings
+            state = state.copy(gameState = GameState.Settings)
         }
     }
 
@@ -50,10 +43,10 @@ fun UndercoverScreen(onBack: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = {
-                if (gameState is GameState.Settings) {
+                if (state.gameState is GameState.Settings) {
                     onBack()
                 } else {
-                    gameState = GameState.Settings
+                    state = state.copy(gameState = GameState.Settings)
                 }
             }) {
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -67,55 +60,56 @@ fun UndercoverScreen(onBack: () -> Unit) {
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        when (val state = gameState) {
+        when (val gameState = state.gameState) {
             is GameState.Settings -> {
                 SettingsScreen(
-                    settings = settings,
-                    onSettingsChange = { settings = it },
+                    settings = state.settings,
+                    onSettingsChange = { state = state.copy(settings = it) },
                     onStart = {
-                        val newPlayers = generatePlayers(settings)
-                        players = assignRolesAndWords(newPlayers, settings)
-                        currentPlayerIndex = 0
-                        currentRound = 1
-                        gameState = GameState.PlayerSetup(
-                            0,
-                            showWord = false
+                        val newPlayers = generatePlayers(state.settings)
+                        val assignedPlayers = assignRolesAndWords(newPlayers, state.settings)
+                        state = state.copy(
+                            players = assignedPlayers,
+                            currentPlayerIndex = 0,
+                            currentRound = 1,
+                            gameState = GameState.PlayerSetup(0, showWord = false)
                         )
                     }
                 )
             }
             is GameState.PlayerSetup -> {
-                if (!state.showWord) {
-                    // Name entry phase
+                if (!gameState.showWord) {
                     PlayerSetupScreen(
-                        playerIndex = state.playerIndex,
-                        totalPlayers = settings.playerCount,
+                        playerIndex = gameState.playerIndex,
+                        totalPlayers = state.settings.playerCount,
+                        existingNames = state.players.map { it.name },
                         onNameEntered = { name ->
-                            players = players.toMutableList().apply {
-                                if (state.playerIndex < size) {
-                                    this[state.playerIndex] = this[state.playerIndex].copy(name = name)
-                                }
+                            val updatedPlayers = state.players.mapIndexed { index, player ->
+                                if (index == gameState.playerIndex) player.copy(name = name) else player
                             }
-
-                            // Move to show word for this player
-                            gameState = GameState.PlayerSetup(state.playerIndex, true)
+                            state = state.copy(
+                                players = updatedPlayers,
+                                gameState = GameState.PlayerSetup(gameState.playerIndex, true)
+                            )
                         }
                     )
                 } else {
-                    // Show word phase
                     ShowWordScreen(
-                        player = players[state.playerIndex],
-                        playerIndex = state.playerIndex,
-                        totalPlayers = players.size,
-                        settings = settings,
+                        player = state.players[gameState.playerIndex],
+                        playerIndex = gameState.playerIndex,
+                        totalPlayers = state.players.size,
+                        settings = state.settings,
                         onNext = {
-                            if (state.playerIndex < players.size - 1) {
-                                // Move to next player's name entry
-                                gameState = GameState.PlayerSetup(state.playerIndex + 1, false)
+                            if (gameState.playerIndex < state.players.size - 1) {
+                                state = state.copy(
+                                    gameState = GameState.PlayerSetup(gameState.playerIndex + 1, false)
+                                )
                             } else {
-                                // All players done, start game
-                                currentPlayerIndex = Random.nextInt(players.filter { !it.isEliminated }.size)
-                                gameState = GameState.RoundMenu
+                                val activeCount = state.players.activePlayers().size
+                                state = state.copy(
+                                    currentPlayerIndex = if (activeCount > 0) Random.nextInt(activeCount) else 0,
+                                    gameState = GameState.RoundMenu
+                                )
                             }
                         }
                     )
@@ -123,53 +117,49 @@ fun UndercoverScreen(onBack: () -> Unit) {
             }
             is GameState.RoundMenu -> {
                 RoundMenuScreen(
-                    round = currentRound,
-                    players = players,
-                    currentPlayerIndex = currentPlayerIndex,
+                    round = state.currentRound,
+                    players = state.players,
+                    currentPlayerIndex = state.currentPlayerIndex,
                     onContinue = {
-                        gameState = GameState.Voting
+                        state = state.copy(gameState = GameState.Voting)
                     }
                 )
             }
             is GameState.Voting -> {
                 VotingScreen(
-                    players = players,
+                    players = state.players,
                     onPlayerEliminated = { eliminatedPlayer ->
-                        // Check if Mr. White was eliminated BEFORE marking as eliminated
                         if (eliminatedPlayer.role == PlayerRole.MR_WHITE) {
-                            val correctWord = players.first { it.role == PlayerRole.CIVILIAN }.word
-                            gameState = GameState.MrWhiteGuess(eliminatedPlayer, correctWord)
+                            val correctWord = state.players.first { it.role == PlayerRole.CIVILIAN }.word
+                            state = state.copy(
+                                gameState = GameState.MrWhiteGuess(eliminatedPlayer, correctWord)
+                            )
                         } else {
-                            players = players.toMutableList().apply {
-                                val idx = indexOfFirst { it.name == eliminatedPlayer.name }
-                                if (idx != -1) {
-                                    this[idx] = this[idx].copy(isEliminated = true)
-                                }
-                            }
+                            val updatedPlayers = state.players.eliminate(eliminatedPlayer.name)
 
-                            val activePlayers = players.filter { !it.isEliminated }
-                            val civilians = activePlayers.filter { it.role == PlayerRole.CIVILIAN }
-                            val impostors = activePlayers.filter { it.role == PlayerRole.IMPOSTOR }
-                            val mrWhites = activePlayers.filter { it.role == PlayerRole.MR_WHITE }
-
-                            if (impostors.isEmpty() && mrWhites.isEmpty()) {
-                                // Civilians win
-                                players.filter { it.role == PlayerRole.CIVILIAN }.forEach {
-                                    allPlayersScores = allPlayersScores.toMutableMap().apply {
-                                        this[it.name] = (this[it.name] ?: 0) + 1
-                                    }
+                            when (updatedPlayers.checkWinCondition()) {
+                                WinCondition.CiviliansWin -> {
+                                    val updatedScores = updatedPlayers.awardCivilianPoints(state.allPlayersScores)
+                                    state = state.copy(
+                                        players = updatedPlayers,
+                                        allPlayersScores = updatedScores,
+                                        gameState = GameState.GameOver(true, eliminatedPlayer)
+                                    )
                                 }
-                                gameState = GameState.GameOver(true, eliminatedPlayer)
-                            } else if (civilians.size <= 1) {
-                                // Impostors/Mr. White win
-                                players.filter { it.role != PlayerRole.CIVILIAN }.forEach {
-                                    allPlayersScores = allPlayersScores.toMutableMap().apply {
-                                        this[it.name] = (this[it.name] ?: 0) + 2
-                                    }
+                                WinCondition.ImpostorsWin -> {
+                                    val updatedScores = updatedPlayers.awardImpostorPoints(state.allPlayersScores)
+                                    state = state.copy(
+                                        players = updatedPlayers,
+                                        allPlayersScores = updatedScores,
+                                        gameState = GameState.GameOver(false, eliminatedPlayer)
+                                    )
                                 }
-                                gameState = GameState.GameOver(false, eliminatedPlayer)
-                            } else {
-                                gameState = GameState.EliminationResult(eliminatedPlayer, false)
+                                WinCondition.Continue -> {
+                                    state = state.copy(
+                                        players = updatedPlayers,
+                                        gameState = GameState.EliminationResult(eliminatedPlayer, false)
+                                    )
+                                }
                             }
                         }
                     }
@@ -177,56 +167,54 @@ fun UndercoverScreen(onBack: () -> Unit) {
             }
             is GameState.EliminationResult -> {
                 EliminationResultScreen(
-                    player = state.player,
+                    player = gameState.player,
                     onNextRound = {
-                        currentRound++
-                        val activePlayers = players.filter { !it.isEliminated }
-                        if (activePlayers.isNotEmpty()) {
-                            currentPlayerIndex = Random.nextInt(activePlayers.size)
-                        }
-                        gameState = GameState.RoundMenu
+                        val activePlayers = state.players.activePlayers()
+                        val nextPlayerIndex = if (activePlayers.isNotEmpty()) Random.nextInt(activePlayers.size) else 0
+                        state = state.copy(
+                            currentRound = state.currentRound + 1,
+                            currentPlayerIndex = nextPlayerIndex,
+                            gameState = GameState.RoundMenu
+                        )
                     }
                 )
             }
             is GameState.MrWhiteGuess -> {
                 MrWhiteGuessScreen(
-                    player = state.player,
+                    player = gameState.player,
                     onGuessSubmitted = { guessedWord ->
-                        // Mark Mr. White as eliminated
-                        players = players.toMutableList().apply {
-                            val idx = indexOfFirst { it.name == state.player.name }
-                            if (idx != -1) {
-                                this[idx] = this[idx].copy(isEliminated = true)
-                            }
-                        }
+                        val updatedPlayers = state.players.eliminate(gameState.player.name)
 
-                        if (guessedWord.equals(state.correctWord, ignoreCase = true)) {
-                            // Mr. White wins
-                            allPlayersScores = allPlayersScores.toMutableMap().apply {
-                                this[state.player.name] = (this[state.player.name] ?: 0) + 3
-                            }
-                            gameState = GameState.GameOver(false, state.player)
+                        if (guessedWord.equals(gameState.correctWord, ignoreCase = true)) {
+                            val updatedScores = state.allPlayersScores.updateScore(
+                                gameState.player.name,
+                                ScoreValues.MR_WHITE_WIN
+                            )
+                            state = state.copy(
+                                players = updatedPlayers,
+                                allPlayersScores = updatedScores,
+                                gameState = GameState.GameOver(false, gameState.player)
+                            )
                         } else {
-                            // Civilians win
-                            players.filter { it.role == PlayerRole.CIVILIAN }.forEach {
-                                allPlayersScores = allPlayersScores.toMutableMap().apply {
-                                    this[it.name] = (this[it.name] ?: 0) + 1
-                                }
-                            }
-                            gameState = GameState.GameOver(true, state.player)
+                            val updatedScores = updatedPlayers.awardCivilianPoints(state.allPlayersScores)
+                            state = state.copy(
+                                players = updatedPlayers,
+                                allPlayersScores = updatedScores,
+                                gameState = GameState.GameOver(true, gameState.player)
+                            )
                         }
                     }
                 )
             }
             is GameState.GameOver -> {
                 GameOverScreen(
-                    civiliansWon = state.civiliansWon,
-                    lastEliminated = state.lastEliminated,
-                    players = players,
-                    allScores = allPlayersScores,
-                    gameWord = players.first { it.role == PlayerRole.CIVILIAN }.word,
+                    civiliansWon = gameState.civiliansWon,
+                    lastEliminated = gameState.lastEliminated,
+                    players = state.players,
+                    allScores = state.allPlayersScores,
+                    gameWord = state.players.first { it.role == PlayerRole.CIVILIAN }.word,
                     onNewGame = {
-                        gameState = GameState.Settings
+                        state = UndercoverGameState()
                     }
                 )
             }

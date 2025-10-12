@@ -32,3 +32,25 @@ val wordPairs = listOf(
     "Apple" to "Orange",
     "Football" to "Basketball"
 )
+
+data class UndercoverGameState(
+    val gameState: GameState = GameState.Settings,
+    val settings: GameSettings = GameSettings(),
+    val players: List<Player> = emptyList(),
+    val currentPlayerIndex: Int = 0,
+    val currentRound: Int = 1,
+    val allPlayersScores: Map<String, Int> = emptyMap()
+)
+
+// Win condition enum
+enum class WinCondition {
+    CiviliansWin,
+    ImpostorsWin,
+    Continue
+}
+
+object ScoreValues {
+    const val CIVILIAN_WIN = 1
+    const val IMPOSTOR_WIN = 2
+    const val MR_WHITE_WIN = 3
+}

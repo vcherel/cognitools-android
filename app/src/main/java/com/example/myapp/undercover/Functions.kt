@@ -71,3 +71,44 @@ fun assignRolesAndWords(players: List<Player>, settings: GameSettings): List<Pla
 
     return updatedPlayers
 }
+
+fun Map<String, Int>.updateScore(playerName: String, points: Int): Map<String, Int> {
+    return toMutableMap().apply {
+        this[playerName] = (this[playerName] ?: 0) + points
+    }
+}
+
+fun List<Player>.eliminate(playerName: String): List<Player> {
+    return map { if (it.name == playerName) it.copy(isEliminated = true) else it }
+}
+
+fun List<Player>.activePlayers() = filter { !it.isEliminated }
+
+fun List<Player>.checkWinCondition(): WinCondition {
+    val active = activePlayers()
+    val civilians = active.count { it.role == PlayerRole.CIVILIAN }
+    val impostors = active.count { it.role == PlayerRole.IMPOSTOR }
+    val mrWhites = active.count { it.role == PlayerRole.MR_WHITE }
+
+    return when {
+        impostors == 0 && mrWhites == 0 -> WinCondition.CiviliansWin
+        civilians <= 1 -> WinCondition.ImpostorsWin
+        else -> WinCondition.Continue
+    }
+}
+
+fun List<Player>.awardCivilianPoints(scores: Map<String, Int>): Map<String, Int> {
+    var updatedScores = scores
+    filter { it.role == PlayerRole.CIVILIAN }.forEach { player ->
+        updatedScores = updatedScores.updateScore(player.name, ScoreValues.CIVILIAN_WIN)
+    }
+    return updatedScores
+}
+
+fun List<Player>.awardImpostorPoints(scores: Map<String, Int>): Map<String, Int> {
+    var updatedScores = scores
+    filter { it.role != PlayerRole.CIVILIAN }.forEach { player ->
+        updatedScores = updatedScores.updateScore(player.name, ScoreValues.IMPOSTOR_WIN)
+    }
+    return updatedScores
+}
