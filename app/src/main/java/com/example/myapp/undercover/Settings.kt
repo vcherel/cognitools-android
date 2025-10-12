@@ -17,12 +17,45 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
+fun validateGameSettings(
+    playerCount: Int,
+    impostorCount: Int,
+    mrWhiteCount: Int
+): Triple<Int, Int, Int> {
+    // Constraint: Civilians > Impostors
+    // This means: playerCount > 2 * impostorCount + mrWhiteCount
+
+    val validPlayerCount = playerCount.coerceIn(3, 20)
+
+    // At least one impostor or Mr. White must exist
+    // Maximum impostors when mrWhite = 0: (playerCount - 1) / 2
+    val maxPossibleImpostors = (validPlayerCount - 1) / 2
+
+    // First, ensure impostors are within absolute bounds
+    var validImpostorCount = impostorCount.coerceIn(0, maxPossibleImpostors)
+
+    // Calculate max Mr. White given current impostors
+    val maxPossibleMrWhite = validPlayerCount - 2 * validImpostorCount - 1
+    val validMrWhiteCount = mrWhiteCount.coerceIn(0, maxPossibleMrWhite.coerceAtLeast(0))
+
+    // Ensure at least one impostor or Mr. White exists
+    if (validImpostorCount == 0 && validMrWhiteCount == 0) {
+        validImpostorCount = 1
+    }
+
+    return Triple(validPlayerCount, validImpostorCount, validMrWhiteCount)
+}
+
 @Composable
 fun SettingsScreen(
     settings: GameSettings,
     onSettingsChange: (GameSettings) -> Unit,
     onStart: () -> Unit
 ) {
+    // Calculate current valid ranges
+    val maxImpostors = (settings.playerCount - 1) / 2
+    val maxMrWhite = (settings.playerCount - 2 * settings.impostorCount - 1).coerceAtLeast(0)
+
     Column(
         modifier = Modifier.fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally
@@ -32,20 +65,16 @@ fun SettingsScreen(
             label = "Number of Players",
             value = settings.playerCount,
             onValueChange = { newPlayerCount ->
-                val coercedCount = newPlayerCount.coerceIn(3, 20)
-                // Ensure: Civilians > Impostors, meaning playerCount > 2 * impostorCount + mrWhiteCount
-                val maxImpostors = (coercedCount - settings.mrWhiteCount - 1) / 2
-                val adjustedImpostorCount = settings.impostorCount.coerceIn(1, maxImpostors.coerceAtLeast(1))
-
-                // Recalculate max Mr. White based on adjusted impostor count
-                val maxMrWhite = coercedCount - 2 * adjustedImpostorCount - 1
-                val adjustedMrWhite = settings.mrWhiteCount.coerceIn(0, maxMrWhite.coerceAtLeast(0))
-
+                val (validPlayers, validImpostors, validMrWhite) = validateGameSettings(
+                    playerCount = newPlayerCount,
+                    impostorCount = settings.impostorCount,
+                    mrWhiteCount = settings.mrWhiteCount
+                )
                 onSettingsChange(
                     settings.copy(
-                        playerCount = coercedCount,
-                        impostorCount = adjustedImpostorCount,
-                        mrWhiteCount = adjustedMrWhite
+                        playerCount = validPlayers,
+                        impostorCount = validImpostors,
+                        mrWhiteCount = validMrWhite
                     )
                 )
             },
@@ -70,88 +99,47 @@ fun SettingsScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Maximum impostors: ensure at least 2 civilians remain
-        val maxImpostors = ((settings.playerCount - settings.mrWhiteCount - 1) / 2).coerceAtLeast(0)
-        // Virtual max: what if we could reduce Mr. White to 0 (or 1 if impostors would be 0)?
-        val virtualMaxImpostors = ((settings.playerCount - 1) / 2).coerceAtLeast(1)
-
         NumberSetting(
             label = "Number of Impostors",
             value = settings.impostorCount,
             onValueChange = { newImpostorCount ->
-                var coercedImpostorCount = newImpostorCount.coerceIn(0, virtualMaxImpostors)
-                var adjustedMrWhite = settings.mrWhiteCount
-
-                // If trying to increase beyond current max, try reducing Mr. White to make room
-                if (newImpostorCount > maxImpostors && settings.mrWhiteCount > 0) {
-                    // Calculate how much Mr. White needs to decrease
-                    val requiredDecrease = (newImpostorCount - maxImpostors) * 2
-                    if (settings.mrWhiteCount >= requiredDecrease) {
-                        adjustedMrWhite = settings.mrWhiteCount - requiredDecrease
-                        coercedImpostorCount = newImpostorCount
-                    } else {
-                        coercedImpostorCount = maxImpostors
-                    }
-                }
-
-                val minMrWhite = if (coercedImpostorCount == 0) 1 else 0
-                val newMaxMrWhite = (settings.playerCount - 2 * coercedImpostorCount - 1).coerceAtLeast(minMrWhite)
-                adjustedMrWhite = adjustedMrWhite.coerceIn(minMrWhite, newMaxMrWhite)
-
+                val (_, validImpostors, validMrWhite) = validateGameSettings(
+                    playerCount = settings.playerCount,
+                    impostorCount = newImpostorCount,
+                    mrWhiteCount = settings.mrWhiteCount
+                )
                 onSettingsChange(
                     settings.copy(
-                        impostorCount = coercedImpostorCount,
-                        mrWhiteCount = adjustedMrWhite
+                        impostorCount = validImpostors,
+                        mrWhiteCount = validMrWhite
                     )
                 )
             },
             min = 0,
-            max = virtualMaxImpostors,
+            max = maxImpostors,
             enabled = !settings.randomComposition
         )
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        val minMrWhite = if (settings.impostorCount == 0) 1 else 0
-        val maxMrWhite = (settings.playerCount - 2 * settings.impostorCount - 1).coerceAtLeast(minMrWhite)
-        // Virtual max: what if we could reduce Impostors to 0?
-        val virtualMaxMrWhite = (settings.playerCount - 1).coerceAtLeast(1)
-
         NumberSetting(
             label = "Number of Mr. Whites",
             value = settings.mrWhiteCount,
             onValueChange = { newMrWhiteCount ->
-                var coercedMrWhite = newMrWhiteCount.coerceIn(0, virtualMaxMrWhite)
-                var adjustedImpostorCount = settings.impostorCount
-
-                // If trying to increase beyond current max, try reducing Impostors to make room
-                if (newMrWhiteCount > maxMrWhite && settings.impostorCount > 0) {
-                    // Calculate how much Impostors need to decrease
-                    val requiredDecrease = kotlin.math.ceil((newMrWhiteCount - maxMrWhite) / 2.0).toInt()
-                    if (settings.impostorCount >= requiredDecrease) {
-                        adjustedImpostorCount = settings.impostorCount - requiredDecrease
-                        // Recalculate max with new impostor count
-                        val newMax = (settings.playerCount - 2 * adjustedImpostorCount - 1).coerceAtLeast(0)
-                        coercedMrWhite = newMrWhiteCount.coerceAtMost(newMax)
-                    } else {
-                        coercedMrWhite = maxMrWhite
-                    }
-                }
-
-                // If Mr. White goes to 0 and impostors are 0, increase impostors to 1
-                if (coercedMrWhite == 0 && adjustedImpostorCount == 0) {
-                    adjustedImpostorCount = 1
-                }
-
+                val (_, validImpostors, validMrWhite) = validateGameSettings(
+                    playerCount = settings.playerCount,
+                    impostorCount = settings.impostorCount,
+                    mrWhiteCount = newMrWhiteCount
+                )
                 onSettingsChange(
                     settings.copy(
-                        mrWhiteCount = coercedMrWhite,
-                        impostorCount = adjustedImpostorCount
+                        impostorCount = validImpostors,
+                        mrWhiteCount = validMrWhite
                     )
                 )
             },
             min = 0,
-            max = virtualMaxMrWhite,
+            max = maxMrWhite,
             enabled = !settings.randomComposition
         )
 
