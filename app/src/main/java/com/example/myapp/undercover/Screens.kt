@@ -386,7 +386,14 @@ fun GameOverScreen(
     if (!showScoreboard) {
         val winnerText = when {
             civiliansWon -> "Civilians Win!"
-            lastEliminated.role == PlayerRole.MR_WHITE -> "Mr White Win!"
+            lastEliminated.role == PlayerRole.MR_WHITE -> {
+                val mrWhites = players.filter { it.role == PlayerRole.MR_WHITE && !it.isEliminated }
+                if (mrWhites.isNotEmpty()) {  // It should be empty, has the winning Mr White
+                    "Mr White (${mrWhites.joinToString { lastEliminated.name }}) Win!"
+                } else {
+                    "Mr White Win!"
+                }
+            }
             else -> {
                 val activeRoles = players.filter { !it.isEliminated }.map { it.role }.toSet()
                 when {
