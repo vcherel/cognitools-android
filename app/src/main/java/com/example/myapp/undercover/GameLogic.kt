@@ -25,8 +25,16 @@ fun assignRolesAndWords(players: List<Player>, settings: GameSettings): List<Pla
 
     // Determine number of impostors and Mr. Whites
     var impostorCount = settings.impostorCount
-    // 50% chance not to have a Mr. White
-    val mrWhiteCount = if (settings.randomComposition) Random.nextInt(0, 2) else settings.mrWhiteCount
+
+
+    val mrWhiteCount = if (settings.randomComposition) {
+        val maxMrWhite = settings.playerCount - 2
+        var count = 0
+        while (count < maxMrWhite && Random.nextDouble() < 0.3) { // 30% chance to add another
+            count++
+        }
+        count
+    } else settings.mrWhiteCount
 
     // If composition is random, pick a random impostor count
     if (settings.randomComposition) {

@@ -28,7 +28,6 @@ fun SettingsScreen(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         // Player count
-        // Player count
         NumberSetting(
             label = "Number of Players",
             value = settings.playerCount,
