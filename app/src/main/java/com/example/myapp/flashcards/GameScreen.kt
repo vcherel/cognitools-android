@@ -1,4 +1,4 @@
-package com.example.myapp.screen.flashcard
+package com.example.myapp.flashcards
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
@@ -57,9 +57,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
-import com.example.myapp.data.dataStore
-import com.example.myapp.models.FlashcardElement
-import com.example.myapp.models.isDue
 import com.example.myapp.ui.MyButton
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.map

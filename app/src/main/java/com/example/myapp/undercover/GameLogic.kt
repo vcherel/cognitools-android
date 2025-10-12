@@ -1,4 +1,4 @@
-package com.example.myapp.screen.undercover
+package com.example.myapp.undercover
 
 import kotlin.random.Random
 

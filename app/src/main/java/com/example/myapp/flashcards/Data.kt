@@ -1,4 +1,4 @@
-package com.example.myapp.data
+package com.example.myapp.flashcards
 
 import android.content.Context
 import android.os.Environment
@@ -6,8 +6,6 @@ import android.widget.Toast
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
-import com.example.myapp.models.FlashcardElement
-import com.example.myapp.models.FlashcardList
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first

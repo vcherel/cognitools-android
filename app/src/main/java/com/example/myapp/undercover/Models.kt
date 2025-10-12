@@ -1,4 +1,4 @@
-package com.example.myapp.screen.undercover
+package com.example.myapp.undercover
 
 data class Player(
     val name: String,

@@ -1,4 +1,4 @@
-package com.example.myapp.screen
+package com.example.myapp
 
 import android.content.Context
 import androidx.activity.compose.BackHandler

@@ -24,12 +24,10 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.example.myapp.screen.flashcard.FlashcardDetailScreen
-import com.example.myapp.screen.flashcard.FlashcardGameScreen
-import com.example.myapp.screen.flashcard.FlashcardListsScreen
-import com.example.myapp.screen.RandomGeneratorScreen
-import com.example.myapp.screen.undercover.UndercoverScreen
-import com.example.myapp.screen.VolumeBoosterScreen
+import com.example.myapp.flashcards.FlashcardDetailScreen
+import com.example.myapp.flashcards.FlashcardGameScreen
+import com.example.myapp.flashcards.FlashcardListsScreen
+import com.example.myapp.undercover.UndercoverScreen
 import com.example.myapp.ui.MyButton
 
 class MainActivity : ComponentActivity() {

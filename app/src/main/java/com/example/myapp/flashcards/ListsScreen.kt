@@ -1,4 +1,4 @@
-package com.example.myapp.screen.flashcard
+package com.example.myapp.flashcards
 
 import android.content.ClipboardManager
 import android.content.Context
@@ -56,13 +56,6 @@ import androidx.compose.ui.unit.sp
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.navigation.NavController
-import com.example.myapp.data.dataStore
-import com.example.myapp.data.exportFlashcards
-import com.example.myapp.data.importFlashcards
-import com.example.myapp.data.loadFlashcardData
-import com.example.myapp.models.FlashcardElement
-import com.example.myapp.models.FlashcardList
-import com.example.myapp.models.isDue
 import com.example.myapp.ui.MyButton
 import com.example.myapp.ui.ShowAlertDialog
 import kotlinx.coroutines.CoroutineScope

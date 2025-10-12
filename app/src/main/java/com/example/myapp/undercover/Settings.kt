@@ -1,4 +1,4 @@
-package com.example.myapp.screen.undercover
+package com.example.myapp.undercover
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column

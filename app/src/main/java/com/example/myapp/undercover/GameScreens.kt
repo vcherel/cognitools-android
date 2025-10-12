@@ -1,4 +1,4 @@
-package com.example.myapp.screen.undercover
+package com.example.myapp.undercover
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement

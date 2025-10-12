@@ -35,7 +35,7 @@
                 tools:node="remove" />
         </provider>
         <service
-            android:name=".screen.VolumeBoosterService"
+            android:name=".VolumeBoosterService"
             android:enabled="true"
             android:exported="false"
             android:foregroundServiceType="mediaPlayback" />

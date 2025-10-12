@@ -1,4 +1,4 @@
-package com.example.myapp.models
+package com.example.myapp.flashcards
 
 import org.json.JSONArray
 import org.json.JSONObject
