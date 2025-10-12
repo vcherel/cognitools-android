@@ -137,7 +137,7 @@ fun UndercoverScreen(onBack: () -> Unit) {
                     onPlayerEliminated = { eliminatedPlayer ->
                         // Check if Mr. White was eliminated BEFORE marking as eliminated
                         if (eliminatedPlayer.role == PlayerRole.MR_WHITE) {
-                            val correctWord = players.firstOrNull { it.role == PlayerRole.CIVILIAN }?.word ?: ""
+                            val correctWord = players.first { it.role == PlayerRole.CIVILIAN }.word
                             gameState = GameState.MrWhiteGuess(eliminatedPlayer, correctWord)
                         } else {
                             players = players.toMutableList().apply {
@@ -224,6 +224,7 @@ fun UndercoverScreen(onBack: () -> Unit) {
                     lastEliminated = state.lastEliminated,
                     players = players,
                     allScores = allPlayersScores,
+                    gameWord = players.first { it.role == PlayerRole.CIVILIAN }.word,
                     onNewGame = {
                         gameState = GameState.Settings
                     }

@@ -379,6 +379,7 @@ fun GameOverScreen(
     lastEliminated: Player,
     allScores: Map<String, Int>,
     players: List<Player>,
+    gameWord: String,
     onNewGame: () -> Unit
 ) {
     var showScoreboard by remember { mutableStateOf(false) }
@@ -469,8 +470,16 @@ fun GameOverScreen(
                     color = roleColor
                 )
 
-                Spacer(modifier = Modifier.height(32.dp))
+                Spacer(modifier = Modifier.height(16.dp))
             }
+
+            Text(
+                "The word was $gameWord",
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.Medium
+            )
+
+            Spacer(modifier = Modifier.height(32.dp))
 
             Button(onClick = { showScoreboard = true }) {
                 Text("View Scoreboard")
