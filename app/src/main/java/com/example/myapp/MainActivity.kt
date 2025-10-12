@@ -28,7 +28,6 @@ import com.example.myapp.flashcards.FlashcardDetailScreen
 import com.example.myapp.flashcards.FlashcardGameScreen
 import com.example.myapp.flashcards.FlashcardListsScreen
 import com.example.myapp.undercover.UndercoverScreen
-import com.example.myapp.ui.MyButton
 
 class MainActivity : ComponentActivity() {
     private val requestPermissionLauncher = registerForActivityResult(

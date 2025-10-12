@@ -56,8 +56,8 @@ import androidx.compose.ui.unit.sp
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.navigation.NavController
-import com.example.myapp.ui.MyButton
-import com.example.myapp.ui.ShowAlertDialog
+import com.example.myapp.MyButton
+import com.example.myapp.ShowAlertDialog
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
