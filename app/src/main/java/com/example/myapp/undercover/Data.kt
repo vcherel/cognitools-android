@@ -33,6 +33,16 @@ val wordPairs = listOf(
     "Football" to "Basketball"
 )
 
+sealed class GameState {
+    object Settings : GameState()
+    data class PlayerSetup(val playerIndex: Int, val showWord: Boolean) : GameState()
+    object RoundMenu : GameState()
+    object Voting : GameState()
+    data class EliminationResult(val player: Player, val gameOver: Boolean) : GameState()
+    data class MrWhiteGuess(val player: Player, val correctWord: String) : GameState()
+    data class GameOver(val civiliansWon: Boolean, val lastEliminated: Player) : GameState()
+}
+
 data class UndercoverGameState(
     val gameState: GameState = GameState.Settings,
     val settings: GameSettings = GameSettings(),

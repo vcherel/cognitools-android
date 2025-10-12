@@ -221,13 +221,3 @@ fun UndercoverScreen(onBack: () -> Unit) {
         }
     }
 }
-
-sealed class GameState {
-    object Settings : GameState()
-    data class PlayerSetup(val playerIndex: Int, val showWord: Boolean) : GameState()
-    object RoundMenu : GameState()
-    object Voting : GameState()
-    data class EliminationResult(val player: Player, val gameOver: Boolean) : GameState()
-    data class MrWhiteGuess(val player: Player, val correctWord: String) : GameState()
-    data class GameOver(val civiliansWon: Boolean, val lastEliminated: Player) : GameState()
-}
