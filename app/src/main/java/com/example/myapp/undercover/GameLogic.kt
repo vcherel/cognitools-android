@@ -30,8 +30,10 @@ fun assignRolesAndWords(players: List<Player>, settings: GameSettings): List<Pla
     val mrWhiteCount = if (settings.randomComposition) {
         val maxMrWhite = settings.playerCount - 2
         var count = 0
-        while (count < maxMrWhite && Random.nextDouble() < 0.3) { // 30% chance to add another
+        var chance = 0.5
+        while (count < maxMrWhite && Random.nextDouble() < chance) {
             count++
+            chance *= 0.5 //
         }
         count
     } else settings.mrWhiteCount
