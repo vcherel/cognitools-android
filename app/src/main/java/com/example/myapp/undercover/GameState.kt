@@ -222,6 +222,7 @@ fun UndercoverScreen(onBack: () -> Unit) {
                 GameOverScreen(
                     civiliansWon = state.civiliansWon,
                     lastEliminated = state.lastEliminated,
+                    players = players,
                     allScores = allPlayersScores,
                     onNewGame = {
                         gameState = GameState.Settings

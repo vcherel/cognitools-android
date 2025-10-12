@@ -378,11 +378,26 @@ fun GameOverScreen(
     civiliansWon: Boolean,
     lastEliminated: Player,
     allScores: Map<String, Int>,
+    players: List<Player>,
     onNewGame: () -> Unit
 ) {
     var showScoreboard by remember { mutableStateOf(false) }
 
     if (!showScoreboard) {
+        val winnerText = when {
+            civiliansWon -> "Civilians Win!"
+            lastEliminated.role == PlayerRole.MR_WHITE -> "Mr White Win!"
+            else -> {
+                val activeRoles = players.filter { !it.isEliminated }.map { it.role }.toSet()
+                when {
+                    activeRoles.contains(PlayerRole.MR_WHITE) && activeRoles.contains(PlayerRole.IMPOSTOR) -> "Impostor and Mr White Win!"
+                    activeRoles.contains(PlayerRole.IMPOSTOR) -> "Impostor Win!"
+                    activeRoles.contains(PlayerRole.MR_WHITE) -> "Mr White Win!"
+                    else -> "Impostors Win!"
+                }
+            }
+        }
+
         Column(
             modifier = Modifier.fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -397,9 +412,15 @@ fun GameOverScreen(
             Spacer(modifier = Modifier.height(24.dp))
 
             Text(
-                if (civiliansWon) "Civilians Win!" else "Impostors/Mr. White Win!",
+                winnerText,
                 style = MaterialTheme.typography.headlineMedium,
-                color = if (civiliansWon) Color.Blue else Color(0xFFFF6600)
+                color = when (winnerText) {
+                    "Civilians Win!" -> Color.Blue
+                    "Mr White Win!" -> Color.Red
+                    "Impostor Win!" -> Color(0xFFFF6600)
+                    "Impostor and Mr White Win!" -> Color.Magenta
+                    else -> Color.Black
+                }
             )
 
             Spacer(modifier = Modifier.height(16.dp))
