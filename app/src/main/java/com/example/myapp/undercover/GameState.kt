@@ -135,36 +135,42 @@ fun UndercoverScreen(onBack: () -> Unit) {
                 VotingScreen(
                     players = players,
                     onPlayerEliminated = { eliminatedPlayer ->
-                        players = players.toMutableList().apply {
-                            val idx = indexOfFirst { it.name == eliminatedPlayer.name }
-                            if (idx != -1) {
-                                this[idx] = this[idx].copy(isEliminated = true)
-                            }
-                        }
-
-                        val activePlayers = players.filter { !it.isEliminated }
-                        val civilians = activePlayers.filter { it.role == PlayerRole.CIVILIAN }
-                        val impostors = activePlayers.filter { it.role == PlayerRole.IMPOSTOR }
-                        val mrWhites = activePlayers.filter { it.role == PlayerRole.MR_WHITE }
-
-                        if (impostors.isEmpty() && mrWhites.isEmpty()) {
-                            // Civilians win
-                            players.filter { it.role == PlayerRole.CIVILIAN }.forEach {
-                                allPlayersScores = allPlayersScores.toMutableMap().apply {
-                                    this[it.name] = (this[it.name] ?: 0) + 2
-                                }
-                            }
-                            gameState = GameState.GameOver(true, eliminatedPlayer)
-                        } else if (civilians.size <= 1) {
-                            // Impostors/Mr. White win
-                            players.filter { it.role != PlayerRole.CIVILIAN }.forEach {
-                                allPlayersScores = allPlayersScores.toMutableMap().apply {
-                                    this[it.name] = (this[it.name] ?: 0) + 2
-                                }
-                            }
-                            gameState = GameState.GameOver(false, eliminatedPlayer)
+                        // Check if Mr. White was eliminated BEFORE marking as eliminated
+                        if (eliminatedPlayer.role == PlayerRole.MR_WHITE) {
+                            val correctWord = players.firstOrNull { it.role == PlayerRole.CIVILIAN }?.word ?: ""
+                            gameState = GameState.MrWhiteGuess(eliminatedPlayer, correctWord)
                         } else {
-                            gameState = GameState.EliminationResult(eliminatedPlayer, false)
+                            players = players.toMutableList().apply {
+                                val idx = indexOfFirst { it.name == eliminatedPlayer.name }
+                                if (idx != -1) {
+                                    this[idx] = this[idx].copy(isEliminated = true)
+                                }
+                            }
+
+                            val activePlayers = players.filter { !it.isEliminated }
+                            val civilians = activePlayers.filter { it.role == PlayerRole.CIVILIAN }
+                            val impostors = activePlayers.filter { it.role == PlayerRole.IMPOSTOR }
+                            val mrWhites = activePlayers.filter { it.role == PlayerRole.MR_WHITE }
+
+                            if (impostors.isEmpty() && mrWhites.isEmpty()) {
+                                // Civilians win
+                                players.filter { it.role == PlayerRole.CIVILIAN }.forEach {
+                                    allPlayersScores = allPlayersScores.toMutableMap().apply {
+                                        this[it.name] = (this[it.name] ?: 0) + 1
+                                    }
+                                }
+                                gameState = GameState.GameOver(true, eliminatedPlayer)
+                            } else if (civilians.size <= 1) {
+                                // Impostors/Mr. White win
+                                players.filter { it.role != PlayerRole.CIVILIAN }.forEach {
+                                    allPlayersScores = allPlayersScores.toMutableMap().apply {
+                                        this[it.name] = (this[it.name] ?: 0) + 2
+                                    }
+                                }
+                                gameState = GameState.GameOver(false, eliminatedPlayer)
+                            } else {
+                                gameState = GameState.EliminationResult(eliminatedPlayer, false)
+                            }
                         }
                     }
                 )
@@ -179,6 +185,36 @@ fun UndercoverScreen(onBack: () -> Unit) {
                             currentPlayerIndex = Random.nextInt(activePlayers.size)
                         }
                         gameState = GameState.RoundMenu
+                    }
+                )
+            }
+            is GameState.MrWhiteGuess -> {
+                MrWhiteGuessScreen(
+                    player = state.player,
+                    onGuessSubmitted = { guessedWord ->
+                        // Mark Mr. White as eliminated
+                        players = players.toMutableList().apply {
+                            val idx = indexOfFirst { it.name == state.player.name }
+                            if (idx != -1) {
+                                this[idx] = this[idx].copy(isEliminated = true)
+                            }
+                        }
+
+                        if (guessedWord.equals(state.correctWord, ignoreCase = true)) {
+                            // Mr. White wins
+                            allPlayersScores = allPlayersScores.toMutableMap().apply {
+                                this[state.player.name] = (this[state.player.name] ?: 0) + 3
+                            }
+                            gameState = GameState.GameOver(false, state.player)
+                        } else {
+                            // Civilians win
+                            players.filter { it.role == PlayerRole.CIVILIAN }.forEach {
+                                allPlayersScores = allPlayersScores.toMutableMap().apply {
+                                    this[it.name] = (this[it.name] ?: 0) + 1
+                                }
+                            }
+                            gameState = GameState.GameOver(true, state.player)
+                        }
                     }
                 )
             }
@@ -202,5 +238,6 @@ sealed class GameState {
     object RoundMenu : GameState()
     object Voting : GameState()
     data class EliminationResult(val player: Player, val gameOver: Boolean) : GameState()
+    data class MrWhiteGuess(val player: Player, val correctWord: String) : GameState()
     data class GameOver(val civiliansWon: Boolean, val lastEliminated: Player) : GameState()
 }

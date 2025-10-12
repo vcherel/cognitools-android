@@ -46,42 +46,29 @@ class MainActivity : ComponentActivity() {
 
         // Configure splash screen animation
         splashScreen.setOnExitAnimationListener { splashScreenView ->
-            val scaleX = ObjectAnimator.ofFloat(
-                splashScreenView.iconView,
-                View.SCALE_X,
-                1f,
-                1.5f
-            )
-            val scaleY = ObjectAnimator.ofFloat(
-                splashScreenView.iconView,
-                View.SCALE_Y,
-                1f,
-                1.5f
-            )
-            val alpha = ObjectAnimator.ofFloat(
-                splashScreenView.iconView,
-                View.ALPHA,
-                1f,
-                0f
-            )
+            try {  // Try catch to avoid NullPointerException
+                val icon = splashScreenView.iconView
+                val scaleX = ObjectAnimator.ofFloat(icon, View.SCALE_X, 1f, 1.5f)
+                val scaleY = ObjectAnimator.ofFloat(icon, View.SCALE_Y, 1f, 1.5f)
+                val alpha = ObjectAnimator.ofFloat(icon, View.ALPHA, 1f, 0f)
 
-            scaleX.interpolator = AnticipateInterpolator()
-            scaleY.interpolator = AnticipateInterpolator()
-            alpha.interpolator = AnticipateInterpolator()
+                scaleX.interpolator = AnticipateInterpolator()
+                scaleY.interpolator = AnticipateInterpolator()
+                alpha.interpolator = AnticipateInterpolator()
 
-            scaleX.duration = 500L
-            scaleY.duration = 500L
-            alpha.duration = 500L
+                scaleX.duration = 500L
+                scaleY.duration = 500L
+                alpha.duration = 500L
 
-            // Remove splash screen when animation ends
-            alpha.doOnEnd {
+                alpha.doOnEnd { splashScreenView.remove() }
+
+                scaleX.start()
+                scaleY.start()
+                alpha.start()
+            } catch (_: NullPointerException) {
+                // fallback if iconView unexpectedly null
                 splashScreenView.remove()
             }
-
-            // Start all animations together
-            scaleX.start()
-            scaleY.start()
-            alpha.start()
         }
 
         // Request notification permission (lightweight check)

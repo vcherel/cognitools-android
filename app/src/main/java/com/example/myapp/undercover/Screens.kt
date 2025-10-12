@@ -490,3 +490,87 @@ fun GameOverScreen(
         }
     }
 }
+
+@Composable
+fun MrWhiteGuessScreen(
+    player: Player,
+    onGuessSubmitted: (String) -> Unit
+) {
+    var guessedWord by remember { mutableStateOf("") }
+    var showConfirmation by remember { mutableStateOf(false) }
+
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Text(
+            "${player.name} was eliminated!",
+            style = MaterialTheme.typography.headlineMedium
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        Text(
+            "Role: Mr. White",
+            style = MaterialTheme.typography.headlineLarge,
+            fontWeight = FontWeight.Bold,
+            color = Color.Red
+        )
+
+        Spacer(modifier = Modifier.height(32.dp))
+
+        Text(
+            "Mr. White gets one chance to guess the word!",
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Text(
+            "If correct, Mr. White wins!",
+            style = MaterialTheme.typography.bodyLarge
+        )
+
+        Spacer(modifier = Modifier.height(32.dp))
+
+        OutlinedTextField(
+            value = guessedWord,
+            onValueChange = { guessedWord = it },
+            label = { Text("Enter your guess") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(0.8f)
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        Button(
+            onClick = { showConfirmation = true },
+            enabled = guessedWord.isNotBlank()
+        ) {
+            Text("Submit Guess")
+        }
+    }
+
+    if (showConfirmation) {
+        AlertDialog(
+            onDismissRequest = { showConfirmation = false },
+            title = { Text("Confirm Guess") },
+            text = { Text("Submit '$guessedWord' as your final answer?") },
+            confirmButton = {
+                Button(onClick = {
+                    onGuessSubmitted(guessedWord.trim())
+                    showConfirmation = false
+                }) {
+                    Text("Confirm")
+                }
+            },
+            dismissButton = {
+                Button(onClick = { showConfirmation = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+}
