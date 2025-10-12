@@ -550,6 +550,7 @@ fun GameOverScreen(
 @Composable
 fun MrWhiteGuessScreen(
     player: Player,
+    lastEliminated: Player?,
     onGuessSubmitted: (String) -> Unit
 ) {
     var guessedWord by remember { mutableStateOf("") }
@@ -560,33 +561,86 @@ fun MrWhiteGuessScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
+        // Show who was just eliminated (if someone was)
+        if (lastEliminated != null && !player.isEliminated) {
+            Text(
+                "${lastEliminated.name} was eliminated!",
+                style = MaterialTheme.typography.headlineMedium
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            val roleText = when (lastEliminated.role) {
+                PlayerRole.CIVILIAN -> "Civilian"
+                PlayerRole.IMPOSTOR -> "Impostor"
+                PlayerRole.MR_WHITE -> "Mr. White"
+            }
+
+            val roleColor = when (lastEliminated.role) {
+                PlayerRole.CIVILIAN -> Color.Blue
+                PlayerRole.IMPOSTOR -> Color(0xFFFF6600)
+                PlayerRole.MR_WHITE -> Color.Red
+            }
+
+            Text(
+                "Role: $roleText",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = roleColor
+            )
+
+            Spacer(modifier = Modifier.height(32.dp))
+        }
+
+        // Show which Mr. White is guessing
+        if (player.isEliminated) {
+            Text(
+                "${player.name} was eliminated!",
+                style = MaterialTheme.typography.headlineMedium
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Text(
+                "Role: Mr. White",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = Color.Red
+            )
+
+            Spacer(modifier = Modifier.height(24.dp))
+        } else {
+            Text(
+                "${player.name} is Mr. White!",
+                style = MaterialTheme.typography.headlineLarge,
+                fontWeight = FontWeight.Bold,
+                color = Color.Red
+            )
+
+            Spacer(modifier = Modifier.height(24.dp))
+        }
+
         Text(
-            "${player.name} was eliminated!",
-            style = MaterialTheme.typography.headlineMedium
-        )
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        Text(
-            "Role: Mr. White",
-            style = MaterialTheme.typography.headlineLarge,
-            fontWeight = FontWeight.Bold,
-            color = Color.Red
-        )
-
-        Spacer(modifier = Modifier.height(32.dp))
-
-        Text(
-            "Mr. White gets one chance to guess the word!",
+            "Only Mr. White remains!",
             style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold
+            fontWeight = FontWeight.Bold,
+            textAlign = TextAlign.Center
         )
 
         Spacer(modifier = Modifier.height(16.dp))
 
         Text(
-            "If correct, Mr. White wins!",
-            style = MaterialTheme.typography.bodyLarge
+            "Guess the word to win!",
+            style = MaterialTheme.typography.titleMedium,
+            textAlign = TextAlign.Center
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Text(
+            "If you guess correctly, you win. If wrong, you lose.",
+            style = MaterialTheme.typography.bodyLarge,
+            textAlign = TextAlign.Center
         )
 
         Spacer(modifier = Modifier.height(32.dp))
@@ -594,7 +648,8 @@ fun MrWhiteGuessScreen(
         OutlinedTextField(
             value = guessedWord,
             onValueChange = { guessedWord = it },
-            label = { Text("Enter your guess") },
+            label = { Text("Enter the word") },
+            placeholder = { Text("What is the word?") },
             singleLine = true,
             modifier = Modifier.fillMaxWidth(0.8f)
         )

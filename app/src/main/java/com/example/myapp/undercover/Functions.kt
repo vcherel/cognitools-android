@@ -112,3 +112,22 @@ fun List<Player>.awardImpostorPoints(scores: Map<String, Int>): Map<String, Int>
     }
     return updatedScores
 }
+
+fun List<Player>.shouldMrWhiteGuess(): Boolean {
+    val active = activePlayers()
+    val civilians = active.count { it.role == PlayerRole.CIVILIAN }
+    val impostors = active.count { it.role == PlayerRole.IMPOSTOR }
+    val mrWhites = active.count { it.role == PlayerRole.MR_WHITE }
+
+    return when {
+        // No Mr. White alive
+        mrWhites == 0 -> false
+        // Only Mr. White(s) and Impostor(s) remain (no civilians)
+        mrWhites > 0 && impostors > 0 && civilians == 0 -> true
+        // Only Mr. White(s) remain (no civilians, no impostors)
+        mrWhites > 0 && civilians == 0 && impostors == 0 -> true
+        // Only Mr. White(s) and one Civilian remain (no impostors)
+        mrWhites > 0 && civilians == 1 && impostors == 0 -> true
+        else -> false
+    }
+}
