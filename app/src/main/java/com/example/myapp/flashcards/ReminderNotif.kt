@@ -56,8 +56,8 @@ class FlashcardReminderWorker(context: Context, params: WorkerParameters) : Coro
 fun scheduleFlashcardReminders(context: Context) {
     // Create periodic work request - runs once per day
     val reminderWork = PeriodicWorkRequestBuilder<FlashcardReminderWorker>(
-        6, TimeUnit.HOURS, // Repeat every 1 day
-        30, TimeUnit.MINUTES // Flex interval - can run within 30 min of scheduled time
+        1, TimeUnit.HOURS, // Repeat every 1 day
+        15, TimeUnit.MINUTES // Flex interval - can run within 30 min of scheduled time
     )
         .setInitialDelay(1, TimeUnit.HOURS) // First run after 1 hour
         .build()

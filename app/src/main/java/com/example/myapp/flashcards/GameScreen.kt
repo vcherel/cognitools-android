@@ -120,8 +120,11 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
         val newInterval = when {
             // If we fail, the card comes again quickly
             quality < 3 -> {
-                // Randomly send the card far away if we struggle too much with it
-                val probability = ((2.5 - newScore) / 2.5 * 0.40).coerceIn(0.0, 0.40)  // Only cards with score < 2.5, 40% chance maximum when score = 0
+                val totalCards = dueCards.size.coerceAtLeast(1)
+                val baseProbability = ((2.5 - newScore) / 2.5).coerceIn(0.0, 1.0)
+                val sizeFactor = (totalCards / 90.0).coerceIn(0.01, 1.0) // 1% at few cards → 90% at 100+
+                val probability = baseProbability * sizeFactor
+
                 when {
                     (newScore < 2.5 && Math.random() < probability) -> 60 + Math.random() * 120
                     (Math.random() < 0.33) -> newScore.coerceAtLeast(1.0)
