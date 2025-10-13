@@ -69,6 +69,7 @@ import kotlin.random.Random
 fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+
     val key = stringPreferencesKey("elements_$listId")
     val elementsJson by context.dataStore.data
         .map { prefs -> prefs[key] }
@@ -81,15 +82,51 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
     var cardOffset by remember { mutableFloatStateOf(0f) }
     var isProcessingSwipe by remember { mutableStateOf(false) }
     var showFront by remember { mutableStateOf(true) }
+    var activeNewCards by remember { mutableStateOf<Set<String>>(emptySet()) }
 
-    BackHandler { onBack() }
+    BackHandler {
+        onBack()
+    }
 
     // Load and filter due cards
     LaunchedEffect(elementsJson) {
-        elementsJson?.let {
-            val loaded = FlashcardElement.listFromJsonString(it)
+        elementsJson?.let { jsonString ->
+            // Parse JSON string into FlashcardElement objects
+            val loaded = FlashcardElement.listFromJsonString(jsonString)
             allElements = loaded
-            dueCards = loaded.filter { card -> isDue(card) }
+
+            // Get all new cards (never won)
+            val allNewCards = loaded.filter { it.totalWins == 0 }
+
+            // Keep currently active new cards that are still new
+            val currentActiveNewCards = activeNewCards.mapNotNull { activeId ->
+                loaded.find { it.id == activeId }
+            }.filter { it.totalWins == 0 }
+
+            // Calculate how many more new cards we need to reach 10
+            val needed = (10 - currentActiveNewCards.size).coerceAtLeast(0)
+
+            // Pick new cards not already active, up to the needed amount
+            val availableToAdd = allNewCards
+                .filter { it.id !in currentActiveNewCards.map { c -> c.id }.toSet() }
+                .take(needed)
+
+            // Update active new cards set if there are new cards to add
+            if (availableToAdd.isNotEmpty()) {
+                activeNewCards = (currentActiveNewCards.map { it.id } + availableToAdd.map { it.id }).toSet()
+            }
+
+            // Compute due cards: new active cards or previously learned cards that are due
+            dueCards = loaded.filter { card ->
+                if (card.id in activeNewCards && card.totalWins == 0) {
+                    true
+                } else {
+                    // For cards already learned, apply normal due logic
+                    isDue(card) && card.totalWins > 0
+                }
+            }
+
+            // Pick a random current card if none is selected yet
             if (currentCard == null && dueCards.isNotEmpty()) {
                 currentCard = dueCards.random()
             }
@@ -131,10 +168,8 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
                     else -> 0.0
                 }
             }
-
             // On the first win we have to wait 6 minutes
             newReps == 1 -> 6.0
-
             else -> {
                 // Low score have less chance to have times 2 multiplier
                 val randomFactor = Math.random().pow(1.0 + ((10 - newScore) / 10.0))
@@ -179,14 +214,31 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
             allElements = updatedElements
             saveElements(updatedElements)
 
+            // If this was a new card that got answered correctly, it's no longer "new"
+            if (wasCorrect && card.totalWins == 0) {
+                // Remove this card from active new cards
+                activeNewCards = activeNewCards - card.id
+
+                // Find remaining new cards (never won)
+                val remainingNewCards = updatedElements.filter { it.totalWins == 0 }
+
+                // Add new cards until we have 10 active or run out of new cards
+                val needed = 10 - activeNewCards.size
+                val available = remainingNewCards.filter { it.id !in activeNewCards }.take(needed)
+
+                if (available.isNotEmpty()) {
+                    activeNewCards = activeNewCards + available.map { it.id }.toSet()
+                }
+            }
+
             // Update due cards list
-            dueCards = updatedElements.filter { isDue(it) }
+            dueCards = updatedElements.filter {
+                isDue(it) && (it.totalWins > 0 || it.id in activeNewCards)
+            }
 
             // Move to next card (exclude current card)
             showDefinition = false
-            val availableCards = dueCards.filter {
-                it.id != card.id
-            }
+            val availableCards = dueCards.filter { it.id != card.id }
             currentCard = if (availableCards.isNotEmpty()) {
                 val card = availableCards.random()
                 showFront = Random.nextBoolean() // Randomly show front or back
@@ -198,6 +250,7 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
             } else {
                 null
             }
+
             isProcessingSwipe = false
         }
     }
@@ -288,8 +341,8 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
                                 detectDragGestures(
                                     onDragEnd = {
                                         when {
-                                            cardOffset < -200 -> handleAnswer(true)  // Swipe left = Correct
-                                            cardOffset > 200 -> handleAnswer(false)  // Swipe right = Incorrect
+                                            cardOffset < -200 -> handleAnswer(true) // Swipe left = Correct
+                                            cardOffset > 200 -> handleAnswer(false) // Swipe right = Incorrect
                                         }
                                         cardOffset = 0f
                                     }
@@ -301,7 +354,9 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
                             .clickable(
                                 indication = null,
                                 interactionSource = remember { MutableInteractionSource() }
-                            ) { if (!showDefinition) showDefinition = true },
+                            ) {
+                                if (!showDefinition) showDefinition = true
+                            },
                         elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
                     ) {
                         val scoreColor = when (currentCard?.score?.toInt() ?: 0) {
@@ -355,7 +410,9 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
                                 Text(
                                     "${currentCard?.score?.toInt() ?: 0}",
                                     style = MaterialTheme.typography.bodyLarge.copy(
-                                        shadow = if ((currentCard?.score?.toInt() ?: 0) <= 3 || currentCard?.score?.toInt() == 10) null else Shadow(
+                                        shadow = if ((currentCard?.score?.toInt()
+                                                ?: 0) <= 3 || currentCard?.score?.toInt() == 10
+                                        ) null else Shadow(
                                             color = Color.Black,
                                             offset = Offset(0f, 0f),
                                             blurRadius = 4f
@@ -370,6 +427,7 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
                 }
 
                 Spacer(Modifier.height(32.dp))
+
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Spacer(Modifier.height(16.dp))
 
@@ -393,6 +451,7 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
                                         RoundedCornerShape(16.dp)
                                     )
                             )
+
                             // Main button
                             Button(
                                 onClick = { handleAnswer(true) },
@@ -439,6 +498,7 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
                                         RoundedCornerShape(16.dp)
                                     )
                             )
+
                             // Main button
                             Button(
                                 onClick = { handleAnswer(false) },
@@ -491,6 +551,7 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
                                 .offset(y = 6.dp)
                                 .background(Color(0xFF2E7D32), RoundedCornerShape(24.dp))
                         )
+
                         // Main icon background
                         Box(
                             modifier = Modifier
@@ -506,19 +567,25 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
                             )
                         }
                     }
+
                     Spacer(Modifier.height(16.dp))
+
                     Text(
                         text = "Félicitations !",
                         style = MaterialTheme.typography.headlineMedium,
                         fontWeight = FontWeight.Bold
                     )
+
                     Spacer(Modifier.height(8.dp))
+
                     Text(
                         text = "Vous avez révisé toutes les cartes disponibles",
                         style = MaterialTheme.typography.bodyLarge,
                         textAlign = TextAlign.Center
                     )
+
                     Spacer(Modifier.height(32.dp))
+
                     MyButton(
                         text = "Retour",
                         onClick = onBack,
