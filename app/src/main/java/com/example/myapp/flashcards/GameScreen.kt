@@ -82,7 +82,7 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
     var cardOffset by remember { mutableFloatStateOf(0f) }
     var isProcessingSwipe by remember { mutableStateOf(false) }
     var showFront by remember { mutableStateOf(true) }
-    var activeNewCards by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var activeDifficultCards by remember { mutableStateOf<Set<String>>(emptySet()) }
 
     BackHandler {
         onBack()
@@ -95,30 +95,30 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
             val loaded = FlashcardElement.listFromJsonString(jsonString)
             allElements = loaded
 
-            // Get all new cards (never won)
-            val allNewCards = loaded.filter { it.totalWins == 0 }
+            // Get all difficult cards
+            val difficultCards = loaded.filter { it.score > 2 }
 
-            // Keep currently active new cards that are still new
-            val currentActiveNewCards = activeNewCards.mapNotNull { activeId ->
+            // Keep currently active cards that are still difficult
+            val currentActiveDifficultCards = activeDifficultCards.mapNotNull { activeId ->
                 loaded.find { it.id == activeId }
-            }.filter { it.totalWins == 0 }
+            }.filter { it.score > 2 }
 
-            // Calculate how many more new cards we need to reach 10
-            val needed = (10 - currentActiveNewCards.size).coerceAtLeast(0)
+            // Calculate how many more difficult cards we need to reach 10
+            val needed = (10 - currentActiveDifficultCards.size).coerceAtLeast(0)
 
-            // Pick new cards not already active, up to the needed amount
-            val availableToAdd = allNewCards
-                .filter { it.id !in currentActiveNewCards.map { c -> c.id }.toSet() }
+            // Pick difficult cards not already active, up to the needed amount
+            val availableToAdd = difficultCards
+                .filter { it.id !in currentActiveDifficultCards.map { c -> c.id }.toSet() }
                 .take(needed)
 
-            // Update active new cards set if there are new cards to add
+            // Update active difficult cards set if there are difficult cards to add
             if (availableToAdd.isNotEmpty()) {
-                activeNewCards = (currentActiveNewCards.map { it.id } + availableToAdd.map { it.id }).toSet()
+                activeDifficultCards = (currentActiveDifficultCards.map { it.id } + availableToAdd.map { it.id }).toSet()
             }
 
-            // Compute due cards: new active cards or previously learned cards that are due
+            // Compute due cards: difficult active cards or previously learned cards that are due
             dueCards = loaded.filter { card ->
-                if (card.id in activeNewCards && card.totalWins == 0) {
+                if (card.id in activeDifficultCards && card.score > 2) {
                     true
                 } else {
                     // For cards already learned, apply normal due logic
@@ -209,31 +209,31 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
 
             // Update the card in allElements
             val updatedElements = allElements.map {
-                if (it.name == card.name && it.definition == card.definition) updatedCard else it
+                if (it.id == card.id) updatedCard else it
             }
             allElements = updatedElements
             saveElements(updatedElements)
 
-            // If this was a new card that got answered correctly, it's no longer "new"
-            if (wasCorrect && card.totalWins == 0) {
-                // Remove this card from active new cards
-                activeNewCards = activeNewCards - card.id
+            // Remove the card from active difficult cards if the score is high enough
+            if (wasCorrect && card.score > 2) {
+                // Remove this card from active difficult cards
+                activeDifficultCards = activeDifficultCards - card.id
 
-                // Find remaining new cards (never won)
-                val remainingNewCards = updatedElements.filter { it.totalWins == 0 }
+                // Find remaining difficult cards (never won)
+                val remainingDifficultCards = updatedElements.filter { it.score > 2 }
 
-                // Add new cards until we have 10 active or run out of new cards
-                val needed = 10 - activeNewCards.size
-                val available = remainingNewCards.filter { it.id !in activeNewCards }.take(needed)
+                // Add difficult cards until we have 10 active or run out of difficult cards
+                val needed = 10 - activeDifficultCards.size
+                val available = remainingDifficultCards.filter { it.id !in activeDifficultCards }.take(needed)
 
                 if (available.isNotEmpty()) {
-                    activeNewCards = activeNewCards + available.map { it.id }.toSet()
+                    activeDifficultCards = activeDifficultCards + available.map { it.id }.toSet()
                 }
             }
 
             // Update due cards list
             dueCards = updatedElements.filter {
-                isDue(it) && (it.totalWins > 0 || it.id in activeNewCards)
+                isDue(it) && (it.totalWins > 0 || it.id in activeDifficultCards)
             }
 
             // Move to next card (exclude current card)
