@@ -5,18 +5,25 @@ import org.json.JSONObject
 import java.util.UUID
 
 
-data class FlashcardList(val id: String = UUID.randomUUID().toString(), val name: String) {
+data class FlashcardList(
+    val id: String = UUID.randomUUID().toString(),
+    val name: String,
+    val order: Int = 0
+) {
     fun toJson(): JSONObject {
         return JSONObject().apply {
             put("id", id)
             put("name", name)
+            put("order", order)
         }
     }
+
     companion object {
         fun fromJson(json: JSONObject): FlashcardList {
             return FlashcardList(
                 id = json.getString("id"),
-                name = json.getString("name")
+                name = json.getString("name"),
+                order = json.optInt("order", 0)
             )
         }
 

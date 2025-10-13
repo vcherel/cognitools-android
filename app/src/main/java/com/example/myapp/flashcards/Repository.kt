@@ -11,7 +11,6 @@ class FlashcardRepository(private val context: Context) {
 
     private val listsKey = stringPreferencesKey("lists")
 
-    // Observe all lists
     fun observeLists(): Flow<List<FlashcardList>> {
         return context.dataStore.data.map { prefs ->
             val jsonString = prefs[listsKey] ?: "[]"
@@ -19,7 +18,6 @@ class FlashcardRepository(private val context: Context) {
         }
     }
 
-    // Observe all lists with due counts (computed together)
     fun observeListsWithDueCounts(): Flow<Pair<List<FlashcardList>, Map<String, Int>>> {
         return context.dataStore.data.map { prefs ->
             val jsonString = prefs[listsKey] ?: "[]"
@@ -37,25 +35,34 @@ class FlashcardRepository(private val context: Context) {
         }
     }
 
-    // Get lists once (suspending)
     suspend fun getLists(): List<FlashcardList> {
         return observeLists().first()
     }
 
-    // Save lists
     suspend fun saveLists(lists: List<FlashcardList>) {
+        val sortedLists = lists.sortedBy { it.order }
+
         context.dataStore.edit { prefs ->
-            prefs[listsKey] = FlashcardList.listToJsonString(lists)
+            prefs[listsKey] = FlashcardList.listToJsonString(sortedLists)
         }
     }
 
-    // Add a new list
     suspend fun addList(list: FlashcardList) {
         val current = getLists()
-        saveLists(listOf(list) + current)
+
+        val nextOrder = (current.maxOfOrNull { it.order } ?: 0) + 1
+
+        val newList = list.copy(order = nextOrder)
+        saveLists(current + newList)
     }
 
-    // Update a list
+    suspend fun reorderLists(newOrder: List<FlashcardList>) {
+        val reordered = newOrder.mapIndexed { index, list ->
+            list.copy(order = index)
+        }
+        saveLists(reordered)
+    }
+
     suspend fun updateList(listId: String, newName: String) {
         val current = getLists()
         val updated = current.map {
@@ -64,7 +71,6 @@ class FlashcardRepository(private val context: Context) {
         saveLists(updated)
     }
 
-    // Delete a list (and its elements)
     suspend fun deleteList(listId: String) {
         val current = getLists()
         saveLists(current.filterNot { it.id == listId })
@@ -75,7 +81,6 @@ class FlashcardRepository(private val context: Context) {
         }
     }
 
-    // Observe elements for a specific list
     fun observeElements(listId: String): Flow<List<FlashcardElement>> {
         val key = stringPreferencesKey("elements_$listId")
         return context.dataStore.data.map { prefs ->
@@ -84,12 +89,10 @@ class FlashcardRepository(private val context: Context) {
         }
     }
 
-    // Get elements once (suspending)
     suspend fun getElements(listId: String): List<FlashcardElement> {
         return observeElements(listId).first()
     }
 
-    // Save elements for a list
     suspend fun saveElements(listId: String, elements: List<FlashcardElement>) {
         val key = stringPreferencesKey("elements_$listId")
         context.dataStore.edit { prefs ->
@@ -97,19 +100,16 @@ class FlashcardRepository(private val context: Context) {
         }
     }
 
-    // Add a new element to a list
     suspend fun addElement(listId: String, element: FlashcardElement) {
         val current = getElements(listId)
         saveElements(listId, listOf(element) + current)
     }
 
-    // Add multiple elements to a list
     suspend fun addElements(listId: String, elements: List<FlashcardElement>) {
         val current = getElements(listId)
         saveElements(listId, elements + current)
     }
 
-    // Update an element
     suspend fun updateElement(listId: String, element: FlashcardElement) {
         val current = getElements(listId)
         val updated = current.map {
@@ -118,19 +118,16 @@ class FlashcardRepository(private val context: Context) {
         saveElements(listId, updated)
     }
 
-    // Delete an element
     suspend fun deleteElement(listId: String, elementId: String) {
         val current = getElements(listId)
         saveElements(listId, current.filterNot { it.id == elementId })
     }
 
-    // Get all elements across all lists (for export/stats)
     suspend fun getAllElements(): List<FlashcardElement> {
         val lists = getLists()
         return lists.flatMap { list -> getElements(list.id) }
     }
 
-    // Import data
     suspend fun importData(jsonString: String): Boolean {
         return try {
             val json = org.json.JSONObject(jsonString)
@@ -168,7 +165,6 @@ class FlashcardRepository(private val context: Context) {
         }
     }
 
-    // Export data
     suspend fun getExportData(): Pair<List<FlashcardList>, List<FlashcardElement>> {
         val lists = getLists()
         val allElements = getAllElements()
