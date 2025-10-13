@@ -135,7 +135,7 @@ fun FlashcardListsScreen(onBack: () -> Unit, navController: NavController) {
 
         Spacer(Modifier.height(16.dp))
 
-        // List of flashcard lists - no loading state needed, starts empty
+        // List of flashcard lists
         LazyColumn(modifier = Modifier.weight(1f)) {
             itemsIndexed(items = lists, key = { _, item -> item.id }) { index, flashcardList ->
                 FlashcardListItem(
@@ -160,6 +160,26 @@ fun FlashcardListsScreen(onBack: () -> Unit, navController: NavController) {
                     onDelete = {
                         scope.launch {
                             repository.deleteList(flashcardList.id)
+                        }
+                    },
+                    onMoveUp = {
+                        if (index > 0) {
+                            val mutableLists = lists.toMutableList()
+                            // Swap with the previous list
+                            val temp = mutableLists[index - 1]
+                            mutableLists[index - 1] = mutableLists[index]
+                            mutableLists[index] = temp
+                            scope.launch { repository.reorderLists(mutableLists) }
+                        }
+                    },
+                    onMoveDown = {
+                        if (index < lists.size - 1) {
+                            val mutableLists = lists.toMutableList()
+                            // Swap with the next list
+                            val temp = mutableLists[index + 1]
+                            mutableLists[index + 1] = mutableLists[index]
+                            mutableLists[index] = temp
+                            scope.launch { repository.reorderLists(mutableLists) }
                         }
                     }
                 )
@@ -259,8 +279,8 @@ private fun FlashcardListItem(
     onBulkImport: () -> Unit,
     onRename: (String) -> Unit,
     onDelete: () -> Unit,
-    onMoveUp: () -> Unit = {},
-    onMoveDown: () -> Unit = {}
+    onMoveUp: () -> Unit,
+    onMoveDown: () -> Unit
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
