@@ -66,7 +66,7 @@ import kotlin.math.abs
 import kotlin.math.pow
 import kotlin.random.Random
 
-const val MAX_DIFFICULT_CARDS = 6
+const val MAX_DIFFICULT_CARDS = 5
 
 @Composable
 fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
@@ -86,17 +86,15 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
     var showFront by remember { mutableStateOf(true) }
     var activeDifficultCards by remember { mutableStateOf<Set<String>>(emptySet()) }
 
-    val dueCards by remember(allElements, activeDifficultCards) {
+    val dueCards by remember(allElements) {
         derivedStateOf {
-            allElements.filter { card ->
-                val due = isDue(card)
-                val isDifficult = card.score < 2
-
-                // Only include difficult cards if they are in activeDifficultCards
-                due && (!isDifficult || card.id in activeDifficultCards)
-            }
+            val due = allElements.filter { isDue(it) }
+            val difficult = due.filter { it.score < 2 }.take(MAX_DIFFICULT_CARDS)
+            val easy = due.filter { it.score >= 2 }
+            difficult + easy
         }
     }
+
 
     BackHandler {
         onBack()
@@ -109,25 +107,15 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
             val loaded = FlashcardElement.listFromJsonString(jsonString)
             allElements = loaded
 
-            // Get all difficult cards
-            val difficultCards = loaded.filter { it.score < 2 }
-
             // Keep currently active cards that are still difficult
-            val currentActiveDifficultCards = activeDifficultCards.mapNotNull { activeId ->
-                loaded.find { it.id == activeId }
-            }.filter { it.score < 2 }
+            val currentActiveDifficultCards = allElements.filter { it.id in activeDifficultCards && it.score < 2 }
 
             // Calculate how many more difficult cards we need to reach MAX_DIFFICULT_CARDS
             val needed = (MAX_DIFFICULT_CARDS - currentActiveDifficultCards.size).coerceAtLeast(0)
+            val availableToAdd = allElements.filter { it.score < 2 && it.id !in activeDifficultCards }
 
-            // Pick difficult cards not already active, up to the needed amount
-            val availableToAdd = difficultCards
-                .filter { it.id !in currentActiveDifficultCards.map { c -> c.id }.toSet() }
-                .take(needed)
-
-            // Update active difficult cards set if there are difficult cards to add
-            if (availableToAdd.isNotEmpty()) {
-                activeDifficultCards = (currentActiveDifficultCards.map { it.id } + availableToAdd.map { it.id }).toSet()
+            if (needed > 0 && availableToAdd.isNotEmpty()) {
+                activeDifficultCards = (currentActiveDifficultCards.map { it.id } + availableToAdd.take(needed).map { it.id }).toSet()
             }
 
             // Pick a random current card if none is selected yet
