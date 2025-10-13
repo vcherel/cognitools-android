@@ -45,6 +45,7 @@ fun MyButton(
         modifier = modifier
             .fillMaxWidth()
             .height(90.dp)
+            .scale(if (isPressed) 0.98f else 1f)
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,
@@ -100,13 +101,19 @@ fun MyButton(
 }
 
 @Composable
-fun MySwitch(isBoostEnabled: Boolean,
-             onToggle: (Boolean) -> Unit,
-             modifier: Modifier = Modifier) {
+fun MySwitch(
+    isBoostEnabled: Boolean,
+    onToggle: (Boolean) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+
     Box(
         modifier = modifier
             .width(300.dp)
             .height(100.dp)
+            .scale(if (isPressed) 0.98f else 1f)
     ) {
         // Shadow layer
         Box(
@@ -133,8 +140,8 @@ fun MySwitch(isBoostEnabled: Boolean,
                     shape = RoundedCornerShape(50)
                 )
                 .clickable(
-                    indication = null,
-                    interactionSource = remember { MutableInteractionSource() }
+                    interactionSource = interactionSource,
+                    indication = null
                 ) { onToggle(!isBoostEnabled) }
                 .padding(horizontal = 20.dp),
             contentAlignment = Alignment.Center
@@ -165,7 +172,6 @@ fun MySwitch(isBoostEnabled: Boolean,
                         modifier = Modifier.scale(1.4f)
                     )
                 }
-
             }
         }
     }

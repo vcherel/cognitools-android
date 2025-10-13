@@ -4,6 +4,8 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -34,6 +36,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
@@ -44,6 +47,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
@@ -53,6 +57,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.myapp.MyButton
@@ -64,8 +69,6 @@ fun FlashcardDetailScreen(listId: String, onBack: () -> Unit, navController: Nav
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
-
-    // Create repository instance
     val repository = remember { FlashcardRepository(context) }
 
     var showDialog by remember { mutableStateOf(false) }
@@ -75,8 +78,9 @@ fun FlashcardDetailScreen(listId: String, onBack: () -> Unit, navController: Nav
     var sortAscending by remember { mutableStateOf(true) }
     var searchQuery by remember { mutableStateOf("") }
     var elementToDelete by remember { mutableStateOf<FlashcardElement?>(null) }
+    var selectedElement by remember { mutableStateOf<FlashcardElement?>(null) }
 
-    // Get the list name - observe from repository
+    // Get the list name
     val lists by repository.observeLists().collectAsState(initial = emptyList())
     val listName = remember(lists, listId) {
         lists.find { it.id == listId }?.name ?: ""
@@ -175,19 +179,26 @@ fun FlashcardDetailScreen(listId: String, onBack: () -> Unit, navController: Nav
             }
         }
 
-        // List of elements (same as before, just showing the Card part)
+        // List of elements
         LazyColumn(
             modifier = Modifier.weight(1f),
             state = listState
         ) {
             itemsIndexed(filteredElements, key = { _, item -> item.id }) { index, element ->
+                val interactionSource = remember { MutableInteractionSource() }
+                val isPressed by interactionSource.collectIsPressedAsState()
+
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 4.dp),
+                        .padding(vertical = 4.dp)
+                        .scale(if (isPressed) 0.95f else 1f)
+                        .clickable(
+                            interactionSource = interactionSource,
+                            indication = ripple()
+                        ) { selectedElement = element },
                     elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
                 ) {
-                    // ... same card content as before ...
                     Column(modifier = Modifier.padding(10.dp)) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -210,7 +221,7 @@ fun FlashcardDetailScreen(listId: String, onBack: () -> Unit, navController: Nav
                                 verticalArrangement = Arrangement.Top,
                                 modifier = Modifier.width(IntrinsicSize.Min)
                             ) {
-                                // Time display logic...
+                                // Time display logic
                                 val timeUntilReview = remember(element.lastReview, element.interval) {
                                     val now = System.currentTimeMillis()
                                     val nextReviewTime = element.lastReview + (element.interval * 60 * 1000L)
@@ -231,7 +242,7 @@ fun FlashcardDetailScreen(listId: String, onBack: () -> Unit, navController: Nav
                                     color = if (isDue(element)) Color(0xFF009900) else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
 
-                                // Score display and action buttons...
+                                // Score display and action buttons
                                 val scoreColor = when (element.score.toInt()) {
                                     0 -> Color(0xFFFF0000)
                                     1 -> Color(0xFFFF3300)
@@ -317,6 +328,44 @@ fun FlashcardDetailScreen(listId: String, onBack: () -> Unit, navController: Nav
         }
     }
 
+    // Information dialog
+    selectedElement?.let { element ->
+        ShowAlertDialog(
+            show = true,
+            onDismiss = { selectedElement = null },
+            title = element.name,
+            textContent = {
+                Column(
+                    modifier = Modifier
+                        .padding(vertical = 16.dp, horizontal = 8.dp)
+                        .fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "Nombre total de réponses: ${element.totalWins + element.totalLosses}",
+                        style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
+                        textAlign = TextAlign.Center
+                    )
+                    Text(
+                        text = "Bonnes réponses: ${element.totalWins}",
+                        color = Color(0xFF37A13B),
+                        style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
+                        textAlign = TextAlign.Center
+                    )
+                    Text(
+                        text = "Mauvaises réponses: ${element.totalLosses}",
+                        color = Color(0xFFC4362D),
+                        style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
+                        textAlign = TextAlign.Center
+                    )
+                }
+            },
+            onCancel = { selectedElement = null },
+            onConfirm = { selectedElement = null },
+            cancelText = "Fermer"
+        )
+    }
     // Delete confirmation dialog
     elementToDelete?.let { element ->
         ShowAlertDialog(

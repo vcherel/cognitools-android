@@ -290,7 +290,7 @@ private fun FlashcardListItem(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 8.dp)
-            .scale(if (isPressed) 0.95f else 1f)
+            .scale(if (isPressed) 0.90f else 1f)
             .clickable(
                 interactionSource = interactionSource,
                 indication = ripple()
