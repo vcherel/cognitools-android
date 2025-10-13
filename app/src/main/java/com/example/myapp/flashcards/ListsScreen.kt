@@ -8,7 +8,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -30,7 +29,6 @@ import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -39,6 +37,7 @@ import androidx.compose.material3.TextField
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -53,15 +52,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.datastore.preferences.core.edit
-import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.navigation.NavController
 import com.example.myapp.MyButton
 import com.example.myapp.ShowAlertDialog
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -69,6 +63,7 @@ import kotlinx.coroutines.withContext
 fun FlashcardListsScreen(onBack: () -> Unit, navController: NavController) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val repository = remember { FlashcardRepository(context) }
 
     // State variables
     var showDialog by remember { mutableStateOf(false) }
@@ -79,58 +74,17 @@ fun FlashcardListsScreen(onBack: () -> Unit, navController: NavController) {
     var bulkImportText by remember { mutableStateOf("") }
     var selectedListId by remember { mutableStateOf("") }
 
-    // Load lists asynchronously - start empty, load in background
-    var lists by remember { mutableStateOf<List<FlashcardList>>(emptyList()) }
-    var flashcards by remember { mutableStateOf<List<FlashcardElement>>(emptyList()) }
-    var isLoading by remember { mutableStateOf(true) }
+    // Observe lists directly from repository
+    val lists by repository.observeLists().collectAsState(initial = emptyList())
 
-    // Load data asynchronously on first composition
-    LaunchedEffect(Unit) {
-        withContext(Dispatchers.IO) {
-            val prefs = context.dataStore.data.first()
-
-            // Load lists
-            val listsJson = prefs[stringPreferencesKey("lists")] ?: "[]"
-            val loadedLists = FlashcardList.listFromJsonString(listsJson)
-
-            // Load all flashcards
-            val loadedFlashcards = loadedLists.flatMap { list ->
-                val key = stringPreferencesKey("elements_${list.id}")
-                val cardsJson = prefs[key] ?: "[]"
-                FlashcardElement.listFromJsonString(cardsJson)
-            }
-
-            withContext(Dispatchers.Main) {
-                lists = loadedLists
-                flashcards = loadedFlashcards
-                isLoading = false
-            }
-        }
-    }
-
-    // Compute due count only when flashcards change, but on background thread
+    // Compute due counts in background
     var dueCountMap by remember { mutableStateOf<Map<String, Int>>(emptyMap()) }
 
-    LaunchedEffect(flashcards) {
+    LaunchedEffect(lists) {
         withContext(Dispatchers.Default) {
-            val newDueCountMap = flashcards
-                .filter { isDue(it) }
-                .groupingBy { it.listId }
-                .eachCount()
-
+            val counts = repository.getAllDueCounts()
             withContext(Dispatchers.Main) {
-                dueCountMap = newDueCountMap
-            }
-        }
-    }
-
-    // Helper function to update DataStore
-    fun updateLists(newLists: List<FlashcardList>) {
-        lists = newLists // Update UI immediately
-        scope.launch(Dispatchers.IO) {
-            val key = stringPreferencesKey("lists")
-            context.dataStore.edit { prefs ->
-                prefs[key] = FlashcardList.listToJsonString(newLists)
+                dueCountMap = counts
             }
         }
     }
@@ -165,15 +119,19 @@ fun FlashcardListsScreen(onBack: () -> Unit, navController: NavController) {
 
             Row {
                 IconButton(onClick = {
-                    CoroutineScope(Dispatchers.IO).launch {
-                        val (lists, flashcards) = loadFlashcardData(context)
-                        exportFlashcards(lists, flashcards)
+                    scope.launch(Dispatchers.IO) {
+                        val exportData = repository.getExportData()
+                        exportFlashcards(exportData.first, exportData.second)
+                        withContext(Dispatchers.Main) {
+                            Toast.makeText(context, "Exported to Downloads", Toast.LENGTH_SHORT).show()
+                        }
                     }
-                    Toast.makeText(context, "Exported to Downloads", Toast.LENGTH_SHORT).show()
                 }) {
                     Icon(Icons.Default.Upload, contentDescription = "Exporter")
                 }
-                IconButton(onClick = { importFlashcards(context) }) {
+                IconButton(onClick = {
+                    importFlashcards(context, repository)
+                }) {
                     Icon(Icons.Default.Download, contentDescription = "Importer")
                 }
             }
@@ -181,46 +139,34 @@ fun FlashcardListsScreen(onBack: () -> Unit, navController: NavController) {
 
         Spacer(Modifier.height(16.dp))
 
-        // Show loading indicator while data loads
-        if (isLoading) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .weight(1f),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator(color = Color.Black)
-            }
-        } else {
-            // List of flashcard lists
-            LazyColumn(modifier = Modifier.weight(1f)) {
-                itemsIndexed(items = lists, key = { _, item -> item.id }) { index, flashcardList ->
-                    FlashcardListItem(
-                        flashcardList = flashcardList,
-                        dueCount = dueCountMap[flashcardList.id] ?: 0,
-                        onNavigate = { navController.navigate("elements/${flashcardList.id}") },
-                        onBulkImport = {
-                            selectedListId = flashcardList.id
-                            showBulkImportDialog = true
-                            bulkImportText = ""
-                        },
-                        onRename = { newName ->
-                            dialogTitle = "Renommer la liste"
-                            dialogValue = flashcardList.name
-                            dialogAction = { newName ->
-                                val updated = lists.toMutableList()
-                                updated[index] = flashcardList.copy(name = newName)
-                                updateLists(updated)
+        // List of flashcard lists - no loading state needed, starts empty
+        LazyColumn(modifier = Modifier.weight(1f)) {
+            itemsIndexed(items = lists, key = { _, item -> item.id }) { index, flashcardList ->
+                FlashcardListItem(
+                    flashcardList = flashcardList,
+                    dueCount = dueCountMap[flashcardList.id] ?: 0,
+                    onNavigate = { navController.navigate("elements/${flashcardList.id}") },
+                    onBulkImport = {
+                        selectedListId = flashcardList.id
+                        showBulkImportDialog = true
+                        bulkImportText = ""
+                    },
+                    onRename = {
+                        dialogTitle = "Renommer la liste"
+                        dialogValue = flashcardList.name
+                        dialogAction = { newName ->
+                            scope.launch {
+                                repository.updateList(flashcardList.id, newName)
                             }
-                            showDialog = true
-                        },
-                        onDelete = {
-                            val updated = lists.toMutableList()
-                            updated.removeAt(index)
-                            updateLists(updated)
                         }
-                    )
-                }
+                        showDialog = true
+                    },
+                    onDelete = {
+                        scope.launch {
+                            repository.deleteList(flashcardList.id)
+                        }
+                    }
+                )
             }
         }
 
@@ -233,9 +179,9 @@ fun FlashcardListsScreen(onBack: () -> Unit, navController: NavController) {
                 dialogTitle = "Nouvelle liste"
                 dialogValue = ""
                 dialogAction = { newName ->
-                    val updated = lists.toMutableList()
-                    updated.add(0, FlashcardList(name = newName))
-                    updateLists(updated)
+                    scope.launch {
+                        repository.addList(FlashcardList(name = newName))
+                    }
                 }
                 showDialog = true
             }
@@ -270,31 +216,13 @@ fun FlashcardListsScreen(onBack: () -> Unit, navController: NavController) {
                     }
 
                     if (newElements.isNotEmpty()) {
-                        scope.launch(Dispatchers.IO) {
-                            val key = stringPreferencesKey("elements_$selectedListId")
-                            val currentJson = context.dataStore.data
-                                .map { prefs -> prefs[key] }
-                                .first()
-
-                            val currentElements = currentJson?.let {
-                                FlashcardElement.listFromJsonString(it)
-                            } ?: emptyList()
-
-                            val updatedElements = newElements + currentElements
-
-                            context.dataStore.edit { prefs ->
-                                prefs[key] = FlashcardElement.listToJsonString(updatedElements)
-                            }
-
-                            // Update local state
-                            withContext(Dispatchers.Main) {
-                                flashcards = flashcards + updatedElements
-                                Toast.makeText(
-                                    context,
-                                    "${newElements.size} carte(s) ajoutée(s)",
-                                    Toast.LENGTH_SHORT
-                                ).show()
-                            }
+                        scope.launch {
+                            repository.addElements(selectedListId, newElements)
+                            Toast.makeText(
+                                context,
+                                "${newElements.size} carte(s) ajoutée(s)",
+                                Toast.LENGTH_SHORT
+                            ).show()
                         }
                     }
                     showBulkImportDialog = false

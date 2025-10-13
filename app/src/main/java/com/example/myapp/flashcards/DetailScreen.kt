@@ -54,13 +54,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
-import androidx.datastore.preferences.core.edit
-import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.navigation.NavController
 import com.example.myapp.MyButton
 import com.example.myapp.ShowAlertDialog
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 @Composable
@@ -68,6 +64,9 @@ fun FlashcardDetailScreen(listId: String, onBack: () -> Unit, navController: Nav
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
+
+    // Create repository instance
+    val repository = remember { FlashcardRepository(context) }
 
     var showDialog by remember { mutableStateOf(false) }
     var dialogName by remember { mutableStateOf("") }
@@ -77,25 +76,14 @@ fun FlashcardDetailScreen(listId: String, onBack: () -> Unit, navController: Nav
     var searchQuery by remember { mutableStateOf("") }
     var elementToDelete by remember { mutableStateOf<FlashcardElement?>(null) }
 
-    // Get the list name for display
-    val listsJson by context.dataStore.data
-        .map { prefs -> prefs[stringPreferencesKey("lists")] }
-        .collectAsState(initial = null)
-
-    val listName = remember(listsJson, listId) {
-        listsJson?.let { it ->
-            FlashcardList.listFromJsonString(it)
-                .find { it.id == listId }?.name
-        } ?: ""
+    // Get the list name - observe from repository
+    val lists by repository.observeLists().collectAsState(initial = emptyList())
+    val listName = remember(lists, listId) {
+        lists.find { it.id == listId }?.name ?: ""
     }
 
-    val key = stringPreferencesKey("elements_$listId")
-    val elements by remember {
-        context.dataStore.data
-            .map { prefs ->
-                prefs[key]?.let { FlashcardElement.listFromJsonString(it) } ?: emptyList()
-            }
-    }.collectAsState(initial = emptyList())
+    // Observe elements from repository
+    val elements by repository.observeElements(listId).collectAsState(initial = emptyList())
 
     val sortedElements by remember(elements, sortAscending) {
         derivedStateOf {
@@ -103,14 +91,6 @@ fun FlashcardDetailScreen(listId: String, onBack: () -> Unit, navController: Nav
                 elements.sortedBy { it.lastReview + (it.interval * 60 * 1000L) }
             } else {
                 elements.sortedByDescending { it.lastReview + (it.interval * 60 * 1000L) }
-            }
-        }
-    }
-
-    fun updateElements(newElements: List<FlashcardElement>) {
-        scope.launch(Dispatchers.IO) {
-            context.dataStore.edit { prefs ->
-                prefs[key] = FlashcardElement.listToJsonString(newElements)
             }
         }
     }
@@ -133,7 +113,6 @@ fun FlashcardDetailScreen(listId: String, onBack: () -> Unit, navController: Nav
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Left Column
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     listName,
@@ -146,10 +125,8 @@ fun FlashcardDetailScreen(listId: String, onBack: () -> Unit, navController: Nav
                 )
             }
 
-            // Spacer to push right column to the end
             Spacer(modifier = Modifier.width(16.dp))
 
-            // Right Column
             Column(horizontalAlignment = Alignment.End) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     IconButton(onClick = {
@@ -198,25 +175,25 @@ fun FlashcardDetailScreen(listId: String, onBack: () -> Unit, navController: Nav
             }
         }
 
-        // List of elements
+        // List of elements (same as before, just showing the Card part)
         LazyColumn(
             modifier = Modifier.weight(1f),
             state = listState
         ) {
-            itemsIndexed(filteredElements, key = { _, item -> "${item.listId}_${item.name}_${item.definition}" }) { index, element ->
+            itemsIndexed(filteredElements, key = { _, item -> item.id }) { index, element ->
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 4.dp),
                     elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
                 ) {
+                    // ... same card content as before ...
                     Column(modifier = Modifier.padding(10.dp)) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.Top
                         ) {
-                            // Left column for element name & definition
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     element.name,
@@ -228,12 +205,12 @@ fun FlashcardDetailScreen(listId: String, onBack: () -> Unit, navController: Nav
                                 )
                             }
 
-                            // Right column for review time & score
                             Column(
                                 horizontalAlignment = Alignment.End,
                                 verticalArrangement = Arrangement.Top,
                                 modifier = Modifier.width(IntrinsicSize.Min)
                             ) {
+                                // Time display logic...
                                 val timeUntilReview = remember(element.lastReview, element.interval) {
                                     val now = System.currentTimeMillis()
                                     val nextReviewTime = element.lastReview + (element.interval * 60 * 1000L)
@@ -254,6 +231,7 @@ fun FlashcardDetailScreen(listId: String, onBack: () -> Unit, navController: Nav
                                     color = if (isDue(element)) Color(0xFF009900) else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
 
+                                // Score display and action buttons...
                                 val scoreColor = when (element.score.toInt()) {
                                     0 -> Color(0xFFFF0000)
                                     1 -> Color(0xFFFF3300)
@@ -347,8 +325,9 @@ fun FlashcardDetailScreen(listId: String, onBack: () -> Unit, navController: Nav
             title = "T'es sûr ??",
             onCancel = { elementToDelete = null },
             onConfirm = {
-                val updated = elements.filterNot { it.id == elementToDelete!!.id }
-                updateElements(updated)
+                scope.launch {
+                    repository.deleteElement(listId, element.id)
+                }
                 elementToDelete = null
             },
             cancelText = "Oula non merci",
@@ -361,11 +340,23 @@ fun FlashcardDetailScreen(listId: String, onBack: () -> Unit, navController: Nav
     if (showDialog) {
         fun saveElement() {
             if (dialogName.isNotBlank() && dialogDefinition.isNotBlank()) {
-                val updated = elements.toMutableList()
-                val newElement = FlashcardElement(listId = listId, name = dialogName, definition = dialogDefinition)
-                if (editingIndex == null) updated.add(0, newElement)
-                else updated[editingIndex!!] = newElement
-                updateElements(updated)
+                scope.launch {
+                    val newElement = FlashcardElement(
+                        listId = listId,
+                        name = dialogName,
+                        definition = dialogDefinition
+                    )
+
+                    if (editingIndex == null) {
+                        repository.addElement(listId, newElement)
+                    } else {
+                        val elementToUpdate = elements[editingIndex!!]
+                        repository.updateElement(
+                            listId,
+                            elementToUpdate.copy(name = dialogName, definition = dialogDefinition)
+                        )
+                    }
+                }
                 showDialog = false
             }
         }

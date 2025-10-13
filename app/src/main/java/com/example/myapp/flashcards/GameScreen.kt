@@ -56,11 +56,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.datastore.preferences.core.edit
-import androidx.datastore.preferences.core.stringPreferencesKey
 import com.example.myapp.MyButton
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.pow
@@ -73,12 +69,12 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    val key = stringPreferencesKey("elements_$listId")
-    val elementsJson by context.dataStore.data
-        .map { prefs -> prefs[key] }
-        .collectAsState(initial = null)
+    // Create repository instance
+    val repository = remember { FlashcardRepository(context) }
 
-    var allElements by remember { mutableStateOf<List<FlashcardElement>>(emptyList()) }
+    // Observe elements from repository
+    val allElements by repository.observeElements(listId).collectAsState(initial = emptyList())
+
     var currentCard by remember { mutableStateOf<FlashcardElement?>(null) }
     var showDefinition by remember { mutableStateOf(false) }
     var cardOffset by remember { mutableFloatStateOf(0f) }
@@ -95,37 +91,37 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
         }
     }
 
-
     BackHandler {
         onBack()
     }
 
     // Load and filter due cards
-    LaunchedEffect(elementsJson) {
-        elementsJson?.let { jsonString ->
-            // Parse JSON string into FlashcardElement objects
-            val loaded = FlashcardElement.listFromJsonString(jsonString)
-            allElements = loaded
+    LaunchedEffect(allElements) {
+        if (allElements.isEmpty()) return@LaunchedEffect
 
-            // Keep currently active cards that are still difficult
-            val currentActiveDifficultCards = allElements.filter { it.id in activeDifficultCards && it.score < 2 }
+        // Keep currently active cards that are still difficult
+        val currentActiveDifficultCards = allElements.filter {
+            it.id in activeDifficultCards && it.score < 2
+        }
 
-            // Calculate how many more difficult cards we need to reach MAX_DIFFICULT_CARDS
-            val needed = (MAX_DIFFICULT_CARDS - currentActiveDifficultCards.size).coerceAtLeast(0)
-            val availableToAdd = allElements.filter { it.score < 2 && it.id !in activeDifficultCards }
+        // Calculate how many more difficult cards we need to reach MAX_DIFFICULT_CARDS
+        val needed = (MAX_DIFFICULT_CARDS - currentActiveDifficultCards.size).coerceAtLeast(0)
+        val availableToAdd = allElements.filter {
+            it.score < 2 && it.id !in activeDifficultCards
+        }
 
-            if (needed > 0 && availableToAdd.isNotEmpty()) {
-                activeDifficultCards = (currentActiveDifficultCards.map { it.id } + availableToAdd.take(needed).map { it.id }).toSet()
-            }
+        if (needed > 0 && availableToAdd.isNotEmpty()) {
+            activeDifficultCards = (currentActiveDifficultCards.map { it.id } +
+                    availableToAdd.take(needed).map { it.id }).toSet()
+        }
 
-            // Pick a random current card if none is selected yet
-            if (currentCard == null && dueCards.isNotEmpty()) {
-                currentCard = dueCards.random()
-            }
+        // Pick a random current card if none is selected yet
+        if (currentCard == null && dueCards.isNotEmpty()) {
+            currentCard = dueCards.random()
         }
     }
 
-    fun updateCards(card: FlashcardElement, quality: Int /* quality = 2 if lost, 4 if won */): FlashcardElement {
+    fun updateCards(card: FlashcardElement, quality: Int): FlashcardElement {
         // Update ease factor
         var newEF = card.easeFactor + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02))
         if (newEF < 1.3) newEF = 1.3
@@ -151,7 +147,7 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
             quality < 3 -> {
                 val totalCards = dueCards.size.coerceAtLeast(1)
                 val baseProbability = ((2.5 - newScore) / 2.5).coerceIn(0.0, 1.0)
-                val sizeFactor = (totalCards / 90.0).coerceIn(0.01, 1.0) // 1% at few cards → 90% at 100+
+                val sizeFactor = (totalCards / 90.0).coerceIn(0.01, 1.0)
                 val probability = baseProbability * sizeFactor
 
                 when {
@@ -165,7 +161,7 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
             else -> {
                 // Low score have less chance to have times 2 multiplier
                 val randomFactor = Math.random().pow(1.0 + ((10 - newScore) / 10.0))
-                val randomMultiplier = 0.8 + randomFactor * 1.2 // Multiplier from 0.8 to 2 on the time
+                val randomMultiplier = 0.8 + randomFactor * 1.2
                 card.interval * newEF * randomMultiplier
             }
         }
@@ -181,50 +177,41 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
         )
     }
 
-    // Function to save updated elements
-    fun saveElements(updated: List<FlashcardElement>) {
-        scope.launch(Dispatchers.IO) {
-            context.dataStore.edit { prefs ->
-                prefs[key] = FlashcardElement.listToJsonString(updated)
-            }
-        }
-    }
-
     // Handle card swipe/answer
     fun handleAnswer(wasCorrect: Boolean) {
         if (isProcessingSwipe) return
         isProcessingSwipe = true
 
         currentCard?.let { card ->
-            val quality = if (wasCorrect) 4 else 2 // 4 = correct, 2 = incorrect
+            val quality = if (wasCorrect) 4 else 2
             val updatedCard = updateCards(card, quality)
 
-            // Update the card in allElements
-            val updatedElements = allElements.map {
-                if (it.id == card.id) updatedCard else it
+            // Update via repository
+            scope.launch {
+                repository.updateElement(listId, updatedCard)
             }
-            allElements = updatedElements
-            saveElements(updatedElements)
 
             // Remove the card from active difficult cards if the score is high enough
             if (wasCorrect && card.score >= 2) {
-                // Remove this card from active difficult cards
                 activeDifficultCards = activeDifficultCards - card.id
 
                 // Refill active difficult cards up to MAX_DIFFICULT_CARDS if needed
-                val remainingDifficult = allElements.filter { it.score < 2 && it.id !in activeDifficultCards }
+                val remainingDifficult = allElements.filter {
+                    it.score < 2 && it.id !in activeDifficultCards
+                }
                 val needed = MAX_DIFFICULT_CARDS - activeDifficultCards.size
                 if (needed > 0) {
-                    activeDifficultCards = activeDifficultCards + remainingDifficult.take(needed).map { it.id }.toSet()
+                    activeDifficultCards = activeDifficultCards +
+                            remainingDifficult.take(needed).map { it.id }.toSet()
                 }
             }
 
-            // Move to next card (exclude current card)
+            // Move to next card
             showDefinition = false
             val availableCards = dueCards.filter { it.id != card.id }
             currentCard = if (availableCards.isNotEmpty()) {
                 val card = availableCards.random()
-                showFront = Random.nextBoolean() // Randomly show front or back
+                showFront = Random.nextBoolean()
                 card
             } else if (dueCards.isNotEmpty()) {
                 val card = dueCards.random()
@@ -250,7 +237,6 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
             val swipeProgress = (abs(cardOffset) / 200f).coerceIn(0f, 1f)
             val shadowColor = if (cardOffset < 0) greenColor else redColor
 
-            // Shadow at corners
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -324,8 +310,8 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
                                 detectDragGestures(
                                     onDragEnd = {
                                         when {
-                                            cardOffset < -200 -> handleAnswer(true) // Swipe left = Correct
-                                            cardOffset > 200 -> handleAnswer(false) // Swipe right = Incorrect
+                                            cardOffset < -200 -> handleAnswer(true)
+                                            cardOffset > 200 -> handleAnswer(false)
                                         }
                                         cardOffset = 0f
                                     }
@@ -356,9 +342,7 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
                             else -> Color(0xFF00CC00)
                         }
 
-                        Box(
-                            modifier = Modifier.fillMaxSize()
-                        ) {
+                        Box(modifier = Modifier.fillMaxSize()) {
                             Column(
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.Center,
@@ -381,7 +365,7 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
                                 }
                             }
 
-                            // Score circle at top right
+                            // Score circle
                             Box(
                                 contentAlignment = Alignment.Center,
                                 modifier = Modifier
@@ -393,8 +377,9 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
                                 Text(
                                     "${currentCard?.score?.toInt() ?: 0}",
                                     style = MaterialTheme.typography.bodyLarge.copy(
-                                        shadow = if ((currentCard?.score?.toInt() ?: 0) <= 3 || currentCard?.score?.toInt() == 10
-                                        ) null else Shadow(
+                                        shadow = if ((currentCard?.score?.toInt() ?: 0) <= 3 ||
+                                            currentCard?.score?.toInt() == 10) null
+                                        else Shadow(
                                             color = Color.Black,
                                             offset = Offset(0f, 0f),
                                             blurRadius = 4f
@@ -413,7 +398,6 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Spacer(Modifier.height(16.dp))
 
-                    // Alternative buttons
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(20.dp)
@@ -423,24 +407,17 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
                                 .weight(1f)
                                 .height(140.dp)
                         ) {
-                            // Shadow layer
                             Box(
                                 modifier = Modifier
                                     .fillMaxSize()
                                     .offset(y = 6.dp)
-                                    .background(
-                                        Color(0xFF2E7D32),
-                                        RoundedCornerShape(16.dp)
-                                    )
+                                    .background(Color(0xFF2E7D32), RoundedCornerShape(16.dp))
                             )
 
-                            // Main button
                             Button(
                                 onClick = { handleAnswer(true) },
                                 modifier = Modifier.fillMaxSize(),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = greenColor
-                                ),
+                                colors = ButtonDefaults.buttonColors(containerColor = greenColor),
                                 shape = RoundedCornerShape(16.dp),
                                 contentPadding = PaddingValues(0.dp)
                             ) {
@@ -470,24 +447,17 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
                                 .weight(1f)
                                 .height(140.dp)
                         ) {
-                            // Shadow layer
                             Box(
                                 modifier = Modifier
                                     .fillMaxSize()
                                     .offset(y = 6.dp)
-                                    .background(
-                                        Color(0xFF7A0707),
-                                        RoundedCornerShape(16.dp)
-                                    )
+                                    .background(Color(0xFF7A0707), RoundedCornerShape(16.dp))
                             )
 
-                            // Main button
                             Button(
                                 onClick = { handleAnswer(false) },
                                 modifier = Modifier.fillMaxSize(),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = redColor
-                                ),
+                                colors = ButtonDefaults.buttonColors(containerColor = redColor),
                                 shape = RoundedCornerShape(16.dp),
                                 contentPadding = PaddingValues(0.dp)
                             ) {
@@ -522,11 +492,7 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(100.dp)
-                    ) {
-                        // Shadow layer
+                    Box(modifier = Modifier.size(100.dp)) {
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
@@ -534,7 +500,6 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
                                 .background(Color(0xFF2E7D32), RoundedCornerShape(24.dp))
                         )
 
-                        // Main icon background
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
@@ -551,7 +516,6 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
                     }
 
                     Spacer(Modifier.height(16.dp))
-
                     Text(
                         text = "Félicitations !",
                         style = MaterialTheme.typography.headlineMedium,
@@ -559,7 +523,6 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
                     )
 
                     Spacer(Modifier.height(8.dp))
-
                     Text(
                         text = "Vous avez révisé toutes les cartes disponibles",
                         style = MaterialTheme.typography.bodyLarge,
@@ -567,7 +530,6 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
                     )
 
                     Spacer(Modifier.height(32.dp))
-
                     MyButton(
                         text = "Retour",
                         onClick = onBack,
