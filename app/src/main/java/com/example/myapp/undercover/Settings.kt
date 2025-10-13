@@ -102,7 +102,14 @@ fun SettingsScreen(
 ) {
     // Calculate current valid ranges
     val maxImpostors = (settings.playerCount - 1) / 2
-    val maxMrWhite = (settings.playerCount - 2 * settings.impostorCount - 1).coerceAtLeast(0)
+    val (_, _, maxMrWhiteFromSwap) = validateGameSettings(
+        playerCount = settings.playerCount,
+        impostorCount = settings.impostorCount,
+        mrWhiteCount = settings.mrWhiteCount + 1,
+        allowSwap = true,
+        swapDirection = SwapDirection.INCREASE_MR_WHITE
+    )
+    val maxMrWhite = maxMrWhiteFromSwap
 
     Column(
         modifier = Modifier.fillMaxSize(),
