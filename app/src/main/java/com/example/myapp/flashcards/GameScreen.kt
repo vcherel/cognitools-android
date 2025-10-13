@@ -66,6 +66,8 @@ import kotlin.math.abs
 import kotlin.math.pow
 import kotlin.random.Random
 
+const val MAX_DIFFICULT_CARDS = 6
+
 @Composable
 fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
     val context = LocalContext.current
@@ -115,8 +117,8 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
                 loaded.find { it.id == activeId }
             }.filter { it.score < 2 }
 
-            // Calculate how many more difficult cards we need to reach 10
-            val needed = (10 - currentActiveDifficultCards.size).coerceAtLeast(0)
+            // Calculate how many more difficult cards we need to reach MAX_DIFFICULT_CARDS
+            val needed = (MAX_DIFFICULT_CARDS - currentActiveDifficultCards.size).coerceAtLeast(0)
 
             // Pick difficult cards not already active, up to the needed amount
             val availableToAdd = difficultCards
@@ -217,19 +219,15 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
             saveElements(updatedElements)
 
             // Remove the card from active difficult cards if the score is high enough
-            if (wasCorrect && card.score < 2) {
+            if (wasCorrect && card.score >= 2) {
                 // Remove this card from active difficult cards
                 activeDifficultCards = activeDifficultCards - card.id
 
-                // Find remaining difficult cards (never won)
-                val remainingDifficultCards = updatedElements.filter { it.score < 2 }
-
-                // Add difficult cards until we have 10 active or run out of difficult cards
-                val needed = 10 - activeDifficultCards.size
-                val available = remainingDifficultCards.filter { it.id !in activeDifficultCards }.take(needed)
-
-                if (available.isNotEmpty()) {
-                    activeDifficultCards = activeDifficultCards + available.map { it.id }.toSet()
+                // Refill active difficult cards up to MAX_DIFFICULT_CARDS if needed
+                val remainingDifficult = allElements.filter { it.score < 2 && it.id !in activeDifficultCards }
+                val needed = MAX_DIFFICULT_CARDS - activeDifficultCards.size
+                if (needed > 0) {
+                    activeDifficultCards = activeDifficultCards + remainingDifficult.take(needed).map { it.id }.toSet()
                 }
             }
 
