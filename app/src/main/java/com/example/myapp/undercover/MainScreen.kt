@@ -10,10 +10,12 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -27,13 +29,35 @@ import kotlin.random.Random
 @Composable
 fun UndercoverScreen(onBack: () -> Unit) {
     var state by remember { mutableStateOf(UndercoverGameState()) }
+    var showExitDialog by remember { mutableStateOf(false) }
 
     BackHandler {
         if (state.gameState is GameState.Settings) {
             onBack()
         } else {
-            state = state.copy(gameState = GameState.Settings)
+            showExitDialog = true
         }
+    }
+
+    if (showExitDialog) {
+        AlertDialog(
+            onDismissRequest = { showExitDialog = false },
+            title = { Text("Leave Game?") },
+            text = { Text("Are you sure you want to leave the current game? Your progress will be lost.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    state = state.copy(gameState = GameState.Settings)
+                    showExitDialog = false
+                }) {
+                    Text("Yes")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showExitDialog = false }) {
+                    Text("No")
+                }
+            }
+        )
     }
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {

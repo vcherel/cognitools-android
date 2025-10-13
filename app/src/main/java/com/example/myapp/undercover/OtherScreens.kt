@@ -21,6 +21,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
@@ -49,10 +50,12 @@ fun PlayerSetupScreen(
 ) {
     var name by remember { mutableStateOf("") }
     val focusRequester = remember { FocusRequester() }
+    var showConfirmationDialog by remember { mutableStateOf(false) }
 
     val isNameValid by remember {
         derivedStateOf {
-            name.isNotBlank() && name.length <= MAX_NAME_LENGTH && existingNames.none { it.equals(name, ignoreCase = true) }
+            name.isNotBlank() && name.length <= MAX_NAME_LENGTH &&
+                    existingNames.none { it.equals(name, ignoreCase = true) }
         }
     }
 
@@ -76,17 +79,12 @@ fun PlayerSetupScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Text(
-            "Player ${playerIndex + 1} of $totalPlayers",
-            style = MaterialTheme.typography.headlineMedium
-        )
+        Text("Player ${playerIndex + 1} of $totalPlayers", style = MaterialTheme.typography.headlineMedium)
         Spacer(modifier = Modifier.height(24.dp))
         Text("Enter your name:")
         Spacer(modifier = Modifier.height(16.dp))
 
-        Row(
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
             OutlinedTextField(
                 value = name,
                 onValueChange = { name = it },
@@ -97,8 +95,7 @@ fun PlayerSetupScreen(
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                 keyboardActions = KeyboardActions(onDone = {
                     if (isNameValid) {
-                        onNameEntered(name)
-                        name = ""
+                        showConfirmationDialog = true
                     }
                 }),
                 modifier = Modifier
@@ -111,8 +108,7 @@ fun PlayerSetupScreen(
             Button(
                 onClick = {
                     if (isNameValid) {
-                        onNameEntered(name)
-                        name = ""
+                        showConfirmationDialog = true
                     }
                 },
                 enabled = isNameValid
@@ -121,7 +117,34 @@ fun PlayerSetupScreen(
             }
         }
     }
+
+    if (showConfirmationDialog) {
+        AlertDialog(
+            onDismissRequest = { showConfirmationDialog = false },
+            title = { Text("Confirm Name") },
+            text = {
+                Text("Are you sure you want to use \"$name\"?\n\nReady to see your secret word and role? Make sure no one else is watching!")
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    onNameEntered(name)
+                    name = ""
+                    showConfirmationDialog = false
+                }) {
+                    Text("Yes, I'm ready")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    showConfirmationDialog = false
+                }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
 }
+
 
 @Composable
 fun ShowWordScreen(
