@@ -1,5 +1,6 @@
 package com.example.myapp.undercover
 
+import androidx.compose.ui.graphics.Color
 import kotlin.random.Random
 
 // 1. Player generation
@@ -120,4 +121,17 @@ fun List<Player>.awardImpostorPoints(scores: Map<String, Int>): Map<String, Int>
         updatedScores = updatedScores.updateScore(player.name, ScoreValues.IMPOSTOR_WIN)
     }
     return updatedScores
+}
+
+// 5. Display utilities
+fun PlayerRole.displayName(): String = when (this) {
+    PlayerRole.CIVILIAN -> "Civilian"
+    PlayerRole.IMPOSTOR -> "Impostor"
+    PlayerRole.MR_WHITE -> "Mr. White"
+}
+
+fun PlayerRole.displayColor(): Color = when (this) {
+    PlayerRole.CIVILIAN -> Color.Blue
+    PlayerRole.IMPOSTOR -> Color(0xFFFF6600)
+    PlayerRole.MR_WHITE -> Color.Red
 }

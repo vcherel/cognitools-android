@@ -203,6 +203,7 @@ fun UndercoverScreen(onBack: () -> Unit) {
                 MrWhiteGuessScreen(
                     player = gameState.player,
                     lastEliminated = gameState.lastEliminated,
+                    allPlayers = state.players,
                     onGuessSubmitted = { guessedWord ->
                         val correctWord = gameState.correctWord
                         val wasEliminated = gameState.player.isEliminated
