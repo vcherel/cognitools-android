@@ -13,7 +13,6 @@ data class FlashcardList(val id: String = UUID.randomUUID().toString(), val name
         }
     }
     companion object {
-        private val cache = mutableMapOf<String, List<FlashcardList>>()
         fun fromJson(json: JSONObject): FlashcardList {
             return FlashcardList(
                 id = json.getString("id"),
@@ -28,13 +27,11 @@ data class FlashcardList(val id: String = UUID.randomUUID().toString(), val name
         }
 
         fun listFromJsonString(jsonString: String): List<FlashcardList> {
-            return cache.getOrPut(jsonString) {
-                try {
-                    val jsonArray = JSONArray(jsonString)
-                    List(jsonArray.length()) { i -> fromJson(jsonArray.getJSONObject(i)) }
-                } catch (_: Exception) {
-                    emptyList()
-                }
+            return try {
+                val jsonArray = JSONArray(jsonString)
+                List(jsonArray.length()) { i -> fromJson(jsonArray.getJSONObject(i)) }
+            } catch (_: Exception) {
+                emptyList()
             }
         }
     }
