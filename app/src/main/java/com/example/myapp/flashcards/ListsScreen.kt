@@ -8,13 +8,16 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.text.KeyboardOptions
@@ -25,6 +28,8 @@ import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
@@ -253,7 +258,9 @@ private fun FlashcardListItem(
     onNavigate: () -> Unit,
     onBulkImport: () -> Unit,
     onRename: (String) -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    onMoveUp: () -> Unit = {},
+    onMoveDown: () -> Unit = {}
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
@@ -270,11 +277,13 @@ private fun FlashcardListItem(
             ) { onNavigate() },
         elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Box(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.Top
+                verticalAlignment = Alignment.CenterVertically
             ) {
+                // Name and due count
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         flashcardList.name,
@@ -289,19 +298,59 @@ private fun FlashcardListItem(
                     )
                 }
 
-                Row {
-                    IconButton(onClick = onBulkImport) {
+                // Add/Edit/Delete buttons
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(2.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(end = 30.dp)
+                ) {
+                    IconButton(
+                        onClick = onBulkImport,
+                        modifier = Modifier.size(36.dp)
+                    ) {
                         Icon(Icons.Default.Add, contentDescription = "Ajouter")
                     }
-
-                    IconButton(onClick = { onRename(flashcardList.name) }) {
+                    IconButton(
+                        onClick = { onRename(flashcardList.name) },
+                        modifier = Modifier.size(36.dp)
+                    ) {
                         Icon(Icons.Default.Edit, contentDescription = "Éditer")
                     }
-
-                    IconButton(onClick = { showDeleteDialog = true }) {
+                    IconButton(
+                        onClick = { showDeleteDialog = true },
+                        modifier = Modifier.size(36.dp)
+                    ) {
                         Icon(Icons.Default.Delete, contentDescription = "Supprimer")
                     }
                 }
+            }
+
+            // Up arrow
+            IconButton(
+                onClick = onMoveUp,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .offset(x = 12.dp, y = (-12).dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.KeyboardArrowUp,
+                    contentDescription = "Monter",
+                    tint = Color.Black
+                )
+            }
+
+            // Down arrow
+            IconButton(
+                onClick = onMoveDown,
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .offset(x = 12.dp, y = 12.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.KeyboardArrowDown,
+                    contentDescription = "Descendre",
+                    tint = Color.Black
+                )
             }
         }
     }
