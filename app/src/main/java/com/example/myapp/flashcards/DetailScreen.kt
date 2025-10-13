@@ -254,7 +254,7 @@ fun FlashcardDetailScreen(listId: String, onBack: () -> Unit, navController: Nav
                                     color = if (isDue(element)) Color(0xFF009900) else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
 
-                                val scoreColor = when (element.score?.toInt() ?: 0) {
+                                val scoreColor = when (element.score.toInt()) {
                                     0 -> Color(0xFFFF0000)
                                     1 -> Color(0xFFFF3300)
                                     2 -> Color(0xFFFF6600)
@@ -277,9 +277,9 @@ fun FlashcardDetailScreen(listId: String, onBack: () -> Unit, navController: Nav
                                             .border(width = 2.dp, color = scoreColor, shape = CircleShape)
                                     ) {
                                         Text(
-                                            "${element.score?.toInt() ?: 0}",
+                                            "${element.score.toInt()}",
                                             style = MaterialTheme.typography.bodySmall.copy(
-                                                shadow = if ((element.score?.toInt() ?: 0) <= 3 || element.score?.toInt() == 10) null else Shadow(
+                                                shadow = if ((element.score.toInt()) <= 3 || element.score.toInt() == 10) null else Shadow(
                                                     color = Color.Black,
                                                     offset = Offset(0f, 0f),
                                                     blurRadius = 1f

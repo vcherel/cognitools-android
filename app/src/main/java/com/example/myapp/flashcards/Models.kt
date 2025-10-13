@@ -51,7 +51,7 @@ data class FlashcardElement(
     var lastReview: Long = System.currentTimeMillis(),
     var totalWins: Int = 0,
     var totalLosses: Int = 0,
-    var score: Double? = null
+    var score: Double = 0.0
 ) {
     fun toJson(): JSONObject {
         return JSONObject().apply {
@@ -83,7 +83,7 @@ data class FlashcardElement(
                 lastReview = json.optLong("lastReview", System.currentTimeMillis()),
                 totalWins = json.optInt("totalWins", 0),
                 totalLosses = json.optInt("totalLosses", 0),
-                score = json.optDouble("score").takeIf { !json.isNull("score") }
+                score = json.optDouble("score", 0.0)
             )
         }
 

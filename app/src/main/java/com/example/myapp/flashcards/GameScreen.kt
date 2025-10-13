@@ -410,8 +410,7 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
                                 Text(
                                     "${currentCard?.score?.toInt() ?: 0}",
                                     style = MaterialTheme.typography.bodyLarge.copy(
-                                        shadow = if ((currentCard?.score?.toInt()
-                                                ?: 0) <= 3 || currentCard?.score?.toInt() == 10
+                                        shadow = if ((currentCard?.score?.toInt() ?: 0) <= 3 || currentCard?.score?.toInt() == 10
                                         ) null else Shadow(
                                             color = Color.Black,
                                             offset = Offset(0f, 0f),
