@@ -130,21 +130,7 @@ class FlashcardRepository(private val context: Context) {
         return lists.flatMap { list -> getElements(list.id) }
     }
 
-    // Get due count for a list
-    suspend fun getDueCount(listId: String): Int {
-        val elements = getElements(listId)
-        return elements.count { isDue(it) }
-    }
-
-    // Get due counts for all lists
-    suspend fun getAllDueCounts(): Map<String, Int> {
-        val lists = getLists()
-        return lists.associate { list ->
-            list.id to getDueCount(list.id)
-        }
-    }
-
-    // Import data (replaces importFlashcardsData)
+    // Import data
     suspend fun importData(jsonString: String): Boolean {
         return try {
             val json = org.json.JSONObject(jsonString)
@@ -182,7 +168,7 @@ class FlashcardRepository(private val context: Context) {
         }
     }
 
-    // Export data (works with existing exportFlashcards function)
+    // Export data
     suspend fun getExportData(): Pair<List<FlashcardList>, List<FlashcardElement>> {
         val lists = getLists()
         val allElements = getAllElements()
