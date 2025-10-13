@@ -36,7 +36,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -74,20 +73,12 @@ fun FlashcardListsScreen(onBack: () -> Unit, navController: NavController) {
     var bulkImportText by remember { mutableStateOf("") }
     var selectedListId by remember { mutableStateOf("") }
 
-    // Observe lists directly from repository
-    val lists by repository.observeLists().collectAsState(initial = emptyList())
+    // Observe lists AND due counts together
+    val listsWithCounts by repository.observeListsWithDueCounts()
+        .collectAsState(initial = emptyList<FlashcardList>() to emptyMap())
 
-    // Compute due counts in background
-    var dueCountMap by remember { mutableStateOf<Map<String, Int>>(emptyMap()) }
-
-    LaunchedEffect(lists) {
-        withContext(Dispatchers.Default) {
-            val counts = repository.getAllDueCounts()
-            withContext(Dispatchers.Main) {
-                dueCountMap = counts
-            }
-        }
-    }
+    val lists = listsWithCounts.first
+    val dueCountMap = listsWithCounts.second
 
     BackHandler { onBack() }
 

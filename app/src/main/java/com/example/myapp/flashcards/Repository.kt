@@ -19,6 +19,24 @@ class FlashcardRepository(private val context: Context) {
         }
     }
 
+    // Observe all lists with due counts (computed together)
+    fun observeListsWithDueCounts(): Flow<Pair<List<FlashcardList>, Map<String, Int>>> {
+        return context.dataStore.data.map { prefs ->
+            val jsonString = prefs[listsKey] ?: "[]"
+            val lists = FlashcardList.listFromJsonString(jsonString)
+
+            // Compute due counts for all lists in one go
+            val dueCounts = lists.associate { list ->
+                val key = stringPreferencesKey("elements_${list.id}")
+                val cardsJson = prefs[key] ?: "[]"
+                val elements = FlashcardElement.listFromJsonString(cardsJson)
+                list.id to elements.count { isDue(it) }
+            }
+
+            lists to dueCounts
+        }
+    }
+
     // Get lists once (suspending)
     suspend fun getLists(): List<FlashcardList> {
         return observeLists().first()
