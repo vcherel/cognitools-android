@@ -36,6 +36,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -76,13 +77,24 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
         .collectAsState(initial = null)
 
     var allElements by remember { mutableStateOf<List<FlashcardElement>>(emptyList()) }
-    var dueCards by remember { mutableStateOf<List<FlashcardElement>>(emptyList()) }
     var currentCard by remember { mutableStateOf<FlashcardElement?>(null) }
     var showDefinition by remember { mutableStateOf(false) }
     var cardOffset by remember { mutableFloatStateOf(0f) }
     var isProcessingSwipe by remember { mutableStateOf(false) }
     var showFront by remember { mutableStateOf(true) }
     var activeDifficultCards by remember { mutableStateOf<Set<String>>(emptySet()) }
+
+    val dueCards by remember(allElements, activeDifficultCards) {
+        derivedStateOf {
+            allElements.filter { card ->
+                if (card.id in activeDifficultCards && card.score > 2) {
+                    true
+                } else {
+                    isDue(card) && card.totalWins > 0
+                }
+            }
+        }
+    }
 
     BackHandler {
         onBack()
@@ -114,16 +126,6 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
             // Update active difficult cards set if there are difficult cards to add
             if (availableToAdd.isNotEmpty()) {
                 activeDifficultCards = (currentActiveDifficultCards.map { it.id } + availableToAdd.map { it.id }).toSet()
-            }
-
-            // Compute due cards: difficult active cards or previously learned cards that are due
-            dueCards = loaded.filter { card ->
-                if (card.id in activeDifficultCards && card.score > 2) {
-                    true
-                } else {
-                    // For cards already learned, apply normal due logic
-                    isDue(card) && card.totalWins > 0
-                }
             }
 
             // Pick a random current card if none is selected yet
@@ -229,11 +231,6 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
                 if (available.isNotEmpty()) {
                     activeDifficultCards = activeDifficultCards + available.map { it.id }.toSet()
                 }
-            }
-
-            // Update due cards list
-            dueCards = updatedElements.filter {
-                isDue(it) && (it.totalWins > 0 || it.id in activeDifficultCards)
             }
 
             // Move to next card (exclude current card)
