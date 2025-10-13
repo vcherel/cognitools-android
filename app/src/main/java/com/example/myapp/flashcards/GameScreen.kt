@@ -87,11 +87,11 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
     val dueCards by remember(allElements, activeDifficultCards) {
         derivedStateOf {
             allElements.filter { card ->
-                if (card.id in activeDifficultCards && card.score > 2) {
-                    true
-                } else {
-                    isDue(card) && card.totalWins > 0
-                }
+                val due = isDue(card)
+                val isDifficult = card.score < 2
+
+                // Only include difficult cards if they are in activeDifficultCards
+                due && (!isDifficult || card.id in activeDifficultCards)
             }
         }
     }
@@ -108,12 +108,12 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
             allElements = loaded
 
             // Get all difficult cards
-            val difficultCards = loaded.filter { it.score > 2 }
+            val difficultCards = loaded.filter { it.score < 2 }
 
             // Keep currently active cards that are still difficult
             val currentActiveDifficultCards = activeDifficultCards.mapNotNull { activeId ->
                 loaded.find { it.id == activeId }
-            }.filter { it.score > 2 }
+            }.filter { it.score < 2 }
 
             // Calculate how many more difficult cards we need to reach 10
             val needed = (10 - currentActiveDifficultCards.size).coerceAtLeast(0)
@@ -166,7 +166,7 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
 
                 when {
                     (newScore < 2.5 && Math.random() < probability) -> 60 + Math.random() * 120
-                    (Math.random() < 0.33) -> newScore.coerceAtLeast(1.0)
+                    (Math.random() < 0.25) -> newScore.coerceAtLeast(1.0)
                     else -> 0.0
                 }
             }
@@ -217,12 +217,12 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
             saveElements(updatedElements)
 
             // Remove the card from active difficult cards if the score is high enough
-            if (wasCorrect && card.score > 2) {
+            if (wasCorrect && card.score < 2) {
                 // Remove this card from active difficult cards
                 activeDifficultCards = activeDifficultCards - card.id
 
                 // Find remaining difficult cards (never won)
-                val remainingDifficultCards = updatedElements.filter { it.score > 2 }
+                val remainingDifficultCards = updatedElements.filter { it.score < 2 }
 
                 // Add difficult cards until we have 10 active or run out of difficult cards
                 val needed = 10 - activeDifficultCards.size
