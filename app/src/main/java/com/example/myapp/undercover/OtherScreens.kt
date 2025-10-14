@@ -483,7 +483,7 @@ fun GameOverScreen(
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        Button(onClick = { onContinue() }) {
+        Button(onClick = onContinue) {
             Text("View Leaderboard")
         }
     }
@@ -492,6 +492,7 @@ fun GameOverScreen(
 @Composable
 fun LeaderboardScreen(
     allScores: Map<String, Int>,
+    onBackToMenu: () -> Unit,
     onNewGame: () -> Unit
 ) {
     Column(
@@ -536,13 +537,16 @@ fun LeaderboardScreen(
             }
         }
 
+        Spacer(modifier = Modifier.height(32.dp))
+
+        Button(onClick = onBackToMenu) {
+            Text("Back to Main Menu")
+        }
+
         Spacer(modifier = Modifier.height(16.dp))
 
-        Button(
-            onClick = onNewGame,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text("New Game")
+        Button(onClick = onNewGame) {
+            Text("Play Again")
         }
     }
 }

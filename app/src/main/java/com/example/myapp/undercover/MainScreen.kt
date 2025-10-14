@@ -315,9 +315,8 @@ fun UndercoverScreen(onBack: () -> Unit) {
             is GameState.Leaderboard -> {
                 LeaderboardScreen(
                     allScores = state.allPlayersScores,
-                    onNewGame = {
-                        state = UndercoverGameState()
-                    }
+                    onBackToMenu = { state = UndercoverGameState(gameState = GameState.Settings) },
+                    onNewGame = { state = UndercoverGameState(settings = state.settings) }
                 )
             }
         }
