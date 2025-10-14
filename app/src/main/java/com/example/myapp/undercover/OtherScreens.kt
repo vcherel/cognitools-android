@@ -620,7 +620,7 @@ fun MrWhiteGuessScreen(
             )
         } else {
             Text(
-                "Only Mr. White remains!",
+                "One Mr. White remains!",
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.Center
