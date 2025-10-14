@@ -91,10 +91,12 @@ fun UndercoverScreen(onBack: () -> Unit) {
         when (val gameState = state.gameState) {
             is GameState.Settings -> {
                 SettingsScreen(
-                    settings = state.settings,
-                    onSettingsChange = { state = state.copy(settings = it) },
+                    state = state,
+                    onSettingsChange = { updatedState ->
+                        state = updatedState
+                    },
                     onStart = {
-                        val assignedPlayers = generateAndAssignPlayers(state.settings)
+                        val assignedPlayers = generateAndAssignPlayers(state)
                         state = state.copy(
                             players = assignedPlayers,
                             currentPlayerIndex = 0,
@@ -150,7 +152,7 @@ fun UndercoverScreen(onBack: () -> Unit) {
                     } else {
                         PlayerSetupScreen(
                             playerIndex = gameState.playerIndex,
-                            totalPlayers = state.settings.playerCount,
+                            totalPlayers = state.players.size,
                             existingNames = state.players.map { it.name },
                             onNameEntered = { name ->
                                 val updatedPlayers = state.players.mapIndexed { index, player ->
@@ -364,7 +366,7 @@ fun UndercoverScreen(onBack: () -> Unit) {
                     allScores = state.allPlayersScores,
                     onBackToMenu = { state = UndercoverGameState(gameState = GameState.Settings) },
                     onNewGame = {
-                        val reassignedPlayers = reassignRolesAndWords(state.players, state.settings)
+                        val reassignedPlayers = reassignRolesAndWords(state)
                         state = state.copy(
                             players = reassignedPlayers,
                             currentPlayerIndex = 0,

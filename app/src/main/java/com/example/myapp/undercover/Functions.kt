@@ -4,8 +4,8 @@ import androidx.compose.ui.graphics.Color
 import kotlin.random.Random
 
 // Player generation and role/word assignment
-fun generateAndAssignPlayers(settings: GameSettings): List<Player> {
-    val players = (0 until settings.playerCount).map { i ->
+fun generateAndAssignPlayers(state: UndercoverGameState): List<Player> {
+    val players = (0 until state.players.size).map { i ->
         Player(name = "Player ${i + 1}", role = PlayerRole.CIVILIAN, word = "")
     }.toMutableList()
 
@@ -18,9 +18,9 @@ fun generateAndAssignPlayers(settings: GameSettings): List<Player> {
 
     val indices = players.indices.shuffled().toMutableList()
 
-    var impostorCount = settings.impostorCount
-    val mrWhiteCount = if (settings.randomComposition) {
-        val maxMrWhite = settings.playerCount - 2
+    var impostorCount = state.settings.impostorCount
+    val mrWhiteCount = if (state.settings.randomComposition) {
+        val maxMrWhite = state.players.size - 2
         var count = 0
         var chance = 0.5
         while (count < maxMrWhite && Random.nextDouble() < chance) {
@@ -28,10 +28,10 @@ fun generateAndAssignPlayers(settings: GameSettings): List<Player> {
             chance *= 0.5
         }
         count
-    } else settings.mrWhiteCount
+    } else state.settings.mrWhiteCount
 
-    if (settings.randomComposition) {
-        val maxImpostors = ((settings.playerCount - mrWhiteCount) / 2) - 1
+    if (state.settings.randomComposition) {
+        val maxImpostors = ((state.players.size - mrWhiteCount) / 2) - 1
         impostorCount = if (maxImpostors >= 1) {
             Random.nextInt(1, maxImpostors + 1)
         } else 0
@@ -57,11 +57,11 @@ fun generateAndAssignPlayers(settings: GameSettings): List<Player> {
     return players
 }
 
-fun reassignRolesAndWords(players: List<Player>, settings: GameSettings): List<Player> {
-    val newPlayers = generateAndAssignPlayers(settings)
+fun reassignRolesAndWords(state: UndercoverGameState): List<Player> {
+    val newPlayers = generateAndAssignPlayers(state)
     // Keep the original names
     return newPlayers.mapIndexed { index, p ->
-        p.copy(name = players.getOrNull(index)?.name ?: p.name)
+        p.copy(name = state.players.getOrNull(index)?.name ?: p.name)
     }
 }
 

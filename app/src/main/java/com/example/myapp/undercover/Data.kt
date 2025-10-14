@@ -3,8 +3,8 @@ package com.example.myapp.undercover
 // 1. Player-related data
 data class Player(
     val name: String,
-    val role: PlayerRole,
-    val word: String,
+    val role: PlayerRole = PlayerRole.CIVILIAN,
+    val word: String = "",
     val isEliminated: Boolean = false,
     val points: Int = 0
 )
@@ -15,7 +15,6 @@ enum class PlayerRole {
 
 // 2. Game settings
 data class GameSettings(
-    val playerCount: Int = 4,
     val impostorCount: Int = 1,
     val mrWhiteCount: Int = 0,
     val randomComposition: Boolean = true,
@@ -51,7 +50,9 @@ sealed class GameState {
 data class UndercoverGameState(
     val gameState: GameState = GameState.Settings,
     val settings: GameSettings = GameSettings(),
-    val players: List<Player> = emptyList(),
+    val players: List<Player> = List(3) { index ->
+        Player(name = "Player ${index + 1}")
+    },
     val currentPlayerIndex: Int = 0,
     val currentRound: Int = 1,
     val allPlayersScores: Map<String, Int> = emptyMap(),

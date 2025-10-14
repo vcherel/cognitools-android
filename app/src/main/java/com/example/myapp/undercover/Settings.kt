@@ -96,16 +96,16 @@ fun validateGameSettings(
 
 @Composable
 fun SettingsScreen(
-    settings: GameSettings,
-    onSettingsChange: (GameSettings) -> Unit,
+    state: UndercoverGameState,
+    onSettingsChange: (UndercoverGameState) -> Unit,
     onStart: () -> Unit
 ) {
     // Calculate current valid ranges
-    val maxImpostors = (settings.playerCount - 1) / 2
+    val maxImpostors = (state.players.size - 1) / 2
     val (_, _, maxMrWhiteFromSwap) = validateGameSettings(
-        playerCount = settings.playerCount,
-        impostorCount = settings.impostorCount,
-        mrWhiteCount = settings.mrWhiteCount + 1,
+        playerCount = state.players.size,
+        impostorCount = state.settings.impostorCount,
+        mrWhiteCount = state.settings.mrWhiteCount + 1,
         allowSwap = true,
         swapDirection = SwapDirection.INCREASE_MR_WHITE
     )
@@ -118,20 +118,41 @@ fun SettingsScreen(
         // Player count
         NumberSetting(
             label = "Number of Players",
-            value = settings.playerCount,
+            value = state.players.size,
             onValueChange = { newPlayerCount ->
-                val (validPlayers, validImpostors, validMrWhite) = validateGameSettings(
+                val (_, validImpostors, validMrWhite) = validateGameSettings(
                     playerCount = newPlayerCount,
-                    impostorCount = settings.impostorCount,
-                    mrWhiteCount = settings.mrWhiteCount
+                    impostorCount = state.settings.impostorCount,
+                    mrWhiteCount = state.settings.mrWhiteCount
                 )
-                onSettingsChange(
-                    settings.copy(
-                        playerCount = validPlayers,
+
+                // Create updated players list
+                val updatedPlayers = when {
+                    newPlayerCount > state.players.size -> {
+                        state.players + List(newPlayerCount - state.players.size) { index ->
+                            Player(
+                                name = "Player ${state.players.size + index + 1}",
+                                role = PlayerRole.CIVILIAN,
+                                word = ""
+                            )
+                        }
+                    }
+                    newPlayerCount < state.players.size -> {
+                        state.players.take(newPlayerCount)
+                    }
+                    else -> state.players
+                }
+
+                // Return the full updated state via callback
+                val updatedState = state.copy(
+                    settings = state.settings.copy(
                         impostorCount = validImpostors,
                         mrWhiteCount = validMrWhite
-                    )
+                    ),
+                    players = updatedPlayers
                 )
+
+                onSettingsChange(updatedState)
             },
             min = 3,
             max = 20
@@ -147,8 +168,13 @@ fun SettingsScreen(
         ) {
             Text("Random Composition")
             Switch(
-                checked = settings.randomComposition,
-                onCheckedChange = { onSettingsChange(settings.copy(randomComposition = it)) }
+                checked = state.settings.randomComposition,
+                onCheckedChange = { isChecked ->
+                    val updatedState = state.copy(
+                        settings = state.settings.copy(randomComposition = isChecked)
+                    )
+                    onSettingsChange(updatedState)
+                }
             )
         }
 
@@ -156,62 +182,67 @@ fun SettingsScreen(
 
         NumberSetting(
             label = "Number of Impostors",
-            value = settings.impostorCount,
+            value = state.settings.impostorCount,
             onValueChange = { newImpostorCount ->
                 val swapDirection = when {
-                    newImpostorCount < settings.impostorCount -> SwapDirection.DECREASE_IMPOSTOR
-                    newImpostorCount > settings.impostorCount -> SwapDirection.INCREASE_IMPOSTOR
+                    newImpostorCount < state.settings.impostorCount -> SwapDirection.DECREASE_IMPOSTOR
+                    newImpostorCount > state.settings.impostorCount -> SwapDirection.INCREASE_IMPOSTOR
                     else -> SwapDirection.NONE
                 }
 
                 val (_, validImpostors, validMrWhite) = validateGameSettings(
-                    playerCount = settings.playerCount,
+                    playerCount = state.players.size,
                     impostorCount = newImpostorCount,
-                    mrWhiteCount = settings.mrWhiteCount,
+                    mrWhiteCount = state.settings.mrWhiteCount,
                     allowSwap = true,
                     swapDirection = swapDirection
                 )
-                onSettingsChange(
-                    settings.copy(
+
+                val updatedState = state.copy(
+                    settings = state.settings.copy(
                         impostorCount = validImpostors,
                         mrWhiteCount = validMrWhite
                     )
                 )
+                onSettingsChange(updatedState)
             },
             min = 0,
             max = maxImpostors,
-            enabled = !settings.randomComposition
+            enabled = !state.settings.randomComposition
         )
 
         Spacer(modifier = Modifier.height(16.dp))
 
         NumberSetting(
             label = "Number of Mr. Whites",
-            value = settings.mrWhiteCount,
+            value = state.settings.mrWhiteCount,
             onValueChange = { newMrWhiteCount ->
                 val swapDirection = when {
-                    newMrWhiteCount < settings.mrWhiteCount -> SwapDirection.DECREASE_MR_WHITE
-                    newMrWhiteCount > settings.mrWhiteCount -> SwapDirection.INCREASE_MR_WHITE
+                    newMrWhiteCount < state.settings.mrWhiteCount -> SwapDirection.DECREASE_MR_WHITE
+                    newMrWhiteCount > state.settings.mrWhiteCount -> SwapDirection.INCREASE_MR_WHITE
                     else -> SwapDirection.NONE
                 }
 
                 val (_, validImpostors, validMrWhite) = validateGameSettings(
-                    playerCount = settings.playerCount,
-                    impostorCount = settings.impostorCount,
+                    playerCount = state.players.size,
+                    impostorCount = state.settings.impostorCount,
                     mrWhiteCount = newMrWhiteCount,
                     allowSwap = true,
                     swapDirection = swapDirection
                 )
-                onSettingsChange(
-                    settings.copy(
+
+                val updatedState = state.copy(
+                    settings = state.settings.copy(
                         impostorCount = validImpostors,
                         mrWhiteCount = validMrWhite
                     )
                 )
+
+                onSettingsChange(updatedState)
             },
             min = 0,
             max = maxMrWhite,
-            enabled = !settings.randomComposition
+            enabled = !state.settings.randomComposition
         )
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -224,8 +255,13 @@ fun SettingsScreen(
         ) {
             Text("Impostors Know Their Role")
             Switch(
-                checked = settings.impostorsKnowRole,
-                onCheckedChange = { onSettingsChange(settings.copy(impostorsKnowRole = it)) }
+                checked = state.settings.impostorsKnowRole,
+                onCheckedChange = { isChecked ->
+                    val updatedState = state.copy(
+                        settings = state.settings.copy(impostorsKnowRole = isChecked)
+                    )
+                    onSettingsChange(updatedState)
+                }
             )
         }
 
