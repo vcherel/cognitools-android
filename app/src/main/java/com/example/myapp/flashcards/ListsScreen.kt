@@ -34,6 +34,7 @@ import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -41,6 +42,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -80,7 +82,14 @@ fun FlashcardListsScreen(onBack: () -> Unit, navController: NavController) {
 
     // Observe lists AND due counts together
     val listsWithCounts by repository.observeListsWithDueCounts()
-        .collectAsState(initial = emptyList<FlashcardList>() to emptyMap())
+        .collectAsState(initial = Pair(emptyList(), emptyMap()))
+
+    var isLoading by remember { mutableStateOf(true) }
+    LaunchedEffect(listsWithCounts) {
+        if (listsWithCounts.first.isNotEmpty() || listsWithCounts.second.isNotEmpty()) {
+            isLoading = false
+        }
+    }
 
     val lists = listsWithCounts.first
     val dueCountMap = listsWithCounts.second
@@ -136,53 +145,64 @@ fun FlashcardListsScreen(onBack: () -> Unit, navController: NavController) {
         Spacer(Modifier.height(16.dp))
 
         // List of flashcard lists
-        LazyColumn(modifier = Modifier.weight(1f)) {
-            itemsIndexed(items = lists, key = { _, item -> item.id }) { index, flashcardList ->
-                FlashcardListItem(
-                    flashcardList = flashcardList,
-                    dueCount = dueCountMap[flashcardList.id] ?: 0,
-                    onNavigate = { navController.navigate("elements/${flashcardList.id}") },
-                    onBulkImport = {
-                        selectedListId = flashcardList.id
-                        showBulkImportDialog = true
-                        bulkImportText = ""
-                    },
-                    onRename = {
-                        dialogTitle = "Renommer la liste"
-                        dialogValue = flashcardList.name
-                        dialogAction = { newName ->
-                            scope.launch {
-                                repository.updateList(flashcardList.id, newName)
-                            }
-                        }
-                        showDialog = true
-                    },
-                    onDelete = {
-                        scope.launch {
-                            repository.deleteList(flashcardList.id)
-                        }
-                    },
-                    onMoveUp = {
-                        if (index > 0) {
-                            val mutableLists = lists.toMutableList()
-                            // Swap with the previous list
-                            val temp = mutableLists[index - 1]
-                            mutableLists[index - 1] = mutableLists[index]
-                            mutableLists[index] = temp
-                            scope.launch { repository.reorderLists(mutableLists) }
-                        }
-                    },
-                    onMoveDown = {
-                        if (index < lists.size - 1) {
-                            val mutableLists = lists.toMutableList()
-                            // Swap with the next list
-                            val temp = mutableLists[index + 1]
-                            mutableLists[index + 1] = mutableLists[index]
-                            mutableLists[index] = temp
-                            scope.launch { repository.reorderLists(mutableLists) }
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth(),
+            contentAlignment = Alignment.Center
+        ) {
+            when {
+                isLoading -> { CircularProgressIndicator(color = Color.Black) }
+                lists.isEmpty() -> { Text("Aucune liste disponible", style = MaterialTheme.typography.bodyMedium) }
+                else -> {
+                    LazyColumn {
+                        itemsIndexed(items = lists, key = { _, item -> item.id }) { index, flashcardList ->
+                            FlashcardListItem(
+                                flashcardList = flashcardList,
+                                dueCount = dueCountMap[flashcardList.id] ?: 0,
+                                onNavigate = { navController.navigate("elements/${flashcardList.id}") },
+                                onBulkImport = {
+                                    selectedListId = flashcardList.id
+                                    showBulkImportDialog = true
+                                    bulkImportText = ""
+                                },
+                                onRename = {
+                                    dialogTitle = "Renommer la liste"
+                                    dialogValue = flashcardList.name
+                                    dialogAction = { newName ->
+                                        scope.launch {
+                                            repository.updateList(flashcardList.id, newName)
+                                        }
+                                    }
+                                    showDialog = true
+                                },
+                                onDelete = {
+                                    scope.launch {
+                                        repository.deleteList(flashcardList.id)
+                                    }
+                                },
+                                onMoveUp = {
+                                    if (index > 0) {
+                                        val mutableLists = lists.toMutableList()
+                                        val temp = mutableLists[index - 1]
+                                        mutableLists[index - 1] = mutableLists[index]
+                                        mutableLists[index] = temp
+                                        scope.launch { repository.reorderLists(mutableLists) }
+                                    }
+                                },
+                                onMoveDown = {
+                                    if (index < lists.size - 1) {
+                                        val mutableLists = lists.toMutableList()
+                                        val temp = mutableLists[index + 1]
+                                        mutableLists[index + 1] = mutableLists[index]
+                                        mutableLists[index] = temp
+                                        scope.launch { repository.reorderLists(mutableLists) }
+                                    }
+                                }
+                            )
                         }
                     }
-                )
+                }
             }
         }
 
