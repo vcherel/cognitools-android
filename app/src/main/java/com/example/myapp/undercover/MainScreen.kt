@@ -23,6 +23,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import kotlin.random.Random
 
@@ -103,10 +107,46 @@ fun UndercoverScreen(onBack: () -> Unit) {
             is GameState.PlayerSetup -> {
                 if (!gameState.showWord) {
                     if (state.quickStart) {
-                        // Skip name input
-                        state = state.copy(
-                            gameState = GameState.PlayerSetup(gameState.playerIndex, showWord = true)
-                        )
+                        // Instead of skipping directly, show a confirmation dialog
+                        var showQuickStartDialog by remember { mutableStateOf(true) }
+
+                        val currentPlayer = state.players.getOrNull(gameState.playerIndex)
+
+                        if (currentPlayer != null && showQuickStartDialog) {
+                            AlertDialog(
+                                onDismissRequest = { showQuickStartDialog = false },
+                                title = { Text("Warning") },
+                                text = {
+                                    Text(
+                                        buildAnnotatedString {
+                                            append("The secret word for ")
+                                            withStyle(style = SpanStyle(fontWeight = FontWeight.Bold)) {
+                                                append(currentPlayer.name)
+                                            }
+                                            append(" will now be displayed. Make sure no one else is watching!")
+                                        }
+                                    )
+                                },
+                                confirmButton = {
+                                    TextButton(onClick = {
+                                        state = state.copy(
+                                            gameState = GameState.PlayerSetup(gameState.playerIndex, showWord = true)
+                                        )
+                                        showQuickStartDialog = false
+                                    }) {
+                                        Text("OK")
+                                    }
+                                },
+                                dismissButton = {
+                                    TextButton(onClick = {
+                                        showQuickStartDialog = false
+                                    }) {
+                                        Text("Cancel")
+                                    }
+                                }
+                            )
+                        }
+
                     } else {
                         PlayerSetupScreen(
                             playerIndex = gameState.playerIndex,
@@ -124,7 +164,6 @@ fun UndercoverScreen(onBack: () -> Unit) {
                         )
                     }
                 } else {
-                    // ShowWordScreen remains unchanged
                     ShowWordScreen(
                         player = state.players[gameState.playerIndex],
                         playerIndex = gameState.playerIndex,
@@ -140,7 +179,7 @@ fun UndercoverScreen(onBack: () -> Unit) {
                                 state = state.copy(
                                     currentPlayerIndex = if (activeCount > 0) Random.nextInt(activeCount) else 0,
                                     gameState = GameState.PlayMenu,
-                                    quickStart = false // reset flag
+                                    quickStart = false
                                 )
                             }
                         }
