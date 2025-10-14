@@ -306,8 +306,15 @@ fun UndercoverScreen(onBack: () -> Unit) {
                     civiliansWon = gameState.civiliansWon,
                     lastEliminated = gameState.lastEliminated,
                     players = state.players,
-                    allScores = state.allPlayersScores,
                     gameWord = state.players.first { it.role == PlayerRole.CIVILIAN }.word,
+                    onContinue = {
+                        state = state.copy(gameState = GameState.Leaderboard)
+                    }
+                )
+            }
+            is GameState.Leaderboard -> {
+                LeaderboardScreen(
+                    allScores = state.allPlayersScores,
                     onNewGame = {
                         state = UndercoverGameState()
                     }

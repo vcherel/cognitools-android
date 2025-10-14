@@ -45,6 +45,7 @@ sealed class GameState {
     data class EliminationResult(val player: Player, val gameOver: Boolean) : GameState()
     data class MrWhiteGuess(val player: Player, val correctWord: String, val lastEliminated: Player?) : GameState()
     data class GameOver(val civiliansWon: Boolean, val lastEliminated: Player) : GameState()
+    object Leaderboard : GameState()
 }
 
 data class UndercoverGameState(

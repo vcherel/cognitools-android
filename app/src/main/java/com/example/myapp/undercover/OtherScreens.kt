@@ -412,139 +412,141 @@ fun EliminationResultScreen(
 fun GameOverScreen(
     civiliansWon: Boolean,
     lastEliminated: Player,
-    allScores: Map<String, Int>,
     players: List<Player>,
     gameWord: String,
-    onNewGame: () -> Unit
+    onContinue: () -> Unit
 ) {
-    var showScoreboard by remember { mutableStateOf(false) }
+    val activePlayers by remember { derivedStateOf { players.activePlayers() } }
+    val activeRoles by remember { derivedStateOf { activePlayers.map { it.role }.toSet() } }
 
-    if (!showScoreboard) {
-        val activePlayers by remember { derivedStateOf { players.activePlayers() } }
-        val activeRoles by remember { derivedStateOf { activePlayers.map { it.role }.toSet() } }
+    val winnerText = when {
+        civiliansWon -> "Civilians Win!"
+        lastEliminated.role == PlayerRole.MR_WHITE -> "Mr White (${lastEliminated.name}) Wins!"
+        else -> when {
+            activeRoles.contains(PlayerRole.MR_WHITE) && activeRoles.contains(PlayerRole.IMPOSTOR) ->
+                "Impostor and Mr White Win!"
+            activeRoles.contains(PlayerRole.IMPOSTOR) -> "Impostor Win!"
+            activeRoles.contains(PlayerRole.MR_WHITE) -> "Mr White Win!"
+            else -> "Impostors Win!"
+        }
+    }
 
-        val winnerText = when {
-            civiliansWon -> "Civilians Win!"
-            lastEliminated.role == PlayerRole.MR_WHITE -> "Mr White (${lastEliminated.name}) Wins!"
-            else -> when {
-                activeRoles.contains(PlayerRole.MR_WHITE) && activeRoles.contains(PlayerRole.IMPOSTOR) ->
-                    "Impostor and Mr White Win!"
-                activeRoles.contains(PlayerRole.IMPOSTOR) -> "Impostor Win!"
-                activeRoles.contains(PlayerRole.MR_WHITE) -> "Mr White Win!"
-                else -> "Impostors Win!"
-            }
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        val headerText = if (lastEliminated.role == PlayerRole.MR_WHITE && !civiliansWon) {
+            "Bien joué c'était ça!"
+        } else {
+            "Game Over!"
         }
 
-        Column(
-            modifier = Modifier.fillMaxSize(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            val headerText = if (lastEliminated.role == PlayerRole.MR_WHITE && !civiliansWon) {
-                "Bien joué c'était ça!"
-            } else {
-                "Game Over!"
-            }
+        Text(
+            headerText,
+            style = MaterialTheme.typography.headlineLarge,
+            fontWeight = FontWeight.Bold
+        )
 
+        Spacer(modifier = Modifier.height(24.dp))
+
+        Text(
+            winnerText,
+            style = MaterialTheme.typography.headlineMedium
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        if (!(lastEliminated.role == PlayerRole.MR_WHITE && !civiliansWon)) {
             Text(
-                headerText,
-                style = MaterialTheme.typography.headlineLarge,
-                fontWeight = FontWeight.Bold
-            )
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            Text(
-                winnerText,
-                style = MaterialTheme.typography.headlineMedium
+                "${lastEliminated.name} was eliminated",
+                style = MaterialTheme.typography.bodyLarge
             )
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            if (!(lastEliminated.role == PlayerRole.MR_WHITE && !civiliansWon)) {
-                Text(
-                    "${lastEliminated.name} was eliminated",
-                    style = MaterialTheme.typography.bodyLarge
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Text(
-                    "Role: ${lastEliminated.role.displayName()}",
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = lastEliminated.role.displayColor()
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-            }
-
             Text(
-                "The word was $gameWord",
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.Medium
-            )
-
-            Spacer(modifier = Modifier.height(32.dp))
-
-            Button(onClick = { showScoreboard = true }) {
-                Text("View Scoreboard")
-            }
-        }
-    } else {
-        Column(
-            modifier = Modifier.fillMaxSize(),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                "Scoreboard",
+                "Role: ${lastEliminated.role.displayName()}",
                 style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
+                color = lastEliminated.role.displayColor()
             )
 
-            Spacer(modifier = Modifier.height(24.dp))
-
-            LazyColumn(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                val sortedScores = allScores.entries.sortedByDescending { it.value }
-                items(sortedScores) { entry ->
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        elevation = CardDefaults.cardElevation(4.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(
-                                entry.key,
-                                style = MaterialTheme.typography.titleLarge
-                            )
-                            Text(
-                                "${entry.value} pts",
-                                style = MaterialTheme.typography.titleLarge,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
-                }
-            }
-
             Spacer(modifier = Modifier.height(16.dp))
+        }
 
-            Button(
-                onClick = onNewGame,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("New Game")
-            }
+        Text(
+            "The word was $gameWord",
+            style = MaterialTheme.typography.bodyLarge,
+            fontWeight = FontWeight.Medium
+        )
+
+        Spacer(modifier = Modifier.height(32.dp))
+
+        Button(onClick = { onContinue() }) {
+            Text("View Leaderboard")
         }
     }
 }
+
+@Composable
+fun LeaderboardScreen(
+    allScores: Map<String, Int>,
+    onNewGame: () -> Unit
+) {
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            "Leaderboard",
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.Bold
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        LazyColumn(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            val sortedScores = allScores.entries.sortedByDescending { it.value }
+            items(sortedScores) { entry ->
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    elevation = CardDefaults.cardElevation(4.dp)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            entry.key,
+                            style = MaterialTheme.typography.titleLarge
+                        )
+                        Text(
+                            "${entry.value} pts",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Button(
+            onClick = onNewGame,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("New Game")
+        }
+    }
+}
+
 
 @Composable
 fun MrWhiteGuessScreen(
