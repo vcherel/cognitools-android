@@ -54,7 +54,8 @@ data class UndercoverGameState(
     val players: List<Player> = emptyList(),
     val currentPlayerIndex: Int = 0,
     val currentRound: Int = 1,
-    val allPlayersScores: Map<String, Int> = emptyMap()
+    val allPlayersScores: Map<String, Int> = emptyMap(),
+    val quickStart: Boolean = false
 )
 
 // 5. Win condition and scoring

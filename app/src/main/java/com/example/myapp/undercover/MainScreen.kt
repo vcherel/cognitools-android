@@ -102,21 +102,29 @@ fun UndercoverScreen(onBack: () -> Unit) {
             }
             is GameState.PlayerSetup -> {
                 if (!gameState.showWord) {
-                    PlayerSetupScreen(
-                        playerIndex = gameState.playerIndex,
-                        totalPlayers = state.settings.playerCount,
-                        existingNames = state.players.map { it.name },
-                        onNameEntered = { name ->
-                            val updatedPlayers = state.players.mapIndexed { index, player ->
-                                if (index == gameState.playerIndex) player.copy(name = name) else player
+                    if (state.quickStart) {
+                        // Skip name input
+                        state = state.copy(
+                            gameState = GameState.PlayerSetup(gameState.playerIndex, showWord = true)
+                        )
+                    } else {
+                        PlayerSetupScreen(
+                            playerIndex = gameState.playerIndex,
+                            totalPlayers = state.settings.playerCount,
+                            existingNames = state.players.map { it.name },
+                            onNameEntered = { name ->
+                                val updatedPlayers = state.players.mapIndexed { index, player ->
+                                    if (index == gameState.playerIndex) player.copy(name = name) else player
+                                }
+                                state = state.copy(
+                                    players = updatedPlayers,
+                                    gameState = GameState.PlayerSetup(gameState.playerIndex, true)
+                                )
                             }
-                            state = state.copy(
-                                players = updatedPlayers,
-                                gameState = GameState.PlayerSetup(gameState.playerIndex, true)
-                            )
-                        }
-                    )
+                        )
+                    }
                 } else {
+                    // ShowWordScreen remains unchanged
                     ShowWordScreen(
                         player = state.players[gameState.playerIndex],
                         playerIndex = gameState.playerIndex,
@@ -131,7 +139,8 @@ fun UndercoverScreen(onBack: () -> Unit) {
                                 val activeCount = state.players.activePlayers().size
                                 state = state.copy(
                                     currentPlayerIndex = if (activeCount > 0) Random.nextInt(activeCount) else 0,
-                                    gameState = GameState.PlayMenu
+                                    gameState = GameState.PlayMenu,
+                                    quickStart = false // reset flag
                                 )
                             }
                         }
@@ -315,7 +324,16 @@ fun UndercoverScreen(onBack: () -> Unit) {
                 LeaderboardScreen(
                     allScores = state.allPlayersScores,
                     onBackToMenu = { state = UndercoverGameState(gameState = GameState.Settings) },
-                    onNewGame = { state = UndercoverGameState(settings = state.settings) }
+                    onNewGame = {
+                        val reassignedPlayers = reassignRolesAndWords(state.players, state.settings)
+                        state = state.copy(
+                            players = reassignedPlayers,
+                            currentPlayerIndex = 0,
+                            currentRound = 1,
+                            gameState = GameState.PlayerSetup(0, showWord = false),
+                            quickStart = true
+                        )
+                    }
                 )
             }
         }

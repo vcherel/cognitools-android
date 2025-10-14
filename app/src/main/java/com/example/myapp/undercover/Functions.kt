@@ -57,6 +57,14 @@ fun generateAndAssignPlayers(settings: GameSettings): List<Player> {
     return players
 }
 
+fun reassignRolesAndWords(players: List<Player>, settings: GameSettings): List<Player> {
+    val newPlayers = generateAndAssignPlayers(settings)
+    // Keep the original names
+    return newPlayers.mapIndexed { index, p ->
+        p.copy(name = players.getOrNull(index)?.name ?: p.name)
+    }
+}
+
 // Game state utilities
 fun List<Player>.eliminate(playerName: String): List<Player> {
     return map { if (it.name == playerName) it.copy(isEliminated = true) else it }
