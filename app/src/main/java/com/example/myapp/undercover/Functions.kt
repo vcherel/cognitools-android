@@ -3,19 +3,12 @@ package com.example.myapp.undercover
 import androidx.compose.ui.graphics.Color
 import kotlin.random.Random
 
-// 1. Player generation
-fun generatePlayers(settings: GameSettings): List<Player> {
-    return (0 until settings.playerCount).map { i ->
-        Player(
-            name = "Player ${i + 1}",
-            role = PlayerRole.CIVILIAN,
-            word = ""
-        )
-    }
-}
+// Player generation and role/word assignment
+fun generateAndAssignPlayers(settings: GameSettings): List<Player> {
+    val players = (0 until settings.playerCount).map { i ->
+        Player(name = "Player ${i + 1}", role = PlayerRole.CIVILIAN, word = "")
+    }.toMutableList()
 
-// 2. Role and word assignment
-fun assignRolesAndWords(players: List<Player>, settings: GameSettings): List<Player> {
     val wordPair = wordPairs.random()
     val (civilianWord, impostorWord) = if (Random.nextBoolean()) {
         wordPair.first to wordPair.second
@@ -44,28 +37,27 @@ fun assignRolesAndWords(players: List<Player>, settings: GameSettings): List<Pla
         } else 0
     }
 
-    val updatedPlayers = players.toMutableList()
     var nextIndex = 0
 
     repeat(mrWhiteCount) {
         val idx = indices[nextIndex++]
-        updatedPlayers[idx] = updatedPlayers[idx].copy(role = PlayerRole.MR_WHITE, word = "")
+        players[idx] = players[idx].copy(role = PlayerRole.MR_WHITE, word = "")
     }
 
     repeat(impostorCount) {
         val idx = indices[nextIndex++]
-        updatedPlayers[idx] = updatedPlayers[idx].copy(role = PlayerRole.IMPOSTOR, word = impostorWord)
+        players[idx] = players[idx].copy(role = PlayerRole.IMPOSTOR, word = impostorWord)
     }
 
     for (i in nextIndex until indices.size) {
         val idx = indices[i]
-        updatedPlayers[idx] = updatedPlayers[idx].copy(role = PlayerRole.CIVILIAN, word = civilianWord)
+        players[idx] = players[idx].copy(role = PlayerRole.CIVILIAN, word = civilianWord)
     }
 
-    return updatedPlayers
+    return players
 }
 
-// 3. Game state utilities
+// Game state utilities
 fun List<Player>.eliminate(playerName: String): List<Player> {
     return map { if (it.name == playerName) it.copy(isEliminated = true) else it }
 }
@@ -100,7 +92,7 @@ fun List<Player>.shouldMrWhiteGuess(): Boolean {
     }
 }
 
-// 4. Scoring utilities
+// Scoring utilities
 fun Map<String, Int>.updateScore(playerName: String, points: Int): Map<String, Int> {
     return toMutableMap().apply {
         this[playerName] = (this[playerName] ?: 0) + points
@@ -123,7 +115,7 @@ fun List<Player>.awardImpostorPoints(scores: Map<String, Int>): Map<String, Int>
     return updatedScores
 }
 
-// 5. Display utilities
+// Display utilities
 fun PlayerRole.displayName(): String = when (this) {
     PlayerRole.CIVILIAN -> "Civilian"
     PlayerRole.IMPOSTOR -> "Impostor"

@@ -90,8 +90,7 @@ fun UndercoverScreen(onBack: () -> Unit) {
                     settings = state.settings,
                     onSettingsChange = { state = state.copy(settings = it) },
                     onStart = {
-                        val newPlayers = generatePlayers(state.settings)
-                        val assignedPlayers = assignRolesAndWords(newPlayers, state.settings)
+                        val assignedPlayers = generateAndAssignPlayers(state.settings)
                         state = state.copy(
                             players = assignedPlayers,
                             currentPlayerIndex = 0,
