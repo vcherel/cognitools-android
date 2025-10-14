@@ -213,10 +213,6 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
                 val card = availableCards.random()
                 showFront = Random.nextBoolean()
                 card
-            } else if (dueCards.isNotEmpty()) {
-                val card = dueCards.random()
-                showFront = Random.nextBoolean()
-                card
             } else {
                 null
             }

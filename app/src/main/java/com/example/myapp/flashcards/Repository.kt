@@ -95,8 +95,11 @@ class FlashcardRepository(private val context: Context) {
 
     suspend fun saveElements(listId: String, elements: List<FlashcardElement>) {
         val key = stringPreferencesKey("elements_$listId")
+        val timestampKey = stringPreferencesKey("elements_timestamp_$listId")
         context.dataStore.edit { prefs ->
             prefs[key] = FlashcardElement.listToJsonString(elements)
+            // Add a useless variable to force update
+            prefs[timestampKey] = System.currentTimeMillis().toString()
         }
     }
 
