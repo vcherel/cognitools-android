@@ -199,96 +199,112 @@ fun UndercoverScreen(onBack: () -> Unit) {
                 )
             }
             is GameState.Voting -> {
-                VotingScreen(
-                    players = state.players,
-                    onPlayerEliminated = { eliminatedPlayer ->
-                        val updatedPlayers = state.players.eliminate(eliminatedPlayer.name)
+            VotingScreen(
+                players = state.players,
+                onPlayerEliminated = { eliminatedPlayer ->
+                    val updatedPlayers = state.players.eliminate(eliminatedPlayer.name)
+                    val activePlayers = updatedPlayers.activePlayers()
+                    val activeCivilians = activePlayers.filter { it.role == PlayerRole.CIVILIAN }
+                    val activeMrWhites = activePlayers.filter { it.role == PlayerRole.MR_WHITE }
 
-                        // Check if Mr. White should guess by seeing the number of active players
-                        val shouldMrWhiteGuess = updatedPlayers.shouldMrWhiteGuess()
+                    when {
+                        // Case 1: Mr. White was eliminated → They get to guess immediately
+                        eliminatedPlayer.role == PlayerRole.MR_WHITE -> {
+                            val correctWord = state.players.first { it.role == PlayerRole.CIVILIAN }.word
+                            state = state.copy(
+                                players = updatedPlayers,
+                                gameState = GameState.MrWhiteGuess(
+                                    player = eliminatedPlayer,
+                                    correctWord = correctWord,
+                                    lastEliminated = eliminatedPlayer,
+                                    mrWhiteGuesses = emptyList(),
+                                    scenario = MrWhiteScenario.EliminatedMrWhite()
+                                )
+                            )
+                        }
 
-                        when {
-                            // If Mr. White was eliminated, they get to guess
-                            eliminatedPlayer.role == PlayerRole.MR_WHITE -> {
-                                val correctWord = state.players.first { it.role == PlayerRole.CIVILIAN }.word
-                                state = state.copy(
-                                    players = updatedPlayers,
-                                    gameState = GameState.MrWhiteGuess(
-                                        player = eliminatedPlayer,
-                                        correctWord = correctWord,
-                                        lastEliminated = eliminatedPlayer,
-                                        mrWhiteGuesses = emptyList(),
-                                        scenario = MrWhiteScenario.EliminatedMrWhite()
+                        // Case 2: Last non-Mr White eliminated → Only Mr Whites left
+                        activeCivilians.isEmpty() && activeMrWhites.isNotEmpty() -> {
+                            val currentGuesser = activeMrWhites.first()
+                            val correctWord = state.players.first { it.role == PlayerRole.CIVILIAN }.word
+                            state = state.copy(
+                                players = updatedPlayers,
+                                gameState = GameState.MrWhiteGuess(
+                                    player = currentGuesser,
+                                    correctWord = correctWord,
+                                    lastEliminated = eliminatedPlayer,
+                                    mrWhiteGuesses = emptyList(),
+                                    scenario = MrWhiteScenario.OnlyMrWhitesLeft(
+                                        activeMrWhites = activeMrWhites,
+                                        currentGuesser = currentGuesser
                                     )
                                 )
+                            )
+                        }
+
+                        // Case 3: Mr. White should guess in a regular situation
+                        updatedPlayers.shouldMrWhiteGuess() -> {
+                            val mrWhiteToGuess = activePlayers.first { it.role == PlayerRole.MR_WHITE }
+                            val correctWord = state.players.first { it.role == PlayerRole.CIVILIAN }.word
+
+                            val scenario = if (activeCivilians.isEmpty() && activePlayers.size == 1) {
+                                // Edge case, only Mr White left (probably covered above)
+                                MrWhiteScenario.OnlyMrWhitesLeft(
+                                    activeMrWhites = activeMrWhites,
+                                    currentGuesser = mrWhiteToGuess
+                                )
+                            } else {
+                                // Final Two: Mr White + 1 civilian
+                                MrWhiteScenario.FinalTwo(
+                                    mrWhite = mrWhiteToGuess,
+                                    opponent = activeCivilians.first()
+                                )
                             }
-                            // PRIORITY: If Mr. White should guess, let them guess before determining winners
-                            shouldMrWhiteGuess -> {
-                                val active = updatedPlayers.activePlayers()
-                                val mrWhiteToGuess = active.first { it.role == PlayerRole.MR_WHITE }
-                                val correctWord = state.players.first { it.role == PlayerRole.CIVILIAN }.word
-                                val activeCivilians = active.filter { it.role == PlayerRole.CIVILIAN }
-                                val activeImpostors = active.filter { it.role == PlayerRole.IMPOSTOR }
 
-                                val scenario = if (activeCivilians.isEmpty() && activeImpostors.isEmpty()) {
-                                    // Case 1: Only Mr. Whites left
-                                    MrWhiteScenario.OnlyMrWhitesLeft(
-                                        activeMrWhites = active.filter { it.role == PlayerRole.MR_WHITE },
-                                        currentGuesser = mrWhiteToGuess
-                                    )
+                            state = state.copy(
+                                players = updatedPlayers,
+                                gameState = GameState.MrWhiteGuess(
+                                    player = mrWhiteToGuess,
+                                    correctWord = correctWord,
+                                    lastEliminated = eliminatedPlayer,
+                                    mrWhiteGuesses = emptyList(),
+                                    scenario = scenario
+                                )
+                            )
+                        }
 
-                                } else {
-                                    // Case 2: Only Mr. White and one Civilian left → Final Two
-                                    MrWhiteScenario.FinalTwo(
-                                        mrWhite = mrWhiteToGuess,
-                                        opponent = activeCivilians.first()
+                        // Case 4: Check normal win conditions
+                        else -> {
+                            when (updatedPlayers.checkWinCondition()) {
+                                WinCondition.CiviliansWin -> {
+                                    val updatedScores = updatedPlayers.awardCivilianPoints(state.allPlayersScores)
+                                    state = state.copy(
+                                        players = updatedPlayers,
+                                        allPlayersScores = updatedScores,
+                                        gameState = GameState.GameOver(true, eliminatedPlayer)
                                     )
                                 }
-
-                                state = state.copy(
-                                    players = updatedPlayers,
-                                    gameState = GameState.MrWhiteGuess(
-                                        player = mrWhiteToGuess,
-                                        correctWord = correctWord,
-                                        lastEliminated = eliminatedPlayer,
-                                        mrWhiteGuesses = emptyList(),
-                                        scenario = scenario
+                                WinCondition.ImpostorsWin -> {
+                                    val updatedScores = updatedPlayers.awardImpostorPoints(state.allPlayersScores)
+                                    state = state.copy(
+                                        players = updatedPlayers,
+                                        allPlayersScores = updatedScores,
+                                        gameState = GameState.GameOver(false, eliminatedPlayer)
                                     )
-                                )
-                            }
-
-                            // Only check win conditions if Mr. White doesn't need to guess
-                            else -> {
-                                val winCheck = updatedPlayers.checkWinCondition()
-                                when (winCheck) {
-                                    WinCondition.CiviliansWin -> {
-                                        val updatedScores = updatedPlayers.awardCivilianPoints(state.allPlayersScores)
-                                        state = state.copy(
-                                            players = updatedPlayers,
-                                            allPlayersScores = updatedScores,
-                                            gameState = GameState.GameOver(true, eliminatedPlayer)
-                                        )
-                                    }
-                                    WinCondition.ImpostorsWin -> {
-                                        val updatedScores = updatedPlayers.awardImpostorPoints(state.allPlayersScores)
-                                        state = state.copy(
-                                            players = updatedPlayers,
-                                            allPlayersScores = updatedScores,
-                                            gameState = GameState.GameOver(false, eliminatedPlayer)
-                                        )
-                                    }
-                                    WinCondition.Continue -> {
-                                        state = state.copy(
-                                            players = updatedPlayers,
-                                            gameState = GameState.EliminationResult(eliminatedPlayer, false)
-                                        )
-                                    }
+                                }
+                                WinCondition.Continue -> {
+                                    state = state.copy(
+                                        players = updatedPlayers,
+                                        gameState = GameState.EliminationResult(eliminatedPlayer, false)
+                                    )
                                 }
                             }
                         }
                     }
-                )
-            }
+                }
+            )
+        }
+
             is GameState.EliminationResult -> {
                 EliminationResultScreen(
                     player = gameState.player,
