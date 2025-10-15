@@ -217,7 +217,6 @@ fun UndercoverScreen(onBack: () -> Unit) {
                                     player = eliminatedPlayer,
                                     correctWord = correctWord,
                                     lastEliminated = eliminatedPlayer,
-                                    mrWhiteGuesses = emptyList(),
                                     scenario = MrWhiteScenario.EliminatedMrWhite()
                                 )
                             )
@@ -233,7 +232,6 @@ fun UndercoverScreen(onBack: () -> Unit) {
                                     player = currentGuesser,
                                     correctWord = correctWord,
                                     lastEliminated = eliminatedPlayer,
-                                    mrWhiteGuesses = emptyList(),
                                     scenario = MrWhiteScenario.OnlyMrWhitesLeft(
                                         activeMrWhites = activeMrWhites,
                                         currentGuesser = currentGuesser
@@ -267,7 +265,6 @@ fun UndercoverScreen(onBack: () -> Unit) {
                                     player = mrWhiteToGuess,
                                     correctWord = correctWord,
                                     lastEliminated = eliminatedPlayer,
-                                    mrWhiteGuesses = emptyList(),
                                     scenario = scenario
                                 )
                             )
@@ -304,7 +301,6 @@ fun UndercoverScreen(onBack: () -> Unit) {
                 }
             )
         }
-
             is GameState.EliminationResult -> {
                 EliminationResultScreen(
                     player = gameState.player,
@@ -325,7 +321,9 @@ fun UndercoverScreen(onBack: () -> Unit) {
                     scenario = gameState.scenario,
                     onGuessSubmitted = { guessedWord ->
                         val correctWord = gameState.correctWord
-                        val updatedMrWhiteGuesses = gameState.mrWhiteGuesses + guessedWord
+                        state = state.copy(
+                            mrWhiteGuesses = state.mrWhiteGuesses + guessedWord
+                        )
 
                         val guessCorrect = guessedWord.equals(correctWord, ignoreCase = true)
                         val wasEliminated = gameState.player.isEliminated
@@ -340,8 +338,7 @@ fun UndercoverScreen(onBack: () -> Unit) {
                                 allPlayersScores = updatedScores,
                                 gameState = GameState.GameOver(
                                     civiliansWon = false,
-                                    lastEliminated = gameState.player,
-                                    mrWhiteGuesses = updatedMrWhiteGuesses
+                                    lastEliminated = gameState.player
                                 )
                             )
                         } else {
@@ -380,7 +377,6 @@ fun UndercoverScreen(onBack: () -> Unit) {
                                         player = nextMrWhite,
                                         correctWord = correctWord,
                                         lastEliminated = gameState.lastEliminated,
-                                        mrWhiteGuesses = updatedMrWhiteGuesses,
                                         scenario = scenario
                                     )
                                 )
@@ -394,8 +390,7 @@ fun UndercoverScreen(onBack: () -> Unit) {
                                             allPlayersScores = updatedScores,
                                             gameState = GameState.GameOver(
                                                 civiliansWon = true,
-                                                lastEliminated = gameState.player,
-                                                mrWhiteGuesses = updatedMrWhiteGuesses
+                                                lastEliminated = gameState.player
                                             )
                                         )
                                     }
@@ -406,8 +401,7 @@ fun UndercoverScreen(onBack: () -> Unit) {
                                             allPlayersScores = updatedScores,
                                             gameState = GameState.GameOver(
                                                 civiliansWon = false,
-                                                lastEliminated = gameState.player,
-                                                mrWhiteGuesses = updatedMrWhiteGuesses
+                                                lastEliminated = gameState.player
                                             )
                                         )
                                     }
@@ -433,7 +427,7 @@ fun UndercoverScreen(onBack: () -> Unit) {
                     lastEliminated = gameState.lastEliminated,
                     players = state.players,
                     gameWord = state.players.first { it.role == PlayerRole.CIVILIAN }.word,
-                    mrWhiteGuesses = gameState.mrWhiteGuesses,
+                    mrWhiteGuesses = state.mrWhiteGuesses,
                     onContinue = {
                         state = state.copy(gameState = GameState.Leaderboard)
                     }
