@@ -323,15 +323,24 @@ fun UndercoverScreen(onBack: () -> Unit) {
                                         state = state.copy(
                                             players = updatedPlayers,
                                             allPlayersScores = updatedScores,
-                                            gameState = GameState.GameOver(true, gameState.player)
+                                            gameState = GameState.GameOver(
+                                                civiliansWon = true,
+                                                lastEliminated = gameState.player,
+                                                mrWhiteGuess = guessedWord.trim()
+                                            )
                                         )
+
                                     }
                                     WinCondition.ImpostorsWin -> {
                                         val updatedScores = updatedPlayers.awardImpostorPoints(state.allPlayersScores)
                                         state = state.copy(
                                             players = updatedPlayers,
                                             allPlayersScores = updatedScores,
-                                            gameState = GameState.GameOver(false, gameState.player)
+                                            gameState = GameState.GameOver(
+                                                civiliansWon = false,
+                                                lastEliminated = gameState.player,
+                                                mrWhiteGuess = guessedWord.trim()
+                                            )
                                         )
                                     }
                                     WinCondition.Continue -> {
@@ -356,6 +365,7 @@ fun UndercoverScreen(onBack: () -> Unit) {
                     lastEliminated = gameState.lastEliminated,
                     players = state.players,
                     gameWord = state.players.first { it.role == PlayerRole.CIVILIAN }.word,
+                    mrWhiteGuess = gameState.mrWhiteGuess,
                     onContinue = {
                         state = state.copy(gameState = GameState.Leaderboard)
                     }

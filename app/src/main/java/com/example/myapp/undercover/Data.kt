@@ -36,16 +36,17 @@ val wordPairs = listOf(
 )
 
 // 4. Game state representations
-sealed class GameState {
-    object Settings : GameState()
-    data class PlayerSetup(val playerIndex: Int, val showWord: Boolean) : GameState()
-    object PlayMenu : GameState()
-    object Voting : GameState()
-    data class EliminationResult(val player: Player, val gameOver: Boolean) : GameState()
-    data class MrWhiteGuess(val player: Player, val correctWord: String, val lastEliminated: Player?) : GameState()
-    data class GameOver(val civiliansWon: Boolean, val lastEliminated: Player) : GameState()
-    object Leaderboard : GameState()
-}
+    sealed class GameState {
+        object Settings : GameState()
+        data class PlayerSetup(val playerIndex: Int, val showWord: Boolean) : GameState()
+        object PlayMenu : GameState()
+        object Voting : GameState()
+        data class EliminationResult(val player: Player, val gameOver: Boolean) : GameState()
+        data class MrWhiteGuess(val player: Player, val correctWord: String, val lastEliminated: Player?) : GameState()
+
+        data class GameOver(val civiliansWon: Boolean, val lastEliminated: Player, val mrWhiteGuess: String? = null) : GameState()
+        object Leaderboard : GameState()
+    }
 
 data class UndercoverGameState(
     val gameState: GameState = GameState.Settings,

@@ -416,6 +416,7 @@ fun GameOverScreen(
     lastEliminated: Player,
     players: List<Player>,
     gameWord: String,
+    mrWhiteGuess: String?,
     onContinue: () -> Unit
 ) {
     val activePlayers by remember { derivedStateOf { players.activePlayers() } }
@@ -482,6 +483,17 @@ fun GameOverScreen(
             style = MaterialTheme.typography.bodyLarge,
             fontWeight = FontWeight.Medium
         )
+
+        mrWhiteGuess?.let {
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                "Mr White tried to guess \"$it\" but it was not correct.",
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.Medium,
+                color = Color.Red,
+                textAlign = TextAlign.Center
+            )
+        }
 
         Spacer(modifier = Modifier.height(32.dp))
 
