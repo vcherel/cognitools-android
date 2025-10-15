@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -182,6 +183,7 @@ fun FlashcardDetailScreen(listId: String, onBack: () -> Unit, navController: Nav
         // List of elements
         LazyColumn(
             modifier = Modifier.weight(1f),
+            contentPadding = PaddingValues(bottom = 16.dp),
             state = listState
         ) {
             itemsIndexed(filteredElements, key = { _, item -> item.id }) { index, element ->

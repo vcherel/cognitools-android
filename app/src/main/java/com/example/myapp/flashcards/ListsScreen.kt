@@ -10,6 +10,7 @@ import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -26,7 +27,6 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
@@ -150,7 +150,7 @@ fun FlashcardListsScreen(onBack: () -> Unit, navController: NavController) {
                 isLoading -> { CircularProgressIndicator(color = Color.Black) }
                 lists.isEmpty() -> { Text("Aucune liste disponible", style = MaterialTheme.typography.bodyMedium) }
                 else -> {
-                    LazyColumn {
+                    LazyColumn(contentPadding = PaddingValues(bottom = 16.dp)) {
                         itemsIndexed(items = lists, key = { _, item -> item.id }) { index, flashcardList ->
                             FlashcardListItem(
                                 flashcardList = flashcardList,
