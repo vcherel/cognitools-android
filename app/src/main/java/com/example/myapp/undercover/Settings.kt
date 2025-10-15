@@ -97,7 +97,6 @@ fun validateGameSettings(
 @Composable
 fun SettingsScreen(
     state: UndercoverGameState,
-    playAgain: Boolean = false,
     onSettingsChange: (UndercoverGameState) -> Unit,
     onStart: () -> Unit
 ) {
@@ -129,13 +128,7 @@ fun SettingsScreen(
 
                 val updatedPlayers = when {
                     newPlayerCount > state.players.size -> {
-                        state.players + List(newPlayerCount - state.players.size) { index ->
-                            Player(
-                                name = "Player ${state.players.size + index + 1}",
-                                role = PlayerRole.CIVILIAN,
-                                word = ""
-                            )
-                        }
+                        state.players + List(newPlayerCount - state.players.size) { Player() }
                     }
                     newPlayerCount < state.players.size -> {
                         state.players.take(newPlayerCount)
@@ -154,8 +147,7 @@ fun SettingsScreen(
                 onSettingsChange(updatedState)
             },
             min = 3,
-            max = 20,
-            enabled = !playAgain
+            max = 20
         )
 
         Spacer(modifier = Modifier.height(16.dp))

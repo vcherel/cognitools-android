@@ -88,7 +88,6 @@ fun UndercoverScreen(onBack: () -> Unit) {
             is GameState.Settings -> {
                 SettingsScreen(
                     state = state,
-                    playAgain = gameState.playAgain,
                     onSettingsChange = { updatedState ->
                         state = updatedState
                     },
