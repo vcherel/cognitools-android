@@ -218,7 +218,7 @@ fun UndercoverScreen(onBack: () -> Unit) {
                                         correctWord = correctWord,
                                         lastEliminated = eliminatedPlayer,
                                         mrWhiteGuesses = emptyList(),
-                                        scenario = MrWhiteScenario.EliminatedMrWhite(eliminated = eliminatedPlayer)
+                                        scenario = MrWhiteScenario.EliminatedMrWhite()
                                     )
                                 )
                             }
@@ -240,7 +240,6 @@ fun UndercoverScreen(onBack: () -> Unit) {
                                 } else {
                                     // Case 2: Only Mr. White and one Civilian left → Final Two
                                     MrWhiteScenario.FinalTwo(
-                                        lastEliminated = eliminatedPlayer,
                                         mrWhite = mrWhiteToGuess,
                                         opponent = activeCivilians.first()
                                     )
@@ -306,6 +305,7 @@ fun UndercoverScreen(onBack: () -> Unit) {
             }
             is GameState.MrWhiteGuess -> {
                 MrWhiteGuessScreen(
+                    lastEliminated = gameState.lastEliminated,
                     scenario = gameState.scenario,
                     onGuessSubmitted = { guessedWord ->
                         val correctWord = gameState.correctWord
@@ -354,7 +354,6 @@ fun UndercoverScreen(onBack: () -> Unit) {
                                     val opponent = updatedPlayers.activePlayers()
                                         .first { it.role == PlayerRole.CIVILIAN }
                                     MrWhiteScenario.FinalTwo(
-                                        lastEliminated = gameState.lastEliminated,
                                         mrWhite = nextMrWhite,
                                         opponent = opponent)
                                 }

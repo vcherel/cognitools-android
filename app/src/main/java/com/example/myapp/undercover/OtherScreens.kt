@@ -568,6 +568,7 @@ fun LeaderboardScreen(
 
 @Composable
 fun MrWhiteGuessScreen(
+    lastEliminated: Player,
     scenario: MrWhiteScenario,
     onGuessSubmitted: (String) -> Unit
 ) {
@@ -594,10 +595,8 @@ fun MrWhiteGuessScreen(
 
             // CASE 1 — Eliminated Mr White
             is MrWhiteScenario.EliminatedMrWhite -> {
-                val eliminated = scenario.eliminated
-
                 Text(
-                    text = "${eliminated.name} was eliminated and was Mr. White!",
+                    text = "${lastEliminated.name} was eliminated and was Mr. White!",
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Bold,
                     color = Color.Red,
@@ -621,7 +620,6 @@ fun MrWhiteGuessScreen(
 
             // CASE 2 — Final Two Players (Mr White + Impostor/Civilian)
             is MrWhiteScenario.FinalTwo -> {
-                val lastEliminated = scenario.lastEliminated
                 val mrWhite = scenario.mrWhite
                 val opponent = scenario.opponent
 
