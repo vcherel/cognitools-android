@@ -274,9 +274,7 @@ fun UndercoverScreen(onBack: () -> Unit) {
             }
             is GameState.MrWhiteGuess -> {
                 MrWhiteGuessScreen(
-                    player = gameState.player,
-                    lastEliminated = gameState.lastEliminated,
-                    allPlayers = state.players,
+                    scenario = TODO(),
                     onGuessSubmitted = { guessedWord ->
                         val correctWord = gameState.correctWord
                         val wasEliminated = gameState.player.isEliminated
@@ -331,7 +329,6 @@ fun UndercoverScreen(onBack: () -> Unit) {
                                                 mrWhiteGuesses = updatedMrWhiteGuesses
                                             )
                                         )
-
                                     }
                                     WinCondition.ImpostorsWin -> {
                                         val updatedScores = updatedPlayers.awardImpostorPoints(state.allPlayersScores)

@@ -72,3 +72,9 @@ object ScoreValues {
     const val IMPOSTOR_WIN = 2
     const val MR_WHITE_WIN = 3
 }
+
+sealed class MrWhiteScenario {
+    data class EliminatedMrWhite(val eliminated: Player) : MrWhiteScenario()
+    data class FinalTwo(val mrWhite: Player, val opponent: Player) : MrWhiteScenario()
+    data class OnlyMrWhitesLeft(val activeMrWhites: List<Player>, val currentGuesser: Player) : MrWhiteScenario()
+}

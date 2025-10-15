@@ -387,7 +387,7 @@ fun EliminationResultScreen(
         Spacer(modifier = Modifier.height(8.dp))
 
         Text(
-            "Role: ${player.role.displayName()}",
+            player.role.displayName(),
             style = MaterialTheme.typography.headlineLarge,
             fontWeight = FontWeight.Bold,
             color = player.role.displayColor()
@@ -568,9 +568,7 @@ fun LeaderboardScreen(
 
 @Composable
 fun MrWhiteGuessScreen(
-    player: Player,
-    lastEliminated: Player?,
-    allPlayers: List<Player>,
+    scenario: MrWhiteScenario,
     onGuessSubmitted: (String) -> Unit
 ) {
     val focusRequester = remember { FocusRequester() }
@@ -579,22 +577,11 @@ fun MrWhiteGuessScreen(
     var guessedWord by remember { mutableStateOf("") }
     var showConfirmation by remember { mutableStateOf(false) }
 
-    // Derive number of active Mr. Whites directly from allPlayers
-    val activeMrWhites = allPlayers.count { it.role == PlayerRole.MR_WHITE && !it.isEliminated }
-
-    // To show keyboard directly
+    // Auto focus input field
     LaunchedEffect(Unit) {
         focusRequester.requestFocus()
         keyboardController?.show()
     }
-
-    // Count remaining players
-    val remainingPlayers = allPlayers.filter { !it.isEliminated }
-    val remainingCount = remainingPlayers.size
-
-// Check remaining roles
-    val remainingMrWhites = remainingPlayers.count { it.role == PlayerRole.MR_WHITE }
-    val remainingCivilians = remainingPlayers.count { it.role != PlayerRole.MR_WHITE }
 
     Column(
         modifier = Modifier
@@ -603,114 +590,126 @@ fun MrWhiteGuessScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        // Last eliminated player info
-        if (lastEliminated != null && !player.isEliminated) {
-            Text(
-                "${lastEliminated.name} was eliminated!",
-                style = MaterialTheme.typography.headlineSmall
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                "Role: ${lastEliminated.role.displayName()}",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = lastEliminated.role.displayColor()
-            )
-            Spacer(modifier = Modifier.height(24.dp))
-        }
+        when (scenario) {
 
-        // Current player info
-        Text(
-            text = if (player.isEliminated)
-                "${player.name} was eliminated and was Mr.White!"
-            else
-                "${player.name} was Mr. White!",
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold,
-            color = Color.Red
-        )
+            // CASE 1 — Eliminated Mr White
+            is MrWhiteScenario.EliminatedMrWhite -> {
+                val eliminated = scenario.eliminated
 
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Endgame specific messages
-        when {
-            remainingCount == 2 && remainingMrWhites == 1 && remainingCivilians == 1 -> {
                 Text(
-                    "Only two players left! Mr. White can guess now.",
-                    style = MaterialTheme.typography.titleLarge,
+                    text = "${eliminated.name} was eliminated and was Mr. White!",
+                    style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Bold,
+                    color = Color.Red,
+                    textAlign = TextAlign.Center
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Text(
+                    "You can now try to guess the secret word.",
+                    style = MaterialTheme.typography.titleMedium,
                     textAlign = TextAlign.Center
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    "The remaining civilian has no chance of winning if Mr. White guesses correctly.",
-                    style = MaterialTheme.typography.titleMedium,
+                    "If you guess correctly, you win. Otherwise, you're eliminated for good.",
+                    style = MaterialTheme.typography.bodyLarge,
                     textAlign = TextAlign.Center
                 )
             }
 
-            remainingCount == 2 && remainingMrWhites == 0 && remainingCivilians == 2 -> {
+            // CASE 2 — Final Two Players (Mr White + Impostor/Civilian)
+            is MrWhiteScenario.FinalTwo -> {
+                val mrWhite = scenario.mrWhite
+                val opponent = scenario.opponent
+
                 Text(
-                    "Two players left: 1 Civilian and 1 Impostor.",
-                    style = MaterialTheme.typography.titleLarge,
+                    text = "Only two players remain!",
+                    style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Text(
+                    "${mrWhite.name} (Mr. White) vs ${opponent.name} (${opponent.role.displayName()})",
+                    style = MaterialTheme.typography.titleLarge,
+                    textAlign = TextAlign.Center
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Text(
+                    "Mr. White can now guess the secret word.",
+                    style = MaterialTheme.typography.titleMedium,
                     textAlign = TextAlign.Center
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    "The Impostor wins because the civilian cannot eliminate them alone.",
+                    "If correct, Mr. White wins! Otherwise, ${opponent.name} wins.",
+                    style = MaterialTheme.typography.bodyLarge,
+                    textAlign = TextAlign.Center
+                )
+            }
+
+            // CASE 3 — Only Mr Whites Remaining
+            is MrWhiteScenario.OnlyMrWhitesLeft -> {
+                val mrWhites = scenario.activeMrWhites
+                val currentGuesser = scenario.currentGuesser
+
+                Text(
+                    text = "Only Mr. Whites remain!",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.Red,
+                    textAlign = TextAlign.Center
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Text(
+                    "There are ${mrWhites.size} Mr. Whites left in the game.",
                     style = MaterialTheme.typography.titleMedium,
+                    textAlign = TextAlign.Center
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    "It's ${currentGuesser.name}'s turn to guess the secret word.",
+                    style = MaterialTheme.typography.bodyLarge,
+                    textAlign = TextAlign.Center
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    "If the guess is correct, all Mr. Whites win. If wrong, others get their chance.",
+                    style = MaterialTheme.typography.bodyLarge,
                     textAlign = TextAlign.Center
                 )
             }
         }
 
-        if (activeMrWhites > 1) {
-            Text(
-                "Multiple Mr. Whites can win!",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                "Each Mr. White must guess in turn.",
-                style = MaterialTheme.typography.titleMedium,
-                textAlign = TextAlign.Center
-            )
-        } else {
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                "Guess the word to win!",
-                style = MaterialTheme.typography.titleMedium,
-                textAlign = TextAlign.Center
-                    )
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Text(
-            "If you guess correctly, you win. If wrong, you lose.",
-            style = MaterialTheme.typography.bodyLarge,
-            textAlign = TextAlign.Center
-        )
-
+        // Common input UI (for all cases)
         Spacer(modifier = Modifier.height(32.dp))
 
-        // Guess input
         OutlinedTextField(
             value = guessedWord,
             onValueChange = { guessedWord = it },
             label = { Text("Enter your guess") },
             placeholder = { Text("What is the secret word?") },
             singleLine = true,
-            modifier = Modifier.fillMaxWidth(0.8f).focusRequester(focusRequester),
-            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Done),
+            modifier = Modifier
+                .fillMaxWidth(0.8f)
+                .focusRequester(focusRequester),
+            keyboardOptions = KeyboardOptions(
+                capitalization = KeyboardCapitalization.Sentences,
+                imeAction = ImeAction.Done
+            ),
             keyboardActions = KeyboardActions(
                 onDone = {
-                    if (guessedWord.isNotBlank()) {
-                        showConfirmation = true
-                    }
+                    if (guessedWord.isNotBlank()) showConfirmation = true
                 }
             )
         )
