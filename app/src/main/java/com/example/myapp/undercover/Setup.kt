@@ -40,9 +40,7 @@ import kotlin.random.Random
 const val MAX_NAME_LENGTH = 30
 
 fun generateAndAssignPlayers(state: UndercoverGameState): List<Player> {
-    val players = (0 until state.players.size).map { i ->
-        Player(name = "Player ${i + 1}", role = PlayerRole.CIVILIAN, word = "")
-    }.toMutableList()
+    val players = (0 until state.players.size).map { i -> Player() }.toMutableList()
 
     val wordPair = wordPairs.random()
     val (civilianWord, impostorWord) = if (Random.nextBoolean()) {
@@ -108,14 +106,37 @@ fun HandlePlayerSetup(
     state: UndercoverGameState,
     onStateUpdate: (UndercoverGameState) -> Unit
 ) {
-    // If player hasn't seen their word yet
-    if (!gameState.showWord) {
-        if (state.quickStart) {
-            // Quick start mode: show warning dialog
-            var showQuickStartDialog by remember { mutableStateOf(true) }
-            val currentPlayer = state.players.getOrNull(gameState.playerIndex)
+    val currentPlayer = state.players.getOrNull(gameState.playerIndex)
 
-            if (currentPlayer != null && showQuickStartDialog) {
+    if (currentPlayer == null) return
+
+    // If player name is empty, ask for name entry
+    if (currentPlayer.name.isEmpty()) {
+        PlayerSetupScreen(
+            playerIndex = gameState.playerIndex,
+            totalPlayers = state.players.size,
+            existingNames = state.players.map { it.name },
+            onNameEntered = { name ->
+                val updatedPlayers = state.players.mapIndexed { index, player ->
+                    if (index == gameState.playerIndex)
+                        player.copy(name = name)
+                    else player
+                }
+                onStateUpdate(
+                    state.copy(
+                        players = updatedPlayers,
+                        gameState = GameState.PlayerSetup(gameState.playerIndex, true)
+                    )
+                )
+            }
+        )
+    } else {
+        // Player has name, check if they've seen their word
+        if (!gameState.showWord) {
+            // Show warning dialog before revealing word
+            var showQuickStartDialog by remember { mutableStateOf(true) }
+
+            if (showQuickStartDialog) {
                 AlertDialog(
                     onDismissRequest = { },
                     title = { Text("Warning") },
@@ -149,58 +170,37 @@ fun HandlePlayerSetup(
                 )
             }
         } else {
-            // Normal mode: enter player name
-            PlayerSetupScreen(
+            // Show their secret word / role
+            ShowWordScreen(
+                player = currentPlayer,
                 playerIndex = gameState.playerIndex,
                 totalPlayers = state.players.size,
-                existingNames = state.players.map { it.name },
-                onNameEntered = { name ->
-                    val updatedPlayers = state.players.mapIndexed { index, player ->
-                        if (index == gameState.playerIndex)
-                            player.copy(name = name)
-                        else player
-                    }
-                    onStateUpdate(
-                        state.copy(
-                            players = updatedPlayers,
-                            gameState = GameState.PlayerSetup(gameState.playerIndex, true)
+                settings = state.settings,
+                onNext = {
+                    if (gameState.playerIndex < state.players.size - 1) {
+                        // Move to next player
+                        onStateUpdate(
+                            state.copy(
+                                gameState = GameState.PlayerSetup(
+                                    gameState.playerIndex + 1,
+                                    false
+                                )
+                            )
                         )
-                    )
+                    } else {
+                        // All players setup, start game
+                        val activeCount = state.players.activePlayers().size
+                        onStateUpdate(
+                            state.copy(
+                                currentPlayerIndex = if (activeCount > 0)
+                                    Random.nextInt(activeCount) else 0,
+                                gameState = GameState.PlayMenu
+                            )
+                        )
+                    }
                 }
             )
         }
-    } else {
-        // Player has name, show their secret word / role
-        ShowWordScreen(
-            player = state.players[gameState.playerIndex],
-            playerIndex = gameState.playerIndex,
-            totalPlayers = state.players.size,
-            settings = state.settings,
-            onNext = {
-                if (gameState.playerIndex < state.players.size - 1) {
-                    // Move to next player
-                    onStateUpdate(
-                        state.copy(
-                            gameState = GameState.PlayerSetup(
-                                gameState.playerIndex + 1,
-                                false
-                            )
-                        )
-                    )
-                } else {
-                    // All players setup, start game
-                    val activeCount = state.players.activePlayers().size
-                    onStateUpdate(
-                        state.copy(
-                            currentPlayerIndex = if (activeCount > 0)
-                                Random.nextInt(activeCount) else 0,
-                            gameState = GameState.PlayMenu,
-                            quickStart = false
-                        )
-                    )
-                }
-            }
-        )
     }
 }
 

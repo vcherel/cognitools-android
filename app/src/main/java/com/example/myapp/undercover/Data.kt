@@ -2,7 +2,7 @@ package com.example.myapp.undercover
 
 // Player-related data
 data class Player(
-    val name: String,
+    val name: String = "",
     val role: PlayerRole = PlayerRole.CIVILIAN,
     val word: String = "",
     val isEliminated: Boolean = false,
@@ -38,7 +38,10 @@ val wordPairs = listOf(
 // Game state representations
 sealed class GameState {
     data class Settings(val playAgain: Boolean = false) : GameState()
-    data class PlayerSetup(val playerIndex: Int, val showWord: Boolean) : GameState()
+    data class PlayerSetup(
+        val playerIndex: Int = 0,           // The index of the player we handle currently
+        val showWord: Boolean = false       // Can we directly show the word ? (no if we did not warn)
+    ) : GameState()
     object PlayMenu : GameState()
     object Voting : GameState()
     data class EliminationResult(val player: Player, val gameOver: Boolean) : GameState()
@@ -56,14 +59,11 @@ sealed class MrWhiteScenario {
 data class UndercoverGameState(
     val gameState: GameState = GameState.Settings(), // Game starts at settings page
     val settings: GameSettings = GameSettings(),
-    val players: List<Player> = List(3) { index ->
-        Player(name = "Player ${index + 1}")
-    },
+    val players: List<Player> = List(3) { Player() },
     val currentPlayerIndex: Int = 0,
     val currentRound: Int = 1,
     val mrWhiteGuesses: Map<String, String> = emptyMap(),
-    val allPlayersScores: Map<String, Int> = emptyMap(),
-    val quickStart: Boolean = false
+    val allPlayersScores: Map<String, Int> = emptyMap()
 )
 
 // Win condition and scoring

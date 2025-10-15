@@ -99,7 +99,7 @@ fun UndercoverScreen(onBack: () -> Unit) {
                                 players = assignedPlayers,
                                 currentPlayerIndex = 0,
                                 currentRound = 1,
-                                gameState = GameState.PlayerSetup(0, showWord = false)
+                                gameState = GameState.PlayerSetup()
                             )
                         }
                         else {
@@ -190,8 +190,7 @@ fun UndercoverScreen(onBack: () -> Unit) {
                             players = reassignedPlayers,
                             currentPlayerIndex = 0,
                             currentRound = 1,
-                            gameState = GameState.PlayerSetup(0, showWord = false),
-                            quickStart = true
+                            gameState = GameState.PlayerSetup()
                         )
                     },
                     onSettings = {
