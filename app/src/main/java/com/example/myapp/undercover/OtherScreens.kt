@@ -9,15 +9,20 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -611,10 +616,13 @@ fun GameOverScreen(
 fun LeaderboardScreen(
     allScores: Map<String, Int>,
     onBackToMenu: () -> Unit,
-    onNewGame: () -> Unit
+    onNewGame: () -> Unit,
+    onSettings: () -> Unit
 ) {
     Column(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
@@ -641,10 +649,7 @@ fun LeaderboardScreen(
                             .padding(16.dp),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(
-                            entry.key,
-                            style = MaterialTheme.typography.titleLarge
-                        )
+                        Text(entry.key, style = MaterialTheme.typography.titleLarge)
                         Text(
                             "${entry.value} pts",
                             style = MaterialTheme.typography.titleLarge,
@@ -663,13 +668,29 @@ fun LeaderboardScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        Button(onClick = onNewGame) {
-            Text("Play Again")
+        // Play Again + Settings row
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Button(onClick = onNewGame) {
+                Text("Play Again")
+            }
+
+            IconButton(
+                onClick = onSettings,
+                modifier = Modifier.size(48.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Settings,
+                    contentDescription = "Game Settings",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(28.dp)
+                )
+            }
         }
     }
 }
-
-
 @Composable
 fun MrWhiteGuessScreen(
     lastEliminated: Player,
