@@ -108,8 +108,10 @@ fun HandlePlayerSetup(
     state: UndercoverGameState,
     onStateUpdate: (UndercoverGameState) -> Unit
 ) {
+    // If player hasn't seen their word yet
     if (!gameState.showWord) {
         if (state.quickStart) {
+            // Quick start mode: show warning dialog
             var showQuickStartDialog by remember { mutableStateOf(true) }
             val currentPlayer = state.players.getOrNull(gameState.playerIndex)
 
@@ -130,6 +132,7 @@ fun HandlePlayerSetup(
                     },
                     confirmButton = {
                         TextButton(onClick = {
+                            // Update state to show word
                             onStateUpdate(
                                 state.copy(
                                     gameState = GameState.PlayerSetup(
@@ -146,6 +149,7 @@ fun HandlePlayerSetup(
                 )
             }
         } else {
+            // Normal mode: enter player name
             PlayerSetupScreen(
                 playerIndex = gameState.playerIndex,
                 totalPlayers = state.players.size,
@@ -166,6 +170,7 @@ fun HandlePlayerSetup(
             )
         }
     } else {
+        // Player has name, show their secret word / role
         ShowWordScreen(
             player = state.players[gameState.playerIndex],
             playerIndex = gameState.playerIndex,
@@ -173,6 +178,7 @@ fun HandlePlayerSetup(
             settings = state.settings,
             onNext = {
                 if (gameState.playerIndex < state.players.size - 1) {
+                    // Move to next player
                     onStateUpdate(
                         state.copy(
                             gameState = GameState.PlayerSetup(
@@ -182,6 +188,7 @@ fun HandlePlayerSetup(
                         )
                     )
                 } else {
+                    // All players setup, start game
                     val activeCount = state.players.activePlayers().size
                     onStateUpdate(
                         state.copy(
@@ -197,6 +204,7 @@ fun HandlePlayerSetup(
     }
 }
 
+
 @Composable
 fun PlayerSetupScreen(
     playerIndex: Int,
@@ -208,6 +216,7 @@ fun PlayerSetupScreen(
     val focusRequester = remember { FocusRequester() }
     var showConfirmationDialog by remember { mutableStateOf(false) }
 
+    // Validate name
     val isNameValid by remember {
         derivedStateOf {
             name.isNotBlank() && name.length <= MAX_NAME_LENGTH &&
@@ -226,9 +235,7 @@ fun PlayerSetupScreen(
         }
     }
 
-    LaunchedEffect(Unit) {
-        focusRequester.requestFocus()
-    }
+    LaunchedEffect(Unit) { focusRequester.requestFocus() }
 
     Column(
         modifier = Modifier.fillMaxSize(),
@@ -241,6 +248,7 @@ fun PlayerSetupScreen(
         Spacer(modifier = Modifier.height(16.dp))
 
         Row(verticalAlignment = Alignment.CenterVertically) {
+            // Name input field
             OutlinedTextField(
                 value = name,
                 onValueChange = { name = it },
@@ -250,9 +258,7 @@ fun PlayerSetupScreen(
                 supportingText = errorMessage?.let { { Text(it) } },
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Done),
                 keyboardActions = KeyboardActions(onDone = {
-                    if (isNameValid) {
-                        showConfirmationDialog = true
-                    }
+                    if (isNameValid) showConfirmationDialog = true
                 }),
                 modifier = Modifier
                     .weight(1f)
@@ -261,19 +267,15 @@ fun PlayerSetupScreen(
 
             Spacer(modifier = Modifier.width(8.dp))
 
+            // OK button
             Button(
-                onClick = {
-                    if (isNameValid) {
-                        showConfirmationDialog = true
-                    }
-                },
+                onClick = { if (isNameValid) showConfirmationDialog = true },
                 enabled = isNameValid
-            ) {
-                Text("OK")
-            }
+            ) { Text("OK") }
         }
     }
 
+    // Confirm dialog
     if (showConfirmationDialog) {
         AlertDialog(
             onDismissRequest = { showConfirmationDialog = false },
@@ -286,16 +288,10 @@ fun PlayerSetupScreen(
                     onNameEntered(name)
                     name = ""
                     showConfirmationDialog = false
-                }) {
-                    Text("Yes, I'm ready")
-                }
+                }) { Text("Yes, I'm ready") }
             },
             dismissButton = {
-                TextButton(onClick = {
-                    showConfirmationDialog = false
-                }) {
-                    Text("Cancel")
-                }
+                TextButton(onClick = { showConfirmationDialog = false }) { Text("Cancel") }
             }
         )
     }
@@ -315,18 +311,12 @@ fun ShowWordScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Text(
-            player.name,
-            style = MaterialTheme.typography.headlineMedium
-        )
+        Text(player.name, style = MaterialTheme.typography.headlineMedium)
         Spacer(modifier = Modifier.height(24.dp))
 
+        // Display role and word depending on role/settings
         if (player.role == PlayerRole.MR_WHITE) {
-            Text(
-                "You are Mr. White!",
-                style = MaterialTheme.typography.headlineLarge,
-                fontWeight = FontWeight.Bold
-            )
+            Text("You are Mr. White!", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
             Text(
                 "You have no word. Listen carefully and blend in!",
                 style = MaterialTheme.typography.bodyLarge,
@@ -334,36 +324,19 @@ fun ShowWordScreen(
                 modifier = Modifier.padding(16.dp)
             )
         } else if (player.role == PlayerRole.IMPOSTOR && settings.impostorsKnowRole) {
-            Text(
-                "You are an Impostor!",
-                style = MaterialTheme.typography.headlineLarge,
-                fontWeight = FontWeight.Bold
-            )
+            Text("You are an Impostor!", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
             Spacer(modifier = Modifier.height(16.dp))
-            Text(
-                "Your word:",
-                style = MaterialTheme.typography.bodyLarge
-            )
-            Text(
-                player.word,
-                style = MaterialTheme.typography.headlineLarge,
-                fontWeight = FontWeight.Bold
-            )
+            Text("Your word:", style = MaterialTheme.typography.bodyLarge)
+            Text(player.word, style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
         } else {
-            Text(
-                "Your word:",
-                style = MaterialTheme.typography.bodyLarge
-            )
+            Text("Your word:", style = MaterialTheme.typography.bodyLarge)
             Spacer(modifier = Modifier.height(16.dp))
-            Text(
-                player.word,
-                style = MaterialTheme.typography.headlineLarge,
-                fontWeight = FontWeight.Bold
-            )
+            Text(player.word, style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
         }
 
         Spacer(modifier = Modifier.height(32.dp))
 
+        // Next button: move to next player or start game
         Button(onClick = onNext) {
             Text(if (playerIndex < totalPlayers - 1) "Next Player" else "Start Game")
         }
