@@ -6,6 +6,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -45,6 +46,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -177,7 +179,6 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
         )
     }
 
-    // Handle card swipe/answer
     fun handleAnswer(wasCorrect: Boolean) {
         if (isProcessingSwipe) return
         isProcessingSwipe = true
@@ -221,6 +222,7 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
         }
     }
 
+    // Box that display gradients when swiping
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -339,6 +341,7 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
                         }
 
                         Box(modifier = Modifier.fillMaxSize()) {
+                            // Text on the card
                             Column(
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.Center,
@@ -394,10 +397,14 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Spacer(Modifier.height(16.dp))
 
+                    // Answer buttons
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(20.dp)
                     ) {
+                        val yesInteractionSource = remember { MutableInteractionSource() }
+                        val yesPressed by yesInteractionSource.collectIsPressedAsState()
+
                         Box(
                             modifier = Modifier
                                 .weight(1f)
@@ -412,10 +419,13 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
 
                             Button(
                                 onClick = { handleAnswer(true) },
-                                modifier = Modifier.fillMaxSize(),
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .scale(if (yesPressed) 0.95f else 1f),
                                 colors = ButtonDefaults.buttonColors(containerColor = greenColor),
                                 shape = RoundedCornerShape(16.dp),
-                                contentPadding = PaddingValues(0.dp)
+                                contentPadding = PaddingValues(0.dp),
+                                interactionSource = yesInteractionSource
                             ) {
                                 Column(
                                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -438,6 +448,9 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
                             }
                         }
 
+                        val noInteractionSource = remember { MutableInteractionSource() }
+                        val noPressed by noInteractionSource.collectIsPressedAsState()
+
                         Box(
                             modifier = Modifier
                                 .weight(1f)
@@ -452,10 +465,13 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
 
                             Button(
                                 onClick = { handleAnswer(false) },
-                                modifier = Modifier.fillMaxSize(),
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .scale(if (noPressed) 0.95f else 1f),
                                 colors = ButtonDefaults.buttonColors(containerColor = redColor),
                                 shape = RoundedCornerShape(16.dp),
-                                contentPadding = PaddingValues(0.dp)
+                                contentPadding = PaddingValues(0.dp),
+                                interactionSource = noInteractionSource
                             ) {
                                 Column(
                                     horizontalAlignment = Alignment.CenterHorizontally,

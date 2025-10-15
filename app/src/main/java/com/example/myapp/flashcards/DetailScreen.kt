@@ -76,7 +76,7 @@ fun FlashcardDetailScreen(listId: String, onBack: () -> Unit, navController: Nav
     var dialogName by remember { mutableStateOf("") }
     var dialogDefinition by remember { mutableStateOf("") }
     var editingIndex by remember { mutableStateOf<Int?>(null) }
-    var sortAscending by remember { mutableStateOf(true) }
+    var sortAscending by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
     var elementToDelete by remember { mutableStateOf<FlashcardElement?>(null) }
     var selectedElement by remember { mutableStateOf<FlashcardElement?>(null) }
