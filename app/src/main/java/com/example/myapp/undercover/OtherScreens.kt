@@ -648,7 +648,7 @@ fun MrWhiteGuessScreen(
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    "If correct, Mr. White wins! Otherwise, ${opponent.name} wins.",
+                    "If correct, ${mrWhite.name} wins! Otherwise, ${opponent.name} wins.",
                     style = MaterialTheme.typography.bodyLarge,
                     textAlign = TextAlign.Center
                 )

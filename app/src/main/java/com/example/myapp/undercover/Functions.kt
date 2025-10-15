@@ -32,9 +32,10 @@ fun generateAndAssignPlayers(state: UndercoverGameState): List<Player> {
 
     if (state.settings.randomComposition) {
         val maxImpostors = ((state.players.size - mrWhiteCount) / 2) - 1
-        impostorCount = if (maxImpostors >= 1) {
-            Random.nextInt(1, maxImpostors + 1)
-        } else 0
+        impostorCount = if (maxImpostors >= 1) Random.nextInt(1, maxImpostors + 1) else 0
+
+        // Guarantee at least one non-civilian
+        if (impostorCount == 0 && mrWhiteCount == 0) { impostorCount = 1 }
     }
 
     var nextIndex = 0

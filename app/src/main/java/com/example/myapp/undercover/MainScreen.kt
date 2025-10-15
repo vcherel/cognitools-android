@@ -405,7 +405,6 @@ fun UndercoverScreen(onBack: () -> Unit) {
                     }
                 )
             }
-
             is GameState.GameOver -> {
                 GameOverScreen(
                     civiliansWon = gameState.civiliansWon,
