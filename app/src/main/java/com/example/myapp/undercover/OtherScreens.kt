@@ -35,13 +35,112 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
+import kotlin.random.Random
 
 const val MAX_NAME_LENGTH = 30
+
+@Composable
+fun HandlePlayerSetup(
+    gameState: GameState.PlayerSetup,
+    state: UndercoverGameState,
+    onStateUpdate: (UndercoverGameState) -> Unit
+) {
+    if (!gameState.showWord) {
+        if (state.quickStart) {
+            var showQuickStartDialog by remember { mutableStateOf(true) }
+            val currentPlayer = state.players.getOrNull(gameState.playerIndex)
+
+            if (currentPlayer != null && showQuickStartDialog) {
+                AlertDialog(
+                    onDismissRequest = { },
+                    title = { Text("Warning") },
+                    text = {
+                        Text(
+                            buildAnnotatedString {
+                                append("The secret word for ")
+                                withStyle(style = SpanStyle(fontWeight = FontWeight.Bold)) {
+                                    append(currentPlayer.name)
+                                }
+                                append(" will now be displayed. Make sure no one else is watching!")
+                            }
+                        )
+                    },
+                    confirmButton = {
+                        TextButton(onClick = {
+                            onStateUpdate(
+                                state.copy(
+                                    gameState = GameState.PlayerSetup(
+                                        gameState.playerIndex,
+                                        showWord = true
+                                    )
+                                )
+                            )
+                            showQuickStartDialog = false
+                        }) {
+                            Text("OK")
+                        }
+                    }
+                )
+            }
+        } else {
+            PlayerSetupScreen(
+                playerIndex = gameState.playerIndex,
+                totalPlayers = state.players.size,
+                existingNames = state.players.map { it.name },
+                onNameEntered = { name ->
+                    val updatedPlayers = state.players.mapIndexed { index, player ->
+                        if (index == gameState.playerIndex)
+                            player.copy(name = name)
+                        else player
+                    }
+                    onStateUpdate(
+                        state.copy(
+                            players = updatedPlayers,
+                            gameState = GameState.PlayerSetup(gameState.playerIndex, true)
+                        )
+                    )
+                }
+            )
+        }
+    } else {
+        ShowWordScreen(
+            player = state.players[gameState.playerIndex],
+            playerIndex = gameState.playerIndex,
+            totalPlayers = state.players.size,
+            settings = state.settings,
+            onNext = {
+                if (gameState.playerIndex < state.players.size - 1) {
+                    onStateUpdate(
+                        state.copy(
+                            gameState = GameState.PlayerSetup(
+                                gameState.playerIndex + 1,
+                                false
+                            )
+                        )
+                    )
+                } else {
+                    val activeCount = state.players.activePlayers().size
+                    onStateUpdate(
+                        state.copy(
+                            currentPlayerIndex = if (activeCount > 0)
+                                Random.nextInt(activeCount) else 0,
+                            gameState = GameState.PlayMenu,
+                            quickStart = false
+                        )
+                    )
+                }
+            }
+        )
+    }
+}
 
 @Composable
 fun PlayerSetupScreen(
