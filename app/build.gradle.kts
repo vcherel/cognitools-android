@@ -32,6 +32,24 @@ android {
                 "proguard-rules.pro"
             )
         }
+
+        debug {
+            isMinifyEnabled = false
+            isShrinkResources = false
+        }
+
+        // Reduce APK size
+        bundle {
+            language {
+                enableSplit = true
+            }
+            density {
+                enableSplit = true
+            }
+            abi {
+                enableSplit = true
+            }
+        }
     }
 
     compileOptions {
@@ -79,7 +97,7 @@ dependencies {
 
     // WorkManager with explicit startup config
     implementation(libs.androidx.work.runtime.ktx)
-    implementation(libs.androidx.startup.runtime)  // Add this for manual initialization
+    implementation(libs.androidx.startup.runtime)
 
     // Splash screen
     implementation(libs.androidx.core.splashscreen)

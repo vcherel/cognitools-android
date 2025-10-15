@@ -54,7 +54,7 @@ class VolumeBoosterService : Service() {
                 startBoost()
             }
         }
-        return START_STICKY
+        return START_NOT_STICKY
     }
 
     private fun startBoost() {
