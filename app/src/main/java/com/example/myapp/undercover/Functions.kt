@@ -3,6 +3,8 @@ package com.example.myapp.undercover
 import androidx.compose.ui.graphics.Color
 import kotlin.random.Random
 
+// Player generation and role assignment
+
 // Player generation and role/word assignment
 fun generateAndAssignPlayers(state: UndercoverGameState): List<Player> {
     val players = (0 until state.players.size).map { i ->
@@ -67,12 +69,17 @@ fun reassignRolesAndWords(state: UndercoverGameState): List<Player> {
     }
 }
 
-// Game state utilities
+// Player list extensions
 fun List<Player>.eliminate(playerName: String): List<Player> {
     return map { if (it.name == playerName) it.copy(isEliminated = true) else it }
 }
 
 fun List<Player>.activePlayers() = filter { !it.isEliminated }
+
+fun List<Player>.getCivilianWord(): String =
+    first { it.role == PlayerRole.CIVILIAN }.word
+
+// Game logic helpers
 
 fun List<Player>.shouldMrWhiteGuess(): Boolean {
     // Check if Mr. White should guess (other case than Mr White eliminated)
@@ -125,7 +132,224 @@ fun List<Player>.awardImpostorPoints(scores: Map<String, Int>): Map<String, Int>
     return updatedScores
 }
 
+// Game state handler
+fun handlePlayerElimination(
+    state: UndercoverGameState,
+    eliminatedPlayer: Player
+): UndercoverGameState {
+    val updatedPlayers = state.players.eliminate(eliminatedPlayer.name)
+    val activePlayers = updatedPlayers.activePlayers()
+    val activeCivilians = activePlayers.filter { it.role == PlayerRole.CIVILIAN }
+    val activeMrWhites = activePlayers.filter { it.role == PlayerRole.MR_WHITE }
+
+    return when {
+        // Case 1: Mr. White was eliminated → They get to guess immediately
+        eliminatedPlayer.role == PlayerRole.MR_WHITE -> {
+            state.copy(
+                players = updatedPlayers,
+                gameState = GameState.MrWhiteGuess(
+                    player = eliminatedPlayer,
+                    correctWord = state.players.getCivilianWord(),
+                    lastEliminated = eliminatedPlayer,
+                    scenario = MrWhiteScenario.EliminatedMrWhite()
+                )
+            )
+        }
+
+        // Case 2: Only Mr Whites left
+        activeCivilians.isEmpty() && activeMrWhites.isNotEmpty() -> {
+            val currentGuesser = activeMrWhites.first()
+            state.copy(
+                players = updatedPlayers,
+                gameState = GameState.MrWhiteGuess(
+                    player = currentGuesser,
+                    correctWord = state.players.getCivilianWord(),
+                    lastEliminated = eliminatedPlayer,
+                    scenario = MrWhiteScenario.OnlyMrWhitesLeft(
+                        activeMrWhites = activeMrWhites,
+                        currentGuesser = currentGuesser
+                    )
+                )
+            )
+        }
+
+        // Case 3: Final two (Mr White should guess)
+        updatedPlayers.shouldMrWhiteGuess() && activeMrWhites.isNotEmpty() -> {
+            val mrWhiteToGuess = activeMrWhites.first()
+            state.copy(
+                players = updatedPlayers,
+                gameState = GameState.MrWhiteGuess(
+                    player = mrWhiteToGuess,
+                    correctWord = state.players.getCivilianWord(),
+                    lastEliminated = eliminatedPlayer,
+                    scenario = MrWhiteScenario.FinalTwo(
+                        mrWhite = mrWhiteToGuess,
+                        opponent = activeCivilians.first()
+                    )
+                )
+            )
+        }
+
+        // Case 4: Check normal win conditions
+        else -> {
+            handleWinCondition(
+                condition = updatedPlayers.checkWinCondition(),
+                players = updatedPlayers,
+                scores = state.allPlayersScores,
+                lastEliminated = eliminatedPlayer,
+                skipEliminationScreen = false
+            ).let { (newPlayers, newScores, newGameState) ->
+                state.copy(
+                    players = newPlayers,
+                    allPlayersScores = newScores,
+                    gameState = newGameState
+                )
+            }
+        }
+    }
+}
+
+fun handleMrWhiteGuess(
+    state: UndercoverGameState,
+    gameState: GameState.MrWhiteGuess,
+    guessedWord: String
+): UndercoverGameState {
+    val updatedGuesses = state.mrWhiteGuesses + (gameState.player.name to guessedWord)
+    val guessCorrect = guessedWord.equals(gameState.correctWord, ignoreCase = true)
+
+    if (guessCorrect) {
+        // Mr. White wins immediately
+        val updatedScores = state.allPlayersScores.updateScore(
+            gameState.player.name,
+            ScoreValues.MR_WHITE_WIN
+        )
+        return state.copy(
+            mrWhiteGuesses = updatedGuesses,
+            allPlayersScores = updatedScores,
+            gameState = GameState.GameOver(
+                civiliansWon = false,
+                lastEliminated = gameState.player
+            )
+        )
+    }
+
+    // Incorrect guess - eliminate if not already eliminated
+    val updatedPlayers = if (gameState.player.isEliminated) {
+        state.players
+    } else {
+        state.players.eliminate(gameState.player.name)
+    }
+
+    // Check if any remaining Mr. Whites need to guess
+    val remainingMrWhites = updatedPlayers.activePlayers()
+        .filter { it.role == PlayerRole.MR_WHITE }
+
+    return if (remainingMrWhites.isNotEmpty() && updatedPlayers.shouldMrWhiteGuess()) {
+        // Next Mr. White guesses
+        val nextMrWhite = remainingMrWhites.first()
+        val scenario = determineMrWhiteScenario(nextMrWhite, updatedPlayers.activePlayers())
+
+        state.copy(
+            mrWhiteGuesses = updatedGuesses,
+            players = updatedPlayers,
+            gameState = GameState.MrWhiteGuess(
+                player = nextMrWhite,
+                correctWord = gameState.correctWord,
+                lastEliminated = gameState.lastEliminated,
+                scenario = scenario
+            )
+        )
+    } else {
+        // No more Mr. Whites to guess, check win conditions
+        handleWinCondition(
+            condition = updatedPlayers.checkWinCondition(),
+            players = updatedPlayers,
+            scores = state.allPlayersScores,
+            lastEliminated = gameState.player,
+            skipEliminationScreen = true
+        ).let { (newPlayers, newScores, newGameState) ->
+            state.copy(
+                mrWhiteGuesses = updatedGuesses,
+                players = newPlayers,
+                allPlayersScores = newScores,
+                currentRound = state.currentRound + 1,
+                gameState = newGameState
+            )
+        }
+    }
+}
+
+fun determineMrWhiteScenario(
+    mrWhite: Player,
+    activePlayers: List<Player>
+): MrWhiteScenario {
+    val activeCivilians = activePlayers.filter { it.role == PlayerRole.CIVILIAN }
+    val activeMrWhites = activePlayers.filter { it.role == PlayerRole.MR_WHITE }
+
+    return when {
+        activeCivilians.isEmpty() && activePlayers.none { it.role == PlayerRole.IMPOSTOR } -> {
+            MrWhiteScenario.OnlyMrWhitesLeft(
+                activeMrWhites = activeMrWhites,
+                currentGuesser = mrWhite
+            )
+        }
+        else -> {
+            MrWhiteScenario.FinalTwo(
+                mrWhite = mrWhite,
+                opponent = activeCivilians.first()
+            )
+        }
+    }
+}
+
+fun handleWinCondition(
+    condition: WinCondition,
+    players: List<Player>,
+    scores: Map<String, Int>,
+    lastEliminated: Player,
+    skipEliminationScreen: Boolean = false
+): Triple<List<Player>, Map<String, Int>, GameState> {
+    return when (condition) {
+        WinCondition.CiviliansWin -> {
+            val updatedScores = players.awardCivilianPoints(scores)
+            Triple(
+                players,
+                updatedScores,
+                GameState.GameOver(civiliansWon = true, lastEliminated = lastEliminated)
+            )
+        }
+
+        WinCondition.ImpostorsWin -> {
+            val updatedScores = players.awardImpostorPoints(scores)
+            Triple(
+                players,
+                updatedScores,
+                GameState.GameOver(civiliansWon = false, lastEliminated = lastEliminated)
+            )
+        }
+
+        WinCondition.Continue -> {
+            if (skipEliminationScreen) {
+                // After Mr. White's wrong guess → Go directly to next round
+                Triple(
+                    players,
+                    scores,
+                    GameState.PlayMenu
+                )
+            } else {
+                // After voting elimination → Show elimination result screen first
+                Triple(
+                    players,
+                    scores,
+                    GameState.EliminationResult(player = lastEliminated, gameOver = false)
+                )
+            }
+        }
+    }
+}
+
 // Display utilities
+
 fun PlayerRole.displayName(): String = when (this) {
     PlayerRole.CIVILIAN -> "Civilian"
     PlayerRole.IMPOSTOR -> "Impostor"
