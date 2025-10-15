@@ -460,7 +460,7 @@ fun GameOverScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        if (!(lastEliminated.role == PlayerRole.MR_WHITE && !civiliansWon)) {
+        if (!(lastEliminated.role == PlayerRole.MR_WHITE && !civiliansWon) && mrWhiteGuesses.isEmpty()) {
             Text(
                 "${lastEliminated.name} was eliminated",
                 style = MaterialTheme.typography.bodyLarge
