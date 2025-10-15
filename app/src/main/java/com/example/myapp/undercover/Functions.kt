@@ -58,6 +58,7 @@ fun generateAndAssignPlayers(state: UndercoverGameState): List<Player> {
 }
 
 fun reassignRolesAndWords(state: UndercoverGameState): List<Player> {
+    // When replaying game
     val newPlayers = generateAndAssignPlayers(state)
     // Keep the original names
     return newPlayers.mapIndexed { index, p ->
@@ -72,7 +73,23 @@ fun List<Player>.eliminate(playerName: String): List<Player> {
 
 fun List<Player>.activePlayers() = filter { !it.isEliminated }
 
+fun List<Player>.shouldMrWhiteGuess(): Boolean {
+    // Check if Mr. White should guess (other case than Mr White eliminated)
+    val active = activePlayers()
+    val mrWhites = active.count { it.role == PlayerRole.MR_WHITE }
+
+    // If no Mr White is active, he shouldn't guess
+    if (mrWhites == 0) return false
+
+    // If there is only one or two active player, he should guess
+    if (active.size <= 2) return true
+
+    return false
+}
+
+
 fun List<Player>.checkWinCondition(): WinCondition {
+    // We check win condition but not Mr White win
     val active = activePlayers()
     val civilians = active.count { it.role == PlayerRole.CIVILIAN }
     val impostors = active.count { it.role == PlayerRole.IMPOSTOR }
@@ -80,23 +97,8 @@ fun List<Player>.checkWinCondition(): WinCondition {
 
     return when {
         impostors == 0 && mrWhites == 0 -> WinCondition.CiviliansWin
-        civilians <= 1 -> WinCondition.ImpostorsWin
+        impostors > 0 && civilians <= 1 -> WinCondition.ImpostorsWin
         else -> WinCondition.Continue
-    }
-}
-
-fun List<Player>.shouldMrWhiteGuess(): Boolean {
-    val active = activePlayers()
-    val civilians = active.count { it.role == PlayerRole.CIVILIAN }
-    val impostors = active.count { it.role == PlayerRole.IMPOSTOR }
-    val mrWhites = active.count { it.role == PlayerRole.MR_WHITE }
-
-    return when {
-        mrWhites == 0 -> false
-        mrWhites > 0 && impostors > 0 && civilians == 0 -> true
-        mrWhites > 0 && civilians == 0 && impostors == 0 -> true
-        mrWhites > 0 && civilians == 1 && impostors == 0 -> true
-        else -> false
     }
 }
 

@@ -204,7 +204,7 @@ fun UndercoverScreen(onBack: () -> Unit) {
                     onPlayerEliminated = { eliminatedPlayer ->
                         val updatedPlayers = state.players.eliminate(eliminatedPlayer.name)
 
-                        // Check if Mr. White should guess FIRST before checking win conditions
+                        // Check if Mr. White should guess by seeing the number of active players
                         val shouldMrWhiteGuess = updatedPlayers.shouldMrWhiteGuess()
 
                         when {
@@ -224,9 +224,38 @@ fun UndercoverScreen(onBack: () -> Unit) {
                             }
                             // PRIORITY: If Mr. White should guess, let them guess before determining winners
                             shouldMrWhiteGuess -> {
+                                val active = updatedPlayers.activePlayers()
+                                val mrWhiteToGuess = active.first { it.role == PlayerRole.MR_WHITE }
                                 val correctWord = state.players.first { it.role == PlayerRole.CIVILIAN }.word
-                                val mrWhiteToGuess = updatedPlayers.activePlayers()
-                                    .first { it.role == PlayerRole.MR_WHITE }
+                                val activeCivilians = active.filter { it.role == PlayerRole.CIVILIAN }
+                                val activeImpostors = active.filter { it.role == PlayerRole.IMPOSTOR }
+
+                                val scenario = when {
+                                    // Case 1: Only Mr. White and one Civilian left → Final Two
+                                    activeCivilians.size == 1 && activeImpostors.isEmpty() && active.size == 2 -> {
+                                        MrWhiteScenario.FinalTwo(
+                                            mrWhite = mrWhiteToGuess,
+                                            opponent = activeCivilians.first()
+                                        )
+                                    }
+
+                                    // Case 2: Only Mr. Whites left
+                                    activeCivilians.isEmpty() && activeImpostors.isEmpty() -> {
+                                        MrWhiteScenario.OnlyMrWhitesLeft(
+                                            activeMrWhites = active.filter { it.role == PlayerRole.MR_WHITE },
+                                            currentGuesser = mrWhiteToGuess
+                                        )
+                                    }
+
+                                    // Fallback (should rarely happen)
+                                    else -> {
+                                        MrWhiteScenario.OnlyMrWhitesLeft(
+                                            activeMrWhites = active.filter { it.role == PlayerRole.MR_WHITE },
+                                            currentGuesser = mrWhiteToGuess
+                                        )
+                                    }
+                                }
+
                                 state = state.copy(
                                     players = updatedPlayers,
                                     gameState = GameState.MrWhiteGuess(
@@ -234,13 +263,11 @@ fun UndercoverScreen(onBack: () -> Unit) {
                                         correctWord = correctWord,
                                         lastEliminated = eliminatedPlayer,
                                         mrWhiteGuesses = emptyList(),
-                                        scenario = MrWhiteScenario.OnlyMrWhitesLeft(
-                                            activeMrWhites = updatedPlayers.activePlayers().filter { it.role == PlayerRole.MR_WHITE },
-                                            currentGuesser = mrWhiteToGuess
-                                        )
+                                        scenario = scenario
                                     )
                                 )
                             }
+
                             // Only check win conditions if Mr. White doesn't need to guess
                             else -> {
                                 val winCheck = updatedPlayers.checkWinCondition()
