@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardActions
@@ -437,7 +438,7 @@ fun MrWhiteGuessScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(24.dp),
+            .padding(10.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
@@ -543,33 +544,40 @@ fun MrWhiteGuessScreen(
         // Common input UI (for all cases)
         Spacer(modifier = Modifier.height(32.dp))
 
-        OutlinedTextField(
-            value = guessedWord,
-            onValueChange = { guessedWord = it },
-            label = { Text("Enter your guess") },
-            placeholder = { Text("What is the secret word?") },
-            singleLine = true,
+        Row(
             modifier = Modifier
-                .fillMaxWidth(0.8f)
-                .focusRequester(focusRequester),
-            keyboardOptions = KeyboardOptions(
-                capitalization = KeyboardCapitalization.Sentences,
-                imeAction = ImeAction.Done
-            ),
-            keyboardActions = KeyboardActions(
-                onDone = {
-                    if (guessedWord.isNotBlank()) showConfirmation = true
-                }
-            )
-        )
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        Button(
-            onClick = { showConfirmation = true },
-            enabled = guessedWord.isNotBlank()
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("Submit Guess")
+            OutlinedTextField(
+                value = guessedWord,
+                onValueChange = { guessedWord = it },
+                label = { Text("Guess") },
+                placeholder = { Text("Enter your guess") },
+                singleLine = true,
+                modifier = Modifier
+                    .weight(1f)
+                    .focusRequester(focusRequester),
+                keyboardOptions = KeyboardOptions(
+                    capitalization = KeyboardCapitalization.Sentences,
+                    imeAction = ImeAction.Done
+                ),
+                keyboardActions = KeyboardActions(
+                    onDone = {
+                        if (guessedWord.isNotBlank()) showConfirmation = true
+                    }
+                )
+            )
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            Button(
+                onClick = { showConfirmation = true },
+                enabled = guessedWord.isNotBlank()
+            ) {
+                Text("Submit\nGuess")
+            }
         }
     }
 
