@@ -87,7 +87,6 @@ fun List<Player>.shouldMrWhiteGuess(): Boolean {
     return false
 }
 
-
 fun List<Player>.checkWinCondition(): WinCondition {
     // We check win condition but not Mr White win
     val active = activePlayers()

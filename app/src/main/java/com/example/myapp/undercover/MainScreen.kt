@@ -230,30 +230,19 @@ fun UndercoverScreen(onBack: () -> Unit) {
                                 val activeCivilians = active.filter { it.role == PlayerRole.CIVILIAN }
                                 val activeImpostors = active.filter { it.role == PlayerRole.IMPOSTOR }
 
-                                val scenario = when {
-                                    // Case 1: Only Mr. White and one Civilian left → Final Two
-                                    activeCivilians.size == 1 && activeImpostors.isEmpty() && active.size == 2 -> {
-                                        MrWhiteScenario.FinalTwo(
-                                            mrWhite = mrWhiteToGuess,
-                                            opponent = activeCivilians.first()
-                                        )
-                                    }
+                                val scenario = if (activeCivilians.isEmpty() && activeImpostors.isEmpty()) {
+                                    // Case 1: Only Mr. Whites left
+                                    MrWhiteScenario.OnlyMrWhitesLeft(
+                                        activeMrWhites = active.filter { it.role == PlayerRole.MR_WHITE },
+                                        currentGuesser = mrWhiteToGuess
+                                    )
 
-                                    // Case 2: Only Mr. Whites left
-                                    activeCivilians.isEmpty() && activeImpostors.isEmpty() -> {
-                                        MrWhiteScenario.OnlyMrWhitesLeft(
-                                            activeMrWhites = active.filter { it.role == PlayerRole.MR_WHITE },
-                                            currentGuesser = mrWhiteToGuess
-                                        )
-                                    }
-
-                                    // Fallback (should rarely happen)
-                                    else -> {
-                                        MrWhiteScenario.OnlyMrWhitesLeft(
-                                            activeMrWhites = active.filter { it.role == PlayerRole.MR_WHITE },
-                                            currentGuesser = mrWhiteToGuess
-                                        )
-                                    }
+                                } else {
+                                    // Case 2: Only Mr. White and one Civilian left → Final Two
+                                    MrWhiteScenario.FinalTwo(
+                                        mrWhite = mrWhiteToGuess,
+                                        opponent = activeCivilians.first()
+                                    )
                                 }
 
                                 state = state.copy(
