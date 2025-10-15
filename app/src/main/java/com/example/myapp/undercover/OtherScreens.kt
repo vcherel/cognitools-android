@@ -591,22 +591,22 @@ fun MrWhiteGuessScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
+        Text(
+            text = "${lastEliminated.name} (${lastEliminated.role.displayName()}) was just eliminated!",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Medium,
+            color = lastEliminated.role.displayColor(),
+            textAlign = TextAlign.Center
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
         when (scenario) {
 
             // CASE 1 — Eliminated Mr White
             is MrWhiteScenario.EliminatedMrWhite -> {
                 Text(
-                    text = "${lastEliminated.name} was eliminated and was Mr. White!",
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.Red,
-                    textAlign = TextAlign.Center
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Text(
-                    "You can now try to guess the secret word.",
+                    "Mr White can now try to guess the secret word.",
                     style = MaterialTheme.typography.titleMedium,
                     textAlign = TextAlign.Center
                 )
@@ -622,16 +622,6 @@ fun MrWhiteGuessScreen(
             is MrWhiteScenario.FinalTwo -> {
                 val mrWhite = scenario.mrWhite
                 val opponent = scenario.opponent
-
-                Text(
-                    text = "${lastEliminated.name} (${lastEliminated.role.displayName()}) was just eliminated!",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Medium,
-                    color = lastEliminated.role.displayColor(),
-                    textAlign = TextAlign.Center
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
 
                 Text(
                     text = "Only two players remain!",
