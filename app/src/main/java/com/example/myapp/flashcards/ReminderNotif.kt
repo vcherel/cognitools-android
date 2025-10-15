@@ -21,6 +21,8 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import java.util.concurrent.TimeUnit
 
+const val LIMIT_DUE_COUNT = 150
+
 class FlashcardReminderWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result {
@@ -41,7 +43,7 @@ class FlashcardReminderWorker(context: Context, params: WorkerParameters) : Coro
             val dueCount = flashcards.count { isDue(it) }
 
             // Send notification if threshold is met
-            if (dueCount >= 50) {
+            if (dueCount >= LIMIT_DUE_COUNT) {
                 sendReviewNotification(applicationContext, dueCount)
             }
 

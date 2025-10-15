@@ -416,7 +416,7 @@ fun GameOverScreen(
     lastEliminated: Player,
     players: List<Player>,
     gameWord: String,
-    mrWhiteGuess: String?,
+    mrWhiteGuesses: List<String>,
     onContinue: () -> Unit
 ) {
     val activePlayers by remember { derivedStateOf { players.activePlayers() } }
@@ -484,10 +484,19 @@ fun GameOverScreen(
             fontWeight = FontWeight.Medium
         )
 
-        mrWhiteGuess?.let {
+        if (mrWhiteGuesses.isNotEmpty()) {
             Spacer(modifier = Modifier.height(16.dp))
+
+            val message = when (mrWhiteGuesses.size) {
+                1 -> "Mr White tried to guess \"${mrWhiteGuesses[0]}\" but it was not correct."
+                else -> {
+                    val guessesString = mrWhiteGuesses.joinToString(separator = "\", \"", prefix = "\"", postfix = "\"")
+                    "Mr Whites tried to guess $guessesString but it was not correct."
+                }
+            }
+
             Text(
-                "Mr White tried to guess \"$it\" but it was not correct.",
+                message,
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.Medium,
                 color = Color.Red,
@@ -630,7 +639,7 @@ fun MrWhiteGuessScreen(
         // Context based on number of Mr. Whites left
         if (activeMrWhites > 1) {
             Text(
-                "Multiple Mr. Whites remain!",
+                "Multiple Mr. Whites can win!",
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.Center
@@ -643,7 +652,7 @@ fun MrWhiteGuessScreen(
             )
         } else {
             Text(
-                "One Mr. White remains!",
+                "One Mr. White can win!",
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.Center
