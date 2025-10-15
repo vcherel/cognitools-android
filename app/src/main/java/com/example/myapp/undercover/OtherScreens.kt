@@ -34,8 +34,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 
@@ -92,7 +94,7 @@ fun PlayerSetupScreen(
                 singleLine = true,
                 isError = errorMessage != null,
                 supportingText = errorMessage?.let { { Text(it) } },
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Done),
                 keyboardActions = KeyboardActions(onDone = {
                     if (isNameValid) {
                         showConfirmationDialog = true
@@ -559,11 +561,20 @@ fun MrWhiteGuessScreen(
     allPlayers: List<Player>,
     onGuessSubmitted: (String) -> Unit
 ) {
+    val focusRequester = remember { FocusRequester() }
+    val keyboardController = LocalSoftwareKeyboardController.current
+
     var guessedWord by remember { mutableStateOf("") }
     var showConfirmation by remember { mutableStateOf(false) }
 
     // Derive number of active Mr. Whites directly from allPlayers
     val activeMrWhites = allPlayers.count { it.role == PlayerRole.MR_WHITE && !it.isEliminated }
+
+    // To show keyboard directly
+    LaunchedEffect(Unit) {
+        focusRequester.requestFocus()
+        keyboardController?.show()
+    }
 
     Column(
         modifier = Modifier
@@ -650,7 +661,15 @@ fun MrWhiteGuessScreen(
             label = { Text("Enter your guess") },
             placeholder = { Text("What is the secret word?") },
             singleLine = true,
-            modifier = Modifier.fillMaxWidth(0.8f)
+            modifier = Modifier.fillMaxWidth(0.8f).focusRequester(focusRequester),
+            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Done),
+            keyboardActions = KeyboardActions(
+                onDone = {
+                    if (guessedWord.isNotBlank()) {
+                        showConfirmation = true
+                    }
+                }
+            )
         )
 
         Spacer(modifier = Modifier.height(24.dp))
