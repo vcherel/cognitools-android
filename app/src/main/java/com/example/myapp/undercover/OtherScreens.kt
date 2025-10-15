@@ -393,15 +393,6 @@ fun EliminationResultScreen(
             color = player.role.displayColor()
         )
 
-        Spacer(modifier = Modifier.height(16.dp))
-
-        if (player.role != PlayerRole.MR_WHITE) {
-            Text(
-                "Word: ${player.word}",
-                style = MaterialTheme.typography.titleLarge
-            )
-        }
-
         Spacer(modifier = Modifier.height(32.dp))
 
         Button(onClick = onNextRound) {
@@ -597,6 +588,14 @@ fun MrWhiteGuessScreen(
         keyboardController?.show()
     }
 
+    // Count remaining players
+    val remainingPlayers = allPlayers.filter { !it.isEliminated }
+    val remainingCount = remainingPlayers.size
+
+// Check remaining roles
+    val remainingMrWhites = remainingPlayers.count { it.role == PlayerRole.MR_WHITE }
+    val remainingCivilians = remainingPlayers.count { it.role != PlayerRole.MR_WHITE }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -604,29 +603,26 @@ fun MrWhiteGuessScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        // Last eliminated player
+        // Last eliminated player info
         if (lastEliminated != null && !player.isEliminated) {
             Text(
                 "${lastEliminated.name} was eliminated!",
                 style = MaterialTheme.typography.headlineSmall
             )
-
             Spacer(modifier = Modifier.height(8.dp))
-
             Text(
                 "Role: ${lastEliminated.role.displayName()}",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
                 color = lastEliminated.role.displayColor()
             )
-
             Spacer(modifier = Modifier.height(24.dp))
         }
 
-        // Current player identity
+        // Current player info
         Text(
             text = if (player.isEliminated)
-                "${player.name} was eliminated!"
+                "${player.name} was eliminated and was Mr.White!"
             else
                 "${player.name} was Mr. White!",
             style = MaterialTheme.typography.headlineMedium,
@@ -636,7 +632,39 @@ fun MrWhiteGuessScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Context based on number of Mr. Whites left
+        // Endgame specific messages
+        when {
+            remainingCount == 2 && remainingMrWhites == 1 && remainingCivilians == 1 -> {
+                Text(
+                    "Only two players left! Mr. White can guess now.",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    "The remaining civilian has no chance of winning if Mr. White guesses correctly.",
+                    style = MaterialTheme.typography.titleMedium,
+                    textAlign = TextAlign.Center
+                )
+            }
+
+            remainingCount == 2 && remainingMrWhites == 0 && remainingCivilians == 2 -> {
+                Text(
+                    "Two players left: 1 Civilian and 1 Impostor.",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    "The Impostor wins because the civilian cannot eliminate them alone.",
+                    style = MaterialTheme.typography.titleMedium,
+                    textAlign = TextAlign.Center
+                )
+            }
+        }
+
         if (activeMrWhites > 1) {
             Text(
                 "Multiple Mr. Whites can win!",
@@ -651,18 +679,12 @@ fun MrWhiteGuessScreen(
                 textAlign = TextAlign.Center
             )
         } else {
-            Text(
-                "One Mr. White can win!",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center
-            )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 "Guess the word to win!",
                 style = MaterialTheme.typography.titleMedium,
                 textAlign = TextAlign.Center
-            )
+                    )
         }
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -713,6 +735,7 @@ fun MrWhiteGuessScreen(
                 Button(onClick = {
                     onGuessSubmitted(guessedWord.trim())
                     showConfirmation = false
+                    guessedWord = ""
                 }) {
                     Text("Confirm")
                 }
