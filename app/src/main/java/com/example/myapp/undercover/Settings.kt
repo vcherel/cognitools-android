@@ -8,13 +8,21 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 
 enum class SwapDirection {
@@ -101,6 +109,8 @@ fun SettingsScreen(
     onSettingsChange: (UndercoverGameState) -> Unit,
     onStart: () -> Unit
 ) {
+    var showDeleteDialog by remember { mutableStateOf(false) }
+
     // Calculate current valid ranges
     val maxImpostors = (state.players.size - 1) / 2
     val (_, _, maxMrWhiteFromSwap) = validateGameSettings(
@@ -121,6 +131,13 @@ fun SettingsScreen(
             label = "Number of Players",
             value = state.players.size,
             onValueChange = { newPlayerCount ->
+                // Check if we're deleting and any player has a real name
+                if (newPlayerCount < state.players.size &&
+                    state.players.any { it.name.isNotEmpty() }) {
+                    showDeleteDialog = true
+                    return@NumberSetting
+                }
+
                 val (_, validImpostors, validMrWhite) = validateGameSettings(
                     playerCount = newPlayerCount,
                     impostorCount = state.settings.impostorCount,
@@ -144,7 +161,6 @@ fun SettingsScreen(
                     ),
                     players = updatedPlayers
                 )
-
                 onSettingsChange(updatedState)
             },
             min = 3,
@@ -230,7 +246,6 @@ fun SettingsScreen(
                         mrWhiteCount = validMrWhite
                     )
                 )
-
                 onSettingsChange(updatedState)
             },
             min = 0,
@@ -267,6 +282,58 @@ fun SettingsScreen(
             val text = if (playAgain) "Go back to leaderboard" else "Start Game"
             Text(text, style = MaterialTheme.typography.titleLarge)
         }
+    }
+
+    // Delete Player Dialog
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("Select Player to Delete") },
+            text = {
+                Column {
+                    Text(
+                        "Which player do you want to remove?",
+                        modifier = Modifier.padding(bottom = 16.dp)
+                    )
+                    state.players.forEachIndexed { index, player ->
+                        OutlinedButton(
+                            onClick = {
+                                val updatedPlayers = state.players.filterIndexed { i, _ -> i != index }
+                                val (_, validImpostors, validMrWhite) = validateGameSettings(
+                                    playerCount = updatedPlayers.size,
+                                    impostorCount = state.settings.impostorCount,
+                                    mrWhiteCount = state.settings.mrWhiteCount
+                                )
+                                val updatedState = state.copy(
+                                    settings = state.settings.copy(
+                                        impostorCount = validImpostors,
+                                        mrWhiteCount = validMrWhite
+                                    ),
+                                    players = updatedPlayers
+                                )
+                                onSettingsChange(updatedState)
+                                showDeleteDialog = false
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp)
+                        ) {
+                            Text(
+                                text = player.name.ifEmpty { "Unnamed player ${index + 1}" },
+                                modifier = Modifier.fillMaxWidth(),
+                                textAlign = TextAlign.Start
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 }
 
