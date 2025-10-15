@@ -97,10 +97,26 @@ fun MainScreen() {
         Box(modifier = Modifier.padding(innerPadding)) {
             when (currentScreen) {
                 "menu" -> MenuScreen(onNavigate = { screen -> currentScreen = screen })
-                "randomGenerator" -> RandomGeneratorScreen(onBack = { currentScreen = "menu" })
-                "volumeBooster" -> VolumeBoosterScreen(onBack = { currentScreen = "menu" })
-                "flashcards" -> FlashcardsNavGraph(onBack = { currentScreen = "menu" })
-                "undercover" -> UndercoverScreen(onBack = { currentScreen = "menu" })
+                "randomGenerator" -> {
+                    key("randomGenerator") {
+                        RandomGeneratorScreen(onBack = { currentScreen = "menu" })
+                    }
+                }
+                "volumeBooster" -> {
+                    key("volumeBooster") {
+                        VolumeBoosterScreen(onBack = { currentScreen = "menu" })
+                    }
+                }
+                "flashcards" -> {
+                    key("flashcards") {
+                        FlashcardsNavGraph(onBack = { currentScreen = "menu" })
+                    }
+                }
+                "undercover" -> {
+                    key("undercover") {
+                        UndercoverScreen(onBack = { currentScreen = "menu" })
+                    }
+                }
             }
         }
     }

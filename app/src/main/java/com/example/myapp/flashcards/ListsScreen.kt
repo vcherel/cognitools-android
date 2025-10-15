@@ -59,6 +59,7 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import androidx.work.WorkManager
 import com.example.myapp.MyButton
 import com.example.myapp.ShowAlertDialog
 import kotlinx.coroutines.Dispatchers
@@ -83,6 +84,12 @@ fun FlashcardListsScreen(onBack: () -> Unit, navController: NavController) {
     // Observe lists AND due counts together
     val listsWithCounts by repository.observeListsWithDueCounts()
         .collectAsState(initial = Pair(emptyList(), emptyMap()))
+
+    // Plan notification reminder
+    LaunchedEffect(Unit) {
+        WorkManager.getInstance(context)
+        scheduleFlashcardReminders(context)
+    }
 
     var isLoading by remember { mutableStateOf(true) }
     LaunchedEffect(listsWithCounts) {
