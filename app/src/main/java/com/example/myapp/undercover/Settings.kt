@@ -97,6 +97,7 @@ fun validateGameSettings(
 @Composable
 fun SettingsScreen(
     state: UndercoverGameState,
+    playAgain: Boolean = false,
     onSettingsChange: (UndercoverGameState) -> Unit,
     onStart: () -> Unit
 ) {
@@ -126,7 +127,6 @@ fun SettingsScreen(
                     mrWhiteCount = state.settings.mrWhiteCount
                 )
 
-                // Create updated players list
                 val updatedPlayers = when {
                     newPlayerCount > state.players.size -> {
                         state.players + List(newPlayerCount - state.players.size) { index ->
@@ -143,7 +143,6 @@ fun SettingsScreen(
                     else -> state.players
                 }
 
-                // Return the full updated state via callback
                 val updatedState = state.copy(
                     settings = state.settings.copy(
                         impostorCount = validImpostors,
@@ -155,7 +154,8 @@ fun SettingsScreen(
                 onSettingsChange(updatedState)
             },
             min = 3,
-            max = 20
+            max = 20,
+            enabled = !playAgain
         )
 
         Spacer(modifier = Modifier.height(16.dp))

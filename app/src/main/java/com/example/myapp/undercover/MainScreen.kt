@@ -46,7 +46,7 @@ fun UndercoverScreen(onBack: () -> Unit) {
             text = { Text("Are you sure you want to leave the current game? Your progress will be lost.") },
             confirmButton = {
                 TextButton(onClick = {
-                    state = state.copy(gameState = GameState.Settings)
+                    state = state.copy(gameState = GameState.Settings())
                     showExitDialog = false
                 }) {
                     Text("Yes")
@@ -70,7 +70,7 @@ fun UndercoverScreen(onBack: () -> Unit) {
                 if (state.gameState is GameState.Settings) {
                     onBack()
                 } else {
-                    state = state.copy(gameState = GameState.Settings)
+                    state = state.copy(gameState = GameState.Settings())
                 }
             }) {
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -88,17 +88,25 @@ fun UndercoverScreen(onBack: () -> Unit) {
             is GameState.Settings -> {
                 SettingsScreen(
                     state = state,
+                    playAgain = gameState.playAgain,
                     onSettingsChange = { updatedState ->
                         state = updatedState
                     },
                     onStart = {
-                        val assignedPlayers = generateAndAssignPlayers(state)
-                        state = state.copy(
-                            players = assignedPlayers,
-                            currentPlayerIndex = 0,
-                            currentRound = 1,
-                            gameState = GameState.PlayerSetup(0, showWord = false)
-                        )
+                        if (!gameState.playAgain) {
+                            val assignedPlayers = generateAndAssignPlayers(state)
+                            state = state.copy(
+                                players = assignedPlayers,
+                                currentPlayerIndex = 0,
+                                currentRound = 1,
+                                gameState = GameState.PlayerSetup(0, showWord = false)
+                            )
+                        }
+                        else {
+                            state = state.copy(
+                                gameState = GameState.Leaderboard
+                            )
+                        }
                     }
                 )
             }
@@ -174,7 +182,7 @@ fun UndercoverScreen(onBack: () -> Unit) {
                 LeaderboardScreen(
                     allScores = state.allPlayersScores,
                     onBackToMenu = {
-                        state = UndercoverGameState(gameState = GameState.Settings)
+                        state = UndercoverGameState(gameState = GameState.Settings())
                     },
                     onNewGame = {
                         val reassignedPlayers = reassignRolesAndWords(state)
@@ -186,7 +194,11 @@ fun UndercoverScreen(onBack: () -> Unit) {
                             quickStart = true
                         )
                     },
-                    onSettings = {}
+                    onSettings = {
+                        state = state.copy(
+                            gameState = GameState.Settings(playAgain = true)
+                        )
+                    }
                 )
             }
         }

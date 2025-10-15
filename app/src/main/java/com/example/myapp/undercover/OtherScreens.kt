@@ -691,6 +691,7 @@ fun LeaderboardScreen(
         }
     }
 }
+
 @Composable
 fun MrWhiteGuessScreen(
     lastEliminated: Player,

@@ -37,7 +37,7 @@ val wordPairs = listOf(
 
 // Game state representations
 sealed class GameState {
-    object Settings : GameState()
+    data class Settings(val playAgain: Boolean = false) : GameState()
     data class PlayerSetup(val playerIndex: Int, val showWord: Boolean) : GameState()
     object PlayMenu : GameState()
     object Voting : GameState()
@@ -54,7 +54,7 @@ sealed class MrWhiteScenario {
 }
 
 data class UndercoverGameState(
-    val gameState: GameState = GameState.Settings, // Game starts at settings page
+    val gameState: GameState = GameState.Settings(), // Game starts at settings page
     val settings: GameSettings = GameSettings(),
     val players: List<Player> = List(3) { index ->
         Player(name = "Player ${index + 1}")
