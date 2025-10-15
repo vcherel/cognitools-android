@@ -42,11 +42,16 @@ val wordPairs = listOf(
         object PlayMenu : GameState()
         object Voting : GameState()
         data class EliminationResult(val player: Player, val gameOver: Boolean) : GameState()
-        data class MrWhiteGuess(val player: Player, val correctWord: String, val lastEliminated: Player?, val mrWhiteGuesses: List<String> = emptyList()) : GameState()
-
+        data class MrWhiteGuess(val player: Player, val correctWord: String, val lastEliminated: Player?, val mrWhiteGuesses: List<String> = emptyList(), val scenario: MrWhiteScenario) : GameState()
         data class GameOver(val civiliansWon: Boolean, val lastEliminated: Player, val mrWhiteGuesses: List<String> = emptyList()) : GameState()
         object Leaderboard : GameState()
     }
+
+sealed class MrWhiteScenario {
+    data class EliminatedMrWhite(val eliminated: Player) : MrWhiteScenario()
+    data class FinalTwo(val mrWhite: Player, val opponent: Player) : MrWhiteScenario()
+    data class OnlyMrWhitesLeft(val activeMrWhites: List<Player>, val currentGuesser: Player) : MrWhiteScenario()
+}
 
 data class UndercoverGameState(
     val gameState: GameState = GameState.Settings,
@@ -71,10 +76,4 @@ object ScoreValues {
     const val CIVILIAN_WIN = 1
     const val IMPOSTOR_WIN = 2
     const val MR_WHITE_WIN = 3
-}
-
-sealed class MrWhiteScenario {
-    data class EliminatedMrWhite(val eliminated: Player) : MrWhiteScenario()
-    data class FinalTwo(val mrWhite: Player, val opponent: Player) : MrWhiteScenario()
-    data class OnlyMrWhitesLeft(val activeMrWhites: List<Player>, val currentGuesser: Player) : MrWhiteScenario()
 }

@@ -213,7 +213,13 @@ fun UndercoverScreen(onBack: () -> Unit) {
                                 val correctWord = state.players.first { it.role == PlayerRole.CIVILIAN }.word
                                 state = state.copy(
                                     players = updatedPlayers,
-                                    gameState = GameState.MrWhiteGuess(eliminatedPlayer, correctWord, null)
+                                    gameState = GameState.MrWhiteGuess(
+                                        player = eliminatedPlayer,
+                                        correctWord = correctWord,
+                                        lastEliminated = eliminatedPlayer,
+                                        mrWhiteGuesses = emptyList(),
+                                        scenario = MrWhiteScenario.EliminatedMrWhite(eliminated = eliminatedPlayer)
+                                    )
                                 )
                             }
                             // PRIORITY: If Mr. White should guess, let them guess before determining winners
@@ -223,7 +229,16 @@ fun UndercoverScreen(onBack: () -> Unit) {
                                     .first { it.role == PlayerRole.MR_WHITE }
                                 state = state.copy(
                                     players = updatedPlayers,
-                                    gameState = GameState.MrWhiteGuess(mrWhiteToGuess, correctWord, eliminatedPlayer)
+                                    gameState = GameState.MrWhiteGuess(
+                                        player = mrWhiteToGuess,
+                                        correctWord = correctWord,
+                                        lastEliminated = eliminatedPlayer,
+                                        mrWhiteGuesses = emptyList(),
+                                        scenario = MrWhiteScenario.OnlyMrWhitesLeft(
+                                            activeMrWhites = updatedPlayers.activePlayers().filter { it.role == PlayerRole.MR_WHITE },
+                                            currentGuesser = mrWhiteToGuess
+                                        )
+                                    )
                                 )
                             }
                             // Only check win conditions if Mr. White doesn't need to guess
@@ -274,7 +289,7 @@ fun UndercoverScreen(onBack: () -> Unit) {
             }
             is GameState.MrWhiteGuess -> {
                 MrWhiteGuessScreen(
-                    scenario = TODO(),
+                    scenario = gameState.scenario,
                     onGuessSubmitted = { guessedWord ->
                         val correctWord = gameState.correctWord
                         val wasEliminated = gameState.player.isEliminated
@@ -310,8 +325,12 @@ fun UndercoverScreen(onBack: () -> Unit) {
                                         player = remainingMrWhites.first(),
                                         correctWord =correctWord,
                                         lastEliminated = gameState.lastEliminated,
-                                        mrWhiteGuesses = updatedMrWhiteGuesses
+                                        mrWhiteGuesses = updatedMrWhiteGuesses,
+                                        scenario = MrWhiteScenario.OnlyMrWhitesLeft(
+                                            activeMrWhites = remainingMrWhites,
+                                            currentGuesser = remainingMrWhites.first()
                                         )
+                                    )
                                 )
                             } else {
                                 // Check win conditions after Mr. White's failed guess
