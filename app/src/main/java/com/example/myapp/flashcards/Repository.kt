@@ -1,11 +1,17 @@
 package com.example.myapp.flashcards
 
 import android.content.Context
+import android.os.Environment
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import org.json.JSONArray
+import org.json.JSONObject
+import java.io.File
+import java.io.FileOutputStream
 
 class FlashcardRepository(private val context: Context) {
 
@@ -131,46 +137,36 @@ class FlashcardRepository(private val context: Context) {
         return lists.flatMap { list -> getElements(list.id) }
     }
 
-    suspend fun importData(jsonString: String): Boolean {
-        return try {
-            val json = org.json.JSONObject(jsonString)
-            val listsJsonArray = json.getJSONArray("lists")
-
-            val existingLists = getLists()
-            val newLists = mutableListOf<FlashcardList>()
-
-            for (i in 0 until listsJsonArray.length()) {
-                val listJson = listsJsonArray.getJSONObject(i)
-                val list = FlashcardList(name = listJson.getString("name"))
-                newLists.add(list)
-
-                val flashcardsJsonArray = listJson.getJSONArray("flashcards")
-                val newElements = mutableListOf<FlashcardElement>()
-
-                for (j in 0 until flashcardsJsonArray.length()) {
-                    val cardJson = flashcardsJsonArray.getJSONObject(j)
-                    newElements.add(
-                        FlashcardElement(
-                            listId = list.id,
-                            name = cardJson.getString("name"),
-                            definition = cardJson.getString("definition")
-                        )
-                    )
-                }
-
-                saveElements(list.id, newElements)
-            }
-
-            saveLists(existingLists + newLists)
-            true
-        } catch (_: Exception) {
-            false
-        }
-    }
-
     suspend fun getExportData(): Pair<List<FlashcardList>, List<FlashcardElement>> {
         val lists = getLists()
         val allElements = getAllElements()
         return lists to allElements
     }
+}
+
+val Context.dataStore by preferencesDataStore("flashcards")
+
+fun exportFlashcards(lists: List<FlashcardList>, allFlashcards: List<FlashcardElement>) {
+    val flashcardsMap = allFlashcards.groupBy { it.listId }
+    val exportJson = JSONObject().apply {
+        put("lists", JSONArray().apply {
+            lists.forEach { list ->
+                put(JSONObject().apply {
+                    put("name", list.name)
+                    put("flashcards", JSONArray().apply {
+                        flashcardsMap[list.id]?.forEach { card ->
+                            put(JSONObject().apply {
+                                put("name", card.name)
+                                put("definition", card.definition)
+                            })
+                        }
+                    })
+                })
+            }
+        })
+    }
+
+    val downloadsFolder = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+    val file = File(downloadsFolder, "flashcards_export.json")
+    FileOutputStream(file).use { it.write(exportJson.toString().toByteArray()) }
 }

@@ -134,11 +134,6 @@ fun FlashcardListsScreen(onBack: () -> Unit, navController: NavController) {
                 }) {
                     Icon(Icons.Default.Upload, contentDescription = "Exporter")
                 }
-                IconButton(onClick = {
-                    importFlashcards(context, repository)
-                }) {
-                    Icon(Icons.Default.Download, contentDescription = "Importer")
-                }
             }
         }
 
