@@ -407,7 +407,7 @@ fun GameOverScreen(
     lastEliminated: Player,
     players: List<Player>,
     gameWord: String,
-    mrWhiteGuesses: List<String>,
+    mrWhiteGuesses: Map<String, String>,
     onContinue: () -> Unit
 ) {
     val activePlayers by remember { derivedStateOf { players.activePlayers() } }
@@ -479,10 +479,15 @@ fun GameOverScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             val message = when (mrWhiteGuesses.size) {
-                1 -> "Mr White tried to guess \"${mrWhiteGuesses[0]}\" but it was not correct."
+                1 -> {
+                    val (name, guess) = mrWhiteGuesses.entries.first()
+                    "$name tried to guess \"$guess\" but it was not correct."
+                }
                 else -> {
-                    val guessesString = mrWhiteGuesses.joinToString(separator = "\", \"", prefix = "\"", postfix = "\"")
-                    "Mr Whites tried to guess $guessesString but it was not correct."
+                    val guessesString = mrWhiteGuesses.entries.joinToString(separator = "\n") { (name, guess) ->
+                        "- $name guessed \"$guess\""
+                    }
+                    "$guessesString\nBut none were correct."
                 }
             }
 

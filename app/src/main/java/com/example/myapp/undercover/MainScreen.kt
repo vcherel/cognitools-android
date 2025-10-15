@@ -322,7 +322,7 @@ fun UndercoverScreen(onBack: () -> Unit) {
                     onGuessSubmitted = { guessedWord ->
                         val correctWord = gameState.correctWord
                         state = state.copy(
-                            mrWhiteGuesses = state.mrWhiteGuesses + guessedWord
+                            mrWhiteGuesses = state.mrWhiteGuesses + (gameState.player.name to guessedWord)
                         )
 
                         val guessCorrect = guessedWord.equals(correctWord, ignoreCase = true)

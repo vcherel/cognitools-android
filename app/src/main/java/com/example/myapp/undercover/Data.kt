@@ -61,7 +61,7 @@ data class UndercoverGameState(
     },
     val currentPlayerIndex: Int = 0,
     val currentRound: Int = 1,
-    val mrWhiteGuesses: List<String> = emptyList(),
+    val mrWhiteGuesses: Map<String, String> = emptyMap(),
     val allPlayersScores: Map<String, Int> = emptyMap(),
     val quickStart: Boolean = false
 )
