@@ -8,8 +8,6 @@ import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
-import org.json.JSONArray
-import org.json.JSONObject
 import java.io.File
 import java.io.FileOutputStream
 
@@ -148,25 +146,19 @@ val Context.dataStore by preferencesDataStore("flashcards")
 
 fun exportFlashcards(lists: List<FlashcardList>, allFlashcards: List<FlashcardElement>) {
     val flashcardsMap = allFlashcards.groupBy { it.listId }
-    val exportJson = JSONObject().apply {
-        put("lists", JSONArray().apply {
-            lists.forEach { list ->
-                put(JSONObject().apply {
-                    put("name", list.name)
-                    put("flashcards", JSONArray().apply {
-                        flashcardsMap[list.id]?.forEach { card ->
-                            put(JSONObject().apply {
-                                put("name", card.name)
-                                put("definition", card.definition)
-                            })
-                        }
-                    })
-                })
-            }
-        })
+
+    val builder = StringBuilder()
+
+    lists.forEach { list ->
+        builder.appendLine("* ${list.name}")
+        flashcardsMap[list.id]?.forEach { card ->
+            builder.appendLine("${card.name} - ${card.definition}")
+        }
+        builder.appendLine() // Blank line between lists
     }
 
     val downloadsFolder = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-    val file = File(downloadsFolder, "flashcards_export.json")
-    FileOutputStream(file).use { it.write(exportJson.toString().toByteArray()) }
+    val file = File(downloadsFolder, "flashcards_export.txt")
+
+    FileOutputStream(file).use { it.write(builder.toString().toByteArray()) }
 }
