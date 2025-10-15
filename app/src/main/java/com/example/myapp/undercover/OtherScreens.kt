@@ -621,8 +621,19 @@ fun MrWhiteGuessScreen(
 
             // CASE 2 — Final Two Players (Mr White + Impostor/Civilian)
             is MrWhiteScenario.FinalTwo -> {
+                val lastEliminated = scenario.lastEliminated
                 val mrWhite = scenario.mrWhite
                 val opponent = scenario.opponent
+
+                Text(
+                    text = "${lastEliminated.name} (${lastEliminated.role.displayName()}) was just eliminated!",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Medium,
+                    color = lastEliminated.role.displayColor(),
+                    textAlign = TextAlign.Center
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
 
                 Text(
                     text = "Only two players remain!",

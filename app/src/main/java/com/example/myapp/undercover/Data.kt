@@ -42,14 +42,14 @@ sealed class GameState {
     object PlayMenu : GameState()
     object Voting : GameState()
     data class EliminationResult(val player: Player, val gameOver: Boolean) : GameState()
-    data class MrWhiteGuess(val player: Player, val correctWord: String, val lastEliminated: Player?, val mrWhiteGuesses: List<String> = emptyList(), val scenario: MrWhiteScenario) : GameState()
+    data class MrWhiteGuess(val player: Player, val correctWord: String, val lastEliminated: Player, val mrWhiteGuesses: List<String> = emptyList(), val scenario: MrWhiteScenario) : GameState()
     data class GameOver(val civiliansWon: Boolean, val lastEliminated: Player, val mrWhiteGuesses: List<String> = emptyList()) : GameState()
     object Leaderboard : GameState()
 }
 
 sealed class MrWhiteScenario {
     data class EliminatedMrWhite(val eliminated: Player) : MrWhiteScenario()
-    data class FinalTwo(val mrWhite: Player, val opponent: Player) : MrWhiteScenario()
+    data class FinalTwo(val mrWhite: Player, val opponent: Player, val lastEliminated: Player) : MrWhiteScenario()
     data class OnlyMrWhitesLeft(val activeMrWhites: List<Player>, val currentGuesser: Player) : MrWhiteScenario()
 }
 

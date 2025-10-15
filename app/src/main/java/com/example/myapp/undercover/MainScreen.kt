@@ -240,6 +240,7 @@ fun UndercoverScreen(onBack: () -> Unit) {
                                 } else {
                                     // Case 2: Only Mr. White and one Civilian left → Final Two
                                     MrWhiteScenario.FinalTwo(
+                                        lastEliminated = eliminatedPlayer,
                                         mrWhite = mrWhiteToGuess,
                                         opponent = activeCivilians.first()
                                     )
@@ -338,8 +339,10 @@ fun UndercoverScreen(onBack: () -> Unit) {
 
                             if (remainingMrWhites.isNotEmpty() && updatedPlayers.shouldMrWhiteGuess()) {
                                 val nextMrWhite = remainingMrWhites.first()
-                                val scenario = if (
-                                    updatedPlayers.activePlayers().none { it.role == PlayerRole.CIVILIAN }
+
+                                val scenario =
+                                    // Only Mr. Whites left
+                                    if ( updatedPlayers.activePlayers().none { it.role == PlayerRole.CIVILIAN }
                                     && updatedPlayers.activePlayers().none { it.role == PlayerRole.IMPOSTOR }
                                 ) {
                                     MrWhiteScenario.OnlyMrWhitesLeft(
@@ -347,9 +350,13 @@ fun UndercoverScreen(onBack: () -> Unit) {
                                         currentGuesser = nextMrWhite
                                     )
                                 } else {
+                                    // Only two player left
                                     val opponent = updatedPlayers.activePlayers()
                                         .first { it.role == PlayerRole.CIVILIAN }
-                                    MrWhiteScenario.FinalTwo(nextMrWhite, opponent)
+                                    MrWhiteScenario.FinalTwo(
+                                        lastEliminated = gameState.lastEliminated,
+                                        mrWhite = nextMrWhite,
+                                        opponent = opponent)
                                 }
 
                                 state = state.copy(
