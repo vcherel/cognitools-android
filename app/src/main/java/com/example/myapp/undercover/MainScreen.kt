@@ -308,51 +308,63 @@ fun UndercoverScreen(onBack: () -> Unit) {
                     scenario = gameState.scenario,
                     onGuessSubmitted = { guessedWord ->
                         val correctWord = gameState.correctWord
-                        val wasEliminated = gameState.player.isEliminated
                         val updatedMrWhiteGuesses = gameState.mrWhiteGuesses + guessedWord
 
-                        if (guessedWord.equals(correctWord, ignoreCase = true)) {
-                            // Mr. White guessed correctly and wins
+                        val guessCorrect = guessedWord.equals(correctWord, ignoreCase = true)
+                        val wasEliminated = gameState.player.isEliminated
+
+                        if (guessCorrect) {
+                            // Mr. White wins immediately
                             val updatedScores = state.allPlayersScores.updateScore(
                                 gameState.player.name,
                                 ScoreValues.MR_WHITE_WIN
                             )
                             state = state.copy(
                                 allPlayersScores = updatedScores,
-                                gameState = GameState.GameOver(false, gameState.player, gameState.mrWhiteGuesses)
+                                gameState = GameState.GameOver(
+                                    civiliansWon = false,
+                                    lastEliminated = gameState.player,
+                                    mrWhiteGuesses = updatedMrWhiteGuesses
+                                )
                             )
                         } else {
-                            // Mr. White guessed incorrectly
-                            val updatedPlayers = if (wasEliminated) {
-                                state.players
-                            } else {
-                                state.players.eliminate(gameState.player.name)
-                            }
+                            // Update players if Mr. White wasn't already eliminated
+                            val updatedPlayers = if (wasEliminated) state.players
+                            else state.players.eliminate(gameState.player.name)
 
-                            // Check if there are more Mr. Whites to guess
+                            // Check if any remaining Mr. Whites need to guess
                             val remainingMrWhites = updatedPlayers.activePlayers()
                                 .filter { it.role == PlayerRole.MR_WHITE }
 
                             if (remainingMrWhites.isNotEmpty() && updatedPlayers.shouldMrWhiteGuess()) {
-                                // Next Mr. White gets to guess
+                                val nextMrWhite = remainingMrWhites.first()
+                                val scenario = if (
+                                    updatedPlayers.activePlayers().none { it.role == PlayerRole.CIVILIAN }
+                                    && updatedPlayers.activePlayers().none { it.role == PlayerRole.IMPOSTOR }
+                                ) {
+                                    MrWhiteScenario.OnlyMrWhitesLeft(
+                                        activeMrWhites = remainingMrWhites,
+                                        currentGuesser = nextMrWhite
+                                    )
+                                } else {
+                                    val opponent = updatedPlayers.activePlayers()
+                                        .first { it.role == PlayerRole.CIVILIAN }
+                                    MrWhiteScenario.FinalTwo(nextMrWhite, opponent)
+                                }
+
                                 state = state.copy(
                                     players = updatedPlayers,
                                     gameState = GameState.MrWhiteGuess(
-                                        player = remainingMrWhites.first(),
-                                        correctWord =correctWord,
+                                        player = nextMrWhite,
+                                        correctWord = correctWord,
                                         lastEliminated = gameState.lastEliminated,
                                         mrWhiteGuesses = updatedMrWhiteGuesses,
-                                        scenario = MrWhiteScenario.OnlyMrWhitesLeft(
-                                            activeMrWhites = remainingMrWhites,
-                                            currentGuesser = remainingMrWhites.first()
-                                        )
+                                        scenario = scenario
                                     )
                                 )
                             } else {
-                                // Check win conditions after Mr. White's failed guess
-                                val winCheck = updatedPlayers.checkWinCondition()
-
-                                when (winCheck) {
+                                // No Mr. Whites left to guess, check win conditions
+                                when (updatedPlayers.checkWinCondition()) {
                                     WinCondition.CiviliansWin -> {
                                         val updatedScores = updatedPlayers.awardCivilianPoints(state.allPlayersScores)
                                         state = state.copy(
@@ -393,6 +405,7 @@ fun UndercoverScreen(onBack: () -> Unit) {
                     }
                 )
             }
+
             is GameState.GameOver -> {
                 GameOverScreen(
                     civiliansWon = gameState.civiliansWon,
