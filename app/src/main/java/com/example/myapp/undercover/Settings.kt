@@ -97,6 +97,7 @@ fun validateGameSettings(
 @Composable
 fun SettingsScreen(
     state: UndercoverGameState,
+    playAgain: Boolean = false,
     onSettingsChange: (UndercoverGameState) -> Unit,
     onStart: () -> Unit
 ) {
@@ -263,7 +264,8 @@ fun SettingsScreen(
             onClick = onStart,
             modifier = Modifier.fillMaxWidth().height(56.dp)
         ) {
-            Text("Start Game", style = MaterialTheme.typography.titleLarge)
+            val text = if (playAgain) "Go back to leaderboard" else "Start Game"
+            Text(text, style = MaterialTheme.typography.titleLarge)
         }
     }
 }
