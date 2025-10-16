@@ -14,11 +14,13 @@ import java.io.FileOutputStream
 class FlashcardRepository(private val context: Context) {
 
     private val listsKey = stringPreferencesKey("lists")
+    private val listsTimestampKey = stringPreferencesKey("lists_timestamp")
 
     fun observeLists(): Flow<List<FlashcardList>> {
         return context.dataStore.data.map { prefs ->
             val jsonString = prefs[listsKey] ?: "[]"
-            FlashcardList.listFromJsonString(jsonString)
+            val lists = FlashcardList.listFromJsonString(jsonString)
+            lists
         }
     }
 
@@ -27,12 +29,12 @@ class FlashcardRepository(private val context: Context) {
             val jsonString = prefs[listsKey] ?: "[]"
             val lists = FlashcardList.listFromJsonString(jsonString)
 
-            // Compute due counts for all lists in one go
             val dueCounts = lists.associate { list ->
                 val key = stringPreferencesKey("elements_${list.id}")
                 val cardsJson = prefs[key] ?: "[]"
                 val elements = FlashcardElement.listFromJsonString(cardsJson)
-                list.id to elements.count { isDue(it) }
+                val due = elements.count { isDue(it) }
+                list.id to due
             }
 
             lists to dueCounts
@@ -40,48 +42,46 @@ class FlashcardRepository(private val context: Context) {
     }
 
     suspend fun getLists(): List<FlashcardList> {
-        return observeLists().first()
+        val result = observeLists().first()
+        return result
     }
 
     suspend fun saveLists(lists: List<FlashcardList>) {
         val sortedLists = lists.sortedBy { it.order }
+        val jsonString = FlashcardList.listToJsonString(sortedLists)
 
         context.dataStore.edit { prefs ->
-            prefs[listsKey] = FlashcardList.listToJsonString(sortedLists)
+            prefs[listsKey] = jsonString
+            // Force DataStore emit even if jsonString is identical
+            prefs[listsTimestampKey] = System.currentTimeMillis().toString()
         }
     }
 
     suspend fun addList(list: FlashcardList) {
         val current = getLists()
-
         val nextOrder = (current.maxOfOrNull { it.order } ?: 0) + 1
-
         val newList = list.copy(order = nextOrder)
         saveLists(current + newList)
     }
 
     suspend fun reorderLists(newOrder: List<FlashcardList>) {
-        val reordered = newOrder.mapIndexed { index, list ->
-            list.copy(order = index)
-        }
+        val reordered = newOrder.mapIndexed { index, list -> list.copy(order = index) }
         saveLists(reordered)
     }
 
     suspend fun updateList(listId: String, newName: String) {
         val current = getLists()
-        val updated = current.map {
-            if (it.id == listId) it.copy(name = newName) else it
-        }
+        val updated = current.map { if (it.id == listId) it.copy(name = newName) else it }
         saveLists(updated)
     }
 
     suspend fun deleteList(listId: String) {
         val current = getLists()
         saveLists(current.filterNot { it.id == listId })
-
-        // Also delete the elements
         context.dataStore.edit { prefs ->
             prefs.remove(stringPreferencesKey("elements_$listId"))
+            // also update timestamp so observers see something changed
+            prefs[listsTimestampKey] = System.currentTimeMillis().toString()
         }
     }
 
@@ -89,12 +89,14 @@ class FlashcardRepository(private val context: Context) {
         val key = stringPreferencesKey("elements_$listId")
         return context.dataStore.data.map { prefs ->
             val jsonString = prefs[key] ?: "[]"
-            FlashcardElement.listFromJsonString(jsonString)
+            val elements = FlashcardElement.listFromJsonString(jsonString)
+            elements
         }
     }
 
     suspend fun getElements(listId: String): List<FlashcardElement> {
-        return observeElements(listId).first()
+        val result = observeElements(listId).first()
+        return result
     }
 
     suspend fun saveElements(listId: String, elements: List<FlashcardElement>) {
@@ -102,7 +104,6 @@ class FlashcardRepository(private val context: Context) {
         val timestampKey = stringPreferencesKey("elements_timestamp_$listId")
         context.dataStore.edit { prefs ->
             prefs[key] = FlashcardElement.listToJsonString(elements)
-            // Add a useless variable to force update
             prefs[timestampKey] = System.currentTimeMillis().toString()
         }
     }
@@ -119,9 +120,7 @@ class FlashcardRepository(private val context: Context) {
 
     suspend fun updateElement(listId: String, element: FlashcardElement) {
         val current = getElements(listId)
-        val updated = current.map {
-            if (it.id == element.id) element else it
-        }
+        val updated = current.map { if (it.id == element.id) element else it }
         saveElements(listId, updated)
     }
 
@@ -132,7 +131,8 @@ class FlashcardRepository(private val context: Context) {
 
     suspend fun getAllElements(): List<FlashcardElement> {
         val lists = getLists()
-        return lists.flatMap { list -> getElements(list.id) }
+        val result = lists.flatMap { list -> getElements(list.id) }
+        return result
     }
 
     suspend fun getExportData(): Pair<List<FlashcardList>, List<FlashcardElement>> {

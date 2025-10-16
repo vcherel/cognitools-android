@@ -21,7 +21,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
@@ -43,7 +42,6 @@ import androidx.compose.material3.TextField
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -55,7 +53,6 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
@@ -72,7 +69,6 @@ fun FlashcardListsScreen(onBack: () -> Unit, navController: NavController) {
     val scope = rememberCoroutineScope()
     val repository = remember { FlashcardRepository(context) }
 
-    // State variables
     var showDialog by remember { mutableStateOf(false) }
     var dialogTitle by remember { mutableStateOf("") }
     var dialogValue by remember { mutableStateOf("") }
@@ -81,25 +77,28 @@ fun FlashcardListsScreen(onBack: () -> Unit, navController: NavController) {
     var bulkImportText by remember { mutableStateOf("") }
     var selectedListId by remember { mutableStateOf("") }
 
-    // Observe lists AND due counts together
-    val listsWithCounts by repository.observeListsWithDueCounts()
-        .collectAsState(initial = Pair(emptyList(), emptyMap()))
+    var listsWithCountsState by remember { mutableStateOf(Pair(emptyList<FlashcardList>(), emptyMap<String, Int>())) }
 
-    // Plan notification reminder
+    // Collector: write each emission into listsWithCountsState and log it
+    LaunchedEffect(repository) {
+        repository.observeListsWithDueCounts().collect { pair ->
+            listsWithCountsState = pair
+        }
+    }
+
+    // schedule reminders once
     LaunchedEffect(Unit) {
         WorkManager.getInstance(context)
         scheduleFlashcardReminders(context)
     }
 
     var isLoading by remember { mutableStateOf(true) }
-    LaunchedEffect(listsWithCounts) {
-        if (listsWithCounts.first.isNotEmpty() || listsWithCounts.second.isNotEmpty()) {
-            isLoading = false
-        }
+    LaunchedEffect(listsWithCountsState) {
+        isLoading = listsWithCountsState.first.isEmpty() && listsWithCountsState.second.isEmpty()
     }
 
-    val lists = listsWithCounts.first
-    val dueCountMap = listsWithCounts.second
+    val lists = listsWithCountsState.first
+    val dueCountMap = listsWithCountsState.second
 
     BackHandler { onBack() }
 
@@ -119,7 +118,7 @@ fun FlashcardListsScreen(onBack: () -> Unit, navController: NavController) {
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.weight(1f)
             ) {
-                IconButton(onClick = onBack) {
+                IconButton(onClick = { onBack() }) {
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Retour")
                 }
                 Text(
@@ -146,7 +145,6 @@ fun FlashcardListsScreen(onBack: () -> Unit, navController: NavController) {
 
         Spacer(Modifier.height(16.dp))
 
-        // List of flashcard lists
         Box(
             modifier = Modifier
                 .weight(1f)
@@ -154,15 +152,21 @@ fun FlashcardListsScreen(onBack: () -> Unit, navController: NavController) {
             contentAlignment = Alignment.Center
         ) {
             when {
-                isLoading -> { CircularProgressIndicator() }
-                lists.isEmpty() -> { Text("Aucune liste disponible", style = MaterialTheme.typography.bodyMedium) }
+                isLoading -> {
+                    CircularProgressIndicator()
+                }
+                lists.isEmpty() -> {
+                    Text("Aucune liste disponible", style = MaterialTheme.typography.bodyMedium)
+                }
                 else -> {
                     LazyColumn(contentPadding = PaddingValues(bottom = 16.dp)) {
                         itemsIndexed(items = lists, key = { _, item -> item.id }) { index, flashcardList ->
                             FlashcardListItem(
                                 flashcardList = flashcardList,
                                 dueCount = dueCountMap[flashcardList.id] ?: 0,
-                                onNavigate = { navController.navigate("elements/${flashcardList.id}") },
+                                onNavigate = {
+                                    navController.navigate("elements/${flashcardList.id}")
+                                },
                                 onBulkImport = {
                                     selectedListId = flashcardList.id
                                     showBulkImportDialog = true
@@ -189,7 +193,9 @@ fun FlashcardListsScreen(onBack: () -> Unit, navController: NavController) {
                                         val temp = mutableLists[index - 1]
                                         mutableLists[index - 1] = mutableLists[index]
                                         mutableLists[index] = temp
-                                        scope.launch { repository.reorderLists(mutableLists) }
+                                        scope.launch {
+                                            repository.reorderLists(mutableLists)
+                                        }
                                     }
                                 },
                                 onMoveDown = {
@@ -198,7 +204,9 @@ fun FlashcardListsScreen(onBack: () -> Unit, navController: NavController) {
                                         val temp = mutableLists[index + 1]
                                         mutableLists[index + 1] = mutableLists[index]
                                         mutableLists[index] = temp
-                                        scope.launch { repository.reorderLists(mutableLists) }
+                                        scope.launch {
+                                            repository.reorderLists(mutableLists)
+                                        }
                                     }
                                 }
                             )
@@ -210,7 +218,6 @@ fun FlashcardListsScreen(onBack: () -> Unit, navController: NavController) {
 
         Spacer(Modifier.height(16.dp))
 
-        // Button to create a new list
         MyButton(
             text = "Créer une nouvelle liste",
             onClick = {
@@ -256,11 +263,13 @@ fun FlashcardListsScreen(onBack: () -> Unit, navController: NavController) {
                     if (newElements.isNotEmpty()) {
                         scope.launch {
                             repository.addElements(selectedListId, newElements)
-                            Toast.makeText(
-                                context,
-                                "${newElements.size} carte(s) ajoutée(s)",
-                                Toast.LENGTH_SHORT
-                            ).show()
+                            withContext(Dispatchers.Main) {
+                                Toast.makeText(
+                                    context,
+                                    "${newElements.size} carte(s) ajoutée(s)",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
                         }
                     }
                     showBulkImportDialog = false
@@ -270,7 +279,7 @@ fun FlashcardListsScreen(onBack: () -> Unit, navController: NavController) {
         )
     }
 
-    // Dialog for creating or renaming a list
+    // Dialog for create/rename
     ShowAlertDialog(
         show = showDialog,
         onDismiss = { showDialog = false },
@@ -279,8 +288,7 @@ fun FlashcardListsScreen(onBack: () -> Unit, navController: NavController) {
             TextField(
                 value = dialogValue,
                 onValueChange = { dialogValue = it },
-                label = { Text("Nom de la liste") },
-                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences)
+                label = { Text("Nom de la liste") }
             )
         },
         onCancel = { showDialog = false },

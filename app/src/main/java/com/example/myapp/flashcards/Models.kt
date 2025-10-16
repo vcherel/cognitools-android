@@ -21,15 +21,16 @@ data class FlashcardList(
     companion object {
         fun fromJson(json: JSONObject): FlashcardList {
             return FlashcardList(
-                id = json.getString("id"),
-                name = json.getString("name"),
+                id = json.optString("id", UUID.randomUUID().toString()),
+                name = json.optString("name", ""),
                 order = json.optInt("order", 0)
             )
         }
 
         fun listToJsonString(lists: List<FlashcardList>): String {
+            val sorted = lists.sortedBy { it.order }
             val jsonArray = JSONArray()
-            lists.forEach { jsonArray.put(it.toJson()) }
+            sorted.forEach { jsonArray.put(it.toJson()) }
             return jsonArray.toString()
         }
 
@@ -74,13 +75,12 @@ data class FlashcardElement(
     }
 
     companion object {
-        private val cache = mutableMapOf<String, List<FlashcardElement>>()
         fun fromJson(json: JSONObject): FlashcardElement {
             return FlashcardElement(
-                id = json.optString("id", UUID.randomUUID().toString()), // optString to handle old data
-                listId = json.getString("listId"),
-                name = json.getString("name"),
-                definition = json.getString("definition"),
+                id = json.optString("id", UUID.randomUUID().toString()),
+                listId = json.optString("listId", ""),
+                name = json.optString("name", ""),
+                definition = json.optString("definition", ""),
                 easeFactor = json.optDouble("easeFactor", 2.5),
                 interval = json.optInt("interval", 0),
                 repetitions = json.optInt("repetitions", 0),
@@ -98,13 +98,11 @@ data class FlashcardElement(
         }
 
         fun listFromJsonString(jsonString: String): List<FlashcardElement> {
-            return cache.getOrPut(jsonString) {
-                try {
-                    val jsonArray = JSONArray(jsonString)
-                    List(jsonArray.length()) { i -> fromJson(jsonArray.getJSONObject(i)) }
-                } catch (_: Exception) {
-                    emptyList()
-                }
+            return try {
+                val jsonArray = JSONArray(jsonString)
+                List(jsonArray.length()) { i -> fromJson(jsonArray.getJSONObject(i)) }
+            } catch (_: Exception) {
+                emptyList()
             }
         }
     }
