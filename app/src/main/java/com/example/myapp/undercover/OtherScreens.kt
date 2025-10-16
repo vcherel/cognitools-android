@@ -27,7 +27,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -55,6 +54,7 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.myapp.MyButton
+import com.example.myapp.ShowAlertDialog
 
 @Composable
 fun PlayScreen(
@@ -532,13 +532,13 @@ fun MrWhiteGuessScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(10.dp),
+            .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
         Text(
             text = "${lastEliminated.name} (${lastEliminated.role.displayName()}) was just eliminated!",
-            style = MaterialTheme.typography.titleMedium,
+            fontSize = 22.sp,
             fontWeight = FontWeight.Medium,
             color = lastEliminated.role.displayColor(),
             textAlign = TextAlign.Center
@@ -547,101 +547,93 @@ fun MrWhiteGuessScreen(
         Spacer(modifier = Modifier.height(16.dp))
 
         when (scenario) {
-
-            // CASE 1 — Eliminated Mr White
             is MrWhiteScenario.EliminatedMrWhite -> {
                 Text(
                     "M. White doit maintenant deviner le mot",
-                    style = MaterialTheme.typography.titleMedium,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Medium,
                     textAlign = TextAlign.Center
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     "Si tu devines tu gagnes ! (sinon tu dégages..)",
-                    style = MaterialTheme.typography.bodyLarge,
+                    fontSize = 16.sp,
                     textAlign = TextAlign.Center
                 )
             }
 
-            // CASE 2 — Final Two Players (Mr White + Impostor/Civilian)
             is MrWhiteScenario.FinalTwo -> {
                 val mrWhite = scenario.mrWhite
                 val opponent = scenario.opponent
 
                 Text(
-                    text = "Seulement deux joueurs restant !",
-                    style = MaterialTheme.typography.headlineSmall,
+                    "Seulement deux joueurs restant !",
+                    fontSize = 22.sp,
                     fontWeight = FontWeight.Bold,
                     textAlign = TextAlign.Center
                 )
-
                 Spacer(modifier = Modifier.height(16.dp))
-
                 Text(
                     "${mrWhite.name} (M. White) vs ${opponent.name} (${opponent.role.displayName()})",
-                    style = MaterialTheme.typography.titleLarge,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Medium,
                     textAlign = TextAlign.Center
                 )
-
                 Spacer(modifier = Modifier.height(16.dp))
-
                 Text(
                     "M. White va tenter de deviner le mot",
-                    style = MaterialTheme.typography.titleMedium,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Medium,
                     textAlign = TextAlign.Center
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     "S'il trouve, ${mrWhite.name} gagne ! Sinon, ${opponent.name} gagne !",
-                    style = MaterialTheme.typography.bodyLarge,
+                    fontSize = 16.sp,
                     textAlign = TextAlign.Center
                 )
             }
 
-            // CASE 3 — Only Mr Whites Remaining
             is MrWhiteScenario.OnlyMrWhitesLeft -> {
                 val mrWhites = scenario.activeMrWhites
                 val currentGuesser = scenario.currentGuesser
 
                 Text(
-                    text = "Il ne reste plus que des M. White !",
-                    style = MaterialTheme.typography.headlineSmall,
+                    "Il ne reste plus que des M. White !",
+                    fontSize = 22.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.Red,
                     textAlign = TextAlign.Center
                 )
-
                 Spacer(modifier = Modifier.height(16.dp))
-
                 Text(
                     "${mrWhites.size} M. Whites restant",
-                    style = MaterialTheme.typography.titleMedium,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Medium,
                     textAlign = TextAlign.Center
                 )
-
                 Spacer(modifier = Modifier.height(8.dp))
-
                 Text(
                     "C'est au tour de ${currentGuesser.name} de tenter de deviner le mot",
-                    style = MaterialTheme.typography.bodyLarge,
+                    fontSize = 16.sp,
                     textAlign = TextAlign.Center
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     "S'il le devine correctement, il gagne (seul) ! Sinon les autres M. White ont leur chance",
-                    style = MaterialTheme.typography.bodyLarge,
+                    fontSize = 16.sp,
                     textAlign = TextAlign.Center
                 )
             }
         }
 
-        // Common input UI (for all cases)
         Spacer(modifier = Modifier.height(32.dp))
 
+        // Input and submit
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .padding(horizontal = 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             OutlinedTextField(
@@ -658,43 +650,35 @@ fun MrWhiteGuessScreen(
                     imeAction = ImeAction.Done
                 ),
                 keyboardActions = KeyboardActions(
-                    onDone = {
-                        if (guessedWord.isNotBlank()) showConfirmation = true
-                    }
+                    onDone = { if (guessedWord.isNotBlank()) showConfirmation = true }
                 )
             )
 
             Spacer(modifier = Modifier.width(12.dp))
 
-            Button(
+            MyButton(
+                text = "Valider",
                 onClick = { showConfirmation = true },
-                enabled = guessedWord.isNotBlank()
-            ) {
-                Text("Valider")
-            }
+                enabled = guessedWord.isNotBlank(),
+                modifier = Modifier.height(60.dp).width(120.dp),
+                fontSize = 18.sp
+            )
         }
     }
 
-    // Confirmation Dialog
-    if (showConfirmation) {
-        AlertDialog(
-            onDismissRequest = { showConfirmation = false },
-            title = { Text("Confirmer") },
-            text = { Text("'$guessedWord' es ton dernier mot ?") },
-            confirmButton = {
-                Button(onClick = {
-                    onGuessSubmitted(guessedWord.trim())
-                    showConfirmation = false
-                    guessedWord = ""
-                }) {
-                    Text("Oui")
-                }
-            },
-            dismissButton = {
-                Button(onClick = { showConfirmation = false }) {
-                    Text("Non")
-                }
-            }
-        )
-    }
+    // Confirmation dialog using ShowAlertDialog
+    ShowAlertDialog(
+        show = showConfirmation,
+        onDismiss = { showConfirmation = false },
+        title = "Confirmer",
+        textContent = { Text("'$guessedWord' est ton dernier mot ?", fontSize = 16.sp) },
+        confirmText = "Oui",
+        cancelText = "Non",
+        onConfirm = {
+            onGuessSubmitted(guessedWord.trim())
+            guessedWord = ""
+            showConfirmation = false
+        },
+        onCancel = { showConfirmation = false }
+    )
 }

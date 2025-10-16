@@ -283,7 +283,7 @@ fun SettingsScreen(
         Spacer(modifier = Modifier.height(36.dp))
 
         MyButton(
-            text = if (playAgain) "Retour au classement" else "JOUER",
+            text = if (playAgain) "Classement" else "JOUER",
             onClick = onStart,
             modifier = Modifier
                 .height(100.dp)
