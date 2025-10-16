@@ -249,36 +249,47 @@ fun EliminationResultScreen(
     onNextRound: () -> Unit
 ) {
     Column(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
         Text(
-            "${player.name} est éliminé !",
-            style = MaterialTheme.typography.headlineMedium
+            text = "${player.name} est éliminé !",
+            fontSize = 30.sp,
+            fontWeight = FontWeight.Bold,
+            textAlign = TextAlign.Center
         )
 
         Spacer(modifier = Modifier.height(24.dp))
 
         Text(
-            "Il était :",
-            style = MaterialTheme.typography.bodyLarge
+            text = "Il était :",
+            fontSize = 24.sp,
+            fontWeight = FontWeight.Medium,
+            textAlign = TextAlign.Center
         )
 
         Spacer(modifier = Modifier.height(8.dp))
 
         Text(
-            player.role.displayName(),
-            style = MaterialTheme.typography.headlineLarge,
+            text = player.role.displayName(),
+            fontSize = 36.sp,
             fontWeight = FontWeight.Bold,
-            color = player.role.displayColor()
+            color = player.role.displayColor(),
+            textAlign = TextAlign.Center
         )
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        Button(onClick = onNextRound) {
-            Text("Manche suivante")
-        }
+        MyButton(
+            text = "Manche suivante",
+            onClick = onNextRound,
+            modifier = Modifier
+                .height(90.dp)
+                .widthIn(min = 180.dp, max = 250.dp)
+        )
     }
 }
 
