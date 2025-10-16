@@ -411,8 +411,8 @@ fun LeaderboardScreen(
                 Icon(
                     imageVector = Icons.Default.Settings,
                     contentDescription = "Paramètres",
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(28.dp)
+                    tint = Color.Black,
+                    modifier = Modifier.size(28.dp),
                 )
             }
         }
