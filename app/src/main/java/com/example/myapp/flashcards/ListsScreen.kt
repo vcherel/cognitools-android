@@ -154,7 +154,7 @@ fun FlashcardListsScreen(onBack: () -> Unit, navController: NavController) {
             contentAlignment = Alignment.Center
         ) {
             when {
-                isLoading -> { CircularProgressIndicator(color = Color.Black) }
+                isLoading -> { CircularProgressIndicator() }
                 lists.isEmpty() -> { Text("Aucune liste disponible", style = MaterialTheme.typography.bodyMedium) }
                 else -> {
                     LazyColumn(contentPadding = PaddingValues(bottom = 16.dp)) {
@@ -376,8 +376,7 @@ private fun FlashcardListItem(
             ) {
                 Icon(
                     imageVector = Icons.Default.KeyboardArrowUp,
-                    contentDescription = "Monter",
-                    tint = Color.Black
+                    contentDescription = "Monter"
                 )
             }
 
@@ -390,8 +389,7 @@ private fun FlashcardListItem(
             ) {
                 Icon(
                     imageVector = Icons.Default.KeyboardArrowDown,
-                    contentDescription = "Descendre",
-                    tint = Color.Black
+                    contentDescription = "Descendre"
                 )
             }
         }
@@ -453,7 +451,7 @@ private fun BulkImportDialog(
                         onTextChange(clipData.getItemAt(0).text?.toString() ?: "")
                     }
                 }) {
-                    Icon(Icons.Default.ContentPaste, contentDescription = "Coller", tint = Color.Black)
+                    Icon(Icons.Default.ContentPaste, contentDescription = "Coller")
                 }
 
                 MyButton(

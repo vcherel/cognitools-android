@@ -15,6 +15,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.style.TextAlign
@@ -84,7 +85,15 @@ class MainActivity : ComponentActivity() {
 
         enableEdgeToEdge()
         setContent {
-            MainScreen()
+            MaterialTheme(
+                colorScheme = lightColorScheme(
+                    primary = Color.Black,
+                    secondary = Color.Black,
+                    tertiary = Color.Black,
+                )
+            ) {
+                MainScreen()
+            }
         }
     }
 }
@@ -121,7 +130,6 @@ fun MainScreen() {
         }
     }
 }
-
 @Composable
 fun FlashcardsNavGraph(onBack: () -> Unit) {
     val navController = rememberNavController()

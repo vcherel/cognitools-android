@@ -271,7 +271,6 @@ fun FlashcardDetailScreen(listId: String, onBack: () -> Unit, navController: Nav
                                             "${element.score.toInt()}",
                                             style = MaterialTheme.typography.bodySmall.copy(
                                                 shadow = if ((element.score.toInt()) <= 3 || element.score.toInt() == 10) null else Shadow(
-                                                    color = Color.Black,
                                                     offset = Offset(0f, 0f),
                                                     blurRadius = 1f
                                                 )

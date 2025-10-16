@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -19,6 +20,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -166,7 +168,9 @@ fun SettingsScreen(
             }
         )
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(18.dp))
+        HorizontalDivider(thickness = 1.dp, color = Color.LightGray)
+        Spacer(modifier = Modifier.height(7.dp))
 
         // Rôles aléatoires toggle
         Row(
@@ -185,7 +189,7 @@ fun SettingsScreen(
                 onToggle = { checked ->
                     onSettingsChange(state.copy(settings = state.settings.copy(randomComposition = checked)))
                 },
-                modifier = Modifier.scale(0.90f)
+                modifier = Modifier.scale(0.85f)
             )
         }
 
@@ -251,7 +255,9 @@ fun SettingsScreen(
             }
         )
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(18.dp))
+        HorizontalDivider(thickness = 1.dp, color = Color.LightGray)
+        Spacer(modifier = Modifier.height(7.dp))
 
         // Impostors know role toggle
         Row(
@@ -270,7 +276,7 @@ fun SettingsScreen(
                 onToggle = { checked ->
                     onSettingsChange(state.copy(settings = state.settings.copy(impostorsKnowRole = checked)))
                 },
-                modifier = Modifier.scale(0.90f)
+                modifier = Modifier.scale(0.85f)
             )
         }
 
@@ -280,7 +286,7 @@ fun SettingsScreen(
             text = if (playAgain) "Retour au classement" else "JOUER",
             onClick = onStart,
             modifier = Modifier
-                .height(75.dp)
+                .height(100.dp)
                 .widthIn(min = 180.dp, max = 250.dp)
         )
     }
@@ -348,7 +354,7 @@ fun NumberSetting(
                 onClick = { onValueChange(value - 1) },
                 enabled = enabled && value > min,
                 fontSize = fontSize,
-                modifier = Modifier.size(70.dp)
+                modifier = Modifier.size(65.dp)
             )
             Text(
                 text = if (enabled) value.toString() else "-",
@@ -361,7 +367,7 @@ fun NumberSetting(
                 onClick = { onValueChange(value + 1) },
                 enabled = enabled && value < max,
                 fontSize = fontSize,
-                modifier = Modifier.size(70.dp)
+                modifier = Modifier.size(65.dp)
             )
         }
     }

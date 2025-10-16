@@ -379,7 +379,6 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
                                         shadow = if ((currentCard?.score?.toInt() ?: 0) <= 3 ||
                                             currentCard?.score?.toInt() == 10) null
                                         else Shadow(
-                                            color = Color.Black,
                                             offset = Offset(0f, 0f),
                                             blurRadius = 4f
                                         )
