@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -14,7 +15,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -194,14 +194,15 @@ fun VotingScreen(
             fontWeight = FontWeight.Bold
         )
 
-        Spacer(modifier = Modifier.weight(0.7f))
+        Spacer(modifier = Modifier.weight(0.3f))
 
         LazyColumn(
             modifier = Modifier
                 .fillMaxWidth()
-                .wrapContentHeight(),
+                .weight(1f),
             verticalArrangement = Arrangement.spacedBy(8.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+            horizontalAlignment = Alignment.CenterHorizontally,
+            contentPadding = PaddingValues(vertical = 8.dp)
         ) {
             items(activePlayers) { player ->
                 Card(
@@ -221,7 +222,6 @@ fun VotingScreen(
                 }
             }
         }
-        Spacer(modifier = Modifier.weight(1.3f))
     }
 
     ShowAlertDialog(

@@ -282,7 +282,6 @@ fun handleWinCondition(
 }
 
 // Display utilities
-
 fun PlayerRole.displayName(): String = when (this) {
     PlayerRole.CIVILIAN -> "Civil"
     PlayerRole.IMPOSTOR -> "Undercover"
