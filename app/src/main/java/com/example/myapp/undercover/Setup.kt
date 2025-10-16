@@ -9,11 +9,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -295,8 +294,9 @@ fun PlayerSetupScreen(
         ShowAlertDialog(
             show = true,
             onDismiss = { showConfirmationDialog = false },
+            title = if (name == "Valentin") "Beau gosse" else "Ton nom est moche",
             textContent = {
-                Text("Cache toi tu vas découvrir ton rôle jeune troubadour", fontSize = FONT_SIZE)
+                Text("Cache toi tu vas découvrir ton rôle jeune troubadour", fontSize = 20.sp)
             },
             confirmText = "Fais péter",
             cancelText = "NOON",
@@ -320,38 +320,77 @@ fun ShowWordScreen(
     onNext: () -> Unit
 ) {
     Column(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Text(player.name, style = MaterialTheme.typography.headlineMedium)
+        Text(
+            player.name,
+            fontSize = 32.sp,
+            fontWeight = FontWeight.Bold
+        )
         Spacer(modifier = Modifier.height(24.dp))
 
         // Display role and word depending on role/settings
-        if (player.role == PlayerRole.MR_WHITE) {
-            Text("Tu es M. White!", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
-            Text(
-                "T'as pas de mot chacal",
-                style = MaterialTheme.typography.bodyLarge,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(16.dp)
-            )
-        } else if (player.role == PlayerRole.IMPOSTOR && settings.impostorsKnowRole) {
-            Text("Tu es Undercover!", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
-            Spacer(modifier = Modifier.height(16.dp))
-            Text("Ton mot:", style = MaterialTheme.typography.bodyLarge)
-            Text(player.word, style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
-        } else {
-            Text("Ton mot:", style = MaterialTheme.typography.bodyLarge)
-            Spacer(modifier = Modifier.height(16.dp))
-            Text(player.word, style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
+        when {
+            player.role == PlayerRole.MR_WHITE -> {
+                Text(
+                    "Tu es M. White!",
+                    fontSize = 28.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    "T'as pas de mot chacal",
+                    fontSize = 20.sp,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
+            }
+            player.role == PlayerRole.IMPOSTOR && settings.impostorsKnowRole -> {
+                Text(
+                    "Tu es Undercover!",
+                    fontSize = 28.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    "Ton mot:",
+                    fontSize = 20.sp
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    player.word,
+                    fontSize = 28.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+            else -> {
+                Text(
+                    "Ton mot:",
+                    fontSize = 20.sp
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    player.word,
+                    fontSize = 28.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        // Next button: move to next player or start game
-        Button(onClick = onNext) {
-            Text(if (playerIndex < totalPlayers - 1) "Au suivant" else "Jouer !")
-        }
+        // Next button using your MyButton style
+        MyButton(
+            text = if (playerIndex < totalPlayers - 1) "Au suivant" else "Jouer !",
+            onClick = onNext,
+            modifier = Modifier
+                .height(80.dp)
+                .widthIn(min = 180.dp, max = 250.dp),
+            fontSize = 22.sp
+        )
     }
 }

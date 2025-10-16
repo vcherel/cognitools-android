@@ -199,7 +199,7 @@ fun MySwitch(
 @Composable
 fun ShowAlertDialog(show: Boolean,
     onDismiss: () -> Unit,
-    title: String = "",
+    title: String,
     textContent: (@Composable () -> Unit)? = null,
     confirmText: String = "Ok",
     cancelText: String? = "Annuler",
