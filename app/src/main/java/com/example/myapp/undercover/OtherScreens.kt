@@ -1,7 +1,9 @@
 package com.example.myapp.undercover
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -11,8 +13,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -37,13 +41,19 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.example.myapp.MyButton
 
 @Composable
 fun PlayScreen(
@@ -56,63 +66,105 @@ fun PlayScreen(
     val startingPlayer = activePlayers.getOrNull(currentPlayerIndex)
 
     Column(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
         Text(
             "Round $round",
-            style = MaterialTheme.typography.headlineLarge,
-            fontWeight = FontWeight.Bold
+            fontSize = 36.sp,
+            fontWeight = FontWeight.Bold,
+            textAlign = TextAlign.Center
         )
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        Text(
-            text = "Règles:",
-            style = MaterialTheme.typography.headlineMedium
-        )
+        // Rules in a fancy rectangle
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(
+                    brush = Brush.horizontalGradient(listOf(Color(0xFFE3F2FD), Color(0xFFBBDEFB))),
+                    shape = RoundedCornerShape(20.dp)
+                )
+                .padding(16.dp)
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    "Règles:",
+                    fontSize = 28.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    textAlign = TextAlign.Center
+                )
 
-        Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-        Text(
-            "• Chaque joueur dit un mot lié à son mot secret (bon courage M. White)",
-            style = MaterialTheme.typography.bodyLarge,
-            modifier = Modifier.padding(horizontal = 16.dp)
-        )
-        Text(
-            "• Ne JAMAIS dire son mot OU mot de la même famille",
-            style = MaterialTheme.typography.bodyLarge,
-            modifier = Modifier.padding(horizontal = 18.dp)
-        )
-        Text(
-            "• Dites pas des trucs trop simples on est là pour le beau jeu",
-            style = MaterialTheme.typography.bodyLarge,
-            modifier = Modifier.padding(horizontal = 12.dp)
-        )
+                Text(
+                    buildAnnotatedString {
+                        append("• Chaque joueur dit un ")
+                        withStyle(style = SpanStyle(fontWeight = FontWeight.Bold)) {
+                            append("mot lié à son mot secret")
+                        }
+                    },
+                    fontSize = 18.sp,
+                    lineHeight = 24.sp,
+                    textAlign = TextAlign.Center
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    buildAnnotatedString {
+                        append("• Ne ")
+                        withStyle(style = SpanStyle(fontWeight = FontWeight.Bold)) {
+                            append("JAMAIS")
+                        }
+                        append(" dire son mot OU mot de la même famille")
+                    },
+                    fontSize = 18.sp,
+                    lineHeight = 24.sp,
+                    textAlign = TextAlign.Center
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    buildAnnotatedString {
+                        append("• Dites pas des trucs trop simples, on est là\npour le ")
+                        withStyle(style = SpanStyle(fontWeight = FontWeight.Bold)) {
+                            append("beau jeu")
+                        }
+                    },
+                    fontSize = 18.sp,
+                    lineHeight = 24.sp,
+                    textAlign = TextAlign.Center
+                )
+            }
+        }
 
         Spacer(modifier = Modifier.height(24.dp))
 
         if (startingPlayer != null) {
             Text(
-                "Premier joueur: ${startingPlayer.name}",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                "Et après on tourne",
-                style = MaterialTheme.typography.bodyLarge
+                buildAnnotatedString {
+                    append("Premier joueur : ")
+                    withStyle(style = SpanStyle(color = Color(0xFF1565C0), fontWeight = FontWeight.Bold)) {
+                        append(startingPlayer.name)
+                    }
+                },
+                fontSize = 26.sp,
+                textAlign = TextAlign.Center
             )
         }
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        Button(onClick = onContinue) {
-            Text("Passons au conseil")
-        }
+        MyButton(
+            text = "Passons au conseil",
+            onClick = onContinue,
+            modifier = Modifier
+                .height(90.dp)
+                .widthIn(min = 180.dp, max = 250.dp),
+            fontSize = 22.sp
+        )
     }
 }
 
