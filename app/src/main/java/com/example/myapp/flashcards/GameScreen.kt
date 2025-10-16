@@ -145,19 +145,9 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
 
         // Update interval
         val newInterval = when {
-            // If we fail, the card comes again quickly
-            quality < 3 -> {
-                val totalCards = dueCards.size.coerceAtLeast(1)
-                val baseProbability = ((2.5 - newScore) / 2.5).coerceIn(0.0, 1.0)
-                val sizeFactor = (totalCards / 90.0).coerceIn(0.01, 1.0)
-                val probability = baseProbability * sizeFactor
+            // If we fail, the card comes again quickly (25% chance to wait a bit depending on score)
+            quality < 3 -> { if (Math.random() < 0.25) newScore.coerceAtLeast(1.0) else 0.0 }
 
-                when {
-                    (newScore < 2.5 && Math.random() < probability) -> 60 + Math.random() * 120
-                    (Math.random() < 0.25) -> newScore.coerceAtLeast(1.0)
-                    else -> 0.0
-                }
-            }
             // On the first win we have to wait 6 minutes
             newReps == 1 -> 6.0
             else -> {
