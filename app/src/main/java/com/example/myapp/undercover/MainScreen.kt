@@ -24,6 +24,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.example.myapp.ShowAlertDialog
 import kotlin.random.Random
 
 @Composable
@@ -39,26 +40,20 @@ fun UndercoverScreen(onBack: () -> Unit) {
         }
     }
 
-    if (showExitDialog) {
-        AlertDialog(
-            onDismissRequest = { showExitDialog = false },
-            title = { Text("Quitter ?") },
-            text = { Text("T'es sûr ? Tous le progrès actuel sera perdu") },
-            confirmButton = {
-                TextButton(onClick = {
-                    state = state.copy(gameState = GameState.Settings())
-                    showExitDialog = false
-                }) {
-                    Text("Oui")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showExitDialog = false }) {
-                    Text("Non")
-                }
-            }
-        )
-    }
+    ShowAlertDialog(
+        show = showExitDialog,
+        onDismiss = { showExitDialog = false },
+        title = "Quitter ?",
+        textContent = { Text("T'es sûr ? Tous le progrès actuel sera perdu") },
+        confirmText = "Oui",
+        cancelText = "Non",
+        onConfirm = {
+            state = state.copy(gameState = GameState.Settings())
+            showExitDialog = false },
+        onCancel = {
+            showExitDialog = false
+        }
+    )
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
         // Top bar

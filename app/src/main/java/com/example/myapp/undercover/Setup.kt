@@ -290,24 +290,20 @@ fun PlayerSetupScreen(
         }
     }
 
-    if (showConfirmationDialog) {
-        ShowAlertDialog(
-            show = true,
-            onDismiss = { showConfirmationDialog = false },
-            title = if (name == "Valenchien") "Beau gosse" else "Ton nom est moche",
-            textContent = {
-                Text("Cache toi tu vas découvrir ton rôle jeune troubadour", fontSize = 20.sp)
+    ShowAlertDialog(
+        show = showConfirmationDialog,
+        onDismiss = { showConfirmationDialog = false },
+        title = if (name == "Valenchien") "Beau gosse" else "Ton nom est moche",
+        textContent = { Text("Cache toi tu vas découvrir ton rôle jeune troubadour", fontSize = 20.sp) },
+        confirmText = "Fais péter",
+        cancelText = "NOON",
+        onConfirm = {
+            onNameEntered(name)
+            name = ""
+            showConfirmationDialog = false
             },
-            confirmText = "Fais péter",
-            cancelText = "NOON",
-            onConfirm = {
-                onNameEntered(name)
-                name = ""
-                showConfirmationDialog = false
-            },
-            onCancel = { showConfirmationDialog = false }
-        )
-    }
+        onCancel = { showConfirmationDialog = false }
+    )
 }
 
 

@@ -292,46 +292,44 @@ fun SettingsScreen(
     }
 
     // Delete Player Dialog
-    if (showDeleteDialog) {
-        ShowAlertDialog(
-            show = true,
-            onDismiss = { showDeleteDialog = false },
-            title = "Choisissez qui TUER",
-            textContent = {
-                Column {
-                    state.players.forEachIndexed { index, player ->
-                        MyButton(
-                            text = player.name.ifEmpty { "Nouveau joueur ${index + 1}" },
-                            onClick = {
-                                val updatedPlayers = state.players.filterIndexed { i, _ -> i != index }
-                                val (_, validImpostors, validMrWhite) = validateGameSettings(
-                                    playerCount = updatedPlayers.size,
-                                    impostorCount = state.settings.impostorCount,
-                                    mrWhiteCount = state.settings.mrWhiteCount
-                                )
-                                onSettingsChange(
-                                    state.copy(
-                                        players = updatedPlayers,
-                                        settings = state.settings.copy(
-                                            impostorCount = validImpostors,
-                                            mrWhiteCount = validMrWhite
-                                        )
+    ShowAlertDialog(
+        show = showDeleteDialog,
+        onDismiss = { showDeleteDialog = false },
+        title = "Choisissez qui TUER",
+        textContent = {
+            Column {
+                state.players.forEachIndexed { index, player ->
+                    MyButton(
+                        text = player.name.ifEmpty { "Nouveau joueur ${index + 1}" },
+                        onClick = {
+                            val updatedPlayers = state.players.filterIndexed { i, _ -> i != index }
+                            val (_, validImpostors, validMrWhite) = validateGameSettings(
+                                playerCount = updatedPlayers.size,
+                                impostorCount = state.settings.impostorCount,
+                                mrWhiteCount = state.settings.mrWhiteCount
+                            )
+                            onSettingsChange(
+                                state.copy(
+                                    players = updatedPlayers,
+                                    settings = state.settings.copy(
+                                        impostorCount = validImpostors,
+                                        mrWhiteCount = validMrWhite
                                     )
                                 )
-                                showDeleteDialog = false
-                            },
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                            fontSize = FONT_SIZE
-                        )
-                    }
+                            )
+                            showDeleteDialog = false
+                        },
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                        fontSize = FONT_SIZE
+                    )
                 }
-            },
-            confirmText = "Ok",
-            cancelText = "Annuler",
-            onConfirm = { showDeleteDialog = false },
-            onCancel = { showDeleteDialog = false }
-        )
-    }
+            }
+        },
+        confirmText = "Ok",
+        cancelText = "Annuler",
+        onConfirm = { showDeleteDialog = false },
+        onCancel = { showDeleteDialog = false }
+    )
 }
 
 @Composable

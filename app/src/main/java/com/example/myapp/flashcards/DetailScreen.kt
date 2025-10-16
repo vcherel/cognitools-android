@@ -375,7 +375,6 @@ fun FlashcardDetailScreen(
     // Information dialog
     selectedElement?.let { element ->
         ShowAlertDialog(
-            show = true,
             onDismiss = { selectedElement = null },
             title = element.name,
             textContent = {
@@ -413,7 +412,6 @@ fun FlashcardDetailScreen(
 
     elementToDelete?.let { element ->
         ShowAlertDialog(
-            show = true,
             onDismiss = { elementToDelete = null },
             title = "T'es sûr ??",
             onCancel = { elementToDelete = null },
@@ -455,7 +453,6 @@ fun FlashcardDetailScreen(
         }
 
         ShowAlertDialog(
-            show = true,
             onDismiss = { showDialog = false },
             title = if (editingIndex == null) "Nouvel élément" else "Modifier élément",
             textContent = {
