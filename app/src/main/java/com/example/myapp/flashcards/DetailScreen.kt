@@ -1,6 +1,5 @@
 package com.example.myapp.flashcards
 
-import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -90,7 +89,6 @@ fun FlashcardDetailScreen(
     var elementToDelete by remember { mutableStateOf<FlashcardElement?>(null) }
     var selectedElement by remember { mutableStateOf<FlashcardElement?>(null) }
     var isLoading by remember { mutableStateOf(true) }
-    Log.d("FlashcardDetailScreen", "Recomposing")
 
     // Observe lists
     val lists by repository.observeLists().collectAsState(initial = emptyList())
