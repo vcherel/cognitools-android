@@ -1,4 +1,0 @@
-fenêtre - porte
-maison - voiture
-chat - chien
-fenêtre - table
