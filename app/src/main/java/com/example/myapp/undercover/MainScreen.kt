@@ -92,6 +92,7 @@ fun UndercoverScreen(onBack: () -> Unit) {
                                 players = assignedPlayers,
                                 currentPlayerIndex = 0,
                                 currentRound = 1,
+                                mrWhiteGuesses = emptyMap(),
                                 gameState = GameState.PlayerSetup()
                             )
                         }
@@ -183,6 +184,7 @@ fun UndercoverScreen(onBack: () -> Unit) {
                             players = reassignedPlayers,
                             currentPlayerIndex = 0,
                             currentRound = 1,
+                            mrWhiteGuesses = emptyMap(),
                             gameState = GameState.PlayerSetup()
                         )
                     },
