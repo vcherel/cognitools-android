@@ -2,27 +2,28 @@ package com.example.myapp.undercover
 
 import android.content.Context
 import androidx.compose.ui.graphics.Color
+import kotlinx.serialization.json.Json
 import kotlin.random.Random
 
 // Data loading
 fun pickRandomPair(context: Context): Pair<String, String>? {
-    var selectedLine: String? = null
+    var selectedPair: Pair<String, String>? = null
     var count = 0
 
-    context.assets.open("pairs.txt").bufferedReader().useLines { lines ->
+    context.assets.open("pairs.json").bufferedReader().useLines { lines ->
         lines.forEach { line ->
             if (line.isNotBlank()) {
                 count++
                 if (Random.nextInt(count) == 0) {
-                    selectedLine = line
+                    val pairList: List<String> = Json.decodeFromString(line)
+                    if (pairList.size == 2) {
+                        selectedPair = pairList[0] to pairList[1]
+                    }
                 }
             }
         }
     }
-
-    return selectedLine?.split(" - ")?.let {
-        if (it.size == 2) it[0] to it[1] else null
-    }
+    return selectedPair
 }
 
 // Player list extensions
