@@ -103,6 +103,8 @@ fun validateGameSettings(
     return Triple(validPlayerCount, validImpostorCount, validMrWhiteCount)
 }
 
+val FONT_SIZE = 22.sp
+
 @Composable
 fun SettingsScreen(
     state: UndercoverGameState,
@@ -133,6 +135,7 @@ fun SettingsScreen(
             min = 3,
             max = 20,
             enabled = true,
+            biggerFont = true,
             onValueChange = { newPlayerCount ->
                 if (newPlayerCount < state.players.size && state.players.any { it.name.isNotEmpty() }) {
                     showDeleteDialog = true
@@ -173,16 +176,16 @@ fun SettingsScreen(
         ) {
             Text(
                 "Rôles aléatoires",
-                fontSize = 18.sp,
+                fontSize = FONT_SIZE,
                 fontWeight = FontWeight.Medium,
-                modifier = Modifier.padding(end = 16.dp)
+                modifier = Modifier.padding(end = 25.dp)
             )
             MySwitch(
                 isEnabled = state.settings.randomComposition,
                 onToggle = { checked ->
                     onSettingsChange(state.copy(settings = state.settings.copy(randomComposition = checked)))
                 },
-                modifier = Modifier.scale(0.85f)
+                modifier = Modifier.scale(0.90f)
             )
         }
 
@@ -258,16 +261,16 @@ fun SettingsScreen(
         ) {
             Text(
                 "Undercover savent",
-                fontSize = 18.sp,
+                fontSize = FONT_SIZE,
                 fontWeight = FontWeight.Medium,
-                modifier = Modifier.padding(end = 16.dp)
+                modifier = Modifier.padding(end = 25.dp)
             )
             MySwitch(
                 isEnabled = state.settings.impostorsKnowRole,
                 onToggle = { checked ->
                     onSettingsChange(state.copy(settings = state.settings.copy(impostorsKnowRole = checked)))
                 },
-                modifier = Modifier.scale(0.85f)
+                modifier = Modifier.scale(0.90f)
             )
         }
 
@@ -312,7 +315,7 @@ fun SettingsScreen(
                                 showDeleteDialog = false
                             },
                             modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                            fontSize = 18.sp
+                            fontSize = FONT_SIZE
                         )
                     }
                 }
@@ -332,22 +335,24 @@ fun NumberSetting(
     onValueChange: (Int) -> Unit,
     min: Int,
     max: Int,
-    enabled: Boolean = true
+    enabled: Boolean = true,
+    biggerFont: Boolean = false
 ) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(label, fontSize = 18.sp, fontWeight = FontWeight.Medium)
+        Text(label, fontSize = if (biggerFont) 30.sp else FONT_SIZE, fontWeight = FontWeight.Medium)
         Spacer(modifier = Modifier.height(12.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
+            val fontSize = 30.sp
             MyButton(
                 text = "-",
                 onClick = { onValueChange(value - 1) },
                 enabled = enabled && value > min,
-                fontSize = 24.sp,
-                modifier = Modifier.size(60.dp)
+                fontSize = fontSize,
+                modifier = Modifier.size(70.dp)
             )
             Text(
                 text = if (enabled) value.toString() else "-",
-                fontSize = 24.sp,
+                fontSize = fontSize,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(horizontal = 36.dp)
             )
@@ -355,8 +360,8 @@ fun NumberSetting(
                 text = "+",
                 onClick = { onValueChange(value + 1) },
                 enabled = enabled && value < max,
-                fontSize = 24.sp,
-                modifier = Modifier.size(60.dp)
+                fontSize = fontSize,
+                modifier = Modifier.size(70.dp)
             )
         }
     }
