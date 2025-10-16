@@ -18,6 +18,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -162,25 +163,30 @@ fun SettingsScreen(
             }
         )
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(24.dp))
 
         // Rôles aléatoires toggle
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+            horizontalArrangement = Arrangement.Center
         ) {
-            Text("Rôles aléatoires", fontSize = 18.sp, fontWeight = FontWeight.Medium)
+            Text(
+                "Rôles aléatoires",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.padding(end = 16.dp)
+            )
             MySwitch(
                 isEnabled = state.settings.randomComposition,
                 onToggle = { checked ->
                     onSettingsChange(state.copy(settings = state.settings.copy(randomComposition = checked)))
                 },
-                modifier = Modifier
+                modifier = Modifier.scale(0.85f)
             )
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(24.dp))
 
         // Nombre d'Undercover
         NumberSetting(
@@ -211,7 +217,7 @@ fun SettingsScreen(
             }
         )
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(24.dp))
 
         // Nombre de M. Whites
         NumberSetting(
@@ -242,30 +248,37 @@ fun SettingsScreen(
             }
         )
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(24.dp))
 
         // Impostors know role toggle
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+            horizontalArrangement = Arrangement.Center
         ) {
-            Text("Undercover savent", fontSize = 18.sp, fontWeight = FontWeight.Medium)
+            Text(
+                "Undercover savent",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.padding(end = 16.dp)
+            )
             MySwitch(
                 isEnabled = state.settings.impostorsKnowRole,
                 onToggle = { checked ->
                     onSettingsChange(state.copy(settings = state.settings.copy(impostorsKnowRole = checked)))
                 },
-                modifier = Modifier
+                modifier = Modifier.scale(0.85f)
             )
         }
 
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(modifier = Modifier.height(36.dp))
 
         MyButton(
             text = if (playAgain) "Retour au classement" else "JOUER",
             onClick = onStart,
-            modifier = Modifier.height(56.dp).widthIn(min = 200.dp, max = 300.dp) // narrower
+            modifier = Modifier
+                .height(75.dp)
+                .widthIn(min = 180.dp, max = 250.dp)
         )
     }
 
@@ -323,7 +336,7 @@ fun NumberSetting(
 ) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(label, fontSize = 18.sp, fontWeight = FontWeight.Medium)
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(12.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
             MyButton(
                 text = "-",
@@ -336,7 +349,7 @@ fun NumberSetting(
                 text = if (enabled) value.toString() else "-",
                 fontSize = 24.sp,
                 fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(horizontal = 32.dp)
+                modifier = Modifier.padding(horizontal = 36.dp)
             )
             MyButton(
                 text = "+",
