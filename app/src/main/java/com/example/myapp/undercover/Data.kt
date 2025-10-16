@@ -21,20 +21,6 @@ data class GameSettings(
     val impostorsKnowRole: Boolean = false
 )
 
-// Word pairs
-val wordPairs = listOf(
-    "Dog" to "Cat",
-    "Coffee" to "Tea",
-    "Pizza" to "Burger",
-    "Car" to "Bike",
-    "Summer" to "Winter",
-    "Ocean" to "Lake",
-    "Book" to "Magazine",
-    "Guitar" to "Piano",
-    "Apple" to "Orange",
-    "Football" to "Basketball"
-)
-
 // Game state representations
 sealed class GameState {
     data class Settings(val playAgain: Boolean = false) : GameState()

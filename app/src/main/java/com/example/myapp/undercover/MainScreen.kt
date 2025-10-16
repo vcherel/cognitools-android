@@ -21,12 +21,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.example.myapp.ShowAlertDialog
 import kotlin.random.Random
 
 @Composable
 fun UndercoverScreen(onBack: () -> Unit) {
+    val context = LocalContext.current
+
     var state by remember { mutableStateOf(UndercoverGameState()) }
     var showExitDialog by remember { mutableStateOf(false) }
 
@@ -87,7 +90,7 @@ fun UndercoverScreen(onBack: () -> Unit) {
                     },
                     onStart = {
                         if (!gameState.playAgain) {
-                            val assignedPlayers = generateAndAssignPlayers(state)
+                            val assignedPlayers = generateAndAssignPlayers(context, state)
                             state = state.copy(
                                 players = assignedPlayers,
                                 currentPlayerIndex = 0,
@@ -179,7 +182,7 @@ fun UndercoverScreen(onBack: () -> Unit) {
                         state = UndercoverGameState(gameState = GameState.Settings())
                     },
                     onNewGame = {
-                        val reassignedPlayers = reassignRolesAndWords(state)
+                        val reassignedPlayers = reassignRolesAndWords(context, state)
                         state = state.copy(
                             players = reassignedPlayers,
                             currentPlayerIndex = 0,

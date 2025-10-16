@@ -1,5 +1,6 @@
 package com.example.myapp.undercover
 
+import android.content.Context
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -25,6 +26,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -40,10 +42,12 @@ import kotlin.random.Random
 
 const val MAX_NAME_LENGTH = 30
 
-fun generateAndAssignPlayers(state: UndercoverGameState): List<Player> {
+fun generateAndAssignPlayers(context: Context, state: UndercoverGameState): List<Player> {
     val players = (0 until state.players.size).map { i -> Player() }.toMutableList()
 
-    val wordPair = wordPairs.random()
+    val wordPair = pickRandomPair(context)
+        ?: throw IllegalStateException("No word pair found in words.txt")
+
     val (civilianWord, impostorWord) = if (Random.nextBoolean()) {
         wordPair.first to wordPair.second
     } else {
@@ -92,9 +96,9 @@ fun generateAndAssignPlayers(state: UndercoverGameState): List<Player> {
     return players
 }
 
-fun reassignRolesAndWords(state: UndercoverGameState): List<Player> {
+fun reassignRolesAndWords(context: Context, state: UndercoverGameState): List<Player> {
     // When replaying game
-    val newPlayers = generateAndAssignPlayers(state)
+    val newPlayers = generateAndAssignPlayers(context, state)
     // Keep the original names
     return newPlayers.mapIndexed { index, p ->
         p.copy(name = state.players.getOrNull(index)?.name ?: p.name)
