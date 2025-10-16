@@ -10,12 +10,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -44,7 +42,7 @@ fun UndercoverScreen(onBack: () -> Unit) {
         show = showExitDialog,
         onDismiss = { showExitDialog = false },
         title = "Quitter ?",
-        textContent = { Text("T'es sûr ? Tous le progrès actuel sera perdu") },
+        textContent = { Text("T'es sûr ? Tous sera perdu") },
         confirmText = "Oui",
         cancelText = "Non",
         onConfirm = {

@@ -12,10 +12,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
@@ -139,39 +137,35 @@ fun HandlePlayerSetup(
             // Show warning dialog before revealing word
             var showQuickStartDialog by remember { mutableStateOf(true) }
 
-            if (showQuickStartDialog) {
-                AlertDialog(
-                    onDismissRequest = { },
-                    title = { Text("ATTENTION") },
-                    text = {
-                        Text(
-                            buildAnnotatedString {
-                                append("Le mot secret du joueur ")
-                                withStyle(style = SpanStyle(fontWeight = FontWeight.Bold)) {
-                                    append(currentPlayer.name)
-                                }
-                                append(" va être affiché, cache toi des autres zouaves !")
+            ShowAlertDialog(
+                show = showQuickStartDialog,
+                onDismiss = { /* no-op or leave empty */ },
+                title = "ATTENTION",
+                textContent = {
+                    Text(
+                        buildAnnotatedString {
+                            append("Le mot secret du joueur ")
+                            withStyle(style = SpanStyle(fontWeight = FontWeight.Bold)) {
+                                append(currentPlayer.name)
                             }
-                        )
-                    },
-                    confirmButton = {
-                        TextButton(onClick = {
-                            // Update state to show word
-                            onStateUpdate(
-                                state.copy(
-                                    gameState = GameState.PlayerSetup(
-                                        gameState.playerIndex,
-                                        showWord = true
-                                    )
-                                )
-                            )
-                            showQuickStartDialog = false
-                        }) {
-                            Text("Ok")
+                            append(" va être affiché, cache toi des autres zouaves !")
                         }
-                    }
-                )
-            }
+                    )
+                },
+                confirmText = "Ok",
+                cancelText = null,
+                onConfirm = {
+                    onStateUpdate(
+                        state.copy(
+                            gameState = GameState.PlayerSetup(
+                                gameState.playerIndex,
+                                showWord = true
+                            )
+                        )
+                    )
+                    showQuickStartDialog = false
+                }
+            )
         } else {
             // Show their secret word / role
             ShowWordScreen(

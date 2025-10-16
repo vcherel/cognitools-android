@@ -22,8 +22,6 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -226,26 +224,21 @@ fun VotingScreen(
         Spacer(modifier = Modifier.weight(1.3f))
     }
 
-    if (showConfirmation && selectedPlayer != null) {
-        AlertDialog(
-            onDismissRequest = { showConfirmation = false },
-            title = { Text("Confirmer assassinat") },
-            text = { Text("Vous êtes sûr de vouloir choisir ${selectedPlayer?.name} ?") },
-            confirmButton = {
-                Button(onClick = {
-                    selectedPlayer?.let { onPlayerEliminated(it) }
-                    showConfirmation = false
-                }) {
-                    Text("Oui")
-                }
-            },
-            dismissButton = {
-                Button(onClick = { showConfirmation = false }) {
-                    Text("Non")
-                }
-            }
-        )
-    }
+    ShowAlertDialog(
+        show = showConfirmation,
+        onDismiss = { showConfirmation = false },
+        title = "Confirmer assassinat",
+        textContent = { Text("Vous êtes sûr de vouloir choisir ${selectedPlayer?.name} ?") },
+        confirmText = "Oui",
+        cancelText = "Non",
+        onConfirm = {
+            selectedPlayer?.let { onPlayerEliminated(it) }
+            showConfirmation = false
+        },
+        onCancel = {
+            showConfirmation = false
+        }
+    )
 }
 
 @Composable
