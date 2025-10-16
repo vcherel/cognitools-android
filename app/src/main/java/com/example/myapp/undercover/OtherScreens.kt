@@ -144,16 +144,21 @@ fun PlayScreen(
         Spacer(modifier = Modifier.height(24.dp))
 
         if (startingPlayer != null) {
-            Text(
-                buildAnnotatedString {
-                    append("Premier joueur : ")
-                    withStyle(style = SpanStyle(color = Color(0xFF1565C0), fontWeight = FontWeight.Bold)) {
-                        append(startingPlayer.name)
-                    }
-                },
-                fontSize = 26.sp,
-                textAlign = TextAlign.Center
-            )
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    text = "Premier joueur :",
+                    fontSize = 26.sp,
+                    textAlign = TextAlign.Center
+                )
+                Spacer(modifier = Modifier.height(5.dp))
+                Text(
+                    text = startingPlayer.name,
+                    fontSize = 26.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF1565C0),
+                    textAlign = TextAlign.Center
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(32.dp))
@@ -308,15 +313,8 @@ fun GameOverScreen(
     val winnerText = when {
         civiliansWon -> "Les civils ont gagné !"
         lastEliminated.role == PlayerRole.MR_WHITE -> "M. White (${lastEliminated.name}) a gagné !"
-        else -> when {
-            activeRoles.contains(PlayerRole.IMPOSTOR) ->
-                "Impostor and Mr White Win!"
-            activeRoles.contains(PlayerRole.IMPOSTOR) -> "Les imposteurs ont gagné !"
-            activeRoles.contains(PlayerRole.MR_WHITE) -> "Mr White Win!"
-            else ->
-                if (activeRoles.count { it == PlayerRole.IMPOSTOR } > 1) "Les Undercover ont gagné !"
-                else "L'Undercover a gagné !"
-        }
+        activeRoles.contains(PlayerRole.MR_WHITE) -> "M. White a gagné !"
+        else -> if (activeRoles.count { it == PlayerRole.IMPOSTOR } > 1) "Les Undercover ont gagné !" else "L'Undercover a gagné !"
     }
 
     Column(
@@ -325,39 +323,44 @@ fun GameOverScreen(
         verticalArrangement = Arrangement.Center
     ) {
         val headerText = if (lastEliminated.role == PlayerRole.MR_WHITE && !civiliansWon) {
-            "Bien joué c'était ça!"
+            "Bien joué c'était ça !"
         } else {
             "Perdu ! (Dommage)"
         }
 
         Text(
             headerText,
-            style = MaterialTheme.typography.headlineLarge,
-            fontWeight = FontWeight.Bold
+            fontSize = 28.sp,
+            fontWeight = FontWeight.Bold,
+            textAlign = TextAlign.Center
         )
 
         Spacer(modifier = Modifier.height(24.dp))
 
         Text(
             winnerText,
-            style = MaterialTheme.typography.headlineMedium
+            fontSize = 28.sp,
+            fontWeight = FontWeight.SemiBold,
+            textAlign = TextAlign.Center
         )
 
         Spacer(modifier = Modifier.height(16.dp))
 
         if (!(lastEliminated.role == PlayerRole.MR_WHITE && !civiliansWon) && mrWhiteGuesses.isEmpty()) {
             Text(
-                "${lastEliminated.name} a été éliminado",
-                style = MaterialTheme.typography.bodyLarge
+                "${lastEliminated.name} a été éliminé",
+                fontSize = 20.sp,
+                textAlign = TextAlign.Center
             )
 
             Spacer(modifier = Modifier.height(16.dp))
 
             Text(
                 "Rôle: ${lastEliminated.role.displayName()}",
-                style = MaterialTheme.typography.headlineMedium,
+                fontSize = 24.sp,
                 fontWeight = FontWeight.Bold,
-                color = lastEliminated.role.displayColor()
+                color = lastEliminated.role.displayColor(),
+                textAlign = TextAlign.Center
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -365,8 +368,9 @@ fun GameOverScreen(
 
         Text(
             "Le mot était $gameWord",
-            style = MaterialTheme.typography.bodyLarge,
-            fontWeight = FontWeight.Medium
+            fontSize = 20.sp,
+            fontWeight = FontWeight.Medium,
+            textAlign = TextAlign.Center
         )
 
         if (mrWhiteGuesses.isNotEmpty()) {
@@ -375,19 +379,19 @@ fun GameOverScreen(
             val message = when (mrWhiteGuesses.size) {
                 1 -> {
                     val (name, guess) = mrWhiteGuesses.entries.first()
-                    "$name a mis \"$guess\" mais il s'est trompé"
+                    "$name a tenté \"$guess\" mais il s'est trompé"
                 }
                 else -> {
                     val guessesString = mrWhiteGuesses.entries.joinToString(separator = "\n") { (name, guess) ->
-                        "- $name a mis \"$guess\""
+                        "- $name a tenté \"$guess\""
                     }
-                    "$guessesString\n. Mais ils se sont tous trompé"
+                    "$guessesString\nMais ils se sont tous trompés"
                 }
             }
 
             Text(
                 message,
-                style = MaterialTheme.typography.bodyLarge,
+                fontSize = 18.sp,
                 fontWeight = FontWeight.Medium,
                 color = Color.Red,
                 textAlign = TextAlign.Center
@@ -396,9 +400,12 @@ fun GameOverScreen(
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        Button(onClick = onContinue) {
-            Text("Voir classement")
-        }
+        MyButton(
+            text = "Voir classement",
+            onClick = onContinue,
+            modifier = Modifier.widthIn(min = 180.dp, max = 250.dp).height(90.dp),
+            fontSize = 24.sp
+        )
     }
 }
 
@@ -417,7 +424,7 @@ fun LeaderboardScreen(
     ) {
         Text(
             "Classement",
-            style = MaterialTheme.typography.headlineMedium,
+            fontSize = 32.sp,
             fontWeight = FontWeight.Bold
         )
 
@@ -429,20 +436,30 @@ fun LeaderboardScreen(
         ) {
             val sortedScores = allScores.entries.sortedByDescending { it.value }
             items(sortedScores) { entry ->
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    elevation = CardDefaults.cardElevation(4.dp)
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(70.dp)
+                        .background(
+                            color = Color(0xFFECEFF1),
+                            shape = RoundedCornerShape(20)
+                        )
+                        .padding(horizontal = 16.dp),
+                    contentAlignment = Alignment.CenterStart
                 ) {
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(entry.key, style = MaterialTheme.typography.titleLarge)
+                        Text(
+                            entry.key,
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Medium
+                        )
                         Text(
                             "${entry.value} pts",
-                            style = MaterialTheme.typography.titleLarge,
+                            fontSize = 20.sp,
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -452,29 +469,42 @@ fun LeaderboardScreen(
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        Button(onClick = onBackToMenu) {
-            Text("Menu principal")
-        }
+        MyButton(
+            text = "Menu principal",
+            onClick = onBackToMenu,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(80.dp)
+        )
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Play Again + Settings row
         Row(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Button(onClick = onNewGame) {
-                Text("Rejouer")
-            }
+            MyButton(
+                text = "Rejouer",
+                onClick = onNewGame,
+                modifier = Modifier
+                    .weight(1f)
+                    .height(80.dp)
+            )
 
-            IconButton(
-                onClick = onSettings,
-                modifier = Modifier.size(48.dp)
+            Box(
+                modifier = Modifier
+                    .size(80.dp)
+                    .background(
+                        color = Color(0xFFECEFF1),
+                        shape = RoundedCornerShape(25)
+                    )
+                    .clickable { onSettings() },
+                contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Default.Settings,
                     contentDescription = "Paramètres",
-                    modifier = Modifier.size(28.dp),
+                    modifier = Modifier.size(32.dp)
                 )
             }
         }
