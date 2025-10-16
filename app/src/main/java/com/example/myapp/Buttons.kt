@@ -46,7 +46,7 @@ fun MyButton(
     // Adjust visual state if disabled
     val shadowColor = remember(isPressed, enabled) {
         when {
-            !enabled -> Color(0xFFCFD8DC) // disabled shadow
+            !enabled -> Color(0xFF9E9E9E)
             isPressed -> Color(0xFF1565C0)
             else -> Color(0xFFB0BEC5)
         }
@@ -54,7 +54,7 @@ fun MyButton(
 
     val gradient = remember(isPressed, enabled) {
         if (!enabled) {
-            Brush.horizontalGradient(listOf(Color(0xFFE0E0E0), Color(0xFFBDBDBD)))
+            Brush.horizontalGradient(listOf(Color(0xFFBDBDBD), Color(0xFF9E9E9E)))
         } else {
             Brush.horizontalGradient(
                 listOf(
@@ -66,7 +66,8 @@ fun MyButton(
     }
 
     val textColor = remember(isPressed, enabled) {
-        if (!enabled) Color.Gray else if (isPressed) Color.White else Color.Black
+        if (!enabled) Color(0xFF757575)
+        else if (isPressed) Color.White else Color.Black
     }
 
     Box(
