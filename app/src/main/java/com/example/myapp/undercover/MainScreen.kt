@@ -41,7 +41,7 @@ fun UndercoverScreen(onBack: () -> Unit) {
     ShowAlertDialog(
         show = showExitDialog,
         onDismiss = { showExitDialog = false },
-        title = "Quitter ?",
+        title = "Confirmation quittage",
         textContent = { Text("T'es sûr ? Tous sera perdu") },
         confirmText = "Oui",
         cancelText = "Non",

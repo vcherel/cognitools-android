@@ -1,5 +1,6 @@
 package com.example.myapp.undercover
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -7,8 +8,14 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -297,31 +304,41 @@ fun SettingsScreen(
         onDismiss = { showDeleteDialog = false },
         title = "Choisissez qui TUER",
         textContent = {
-            Column {
-                state.players.forEachIndexed { index, player ->
-                    MyButton(
-                        text = player.name.ifEmpty { "Nouveau joueur ${index + 1}" },
-                        onClick = {
-                            val updatedPlayers = state.players.filterIndexed { i, _ -> i != index }
-                            val (_, validImpostors, validMrWhite) = validateGameSettings(
-                                playerCount = updatedPlayers.size,
-                                impostorCount = state.settings.impostorCount,
-                                mrWhiteCount = state.settings.mrWhiteCount
-                            )
-                            onSettingsChange(
-                                state.copy(
-                                    players = updatedPlayers,
-                                    settings = state.settings.copy(
-                                        impostorCount = validImpostors,
-                                        mrWhiteCount = validMrWhite
+            LazyColumn(
+                modifier = Modifier.heightIn(max = 300.dp)
+            ) {
+                itemsIndexed(state.players) { index, player ->
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp)
+                            .clickable {
+                                val updatedPlayers = state.players.filterIndexed { i, _ -> i != index }
+                                val (_, validImpostors, validMrWhite) = validateGameSettings(
+                                    playerCount = updatedPlayers.size,
+                                    impostorCount = state.settings.impostorCount,
+                                    mrWhiteCount = state.settings.mrWhiteCount
+                                )
+                                onSettingsChange(
+                                    state.copy(
+                                        players = updatedPlayers,
+                                        settings = state.settings.copy(
+                                            impostorCount = validImpostors,
+                                            mrWhiteCount = validMrWhite
+                                        )
                                     )
                                 )
-                            )
-                            showDeleteDialog = false
-                        },
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                        fontSize = FONT_SIZE
-                    )
+                                showDeleteDialog = false
+                            },
+                        elevation = CardDefaults.cardElevation(4.dp),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text(
+                            text = player.name.ifEmpty { "Nouveau joueur ${index + 1}" },
+                            modifier = Modifier.padding(16.dp),
+                            fontSize = FONT_SIZE
+                        )
+                    }
                 }
             }
         },
@@ -330,6 +347,7 @@ fun SettingsScreen(
         onConfirm = { showDeleteDialog = false },
         onCancel = { showDeleteDialog = false }
     )
+
 }
 
 @Composable
