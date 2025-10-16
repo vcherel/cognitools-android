@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
@@ -35,6 +36,9 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.example.myapp.MyButton
+import com.example.myapp.ShowAlertDialog
 import kotlin.random.Random
 
 const val MAX_NAME_LENGTH = 30
@@ -216,7 +220,6 @@ fun PlayerSetupScreen(
     val focusRequester = remember { FocusRequester() }
     var showConfirmationDialog by remember { mutableStateOf(false) }
 
-    // Validate name
     val isNameValid by remember {
         derivedStateOf {
             name.isNotBlank() && name.length <= MAX_NAME_LENGTH &&
@@ -238,17 +241,25 @@ fun PlayerSetupScreen(
     LaunchedEffect(Unit) { focusRequester.requestFocus() }
 
     Column(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Text("Joueur ${playerIndex + 1}/$totalPlayers", style = MaterialTheme.typography.headlineMedium)
+        Text(
+            "Joueur ${playerIndex + 1}/$totalPlayers",
+            fontSize = 30.sp,
+            fontWeight = FontWeight.Bold
+        )
         Spacer(modifier = Modifier.height(24.dp))
-        Text("Toi s'appeler comment ?")
+        Text("Toi s'appeler comment ?", fontSize = FONT_SIZE)
         Spacer(modifier = Modifier.height(16.dp))
 
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            // Name input field
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth()
+        ) {
             OutlinedTextField(
                 value = name,
                 onValueChange = { name = it },
@@ -256,7 +267,10 @@ fun PlayerSetupScreen(
                 singleLine = true,
                 isError = errorMessage != null,
                 supportingText = errorMessage?.let { { Text(it) } },
-                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Done),
+                keyboardOptions = KeyboardOptions(
+                    capitalization = KeyboardCapitalization.Sentences,
+                    imeAction = ImeAction.Done
+                ),
                 keyboardActions = KeyboardActions(onDone = {
                     if (isNameValid) showConfirmationDialog = true
                 }),
@@ -267,33 +281,31 @@ fun PlayerSetupScreen(
 
             Spacer(modifier = Modifier.width(8.dp))
 
-            // OK button
-            Button(
+            MyButton(
+                text = "Ok",
+                enabled = isNameValid,
                 onClick = { if (isNameValid) showConfirmationDialog = true },
-                enabled = isNameValid
-            ) { Text("Ok") }
+                modifier = Modifier.height(55.dp).width(80.dp),
+                fontSize = 18.sp
+            )
         }
     }
 
-    // Confirm dialog
     if (showConfirmationDialog) {
-        AlertDialog(
-            onDismissRequest = { showConfirmationDialog = false },
-            title = { Text("Confirmation") },
-            text = {
-                Text("T'es sûr que tu veux t\"appeler \"$name\"? (c'est moche mais c'est ton choix)\n\n"
-                        +"Attention maintenant cache toi tu vas découvrir ton rôle jeune troubadour")
+        ShowAlertDialog(
+            show = true,
+            onDismiss = { showConfirmationDialog = false },
+            textContent = {
+                Text("Cache toi tu vas découvrir ton rôle jeune troubadour", fontSize = FONT_SIZE)
             },
-            confirmButton = {
-                TextButton(onClick = {
-                    onNameEntered(name)
-                    name = ""
-                    showConfirmationDialog = false
-                }) { Text("Fais péter") }
+            confirmText = "Fais péter",
+            cancelText = "NOON",
+            onConfirm = {
+                onNameEntered(name)
+                name = ""
+                showConfirmationDialog = false
             },
-            dismissButton = {
-                TextButton(onClick = { showConfirmationDialog = false }) { Text("NOON") }
-            }
+            onCancel = { showConfirmationDialog = false }
         )
     }
 }
