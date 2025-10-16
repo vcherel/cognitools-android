@@ -531,7 +531,7 @@ fun MrWhiteGuessScreen(
         verticalArrangement = Arrangement.Center
     ) {
         Text(
-            text = "${lastEliminated.name} (${lastEliminated.role.displayName()}) was just eliminated!",
+            text = "${lastEliminated.name} (${lastEliminated.role.displayName()}) est mort !",
             fontSize = 22.sp,
             fontWeight = FontWeight.Medium,
             color = lastEliminated.role.displayColor(),
@@ -550,7 +550,7 @@ fun MrWhiteGuessScreen(
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    "Si tu devines tu gagnes ! (sinon tu dégages..)",
+                    "Si tu devines tu gagnes !\n(sinon tu dégages..)",
                     fontSize = 16.sp,
                     textAlign = TextAlign.Center
                 )
