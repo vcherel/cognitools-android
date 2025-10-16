@@ -246,10 +246,11 @@ fun FlashcardListsScreen(onBack: () -> Unit, navController: NavController) {
                         .filter { it.isNotBlank() }
 
                     val newElements = lines.mapNotNull { line ->
-                        val parts = line.split("-", limit = 2)
-                        if (parts.size == 2) {
-                            val name = parts[0].trim()
-                            val definition = parts[1].trim()
+                        val separator = " - "
+                        val index = line.indexOf(separator)
+                        if (index != -1) {
+                            val name = line.substring(0, index).trim()
+                            val definition = line.substring(index + separator.length).trim()
                             if (name.isNotBlank() && definition.isNotBlank()) {
                                 FlashcardElement(
                                     listId = selectedListId,
