@@ -599,7 +599,7 @@ fun MrWhiteGuessScreen(
                 val currentGuesser = scenario.currentGuesser
 
                 Text(
-                    "Il ne reste plus que des M. White !",
+                    "Plus que des M. White !",
                     fontSize = 22.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.Red,
@@ -614,13 +614,19 @@ fun MrWhiteGuessScreen(
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    "C'est au tour de ${currentGuesser.name} de tenter de deviner le mot",
+                    "${currentGuesser.name} doit deviner le mot",
                     fontSize = 16.sp,
                     textAlign = TextAlign.Center
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    "S'il le devine correctement, il gagne (seul) ! Sinon les autres M. White ont leur chance",
+                    "S'il devine le mot, il gagne seul !",
+                    fontSize = 16.sp,
+                    textAlign = TextAlign.Center
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    "Sinon les autres M. White ont leur chance",
                     fontSize = 16.sp,
                     textAlign = TextAlign.Center
                 )
