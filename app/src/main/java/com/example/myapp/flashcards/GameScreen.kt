@@ -30,6 +30,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -79,6 +80,7 @@ fun FlashcardGameScreen(listId: String, navController: NavController, onBack: ()
     val allElements by repository.observeElements(listId).collectAsState(initial = emptyList())
 
     var currentCard by remember { mutableStateOf<FlashcardElement?>(null) }
+    var isLoading by remember { mutableStateOf(true) }
     var showDefinition by remember { mutableStateOf(false) }
     var cardOffset by remember { mutableFloatStateOf(0f) }
     var isProcessingSwipe by remember { mutableStateOf(false) }
@@ -102,6 +104,8 @@ fun FlashcardGameScreen(listId: String, navController: NavController, onBack: ()
     LaunchedEffect(allElements) {
         if (allElements.isEmpty()) return@LaunchedEffect
 
+        isLoading = false
+
         // Keep currently active cards that are still difficult
         val currentActiveDifficultCards = allElements.filter {
             it.id in activeDifficultCards && it.score < 2
@@ -121,6 +125,7 @@ fun FlashcardGameScreen(listId: String, navController: NavController, onBack: ()
         // Pick a random current card if none is selected yet
         if (currentCard == null && dueCards.isNotEmpty()) {
             currentCard = dueCards.random()
+            showFront = Random.nextBoolean()
         }
     }
 
@@ -281,7 +286,15 @@ fun FlashcardGameScreen(listId: String, navController: NavController, onBack: ()
             Spacer(Modifier.height(32.dp))
 
             // Main content
-            if (currentCard != null) {
+            if (isLoading) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
+                }
+            }
+            else if (currentCard != null) {
                 Box(
                     modifier = Modifier
                         .weight(1f)
