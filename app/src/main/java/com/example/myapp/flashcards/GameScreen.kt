@@ -58,6 +58,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavController
 import com.example.myapp.MyButton
 import kotlinx.coroutines.launch
 import kotlin.math.abs
@@ -67,7 +68,7 @@ import kotlin.random.Random
 const val MAX_DIFFICULT_CARDS = 5
 
 @Composable
-fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
+fun FlashcardGameScreen(listId: String, navController: NavController, onBack: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
@@ -530,12 +531,24 @@ fun FlashcardGameScreen(listId: String, onBack: () -> Unit) {
                         textAlign = TextAlign.Center
                     )
 
+                    Spacer(Modifier.height(16.dp))
+                    MyButton(
+                        text = "Retour aux listes",
+                        onClick = {
+                            navController.navigate("lists") {
+                                popUpTo("lists") { inclusive = true }
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth().height(56.dp)
+                    )
+
                     Spacer(Modifier.height(32.dp))
                     MyButton(
                         text = "Retour",
                         onClick = onBack,
                         modifier = Modifier.fillMaxWidth().height(56.dp)
                     )
+
                 }
             }
         }

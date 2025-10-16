@@ -153,7 +153,8 @@ fun FlashcardsNavGraph(onBack: () -> Unit) {
             val listId = backStackEntry.arguments?.getString("listId") ?: ""
             FlashcardGameScreen(
                 listId = listId,
-                onBack = { navController.popBackStack() }
+                navController = navController,
+                onBack = { navController.popBackStack()}
             )
         }
     }
