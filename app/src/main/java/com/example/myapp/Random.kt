@@ -120,7 +120,7 @@ fun RandomGeneratorScreen(onBack: () -> Unit, context: Context = LocalContext.cu
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text("Mot aléatoire", fontSize = 22.sp, fontWeight = FontWeight.Bold)
 
-            MyButton(text = if (isLoading) "Chargement..." else "Générer") {
+            MyButton(text = if (isLoading) "Chargement..." else "Générer", enabled = !isLoading) {
                 if (words.isNotEmpty()) wordResult = words.random()
             }
 
