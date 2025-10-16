@@ -103,7 +103,7 @@ fun MyButton(
 
 @Composable
 fun MySwitch(
-    isBoostEnabled: Boolean,
+    isEnabled: Boolean,
     onToggle: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
     text: String? = null
@@ -125,7 +125,7 @@ fun MySwitch(
                 .fillMaxSize()
                 .offset(y = 5.dp)
                 .background(
-                    color = if (isBoostEnabled) Color(0xFF1565C0) else Color(0xFFB0BEC5),
+                    color = if (isEnabled) Color(0xFF1565C0) else Color(0xFFB0BEC5),
                     shape = RoundedCornerShape(40)
                 )
         )
@@ -136,8 +136,8 @@ fun MySwitch(
                 .background(
                     brush = Brush.horizontalGradient(
                         listOf(
-                            if (isBoostEnabled) Color(0xFF2196F3) else Color(0xFFECEFF1),
-                            if (isBoostEnabled) Color(0xFF1976D2) else Color(0xFFCFD8DC)
+                            if (isEnabled) Color(0xFF2196F3) else Color(0xFFECEFF1),
+                            if (isEnabled) Color(0xFF1976D2) else Color(0xFFCFD8DC)
                         )
                     ),
                     shape = RoundedCornerShape(40)
@@ -145,7 +145,7 @@ fun MySwitch(
                 .clickable(
                     interactionSource = interactionSource,
                     indication = null
-                ) { onToggle(!isBoostEnabled) }
+                ) { onToggle(!isEnabled) }
                 .padding(horizontal = 16.dp),
             contentAlignment = Alignment.Center
         ) {
@@ -159,7 +159,7 @@ fun MySwitch(
                 if (text != null) {
                     Text(
                         text = text,
-                        color = if (isBoostEnabled) Color.White else Color.Black,
+                        color = if (isEnabled) Color.White else Color.Black,
                         fontSize = 24.sp,
                         fontWeight = FontWeight.Bold,
                         maxLines = 1,
@@ -168,7 +168,7 @@ fun MySwitch(
                 }
 
                 Switch(
-                    checked = isBoostEnabled,
+                    checked = isEnabled,
                     onCheckedChange = onToggle,
                     colors = SwitchDefaults.colors(
                         checkedThumbColor = Color.White,
