@@ -4,6 +4,7 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -50,6 +51,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -102,135 +104,166 @@ fun FlashcardListsScreen(onBack: () -> Unit, navController: NavController) {
 
     BackHandler { onBack() }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp)
-    ) {
-        Spacer(Modifier.height(16.dp))
-
-        // Top bar
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.weight(1f)
-            ) {
-                IconButton(onClick = { onBack() }) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Retour")
-                }
-                Text(
-                    "Mes listes",
-                    style = MaterialTheme.typography.headlineMedium,
-                    modifier = Modifier.padding(start = 8.dp)
-                )
-            }
-
-            Row {
-                IconButton(onClick = {
-                    scope.launch(Dispatchers.IO) {
-                        val exportData = repository.getExportData()
-                        exportFlashcards(exportData.first, exportData.second)
-                        withContext(Dispatchers.Main) {
-                            Toast.makeText(context, "Exported to Downloads", Toast.LENGTH_SHORT).show()
-                        }
-                    }
-                }) {
-                    Icon(Icons.Default.Upload, contentDescription = "Exporter")
-                }
-            }
-        }
-
-        Spacer(Modifier.height(16.dp))
-
-        Box(
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
             modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth(),
-            contentAlignment = Alignment.Center
+                .fillMaxSize()
+                .padding(16.dp)
         ) {
-            when {
-                isLoading -> {
-                    CircularProgressIndicator()
+            Spacer(Modifier.height(16.dp))
+
+            // Top bar
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    IconButton(onClick = { onBack() }) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Retour")
+                    }
+                    Text(
+                        "Mes listes",
+                        style = MaterialTheme.typography.headlineMedium,
+                        modifier = Modifier.padding(start = 8.dp)
+                    )
                 }
-                lists.isEmpty() -> {
-                    Text("Aucune liste disponible", style = MaterialTheme.typography.bodyMedium)
+
+                Row {
+                    IconButton(onClick = {
+                        scope.launch(Dispatchers.IO) {
+                            val exportData = repository.getExportData()
+                            exportFlashcards(exportData.first, exportData.second)
+                            withContext(Dispatchers.Main) {
+                                Toast.makeText(context, "Exported to Downloads", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    }) {
+                        Icon(Icons.Default.Upload, contentDescription = "Exporter")
+                    }
                 }
-                else -> {
-                    LazyColumn(contentPadding = PaddingValues(bottom = 16.dp)) {
-                        itemsIndexed(items = lists, key = { _, item -> item.id }) { index, flashcardList ->
-                            FlashcardListItem(
-                                flashcardList = flashcardList,
-                                dueCount = dueCountMap[flashcardList.id] ?: 0,
-                                onNavigate = {
-                                    navController.navigate("elements/${flashcardList.id}")
-                                },
-                                onBulkImport = {
-                                    selectedListId = flashcardList.id
-                                    showBulkImportDialog = true
-                                    bulkImportText = ""
-                                },
-                                onRename = {
-                                    dialogTitle = "Renommer la liste"
-                                    dialogValue = flashcardList.name
-                                    dialogAction = { newName ->
-                                        scope.launch {
-                                            repository.updateList(flashcardList.id, newName)
+            }
+
+            Spacer(Modifier.height(16.dp))
+
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
+                contentAlignment = Alignment.Center
+            ) {
+                when {
+                    isLoading -> {
+                        CircularProgressIndicator()
+                    }
+                    lists.isEmpty() -> {
+                        Text("Aucune liste disponible", style = MaterialTheme.typography.bodyMedium)
+                    }
+                    else -> {
+                        Box(modifier = Modifier.fillMaxSize()) {
+                            LazyColumn(contentPadding = PaddingValues(bottom = 116.dp)) {
+                                itemsIndexed(items = lists, key = { _, item -> item.id }) { index, flashcardList ->
+                                    FlashcardListItem(
+                                        flashcardList = flashcardList,
+                                        dueCount = dueCountMap[flashcardList.id] ?: 0,
+                                        onNavigate = {
+                                            navController.navigate("elements/${flashcardList.id}")
+                                        },
+                                        onBulkImport = {
+                                            selectedListId = flashcardList.id
+                                            showBulkImportDialog = true
+                                            bulkImportText = ""
+                                        },
+                                        onRename = {
+                                            dialogTitle = "Renommer la liste"
+                                            dialogValue = flashcardList.name
+                                            dialogAction = { newName ->
+                                                scope.launch {
+                                                    repository.updateList(flashcardList.id, newName)
+                                                }
+                                            }
+                                            showDialog = true
+                                        },
+                                        onDelete = {
+                                            scope.launch {
+                                                repository.deleteList(flashcardList.id)
+                                            }
+                                        },
+                                        onMoveUp = {
+                                            if (index > 0) {
+                                                val mutableLists = lists.toMutableList()
+                                                val temp = mutableLists[index - 1]
+                                                mutableLists[index - 1] = mutableLists[index]
+                                                mutableLists[index] = temp
+                                                scope.launch {
+                                                    repository.reorderLists(mutableLists)
+                                                }
+                                            }
+                                        },
+                                        onMoveDown = {
+                                            if (index < lists.size - 1) {
+                                                val mutableLists = lists.toMutableList()
+                                                val temp = mutableLists[index + 1]
+                                                mutableLists[index + 1] = mutableLists[index]
+                                                mutableLists[index] = temp
+                                                scope.launch {
+                                                    repository.reorderLists(mutableLists)
+                                                }
+                                            }
                                         }
-                                    }
-                                    showDialog = true
-                                },
-                                onDelete = {
-                                    scope.launch {
-                                        repository.deleteList(flashcardList.id)
-                                    }
-                                },
-                                onMoveUp = {
-                                    if (index > 0) {
-                                        val mutableLists = lists.toMutableList()
-                                        val temp = mutableLists[index - 1]
-                                        mutableLists[index - 1] = mutableLists[index]
-                                        mutableLists[index] = temp
-                                        scope.launch {
-                                            repository.reorderLists(mutableLists)
-                                        }
-                                    }
-                                },
-                                onMoveDown = {
-                                    if (index < lists.size - 1) {
-                                        val mutableLists = lists.toMutableList()
-                                        val temp = mutableLists[index + 1]
-                                        mutableLists[index + 1] = mutableLists[index]
-                                        mutableLists[index] = temp
-                                        scope.launch {
-                                            repository.reorderLists(mutableLists)
-                                        }
-                                    }
+                                    )
                                 }
+                            }
+
+                            // Gradient overlay at the bottom
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.BottomCenter)
+                                    .fillMaxWidth()
+                                    .height(150.dp)
+                                    .background(
+                                        brush = Brush.verticalGradient(
+                                            colors = listOf(
+                                                Color.Transparent,
+                                                Color(0xFFFEF7FF)
+                                            ),
+                                            startY = 0f,
+                                            endY = Float.POSITIVE_INFINITY
+                                        )
+                                    )
                             )
                         }
                     }
                 }
             }
+
+            Spacer(Modifier.height(16.dp))
         }
 
-        Spacer(Modifier.height(16.dp))
-
-        MyButton(
-            text = "Créer une nouvelle liste",
-            onClick = {
-                dialogTitle = "Nouvelle liste"
-                dialogValue = ""
-                dialogAction = { newName ->
-                    scope.launch {
-                        repository.addList(FlashcardList(name = newName))
+        // Floating button at the bottom
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.Bottom
+        ) {
+            MyButton(
+                text = "Créer une nouvelle liste",
+                modifier = Modifier.fillMaxWidth().height(100.dp),
+                onClick = {
+                    dialogTitle = "Nouvelle liste"
+                    dialogValue = ""
+                    dialogAction = { newName ->
+                        scope.launch {
+                            repository.addList(FlashcardList(name = newName))
+                        }
                     }
+                    showDialog = true
                 }
-                showDialog = true
-            }
-        )
+            )
+        }
     }
 
     // Bulk import dialog
@@ -303,7 +336,7 @@ fun FlashcardListsScreen(onBack: () -> Unit, navController: NavController) {
 }
 
 @Composable
-private fun FlashcardListItem(
+fun FlashcardListItem(
     flashcardList: FlashcardList,
     dueCount: Int,
     onNavigate: () -> Unit,
@@ -419,7 +452,7 @@ private fun FlashcardListItem(
 }
 
 @Composable
-private fun BulkImportDialog(
+fun BulkImportDialog(
     bulkImportText: String,
     onTextChange: (String) -> Unit,
     onDismiss: () -> Unit,
