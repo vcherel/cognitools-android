@@ -8,13 +8,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Switch
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -22,8 +18,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.example.myapp.MyButton
+import com.example.myapp.MySwitch
+import com.example.myapp.ShowAlertDialog
 
 enum class SwapDirection {
     NONE,
@@ -111,7 +111,6 @@ fun SettingsScreen(
 ) {
     var showDeleteDialog by remember { mutableStateOf(false) }
 
-    // Calculate current valid ranges
     val maxImpostors = (state.players.size - 1) / 2
     val (_, _, maxMrWhiteFromSwap) = validateGameSettings(
         playerCount = state.players.size,
@@ -123,17 +122,18 @@ fun SettingsScreen(
     val maxMrWhite = maxMrWhiteFromSwap
 
     Column(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier.fillMaxSize().padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Player count
+        // Nombre de joueurs
         NumberSetting(
-            label = "Number of Players",
+            label = "Nombre de joueurs",
             value = state.players.size,
+            min = 3,
+            max = 20,
+            enabled = true,
             onValueChange = { newPlayerCount ->
-                // Check if we're deleting and any player has a real name
-                if (newPlayerCount < state.players.size &&
-                    state.players.any { it.name.isNotEmpty() }) {
+                if (newPlayerCount < state.players.size && state.players.any { it.name.isNotEmpty() }) {
                     showDeleteDialog = true
                     return@NumberSetting
                 }
@@ -145,58 +145,50 @@ fun SettingsScreen(
                 )
 
                 val updatedPlayers = when {
-                    newPlayerCount > state.players.size -> {
-                        state.players + List(newPlayerCount - state.players.size) { Player() }
-                    }
-                    newPlayerCount < state.players.size -> {
-                        state.players.take(newPlayerCount)
-                    }
+                    newPlayerCount > state.players.size -> state.players + List(newPlayerCount - state.players.size) { Player() }
+                    newPlayerCount < state.players.size -> state.players.take(newPlayerCount)
                     else -> state.players
                 }
 
-                val updatedState = state.copy(
-                    settings = state.settings.copy(
-                        impostorCount = validImpostors,
-                        mrWhiteCount = validMrWhite
-                    ),
-                    players = updatedPlayers
+                onSettingsChange(
+                    state.copy(
+                        players = updatedPlayers,
+                        settings = state.settings.copy(
+                            impostorCount = validImpostors,
+                            mrWhiteCount = validMrWhite
+                        )
+                    )
                 )
-                onSettingsChange(updatedState)
-            },
-            min = 3,
-            max = 20
+            }
         )
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Random composition toggle
+        // Rôles aléatoires toggle
         Row(
             modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Text(
-                text = "Rôles aléatoires",
-                textAlign = TextAlign.End,
+            Text("Rôles aléatoires", fontSize = 18.sp, fontWeight = FontWeight.Medium)
+            MySwitch(
+                isEnabled = state.settings.randomComposition,
+                onToggle = { checked ->
+                    onSettingsChange(state.copy(settings = state.settings.copy(randomComposition = checked)))
+                },
                 modifier = Modifier
-                    .weight(1f)
-                    .padding(end = 15.dp)
-            )
-            Switch(
-                checked = state.settings.randomComposition,
-                onCheckedChange = { isChecked ->
-                    val updatedState = state.copy(
-                        settings = state.settings.copy(randomComposition = isChecked)
-                    )
-                    onSettingsChange(updatedState)
-                }
             )
         }
 
         Spacer(modifier = Modifier.height(16.dp))
 
+        // Nombre d'Undercover
         NumberSetting(
             label = "Nombre d'Undercover",
             value = state.settings.impostorCount,
+            min = 0,
+            max = maxImpostors,
+            enabled = !state.settings.randomComposition,
             onValueChange = { newImpostorCount ->
                 val swapDirection = when {
                     newImpostorCount < state.settings.impostorCount -> SwapDirection.DECREASE_IMPOSTOR
@@ -212,24 +204,22 @@ fun SettingsScreen(
                     swapDirection = swapDirection
                 )
 
-                val updatedState = state.copy(
-                    settings = state.settings.copy(
-                        impostorCount = validImpostors,
-                        mrWhiteCount = validMrWhite
-                    )
-                )
-                onSettingsChange(updatedState)
-            },
-            min = 0,
-            max = maxImpostors,
-            enabled = !state.settings.randomComposition
+                onSettingsChange(state.copy(settings = state.settings.copy(
+                    impostorCount = validImpostors,
+                    mrWhiteCount = validMrWhite
+                )))
+            }
         )
 
         Spacer(modifier = Modifier.height(16.dp))
 
+        // Nombre de M. Whites
         NumberSetting(
-            label = "Nombre de M. Whites (Oui on peut choisir)",
+            label = "Nombre de M. Whites",
             value = state.settings.mrWhiteCount,
+            min = 0,
+            max = maxMrWhite,
+            enabled = !state.settings.randomComposition,
             onValueChange = { newMrWhiteCount ->
                 val swapDirection = when {
                     newMrWhiteCount < state.settings.mrWhiteCount -> SwapDirection.DECREASE_MR_WHITE
@@ -245,17 +235,11 @@ fun SettingsScreen(
                     swapDirection = swapDirection
                 )
 
-                val updatedState = state.copy(
-                    settings = state.settings.copy(
-                        impostorCount = validImpostors,
-                        mrWhiteCount = validMrWhite
-                    )
-                )
-                onSettingsChange(updatedState)
-            },
-            min = 0,
-            max = maxMrWhite,
-            enabled = !state.settings.randomComposition
+                onSettingsChange(state.copy(settings = state.settings.copy(
+                    impostorCount = validImpostors,
+                    mrWhiteCount = validMrWhite
+                )))
+            }
         )
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -263,45 +247,39 @@ fun SettingsScreen(
         // Impostors know role toggle
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Text("Les Undercover savent qu'ils Undercovent")
-            Switch(
-                checked = state.settings.impostorsKnowRole,
-                onCheckedChange = { isChecked ->
-                    val updatedState = state.copy(
-                        settings = state.settings.copy(impostorsKnowRole = isChecked)
-                    )
-                    onSettingsChange(updatedState)
-                }
+            Text("Undercover savent", fontSize = 18.sp, fontWeight = FontWeight.Medium)
+            MySwitch(
+                isEnabled = state.settings.impostorsKnowRole,
+                onToggle = { checked ->
+                    onSettingsChange(state.copy(settings = state.settings.copy(impostorsKnowRole = checked)))
+                },
+                modifier = Modifier
             )
         }
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        Button(
+        MyButton(
+            text = if (playAgain) "Retour au classement" else "JOUER",
             onClick = onStart,
-            modifier = Modifier.fillMaxWidth().height(56.dp)
-        ) {
-            val text = if (playAgain) "Retour au classement" else "JOUER"
-            Text(text, style = MaterialTheme.typography.titleLarge)
-        }
+            modifier = Modifier.height(56.dp).widthIn(min = 200.dp, max = 300.dp) // narrower
+        )
     }
 
     // Delete Player Dialog
     if (showDeleteDialog) {
-        AlertDialog(
-            onDismissRequest = { showDeleteDialog = false },
-            title = { Text("Choisissez qui TUER") },
-            text = {
+        ShowAlertDialog(
+            show = true,
+            onDismiss = { showDeleteDialog = false },
+            title = "Choisissez qui TUER",
+            textContent = {
                 Column {
-                    Text(
-                        "Qui se barre ?",
-                        modifier = Modifier.padding(bottom = 16.dp)
-                    )
                     state.players.forEachIndexed { index, player ->
-                        OutlinedButton(
+                        MyButton(
+                            text = player.name.ifEmpty { "Nouveau joueur ${index + 1}" },
                             onClick = {
                                 val updatedPlayers = state.players.filterIndexed { i, _ -> i != index }
                                 val (_, validImpostors, validMrWhite) = validateGameSettings(
@@ -309,35 +287,27 @@ fun SettingsScreen(
                                     impostorCount = state.settings.impostorCount,
                                     mrWhiteCount = state.settings.mrWhiteCount
                                 )
-                                val updatedState = state.copy(
-                                    settings = state.settings.copy(
-                                        impostorCount = validImpostors,
-                                        mrWhiteCount = validMrWhite
-                                    ),
-                                    players = updatedPlayers
+                                onSettingsChange(
+                                    state.copy(
+                                        players = updatedPlayers,
+                                        settings = state.settings.copy(
+                                            impostorCount = validImpostors,
+                                            mrWhiteCount = validMrWhite
+                                        )
+                                    )
                                 )
-                                onSettingsChange(updatedState)
                                 showDeleteDialog = false
                             },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 4.dp)
-                        ) {
-                            Text(
-                                text = player.name.ifEmpty { "Nouveau joueur ${index + 1}" },
-                                modifier = Modifier.fillMaxWidth(),
-                                textAlign = TextAlign.Start
-                            )
-                        }
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                            fontSize = 18.sp
+                        )
                     }
                 }
             },
-            confirmButton = {},
-            dismissButton = {
-                TextButton(onClick = { showDeleteDialog = false }) {
-                    Text("Annuler")
-                }
-            }
+            confirmText = "Ok",
+            cancelText = "Annuler",
+            onConfirm = { showDeleteDialog = false },
+            onCancel = { showDeleteDialog = false }
         )
     }
 }
@@ -351,33 +321,30 @@ fun NumberSetting(
     max: Int,
     enabled: Boolean = true
 ) {
-    Column {
-        Text(label, style = MaterialTheme.typography.bodyLarge)
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(label, fontSize = 18.sp, fontWeight = FontWeight.Medium)
         Spacer(modifier = Modifier.height(8.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Button(
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            MyButton(
+                text = "-",
                 onClick = { onValueChange(value - 1) },
-                enabled = enabled && value > min
-            ) {
-                Text("-", style = MaterialTheme.typography.headlineMedium)
-            }
-
+                enabled = enabled && value > min,
+                fontSize = 24.sp,
+                modifier = Modifier.size(60.dp)
+            )
             Text(
                 text = if (enabled) value.toString() else "-",
-                style = MaterialTheme.typography.headlineLarge,
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(horizontal = 32.dp)
             )
-
-            Button(
+            MyButton(
+                text = "+",
                 onClick = { onValueChange(value + 1) },
-                enabled = enabled && value < max
-            ) {
-                Text("+", style = MaterialTheme.typography.headlineMedium)
-            }
+                enabled = enabled && value < max,
+                fontSize = 24.sp,
+                modifier = Modifier.size(60.dp)
+            )
         }
     }
 }
