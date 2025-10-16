@@ -1,5 +1,6 @@
 package com.example.myapp.flashcards
 
+import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -32,6 +33,7 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -65,6 +67,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.myapp.MyButton
 import com.example.myapp.ShowAlertDialog
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @Composable
@@ -86,6 +89,8 @@ fun FlashcardDetailScreen(
     var searchQuery by remember { mutableStateOf("") }
     var elementToDelete by remember { mutableStateOf<FlashcardElement?>(null) }
     var selectedElement by remember { mutableStateOf<FlashcardElement?>(null) }
+    var isLoading by remember { mutableStateOf(true) }
+    Log.d("FlashcardDetailScreen", "Recomposing")
 
     // Observe lists
     val lists by repository.observeLists().collectAsState(initial = emptyList())
@@ -98,9 +103,15 @@ fun FlashcardDetailScreen(
 
     // Sync repository elements into local state
     LaunchedEffect(listId) {
+        isLoading = true
         repository.observeElements(listId).collect { list ->
             elementsState.clear()
-            elementsState.addAll(list)
+            val chunkSize = 20
+            list.chunked(chunkSize).forEach { chunk ->
+                elementsState.addAll(chunk)
+                delay(16) // 60 FPS
+            }
+            isLoading = false
         }
     }
 
@@ -179,114 +190,147 @@ fun FlashcardDetailScreen(
 
         Spacer(Modifier.height(16.dp))
 
-        LazyColumn(
-            modifier = Modifier.weight(1f),
-            contentPadding = PaddingValues(bottom = 16.dp),
-            state = listState
-        ) {
-            itemsIndexed(visibleElements.value, key = { _, item -> item.id }) { index, element ->
-                val interactionSource = remember { MutableInteractionSource() }
-                val isPressed by interactionSource.collectIsPressedAsState()
+        if (isLoading) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator()
+            }
+        }
+        else {
+            LazyColumn(
+                modifier = Modifier.weight(1f),
+                contentPadding = PaddingValues(bottom = 16.dp),
+                state = listState
+            ) {
+                itemsIndexed(
+                    visibleElements.value,
+                    key = { _, item -> item.id }) { index, element ->
+                    val interactionSource = remember { MutableInteractionSource() }
+                    val isPressed by interactionSource.collectIsPressedAsState()
 
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 4.dp)
-                        .scale(if (isPressed) 0.95f else 1f)
-                        .clickable(interactionSource = interactionSource, indication = ripple()) {
-                            selectedElement = element
-                        },
-                    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-                ) {
-                    Column(modifier = Modifier.padding(10.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.Top
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(element.name, style = MaterialTheme.typography.titleMedium)
-                                Text(element.definition, style = MaterialTheme.typography.bodyLarge)
-                            }
-
-                            Column(
-                                horizontalAlignment = Alignment.End,
-                                verticalArrangement = Arrangement.Top,
-                                modifier = Modifier.width(IntrinsicSize.Min)
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp)
+                            .scale(if (isPressed) 0.95f else 1f)
+                            .clickable(
+                                interactionSource = interactionSource,
+                                indication = ripple()
                             ) {
-                                val timeUntilReview = remember(element.lastReview, element.interval) {
-                                    val now = System.currentTimeMillis()
-                                    val nextReviewTime = element.lastReview + (element.interval * 60_000L)
-                                    val diffMs = nextReviewTime - now
-                                    when {
-                                        diffMs <= 0 -> "Maintenant"
-                                        diffMs < 60 * 60 * 1000 -> "${(diffMs / (60 * 1000)).toInt()}min"
-                                        diffMs < 24 * 60 * 60 * 1000 -> "${(diffMs / (60 * 60 * 1000)).toInt()}h"
-                                        diffMs < 7 * 24 * 60 * 60 * 1000 -> "${(diffMs / (24 * 60 * 60 * 1000)).toInt()}j"
-                                        diffMs < 30 * 24 * 60 * 60 * 1000L -> "${(diffMs / (7 * 24 * 60 * 60 * 1000)).toInt()}sem"
-                                        else -> "${(diffMs / (30 * 24 * 60 * 60 * 1000L)).toInt()}mois"
+                                selectedElement = element
+                            },
+                        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(10.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.Top
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(element.name, style = MaterialTheme.typography.titleMedium)
+                                    Text(
+                                        element.definition,
+                                        style = MaterialTheme.typography.bodyLarge
+                                    )
+                                }
+
+                                Column(
+                                    horizontalAlignment = Alignment.End,
+                                    verticalArrangement = Arrangement.Top,
+                                    modifier = Modifier.width(IntrinsicSize.Min)
+                                ) {
+                                    val timeUntilReview =
+                                        remember(element.lastReview, element.interval) {
+                                            val now = System.currentTimeMillis()
+                                            val nextReviewTime =
+                                                element.lastReview + (element.interval * 60_000L)
+                                            val diffMs = nextReviewTime - now
+                                            when {
+                                                diffMs <= 0 -> "Maintenant"
+                                                diffMs < 60 * 60 * 1000 -> "${(diffMs / (60 * 1000)).toInt()}min"
+                                                diffMs < 24 * 60 * 60 * 1000 -> "${(diffMs / (60 * 60 * 1000)).toInt()}h"
+                                                diffMs < 7 * 24 * 60 * 60 * 1000 -> "${(diffMs / (24 * 60 * 60 * 1000)).toInt()}j"
+                                                diffMs < 30 * 24 * 60 * 60 * 1000L -> "${(diffMs / (7 * 24 * 60 * 60 * 1000)).toInt()}sem"
+                                                else -> "${(diffMs / (30 * 24 * 60 * 60 * 1000L)).toInt()}mois"
+                                            }
+                                        }
+
+                                    Text(
+                                        timeUntilReview,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = if (isDue(element)) Color(0xFF009900) else MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+
+                                    val scoreColor = when (element.score.toInt()) {
+                                        0 -> Color(0xFFFF0000)
+                                        1 -> Color(0xFFFF3300)
+                                        2 -> Color(0xFFFF6600)
+                                        3 -> Color(0xFFFF9900)
+                                        4 -> Color(0xFFFFCC00)
+                                        5 -> Color(0xFFFFFF00)
+                                        6 -> Color(0xFFCCFF00)
+                                        7 -> Color(0xFF99FF00)
+                                        8 -> Color(0xFF66FF00)
+                                        9 -> Color(0xFF33FF00)
+                                        else -> Color(0xFF00CC00)
                                     }
-                                }
 
-                                Text(
-                                    timeUntilReview,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = if (isDue(element)) Color(0xFF009900) else MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-
-                                val scoreColor = when (element.score.toInt()) {
-                                    0 -> Color(0xFFFF0000)
-                                    1 -> Color(0xFFFF3300)
-                                    2 -> Color(0xFFFF6600)
-                                    3 -> Color(0xFFFF9900)
-                                    4 -> Color(0xFFFFCC00)
-                                    5 -> Color(0xFFFFFF00)
-                                    6 -> Color(0xFFCCFF00)
-                                    7 -> Color(0xFF99FF00)
-                                    8 -> Color(0xFF66FF00)
-                                    9 -> Color(0xFF33FF00)
-                                    else -> Color(0xFF00CC00)
-                                }
-
-                                Spacer(modifier = Modifier.height(2.dp))
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Box(
-                                        contentAlignment = Alignment.Center,
-                                        modifier = Modifier
-                                            .size(24.dp)
-                                            .border(width = 2.dp, color = scoreColor, shape = CircleShape)
-                                    ) {
-                                        Text(
-                                            "${element.score.toInt()}",
-                                            style = MaterialTheme.typography.bodySmall.copy(
-                                                shadow = if ((element.score.toInt()) <= 3 || element.score.toInt() == 10) null else Shadow(
-                                                    offset = Offset(0f, 0f),
-                                                    blurRadius = 1f
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Box(
+                                            contentAlignment = Alignment.Center,
+                                            modifier = Modifier
+                                                .size(24.dp)
+                                                .border(
+                                                    width = 2.dp,
+                                                    color = scoreColor,
+                                                    shape = CircleShape
                                                 )
-                                            ),
-                                            color = scoreColor,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                    }
+                                        ) {
+                                            Text(
+                                                "${element.score.toInt()}",
+                                                style = MaterialTheme.typography.bodySmall.copy(
+                                                    shadow = if ((element.score.toInt()) <= 3 || element.score.toInt() == 10) null else Shadow(
+                                                        offset = Offset(0f, 0f),
+                                                        blurRadius = 1f
+                                                    )
+                                                ),
+                                                color = scoreColor,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
 
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    IconButton(
-                                        onClick = {
-                                            editingIndex = elementsState.indexOfFirst { it.id == element.id }
-                                            dialogName = element.name
-                                            dialogDefinition = element.definition
-                                            showDialog = true
-                                        },
-                                        modifier = Modifier.size(24.dp)
-                                    ) {
-                                        Icon(Icons.Default.Edit, contentDescription = "Éditer", modifier = Modifier.size(20.dp))
-                                    }
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        IconButton(
+                                            onClick = {
+                                                editingIndex =
+                                                    elementsState.indexOfFirst { it.id == element.id }
+                                                dialogName = element.name
+                                                dialogDefinition = element.definition
+                                                showDialog = true
+                                            },
+                                            modifier = Modifier.size(24.dp)
+                                        ) {
+                                            Icon(
+                                                Icons.Default.Edit,
+                                                contentDescription = "Éditer",
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                        }
 
-                                    IconButton(
-                                        onClick = { elementToDelete = element },
-                                        modifier = Modifier.size(24.dp)
-                                    ) {
-                                        Icon(Icons.Default.Delete, contentDescription = "Supprimer", modifier = Modifier.size(20.dp))
+                                        IconButton(
+                                            onClick = { elementToDelete = element },
+                                            modifier = Modifier.size(24.dp)
+                                        ) {
+                                            Icon(
+                                                Icons.Default.Delete,
+                                                contentDescription = "Supprimer",
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -294,12 +338,21 @@ fun FlashcardDetailScreen(
                     }
                 }
             }
+
+            Spacer(Modifier.height(16.dp))
         }
+    }
 
-        Spacer(Modifier.height(16.dp))
-
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.Bottom
+    ) {
         Row(
-            modifier = Modifier.fillMaxWidth().height(100.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(100.dp),
             horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             MyButton(
