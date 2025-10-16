@@ -37,27 +37,52 @@ fun MyButton(
     text: String,
     modifier: Modifier = Modifier,
     fontSize: TextUnit = 24.sp,
+    enabled: Boolean = true,
     onClick: () -> Unit
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
+
+    // Adjust visual state if disabled
+    val shadowColor = remember(isPressed, enabled) {
+        when {
+            !enabled -> Color(0xFFCFD8DC) // disabled shadow
+            isPressed -> Color(0xFF1565C0)
+            else -> Color(0xFFB0BEC5)
+        }
+    }
+
+    val gradient = remember(isPressed, enabled) {
+        if (!enabled) {
+            Brush.horizontalGradient(listOf(Color(0xFFE0E0E0), Color(0xFFBDBDBD)))
+        } else {
+            Brush.horizontalGradient(
+                listOf(
+                    if (isPressed) Color(0xFF2196F3) else Color(0xFFECEFF1),
+                    if (isPressed) Color(0xFF1976D2) else Color(0xFFCFD8DC)
+                )
+            )
+        }
+    }
+
+    val textColor = remember(isPressed, enabled) {
+        if (!enabled) Color.Gray else if (isPressed) Color.White else Color.Black
+    }
 
     Box(
         modifier = modifier
             .fillMaxWidth()
             .height(90.dp)
             .scale(if (isPressed) 0.98f else 1f)
-            .clickable(
-                interactionSource = interactionSource,
-                indication = null,
-                onClick = onClick
+            .then(
+                if (enabled) Modifier.clickable(
+                    interactionSource = interactionSource,
+                    indication = null,
+                    onClick = onClick
+                ) else Modifier
             )
     ) {
         // Shadow layer
-        val shadowColor = remember(isPressed) {
-            if (isPressed) Color(0xFF1565C0) else Color(0xFFB0BEC5)
-        }
-
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -69,19 +94,6 @@ fun MyButton(
         )
 
         // Main button
-        val gradient = remember(isPressed) {
-            Brush.horizontalGradient(
-                listOf(
-                    if (isPressed) Color(0xFF2196F3) else Color(0xFFECEFF1),
-                    if (isPressed) Color(0xFF1976D2) else Color(0xFFCFD8DC)
-                )
-            )
-        }
-
-        val textColor = remember(isPressed) {
-            if (isPressed) Color.White else Color.Black
-        }
-
         Box(
             modifier = Modifier
                 .fillMaxSize()
