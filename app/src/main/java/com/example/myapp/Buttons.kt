@@ -27,6 +27,7 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -104,29 +105,31 @@ fun MyButton(
 fun MySwitch(
     isBoostEnabled: Boolean,
     onToggle: (Boolean) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    text: String? = null
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
 
+    val boxWidth = if (text != null) 200.dp else 85.dp
+    val boxHeight = if (text != null) 100.dp else 55.dp
+
     Box(
         modifier = modifier
-            .width(300.dp)
-            .height(100.dp)
+            .width(boxWidth)
+            .height(boxHeight)
             .scale(if (isPressed) 0.98f else 1f)
     ) {
-        // Shadow layer
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .offset(y = 6.dp)
+                .offset(y = 5.dp)
                 .background(
                     color = if (isBoostEnabled) Color(0xFF1565C0) else Color(0xFFB0BEC5),
-                    shape = RoundedCornerShape(50)
+                    shape = RoundedCornerShape(40)
                 )
         )
 
-        // Main toggle container
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -137,41 +140,44 @@ fun MySwitch(
                             if (isBoostEnabled) Color(0xFF1976D2) else Color(0xFFCFD8DC)
                         )
                     ),
-                    shape = RoundedCornerShape(50)
+                    shape = RoundedCornerShape(40)
                 )
                 .clickable(
                     interactionSource = interactionSource,
                     indication = null
                 ) { onToggle(!isBoostEnabled) }
-                .padding(horizontal = 20.dp),
+                .padding(horizontal = 16.dp),
             contentAlignment = Alignment.Center
         ) {
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "Boost",
-                    color = if (isBoostEnabled) Color.White else Color.Black,
-                    fontSize = 30.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(start = 20.dp)
-                )
-
-                Box(modifier = Modifier.padding(end = 20.dp)) {
-                    Switch(
-                        checked = isBoostEnabled,
-                        onCheckedChange = onToggle,
-                        colors = SwitchDefaults.colors(
-                            checkedThumbColor = Color.White,
-                            checkedTrackColor = Color(0xFF0D47A1),
-                            uncheckedThumbColor = Color.White,
-                            uncheckedTrackColor = Color(0xFFB0BEC5)
-                        ),
-                        modifier = Modifier.scale(1.4f)
+                if (text != null) {
+                    Text(
+                        text = text,
+                        color = if (isBoostEnabled) Color.White else Color.Black,
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
+
+                Switch(
+                    checked = isBoostEnabled,
+                    onCheckedChange = onToggle,
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = Color.White,
+                        checkedTrackColor = Color(0xFF0D47A1),
+                        uncheckedThumbColor = Color.White,
+                        uncheckedTrackColor = Color(0xFFB0BEC5)
+                    ),
+                    modifier = Modifier.scale(1.2f) // slightly bigger
+                )
             }
         }
     }

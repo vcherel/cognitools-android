@@ -168,6 +168,7 @@ fun VolumeBoosterScreen(onBack: () -> Unit) {
         Spacer(modifier = Modifier.height(48.dp))
 
         MySwitch(
+            text = "Boost",
             isBoostEnabled = isBoostEnabled,
             onToggle = { enabled ->
                 isBoostEnabled = enabled
