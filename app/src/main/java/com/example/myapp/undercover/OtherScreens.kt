@@ -315,17 +315,18 @@ fun GameOverScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        val headerText = if (lastEliminated.role == PlayerRole.MR_WHITE && !civiliansWon) {
-            "Bien joué c'était ça !"
-        } else {
-            "Perdu ! (Dommage)"
-        }
+        val isWin = civiliansWon || lastEliminated.role == PlayerRole.MR_WHITE ||
+                activeRoles.contains(PlayerRole.MR_WHITE) ||
+                activeRoles.count { it == PlayerRole.IMPOSTOR } > 0
+
+        val winnerColor = if (isWin) Color(0xFF4CAF50) else Color(0xFFF44336)
 
         Text(
-            headerText,
-            fontSize = 28.sp,
+            winnerText,
+            fontSize = 24.sp,
             fontWeight = FontWeight.Bold,
-            textAlign = TextAlign.Center
+            textAlign = TextAlign.Center,
+            color = winnerColor
         )
 
         Spacer(modifier = Modifier.height(24.dp))
