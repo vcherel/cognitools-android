@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -286,8 +285,9 @@ fun SettingsScreen(
             text = if (playAgain) "Classement" else "JOUER",
             onClick = onStart,
             modifier = Modifier
-                .height(100.dp)
-                .widthIn(min = 180.dp, max = 250.dp)
+                .height(150.dp)
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp)
         )
     }
 
@@ -354,20 +354,20 @@ fun NumberSetting(
                 onClick = { onValueChange(value - 1) },
                 enabled = enabled && value > min,
                 fontSize = fontSize,
-                modifier = Modifier.size(65.dp)
+                modifier = Modifier.size(62.dp)
             )
             Text(
                 text = if (enabled) value.toString() else "-",
                 fontSize = fontSize,
                 fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(horizontal = 36.dp)
+                modifier = Modifier.padding(horizontal = 35.dp)
             )
             MyButton(
                 text = "+",
                 onClick = { onValueChange(value + 1) },
                 enabled = enabled && value < max,
                 fontSize = fontSize,
-                modifier = Modifier.size(65.dp)
+                modifier = Modifier.size(62.dp)
             )
         }
     }
