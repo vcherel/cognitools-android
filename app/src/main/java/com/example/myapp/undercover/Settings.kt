@@ -172,10 +172,15 @@ fun SettingsScreen(
         // Random composition toggle
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("Random Composition")
+            Text(
+                text = "Rôles aléatoires",
+                textAlign = TextAlign.End,
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(end = 15.dp)
+            )
             Switch(
                 checked = state.settings.randomComposition,
                 onCheckedChange = { isChecked ->
@@ -190,7 +195,7 @@ fun SettingsScreen(
         Spacer(modifier = Modifier.height(16.dp))
 
         NumberSetting(
-            label = "Number of Impostors",
+            label = "Nombre d'Undercover",
             value = state.settings.impostorCount,
             onValueChange = { newImpostorCount ->
                 val swapDirection = when {
@@ -223,7 +228,7 @@ fun SettingsScreen(
         Spacer(modifier = Modifier.height(16.dp))
 
         NumberSetting(
-            label = "Number of Mr. Whites",
+            label = "Nombre de M. Whites (Oui on peut choisir)",
             value = state.settings.mrWhiteCount,
             onValueChange = { newMrWhiteCount ->
                 val swapDirection = when {
@@ -261,7 +266,7 @@ fun SettingsScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("Impostors Know Their Role")
+            Text("Les Undercover savent qu'ils Undercovent")
             Switch(
                 checked = state.settings.impostorsKnowRole,
                 onCheckedChange = { isChecked ->
@@ -279,7 +284,7 @@ fun SettingsScreen(
             onClick = onStart,
             modifier = Modifier.fillMaxWidth().height(56.dp)
         ) {
-            val text = if (playAgain) "Go back to leaderboard" else "Start Game"
+            val text = if (playAgain) "Retour au classement" else "JOUER"
             Text(text, style = MaterialTheme.typography.titleLarge)
         }
     }
@@ -288,11 +293,11 @@ fun SettingsScreen(
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
-            title = { Text("Select Player to Delete") },
+            title = { Text("Choisissez qui TUER") },
             text = {
                 Column {
                     Text(
-                        "Which player do you want to remove?",
+                        "Qui se barre ?",
                         modifier = Modifier.padding(bottom = 16.dp)
                     )
                     state.players.forEachIndexed { index, player ->
@@ -319,7 +324,7 @@ fun SettingsScreen(
                                 .padding(vertical = 4.dp)
                         ) {
                             Text(
-                                text = player.name.ifEmpty { "Unnamed player ${index + 1}" },
+                                text = player.name.ifEmpty { "Nouveau joueur ${index + 1}" },
                                 modifier = Modifier.fillMaxWidth(),
                                 textAlign = TextAlign.Start
                             )
@@ -330,7 +335,7 @@ fun SettingsScreen(
             confirmButton = {},
             dismissButton = {
                 TextButton(onClick = { showDeleteDialog = false }) {
-                    Text("Cancel")
+                    Text("Annuler")
                 }
             }
         )

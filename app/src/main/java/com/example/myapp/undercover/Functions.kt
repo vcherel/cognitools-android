@@ -284,9 +284,9 @@ fun handleWinCondition(
 // Display utilities
 
 fun PlayerRole.displayName(): String = when (this) {
-    PlayerRole.CIVILIAN -> "Civilian"
-    PlayerRole.IMPOSTOR -> "Impostor"
-    PlayerRole.MR_WHITE -> "Mr. White"
+    PlayerRole.CIVILIAN -> "Civil"
+    PlayerRole.IMPOSTOR -> "Undercover"
+    PlayerRole.MR_WHITE -> "M. White"
 }
 
 fun PlayerRole.displayColor(): Color = when (this) {

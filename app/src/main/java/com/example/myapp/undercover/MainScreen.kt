@@ -42,19 +42,19 @@ fun UndercoverScreen(onBack: () -> Unit) {
     if (showExitDialog) {
         AlertDialog(
             onDismissRequest = { showExitDialog = false },
-            title = { Text("Leave Game?") },
-            text = { Text("Are you sure you want to leave the current game? Your progress will be lost.") },
+            title = { Text("Quitter ?") },
+            text = { Text("T'es sûr ? Tous le progrès actuel sera perdu") },
             confirmButton = {
                 TextButton(onClick = {
                     state = state.copy(gameState = GameState.Settings())
                     showExitDialog = false
                 }) {
-                    Text("Yes")
+                    Text("Oui")
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showExitDialog = false }) {
-                    Text("No")
+                    Text("Non")
                 }
             }
         )
@@ -73,7 +73,7 @@ fun UndercoverScreen(onBack: () -> Unit) {
                     state = state.copy(gameState = GameState.Settings())
                 }
             }) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Retour")
             }
             Text(
                 "Undercover",

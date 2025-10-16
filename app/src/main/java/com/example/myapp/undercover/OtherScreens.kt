@@ -69,33 +69,33 @@ fun PlayScreen(
         Spacer(modifier = Modifier.height(24.dp))
 
         Text(
-            "Instructions:",
+            text = "Règles:",
             style = MaterialTheme.typography.headlineMedium
         )
 
         Spacer(modifier = Modifier.height(16.dp))
 
         Text(
-            "• Each player says a word related to their secret word",
+            "• Chaque joueur dit un mot lié à son mot secret (bon courage M. White)",
             style = MaterialTheme.typography.bodyLarge,
             modifier = Modifier.padding(horizontal = 16.dp)
         )
         Text(
-            "• Never say your secret word or words from the same family",
+            "• Ne JAMAIS dire son mot OU mot de la même famille",
             style = MaterialTheme.typography.bodyLarge,
-            modifier = Modifier.padding(horizontal = 16.dp)
+            modifier = Modifier.padding(horizontal = 18.dp)
         )
         Text(
-            "• Civilians: find the impostors and Mr. White",
+            "• Dites pas des trucs trop simples on est là pour le beau jeu",
             style = MaterialTheme.typography.bodyLarge,
-            modifier = Modifier.padding(horizontal = 16.dp)
+            modifier = Modifier.padding(horizontal = 12.dp)
         )
 
         Spacer(modifier = Modifier.height(24.dp))
 
         if (startingPlayer != null) {
             Text(
-                "Starting player: ${startingPlayer.name}",
+                "Premier joueur: ${startingPlayer.name}",
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold
             )
@@ -103,7 +103,7 @@ fun PlayScreen(
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                "Continue clockwise",
+                "Et après on tourne",
                 style = MaterialTheme.typography.bodyLarge
             )
         }
@@ -111,7 +111,7 @@ fun PlayScreen(
         Spacer(modifier = Modifier.height(32.dp))
 
         Button(onClick = onContinue) {
-            Text("Proceed to Voting")
+            Text("Passons au conseil")
         }
     }
 }
@@ -131,7 +131,7 @@ fun VotingScreen(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
-            "Voting Phase",
+            "Phase de vote",
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold
         )
@@ -139,7 +139,7 @@ fun VotingScreen(
         Spacer(modifier = Modifier.height(16.dp))
 
         Text(
-            "Vote for the player you want to eliminate:",
+            "Qui c'est qu'on zigouille ?",
             style = MaterialTheme.typography.bodyLarge
         )
 
@@ -172,19 +172,19 @@ fun VotingScreen(
     if (showConfirmation && selectedPlayer != null) {
         AlertDialog(
             onDismissRequest = { showConfirmation = false },
-            title = { Text("Confirm Elimination") },
-            text = { Text("Are you sure you want to eliminate ${selectedPlayer?.name}?") },
+            title = { Text("Confirmer assassinat") },
+            text = { Text("Vous êtes sûr de vouloir choisir ${selectedPlayer?.name} ?") },
             confirmButton = {
                 Button(onClick = {
                     selectedPlayer?.let { onPlayerEliminated(it) }
                     showConfirmation = false
                 }) {
-                    Text("Confirm")
+                    Text("Oui")
                 }
             },
             dismissButton = {
                 Button(onClick = { showConfirmation = false }) {
-                    Text("Cancel")
+                    Text("Non")
                 }
             }
         )
@@ -202,14 +202,14 @@ fun EliminationResultScreen(
         verticalArrangement = Arrangement.Center
     ) {
         Text(
-            "${player.name} was eliminated!",
+            "${player.name} est éliminé !",
             style = MaterialTheme.typography.headlineMedium
         )
 
         Spacer(modifier = Modifier.height(24.dp))
 
         Text(
-            "Role:",
+            "Il était :",
             style = MaterialTheme.typography.bodyLarge
         )
 
@@ -225,7 +225,7 @@ fun EliminationResultScreen(
         Spacer(modifier = Modifier.height(32.dp))
 
         Button(onClick = onNextRound) {
-            Text("Next Round")
+            Text("Manche suivante")
         }
     }
 }
@@ -243,14 +243,16 @@ fun GameOverScreen(
     val activeRoles by remember { derivedStateOf { activePlayers.map { it.role }.toSet() } }
 
     val winnerText = when {
-        civiliansWon -> "Civilians Win!"
-        lastEliminated.role == PlayerRole.MR_WHITE -> "Mr White (${lastEliminated.name}) Wins!"
+        civiliansWon -> "Les civils ont gagné !"
+        lastEliminated.role == PlayerRole.MR_WHITE -> "M. White (${lastEliminated.name}) a gagné !"
         else -> when {
-            activeRoles.contains(PlayerRole.MR_WHITE) && activeRoles.contains(PlayerRole.IMPOSTOR) ->
+            activeRoles.contains(PlayerRole.IMPOSTOR) ->
                 "Impostor and Mr White Win!"
-            activeRoles.contains(PlayerRole.IMPOSTOR) -> "Impostor Win!"
+            activeRoles.contains(PlayerRole.IMPOSTOR) -> "Les imposteurs ont gagné !"
             activeRoles.contains(PlayerRole.MR_WHITE) -> "Mr White Win!"
-            else -> "Impostors Win!"
+            else ->
+                if (activeRoles.count { it == PlayerRole.IMPOSTOR } > 1) "Les Undercover ont gagné !"
+                else "L'Undercover a gagné !"
         }
     }
 
@@ -262,7 +264,7 @@ fun GameOverScreen(
         val headerText = if (lastEliminated.role == PlayerRole.MR_WHITE && !civiliansWon) {
             "Bien joué c'était ça!"
         } else {
-            "Game Over!"
+            "Perdu ! (Dommage)"
         }
 
         Text(
@@ -282,14 +284,14 @@ fun GameOverScreen(
 
         if (!(lastEliminated.role == PlayerRole.MR_WHITE && !civiliansWon) && mrWhiteGuesses.isEmpty()) {
             Text(
-                "${lastEliminated.name} was eliminated",
+                "${lastEliminated.name} a été éliminado",
                 style = MaterialTheme.typography.bodyLarge
             )
 
             Spacer(modifier = Modifier.height(16.dp))
 
             Text(
-                "Role: ${lastEliminated.role.displayName()}",
+                "Rôle: ${lastEliminated.role.displayName()}",
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold,
                 color = lastEliminated.role.displayColor()
@@ -299,7 +301,7 @@ fun GameOverScreen(
         }
 
         Text(
-            "The word was $gameWord",
+            "Le mot était $gameWord",
             style = MaterialTheme.typography.bodyLarge,
             fontWeight = FontWeight.Medium
         )
@@ -310,13 +312,13 @@ fun GameOverScreen(
             val message = when (mrWhiteGuesses.size) {
                 1 -> {
                     val (name, guess) = mrWhiteGuesses.entries.first()
-                    "$name tried to guess \"$guess\" but it was not correct."
+                    "$name a mis \"$guess\" mais il s'est trompé"
                 }
                 else -> {
                     val guessesString = mrWhiteGuesses.entries.joinToString(separator = "\n") { (name, guess) ->
-                        "- $name guessed \"$guess\""
+                        "- $name a mis \"$guess\""
                     }
-                    "$guessesString\nBut none were correct."
+                    "$guessesString\n. Mais ils se sont tous trompé"
                 }
             }
 
@@ -332,7 +334,7 @@ fun GameOverScreen(
         Spacer(modifier = Modifier.height(32.dp))
 
         Button(onClick = onContinue) {
-            Text("View Leaderboard")
+            Text("Voir classement")
         }
     }
 }
@@ -351,7 +353,7 @@ fun LeaderboardScreen(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
-            "Leaderboard",
+            "Classement",
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold
         )
@@ -388,7 +390,7 @@ fun LeaderboardScreen(
         Spacer(modifier = Modifier.height(32.dp))
 
         Button(onClick = onBackToMenu) {
-            Text("Back to Main Menu")
+            Text("Menu principal")
         }
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -399,7 +401,7 @@ fun LeaderboardScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Button(onClick = onNewGame) {
-                Text("Play Again")
+                Text("Rejouer")
             }
 
             IconButton(
@@ -408,7 +410,7 @@ fun LeaderboardScreen(
             ) {
                 Icon(
                     imageVector = Icons.Default.Settings,
-                    contentDescription = "Game Settings",
+                    contentDescription = "Paramètres",
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(28.dp)
                 )
@@ -457,13 +459,13 @@ fun MrWhiteGuessScreen(
             // CASE 1 — Eliminated Mr White
             is MrWhiteScenario.EliminatedMrWhite -> {
                 Text(
-                    "Mr White can now try to guess the secret word.",
+                    "M. White doit maintenant deviner le mot",
                     style = MaterialTheme.typography.titleMedium,
                     textAlign = TextAlign.Center
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    "If you guess correctly, you win. Otherwise, you're eliminated for good.",
+                    "Si tu devines tu gagnes ! (sinon tu dégages..)",
                     style = MaterialTheme.typography.bodyLarge,
                     textAlign = TextAlign.Center
                 )
@@ -475,7 +477,7 @@ fun MrWhiteGuessScreen(
                 val opponent = scenario.opponent
 
                 Text(
-                    text = "Only two players remain!",
+                    text = "Seulement deux joueurs restant !",
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
                     textAlign = TextAlign.Center
@@ -484,7 +486,7 @@ fun MrWhiteGuessScreen(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 Text(
-                    "${mrWhite.name} (Mr. White) vs ${opponent.name} (${opponent.role.displayName()})",
+                    "${mrWhite.name} (M. White) vs ${opponent.name} (${opponent.role.displayName()})",
                     style = MaterialTheme.typography.titleLarge,
                     textAlign = TextAlign.Center
                 )
@@ -492,13 +494,13 @@ fun MrWhiteGuessScreen(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 Text(
-                    "Mr. White can now guess the secret word.",
+                    "M. White va tenter de deviner le mot",
                     style = MaterialTheme.typography.titleMedium,
                     textAlign = TextAlign.Center
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    "If correct, ${mrWhite.name} wins! Otherwise, ${opponent.name} wins.",
+                    "S'il trouve, ${mrWhite.name} gagne ! Sinon, ${opponent.name} gagne !",
                     style = MaterialTheme.typography.bodyLarge,
                     textAlign = TextAlign.Center
                 )
@@ -510,7 +512,7 @@ fun MrWhiteGuessScreen(
                 val currentGuesser = scenario.currentGuesser
 
                 Text(
-                    text = "Only Mr. Whites remain!",
+                    text = "Il ne reste plus que des M. White !",
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
                     color = Color.Red,
@@ -520,7 +522,7 @@ fun MrWhiteGuessScreen(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 Text(
-                    "There are ${mrWhites.size} Mr. Whites left in the game.",
+                    "${mrWhites.size} M. Whites restant",
                     style = MaterialTheme.typography.titleMedium,
                     textAlign = TextAlign.Center
                 )
@@ -528,13 +530,13 @@ fun MrWhiteGuessScreen(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Text(
-                    "It's ${currentGuesser.name}'s turn to guess the secret word.",
+                    "C'est au tour de ${currentGuesser.name} de tenter de deviner le mot",
                     style = MaterialTheme.typography.bodyLarge,
                     textAlign = TextAlign.Center
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    "If the guess is correct, all Mr. Whites win. If wrong, others get their chance.",
+                    "S'il le devine correctement, il gagne (seul) ! Sinon les autres M. White ont leur chance",
                     style = MaterialTheme.typography.bodyLarge,
                     textAlign = TextAlign.Center
                 )
@@ -553,8 +555,8 @@ fun MrWhiteGuessScreen(
             OutlinedTextField(
                 value = guessedWord,
                 onValueChange = { guessedWord = it },
-                label = { Text("Guess") },
-                placeholder = { Text("Enter your guess") },
+                label = { Text("Devine") },
+                placeholder = { Text("Ton guess") },
                 singleLine = true,
                 modifier = Modifier
                     .weight(1f)
@@ -576,7 +578,7 @@ fun MrWhiteGuessScreen(
                 onClick = { showConfirmation = true },
                 enabled = guessedWord.isNotBlank()
             ) {
-                Text("Submit\nGuess")
+                Text("Valider")
             }
         }
     }
@@ -585,20 +587,20 @@ fun MrWhiteGuessScreen(
     if (showConfirmation) {
         AlertDialog(
             onDismissRequest = { showConfirmation = false },
-            title = { Text("Confirm Guess") },
-            text = { Text("Submit '$guessedWord' as your final answer?") },
+            title = { Text("Confirmer") },
+            text = { Text("'$guessedWord' es ton dernier mot ?") },
             confirmButton = {
                 Button(onClick = {
                     onGuessSubmitted(guessedWord.trim())
                     showConfirmation = false
                     guessedWord = ""
                 }) {
-                    Text("Confirm")
+                    Text("Oui")
                 }
             },
             dismissButton = {
                 Button(onClick = { showConfirmation = false }) {
-                    Text("Cancel")
+                    Text("Non")
                 }
             }
         )

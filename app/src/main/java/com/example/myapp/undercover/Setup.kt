@@ -139,15 +139,15 @@ fun HandlePlayerSetup(
             if (showQuickStartDialog) {
                 AlertDialog(
                     onDismissRequest = { },
-                    title = { Text("Warning") },
+                    title = { Text("ATTENTION") },
                     text = {
                         Text(
                             buildAnnotatedString {
-                                append("The secret word for ")
+                                append("Le mot secret du joueur ")
                                 withStyle(style = SpanStyle(fontWeight = FontWeight.Bold)) {
                                     append(currentPlayer.name)
                                 }
-                                append(" will now be displayed. Make sure no one else is watching!")
+                                append(" va être affiché, cache toi des autres zouaves !")
                             }
                         )
                     },
@@ -164,7 +164,7 @@ fun HandlePlayerSetup(
                             )
                             showQuickStartDialog = false
                         }) {
-                            Text("OK")
+                            Text("Ok")
                         }
                     }
                 )
@@ -228,8 +228,8 @@ fun PlayerSetupScreen(
         derivedStateOf {
             when {
                 name.isBlank() -> null
-                name.length > MAX_NAME_LENGTH -> "Name too long (max $MAX_NAME_LENGTH characters)"
-                existingNames.any { it.equals(name, ignoreCase = true) } -> "Name already taken"
+                name.length > MAX_NAME_LENGTH -> "C'est trop loooong (max $MAX_NAME_LENGTH)"
+                existingNames.any { it.equals(name, ignoreCase = true) } -> "C'est déjà pris copieur va"
                 else -> null
             }
         }
@@ -242,9 +242,9 @@ fun PlayerSetupScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Text("Player ${playerIndex + 1} of $totalPlayers", style = MaterialTheme.typography.headlineMedium)
+        Text("Joueur ${playerIndex + 1}/$totalPlayers", style = MaterialTheme.typography.headlineMedium)
         Spacer(modifier = Modifier.height(24.dp))
-        Text("Enter your name:")
+        Text("Toi s'appeler comment ?")
         Spacer(modifier = Modifier.height(16.dp))
 
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -252,7 +252,7 @@ fun PlayerSetupScreen(
             OutlinedTextField(
                 value = name,
                 onValueChange = { name = it },
-                label = { Text("Name") },
+                label = { Text("Nom") },
                 singleLine = true,
                 isError = errorMessage != null,
                 supportingText = errorMessage?.let { { Text(it) } },
@@ -271,7 +271,7 @@ fun PlayerSetupScreen(
             Button(
                 onClick = { if (isNameValid) showConfirmationDialog = true },
                 enabled = isNameValid
-            ) { Text("OK") }
+            ) { Text("Ok") }
         }
     }
 
@@ -279,19 +279,20 @@ fun PlayerSetupScreen(
     if (showConfirmationDialog) {
         AlertDialog(
             onDismissRequest = { showConfirmationDialog = false },
-            title = { Text("Confirm Name") },
+            title = { Text("Confirmation") },
             text = {
-                Text("Are you sure you want to use \"$name\"?\n\nReady to see your secret word and role? Make sure no one else is watching!")
+                Text("T'es sûr que tu veux t\"appeler \"$name\"? (c'est moche mais c'est ton choix)\n\n"
+                        +"Attention maintenant cache toi tu vas découvrir ton rôle jeune troubadour")
             },
             confirmButton = {
                 TextButton(onClick = {
                     onNameEntered(name)
                     name = ""
                     showConfirmationDialog = false
-                }) { Text("Yes, I'm ready") }
+                }) { Text("Fais péter") }
             },
             dismissButton = {
-                TextButton(onClick = { showConfirmationDialog = false }) { Text("Cancel") }
+                TextButton(onClick = { showConfirmationDialog = false }) { Text("NOON") }
             }
         )
     }
@@ -316,20 +317,20 @@ fun ShowWordScreen(
 
         // Display role and word depending on role/settings
         if (player.role == PlayerRole.MR_WHITE) {
-            Text("You are Mr. White!", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
+            Text("Tu es M. White!", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
             Text(
-                "You have no word. Listen carefully and blend in!",
+                "T'as pas de mot chacal",
                 style = MaterialTheme.typography.bodyLarge,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.padding(16.dp)
             )
         } else if (player.role == PlayerRole.IMPOSTOR && settings.impostorsKnowRole) {
-            Text("You are an Impostor!", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
+            Text("Tu es Undercover!", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
             Spacer(modifier = Modifier.height(16.dp))
-            Text("Your word:", style = MaterialTheme.typography.bodyLarge)
+            Text("Ton mot:", style = MaterialTheme.typography.bodyLarge)
             Text(player.word, style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
         } else {
-            Text("Your word:", style = MaterialTheme.typography.bodyLarge)
+            Text("Ton mot:", style = MaterialTheme.typography.bodyLarge)
             Spacer(modifier = Modifier.height(16.dp))
             Text(player.word, style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
         }
@@ -338,7 +339,7 @@ fun ShowWordScreen(
 
         // Next button: move to next player or start game
         Button(onClick = onNext) {
-            Text(if (playerIndex < totalPlayers - 1) "Next Player" else "Start Game")
+            Text(if (playerIndex < totalPlayers - 1) "Au suivant" else "Jouer !")
         }
     }
 }
