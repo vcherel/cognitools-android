@@ -24,20 +24,21 @@ class FlashcardRepository(private val context: Context) {
         }
     }
 
-    fun observeListsWithDueCounts(): Flow<Pair<List<FlashcardList>, Map<String, Int>>> {
+    fun observeListsWithCounts(): Flow<Pair<List<FlashcardList>, Map<String, Pair<Int, Int>>>> {
         return context.dataStore.data.map { prefs ->
             val jsonString = prefs[listsKey] ?: "[]"
             val lists = FlashcardList.listFromJsonString(jsonString)
 
-            val dueCounts = lists.associate { list ->
+            // Map of listId -> (totalCount, dueCount)
+            val counts = lists.associate { list ->
                 val key = stringPreferencesKey("elements_${list.id}")
                 val cardsJson = prefs[key] ?: "[]"
                 val elements = FlashcardElement.listFromJsonString(cardsJson)
                 val due = elements.count { isDue(it) }
-                list.id to due
+                list.id to (elements.size to due)
             }
 
-            lists to dueCounts
+            lists to counts
         }
     }
 

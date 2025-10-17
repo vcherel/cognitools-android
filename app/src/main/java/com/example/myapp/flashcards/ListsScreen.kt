@@ -78,29 +78,26 @@ fun FlashcardListsScreen(onBack: () -> Unit, navController: NavController) {
     var showBulkImportDialog by remember { mutableStateOf(false) }
     var bulkImportText by remember { mutableStateOf("") }
     var selectedListId by remember { mutableStateOf("") }
+    var listsWithCountsState by remember { mutableStateOf(Pair(emptyList<FlashcardList>(), emptyMap<String, Pair<Int, Int>>())) }
 
-    var listsWithCountsState by remember { mutableStateOf(Pair(emptyList<FlashcardList>(), emptyMap<String, Int>())) }
-
-    // Collector: write each emission into listsWithCountsState and log it
-    LaunchedEffect(repository) {
-        repository.observeListsWithDueCounts().collect { pair ->
-            listsWithCountsState = pair
-        }
-    }
-
-    // schedule reminders once
+    // Schedule reminders once
     LaunchedEffect(Unit) {
         WorkManager.getInstance(context)
         scheduleFlashcardReminders(context)
     }
 
+    LaunchedEffect(repository) {
+        repository.observeListsWithCounts().collect { pair ->
+            listsWithCountsState = pair
+        }
+    }
+    val lists = listsWithCountsState.first
+    val countsMap = listsWithCountsState.second
+
     var isLoading by remember { mutableStateOf(true) }
     LaunchedEffect(listsWithCountsState) {
         isLoading = listsWithCountsState.first.isEmpty() && listsWithCountsState.second.isEmpty()
     }
-
-    val lists = listsWithCountsState.first
-    val dueCountMap = listsWithCountsState.second
 
     BackHandler { onBack() }
 
@@ -167,7 +164,8 @@ fun FlashcardListsScreen(onBack: () -> Unit, navController: NavController) {
                                 itemsIndexed(items = lists, key = { _, item -> item.id }) { index, flashcardList ->
                                     FlashcardListItem(
                                         flashcardList = flashcardList,
-                                        dueCount = dueCountMap[flashcardList.id] ?: 0,
+                                        totalCount = countsMap[flashcardList.id]?.first ?: 0,
+                                        dueCount = countsMap[flashcardList.id]?.second ?: 0,
                                         onNavigate = {
                                             navController.navigate("elements/${flashcardList.id}")
                                         },
@@ -338,6 +336,7 @@ fun FlashcardListsScreen(onBack: () -> Unit, navController: NavController) {
 @Composable
 fun FlashcardListItem(
     flashcardList: FlashcardList,
+    totalCount: Int,
     dueCount: Int,
     onNavigate: () -> Unit,
     onBulkImport: () -> Unit,
@@ -376,7 +375,7 @@ fun FlashcardListItem(
                     )
                     Spacer(Modifier.height(4.dp))
                     Text(
-                        "$dueCount à réviser",
+                        "$dueCount / $totalCount à réviser",
                         style = MaterialTheme.typography.bodyLarge,
                         color = Color.Gray
                     )
