@@ -1,7 +1,6 @@
 package com.example.myapp
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -13,7 +12,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -79,7 +77,8 @@ fun WikipediaScreen(onBack: () -> Unit) {
         ) {
             Spacer(modifier = Modifier.height(32.dp))
 
-            Button(
+            MyButton(
+                text = "Je veux me perdre",
                 onClick = {
                     scope.launch {
                         isLoading = true
@@ -93,11 +92,8 @@ fun WikipediaScreen(onBack: () -> Unit) {
                         }
                     }
                 },
-                enabled = !isLoading,
-                modifier = Modifier.padding(16.dp)
-            ) {
-                Text("Fais moi perdre mon temps", fontSize = 18.sp)
-            }
+                enabled = !isLoading
+            )
 
             if (isLoading) {
                 CircularProgressIndicator(modifier = Modifier.padding(32.dp))
@@ -129,17 +125,6 @@ fun WikipediaScreen(onBack: () -> Unit) {
                             text = content.extract,
                             style = MaterialTheme.typography.bodyMedium,
                             lineHeight = 24.sp
-                        )
-
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        Text(
-                            text = "Lire plus sur Wikipedia",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.clickable {
-                                // Open URL in browser
-                            }
                         )
                     }
                 }
