@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.ClickableText
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -29,13 +30,20 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
+import org.jsoup.Jsoup
 import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
@@ -139,6 +147,7 @@ fun WikipediaScreen(onBack: () -> Unit) {
                         .padding(vertical = 16.dp)
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
+                        // Title
                         Text(
                             text = content.title,
                             style = MaterialTheme.typography.headlineSmall,
@@ -146,75 +155,30 @@ fun WikipediaScreen(onBack: () -> Unit) {
                             modifier = Modifier.padding(bottom = 16.dp)
                         )
 
+                        // Summary (extract)
                         Text(
                             text = content.extract,
                             style = MaterialTheme.typography.bodyMedium,
                             lineHeight = 24.sp
                         )
 
-                        // Display additional content if loaded
-                        if (fullContent != null && displayedParagraphs > 0) {
-                            val paragraphs = fullContent!!
-                                .split("\n\n")
-                                .filter { it.isNotBlank() }
-                                .drop(1) // Skip the first paragraph (extract)
-                            val toDisplay = paragraphs.take(displayedParagraphs)
+                        Spacer(modifier = Modifier.height(16.dp))
 
-                            // Regex for section titles (== Title ==) and subsection titles (=== Title ===)
-                            val sectionTitleRegex = Regex("^=+\\s*(.+?)\\s*=+$", RegexOption.MULTILINE)
+                        // Full content with links
+                        fullContent?.let { contentHtml ->
+                            val doc = remember(contentHtml) { Jsoup.parse(contentHtml) }
+                            val paragraphs = doc.body().select("p")
+                            val paragraphsToShow = paragraphs.take(displayedParagraphs)
 
-                            var previousWasTitle = false
-
-                            toDisplay.forEachIndexed { index, paragraph ->
-                                val lines = paragraph.trim().lines()
-
-                                lines.forEach { line ->
-                                    val trimmed = line.trim()
-
-                                    if (trimmed.isEmpty()) return@forEach
-
-                                    val match = sectionTitleRegex.matchEntire(trimmed)
-
-                                    if (match != null) {
-                                        // Section or subsection title
-                                        val title = match.groupValues[1].trim()
-                                        val equalsCount = trimmed.takeWhile { it == '=' }.length
-
-                                        Spacer(modifier = Modifier.height(if (equalsCount == 2) 24.dp else 16.dp))
-                                        Text(
-                                            text = title,
-                                            style = if (equalsCount == 2)
-                                                MaterialTheme.typography.headlineSmall
-                                            else
-                                                MaterialTheme.typography.titleMedium,
-                                            fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.primary,
-                                            modifier = Modifier.padding(bottom = 8.dp)
-                                        )
-                                        previousWasTitle = true
-                                    } else {
-                                        // Normal paragraph
-                                        Spacer(modifier = Modifier.height(if (previousWasTitle) 4.dp else 12.dp))
-                                        Text(
-                                            text = trimmed,
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            lineHeight = 24.sp
-                                        )
-                                        previousWasTitle = false
-                                    }
-                                }
-                            }
+                            HtmlTextWithLinks(
+                                html = paragraphsToShow.joinToString("") { it.outerHtml() }
+                            )
                         }
 
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        if (isLoadingMore) {
-                            CircularProgressIndicator(
-                                modifier = Modifier
-                                    .align(Alignment.CenterHorizontally)
-                                    .padding(16.dp)
-                            )
-                        } else {
+                        // Lire plus button
+                        if (!isLoadingMore) {
                             Text(
                                 text = "Lire plus",
                                 style = MaterialTheme.typography.bodySmall,
@@ -224,8 +188,7 @@ fun WikipediaScreen(onBack: () -> Unit) {
                                         isLoadingMore = true
                                         try {
                                             if (fullContent == null) {
-                                                fullContent =
-                                                    fetchFullWikipediaContent(content.title)
+                                                fullContent = fetchFullWikipediaContentHtml(content.title, selectedLanguage)
                                             }
                                             displayedParagraphs += 1
                                         } catch (e: Exception) {
@@ -235,6 +198,12 @@ fun WikipediaScreen(onBack: () -> Unit) {
                                         }
                                     }
                                 }
+                            )
+                        } else {
+                            CircularProgressIndicator(
+                                modifier = Modifier
+                                    .align(Alignment.CenterHorizontally)
+                                    .padding(16.dp)
                             )
                         }
                     }
@@ -273,9 +242,9 @@ suspend fun fetchRandomWikipedia(language: String = "fr"): WikipediaContent = wi
     }
 }
 
-suspend fun fetchFullWikipediaContent(title: String): String = withContext(Dispatchers.IO) {
+suspend fun fetchFullWikipediaContentHtml(title: String, language: String = "fr"): String = withContext(Dispatchers.IO) {
     val encodedTitle = URLEncoder.encode(title, "UTF-8")
-    val url = URL("https://fr.wikipedia.org/w/api.php?action=query&format=json&prop=extracts&explaintext=1&titles=$encodedTitle")
+    val url = URL("https://$language.wikipedia.org/w/api.php?action=parse&format=json&page=$encodedTitle&prop=text")
     val connection = url.openConnection() as HttpURLConnection
 
     try {
@@ -284,12 +253,58 @@ suspend fun fetchFullWikipediaContent(title: String): String = withContext(Dispa
 
         val response = connection.inputStream.bufferedReader().readText()
         val json = JSONObject(response)
-        val pages = json.getJSONObject("query").getJSONObject("pages")
-        val pageId = pages.keys().next()
-        val page = pages.getJSONObject(pageId)
-
-        page.getString("extract")
+        json.getJSONObject("parse").getJSONObject("text").getString("*")
     } finally {
         connection.disconnect()
+    }
+}
+
+@Composable
+fun HtmlTextWithLinks(html: String) {
+    val doc = remember(html) { Jsoup.parse(html) }
+    val annotatedString = buildAnnotatedString {
+        doc.body().children().forEach { element ->
+            appendElementRecursively(element, this)
+            append("\n\n")
+        }
+    }
+
+    ClickableText(
+        text = annotatedString,
+        style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 24.sp),
+        onClick = { offset ->
+            annotatedString.getStringAnnotations("URL", offset, offset)
+                .firstOrNull()?.let { annotation ->
+                    val url = annotation.item
+                    // Open in browser
+                    println("Clicked: $url")
+                }
+        }
+    )
+}
+
+fun appendElementRecursively(element: org.jsoup.nodes.Element, builder: AnnotatedString.Builder) {
+    when (element.tagName()) {
+        "a" -> {
+            val url = element.attr("href")
+            val text = element.text()
+            builder.pushStringAnnotation(tag = "URL", annotation = url)
+            builder.withStyle(style = SpanStyle(
+                color = Color.Blue,
+                textDecoration = TextDecoration.Underline
+            )
+            ) {
+                append(text)
+            }
+            builder.pop()
+        }
+        else -> {
+            element.childNodes().forEach { node ->
+                when (node) {
+                    is org.jsoup.nodes.TextNode -> builder.append(node.text())
+                    is org.jsoup.nodes.Element -> appendElementRecursively(node, builder)
+                }
+            }
+        }
     }
 }

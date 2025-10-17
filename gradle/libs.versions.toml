@@ -1,6 +1,7 @@
 [versions]
 agp = "8.13.0"
 coreSplashscreen = "1.0.1"
+jsoup = "1.21.2"
 kotlin = "2.2.20"
 coreKtx = "1.17.0"
 lifecycleRuntimeKtx = "2.9.4"
@@ -26,6 +27,7 @@ androidx-compose-ui-tooling-preview = { group = "androidx.compose.ui", name = "u
 androidx-compose-material3 = { group = "androidx.compose.material3", name = "material3" }
 androidx-compose-material-icons-extended = { group = "androidx.compose.material", name = "material-icons-extended", version.ref = "materialIconsExtended" }
 androidx-startup-runtime = { module = "androidx.startup:startup-runtime", version.ref = "startupRuntime" }
+jsoup = { module = "org.jsoup:jsoup", version.ref = "jsoup" }
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json" }
 androidx-datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "androidxDatastorePreferences" }
 androidx-navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "navigationCompose" }

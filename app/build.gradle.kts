@@ -105,4 +105,7 @@ dependencies {
     // Text and unit utilities
     implementation(libs.androidx.compose.ui.text)
     implementation(libs.androidx.compose.ui.unit)
+
+    // Scraping
+    implementation(libs.jsoup)
 }
