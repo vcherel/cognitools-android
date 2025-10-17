@@ -323,19 +323,10 @@ fun GameOverScreen(
 
         Text(
             winnerText,
-            fontSize = 24.sp,
-            fontWeight = FontWeight.Bold,
-            textAlign = TextAlign.Center,
-            color = winnerColor
-        )
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        Text(
-            winnerText,
             fontSize = 28.sp,
             fontWeight = FontWeight.SemiBold,
-            textAlign = TextAlign.Center
+            textAlign = TextAlign.Center,
+            color = winnerColor
         )
 
         Spacer(modifier = Modifier.height(16.dp))
