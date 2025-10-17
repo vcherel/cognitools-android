@@ -126,6 +126,11 @@ fun MainScreen() {
                         UndercoverScreen(onBack = { currentScreen = "menu" })
                     }
                 }
+                "wikipedia" -> {
+                    key("wikipedia") {
+                        WikipediaScreen(onBack = { currentScreen = "menu" })
+                    }
+                }
             }
         }
     }
@@ -192,6 +197,6 @@ fun MenuScreen(onNavigate: (String) -> Unit) {
         Spacer(modifier = Modifier.height(spaceHeight))
         MyButton(text = "Undercover") { onNavigate("undercover") }
         Spacer(modifier = Modifier.height(spaceHeight))
-        MyButton(text = "Wikipedia") {  }
+        MyButton(text = "Wikipedia") { onNavigate("wikipedia") }
     }
 }
