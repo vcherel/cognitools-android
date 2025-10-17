@@ -137,16 +137,55 @@ fun WikipediaScreen(onBack: () -> Unit) {
 
                         // Display additional content if loaded
                         if (fullContent != null && displayedParagraphs > 0) {
-                            val paragraphs = fullContent!!.split("\n\n").filter { it.isNotBlank() }
+                            val paragraphs = fullContent!!
+                                .split("\n\n")
+                                .filter { it.isNotBlank() }
+                                .drop(1) // Skip the first paragraph (extract)
                             val toDisplay = paragraphs.take(displayedParagraphs)
 
-                            toDisplay.forEach { paragraph ->
-                                Spacer(modifier = Modifier.height(16.dp))
-                                Text(
-                                    text = paragraph,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    lineHeight = 24.sp
-                                )
+                            // Regex for section titles (== Title ==) and subsection titles (=== Title ===)
+                            val sectionTitleRegex = Regex("^=+\\s*(.+?)\\s*=+$", RegexOption.MULTILINE)
+
+                            var previousWasTitle = false
+
+                            toDisplay.forEachIndexed { index, paragraph ->
+                                val lines = paragraph.trim().lines()
+
+                                lines.forEach { line ->
+                                    val trimmed = line.trim()
+
+                                    if (trimmed.isEmpty()) return@forEach
+
+                                    val match = sectionTitleRegex.matchEntire(trimmed)
+
+                                    if (match != null) {
+                                        // Section or subsection title
+                                        val title = match.groupValues[1].trim()
+                                        val equalsCount = trimmed.takeWhile { it == '=' }.length
+
+                                        Spacer(modifier = Modifier.height(if (equalsCount == 2) 24.dp else 16.dp))
+                                        Text(
+                                            text = title,
+                                            style = if (equalsCount == 2)
+                                                MaterialTheme.typography.headlineSmall
+                                            else
+                                                MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.padding(bottom = 8.dp)
+                                        )
+                                        previousWasTitle = true
+                                    } else {
+                                        // Normal paragraph
+                                        Spacer(modifier = Modifier.height(if (previousWasTitle) 4.dp else 12.dp))
+                                        Text(
+                                            text = trimmed,
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            lineHeight = 24.sp
+                                        )
+                                        previousWasTitle = false
+                                    }
+                                }
                             }
                         }
 
@@ -171,7 +210,7 @@ fun WikipediaScreen(onBack: () -> Unit) {
                                                 fullContent =
                                                     fetchFullWikipediaContent(content.title)
                                             }
-                                            displayedParagraphs += 2 // Load 2 more paragraphs each time
+                                            displayedParagraphs += 1
                                         } catch (e: Exception) {
                                             error = "Erreur de chargement: ${e.message}"
                                         } finally {
