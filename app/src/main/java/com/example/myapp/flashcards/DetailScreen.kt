@@ -21,7 +21,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardActions
@@ -224,9 +223,11 @@ fun FlashcardDetailScreen(
                         contentPadding = PaddingValues(bottom = 116.dp),
                         state = listState
                     ) {
-                        itemsIndexed(
-                            visibleElements.value,
-                            key = { _, item -> item.id }) { index, element ->
+                        items(
+                            count = visibleElements.value.size,
+                            key = { index -> visibleElements.value[index].id }
+                        ) { index ->
+                            val element = visibleElements.value[index]
                             val interactionSource = remember { MutableInteractionSource() }
                             val isPressed by interactionSource.collectIsPressedAsState()
 
@@ -457,7 +458,6 @@ fun FlashcardDetailScreen(
             onCancel = { elementToDelete = null },
             onConfirm = {
                 scope.launch { repository.deleteElement(listId, element.id) }
-                elementsState.remove(element)
                 elementToDelete = null
             },
             cancelText = "Oula non merci",
