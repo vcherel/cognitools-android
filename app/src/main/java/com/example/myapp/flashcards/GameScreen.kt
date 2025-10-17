@@ -9,6 +9,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -52,17 +53,18 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.example.myapp.MyButton
 import kotlinx.coroutines.launch
 import kotlin.math.abs
+import kotlin.math.min
 import kotlin.math.pow
 import kotlin.random.Random
 
@@ -231,35 +233,40 @@ fun FlashcardGameScreen(listId: String, navController: NavController, onBack: ()
             val swipeProgress = (abs(cardOffset) / 200f).coerceIn(0f, 1f)
             val shadowColor = if (cardOffset < 0) greenColor else redColor
 
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        brush = if (cardOffset < 0) {
-                            Brush.radialGradient(
-                                colors = listOf(
-                                    shadowColor.copy(alpha = swipeProgress * 0.8f),
-                                    shadowColor.copy(alpha = swipeProgress * 0.6f),
-                                    shadowColor.copy(alpha = swipeProgress * 0.2f),
-                                    Color.Transparent
-                                ),
-                                center = Offset(0f, 0.5f),
-                                radius = 800f
-                            )
-                        } else {
-                            Brush.radialGradient(
-                                colors = listOf(
-                                    shadowColor.copy(alpha = swipeProgress * 0.8f),
-                                    shadowColor.copy(alpha = swipeProgress * 0.6f),
-                                    shadowColor.copy(alpha = swipeProgress * 0.2f),
-                                    Color.Transparent
-                                ),
-                                center = Offset(Float.POSITIVE_INFINITY, 0.5f),
-                                radius = 800f
-                            )
-                        }
-                    )
-            )
+            BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+                val containerWidth = constraints.maxWidth.toFloat()
+
+                // Gradient width grows with swipe, max half the screen
+                val gradientWidth = min(abs(cardOffset) * 2f, containerWidth / 2f)
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            brush = if (cardOffset < 0) {
+                                // Left swipe (green)
+                                Brush.horizontalGradient(
+                                    colors = listOf(
+                                        shadowColor.copy(alpha = swipeProgress * 0.4f),
+                                        Color.Transparent
+                                    ),
+                                    startX = 0f,
+                                    endX = gradientWidth
+                                )
+                            } else {
+                                // Right swipe (red)
+                                Brush.horizontalGradient(
+                                    colors = listOf(
+                                        Color.Transparent,
+                                        shadowColor.copy(alpha = swipeProgress * 0.4f)
+                                    ),
+                                    startX = containerWidth - gradientWidth,
+                                    endX = containerWidth
+                                )
+                            }
+                        )
+                )
+            }
         }
 
         Column(
@@ -307,7 +314,9 @@ fun FlashcardGameScreen(listId: String, navController: NavController, onBack: ()
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(400.dp)
-                            .offset { IntOffset(cardOffset.toInt(), 0) }
+                            .graphicsLayer {
+                                translationX = cardOffset
+                            }
                             .pointerInput(Unit) {
                                 detectDragGestures(
                                     onDragEnd = {
