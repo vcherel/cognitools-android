@@ -161,8 +161,6 @@ fun FlashcardDetailScreen(
                 Column(horizontalAlignment = Alignment.End) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         IconButton(onClick = {
-                            scope.launch { listState.scrollToItem(0) }
-
                             // Cycle through 0 -> 1 -> 2 -> 3 -> 0
                             sortState = (sortState + 1) % 4
 
@@ -175,6 +173,12 @@ fun FlashcardDetailScreen(
                                 else -> ""
                             }
                             Toast.makeText(context, toastMessage, Toast.LENGTH_SHORT).show()
+
+                            // Scroll to top after sort state changes
+                            scope.launch {
+                                delay(50)
+                                listState.scrollToItem(0)
+                            }
                         }) {
                             Icon(Icons.Default.SwapVert, contentDescription = "Trier")
                         }
