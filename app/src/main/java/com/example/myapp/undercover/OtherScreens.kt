@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
@@ -24,7 +23,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -476,22 +474,14 @@ fun LeaderboardScreen(
                     .height(80.dp)
             )
 
-            Box(
+            MyButton(
+                text = "Paramètres",
+                icon = Icons.Default.Settings,
+                onClick = { onSettings() },
                 modifier = Modifier
-                    .size(80.dp)
-                    .background(
-                        color = Color(0xFFECEFF1),
-                        shape = RoundedCornerShape(25)
-                    )
-                    .clickable { onSettings() },
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Settings,
-                    contentDescription = "Paramètres",
-                    modifier = Modifier.size(32.dp)
-                )
-            }
+                    .weight(1f)
+                    .height(80.dp)
+            )
         }
     }
 }

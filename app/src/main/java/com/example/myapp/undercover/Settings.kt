@@ -302,7 +302,7 @@ fun SettingsScreen(
     ShowAlertDialog(
         show = showDeleteDialog,
         onDismiss = { showDeleteDialog = false },
-        title = "Choisissez qui TUER",
+        title = "Choisissez qui dégager",
         textContent = {
             LazyColumn(
                 modifier = Modifier.heightIn(max = 300.dp)

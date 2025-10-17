@@ -12,9 +12,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Icon
 import androidx.compose.runtime.getValue
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
@@ -26,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.TextUnit
@@ -38,6 +41,7 @@ fun MyButton(
     modifier: Modifier = Modifier,
     fontSize: TextUnit = 24.sp,
     enabled: Boolean = true,
+    icon: ImageVector? = null,
     onClick: () -> Unit
 ) {
     val interactionSource = remember { MutableInteractionSource() }
@@ -104,12 +108,21 @@ fun MyButton(
                 ),
             contentAlignment = Alignment.Center
         ) {
-            Text(
-                text,
-                color = textColor,
-                fontSize = fontSize,
-                fontWeight = FontWeight.SemiBold
-            )
+            if (icon != null) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = text,
+                    tint = textColor,
+                    modifier = Modifier.size(32.dp)
+                )
+            } else {
+                Text(
+                    text,
+                    color = textColor,
+                    fontSize = fontSize,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
         }
     }
 }

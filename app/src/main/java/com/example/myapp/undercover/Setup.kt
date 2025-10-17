@@ -59,10 +59,9 @@ fun generateAndAssignPlayers(context: Context, state: UndercoverGameState): List
     val mrWhiteCount = if (state.settings.randomComposition) {
         val maxMrWhite = state.players.size - 2
         var count = 0
-        var chance = 0.5
+        val chance = 0.2
         while (count < maxMrWhite && Random.nextDouble() < chance) {
             count++
-            chance *= 0.5
         }
         count
     } else state.settings.mrWhiteCount
