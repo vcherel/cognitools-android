@@ -24,6 +24,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Search
@@ -144,15 +145,16 @@ fun FlashcardDetailScreen(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        listName,
-                        style = MaterialTheme.typography.headlineMedium,
-                        modifier = Modifier.clickable {
-                            scope.launch { listState.scrollToItem(0) }
-                        }
-                    )
+                IconButton(onClick = { onBack() }) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Retour")
                 }
+                Text(
+                    listName,
+                    style = MaterialTheme.typography.headlineSmall,
+                    modifier = Modifier.clickable {
+                        scope.launch { listState.scrollToItem(0) }
+                    }
+                )
 
                 Spacer(modifier = Modifier.width(16.dp))
 
@@ -166,10 +168,10 @@ fun FlashcardDetailScreen(
 
                             // Show a toast for the current sort
                             val toastMessage = when(sortState) {
-                                0 -> "Tri: Intervalle révision (décroissant)"
-                                1 -> "Tri: Intervalle révision (croissant)"
-                                2 -> "Tri: Nombre vues totales (décroissant)"
-                                3 -> "Tri: Nombre vues totales (croissant)"
+                                0 -> "Tri : Intervalle révision (décroissant)"
+                                1 -> "Tri : Intervalle révision (croissant)"
+                                2 -> "Tri : Nombre vues totales (décroissant)"
+                                3 -> "Tri : Nombre vues totales (croissant)"
                                 else -> ""
                             }
                             Toast.makeText(context, toastMessage, Toast.LENGTH_SHORT).show()
