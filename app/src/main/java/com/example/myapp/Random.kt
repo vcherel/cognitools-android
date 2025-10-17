@@ -35,6 +35,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import java.text.NumberFormat
+import java.util.Locale
 
 @Composable
 fun RandomGeneratorScreen(onBack: () -> Unit, context: Context = LocalContext.current) {
@@ -110,7 +112,10 @@ fun RandomGeneratorScreen(onBack: () -> Unit, context: Context = LocalContext.cu
                     .background(Color(0xFFEFEFEF), shape = RoundedCornerShape(20.dp)),
                 contentAlignment = Alignment.Center
             ) {
-                Text(text = intResult?.toString() ?: "", fontSize = 32.sp)
+                Text(
+                    text = intResult?.let { NumberFormat.getNumberInstance(Locale.FRANCE).format(it) } ?: "",
+                    fontSize = 32.sp
+                )
             }
         }
 
