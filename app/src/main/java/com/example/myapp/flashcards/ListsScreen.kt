@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
@@ -30,6 +31,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
@@ -210,7 +212,8 @@ fun FlashcardListsScreen(onBack: () -> Unit, navController: NavController) {
                                                     repository.reorderLists(mutableLists)
                                                 }
                                             }
-                                        }
+                                        },
+                                        onPlay = { navController.navigate("game/${flashcardList.id}") }
                                     )
                                 }
                             }
@@ -343,7 +346,8 @@ fun FlashcardListItem(
     onRename: (String) -> Unit,
     onDelete: () -> Unit,
     onMoveUp: () -> Unit,
-    onMoveDown: () -> Unit
+    onMoveDown: () -> Unit,
+    onPlay: () -> Unit
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
@@ -366,7 +370,7 @@ fun FlashcardListItem(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Name and due count
+                // Text on the left
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         flashcardList.name,
@@ -381,29 +385,45 @@ fun FlashcardListItem(
                     )
                 }
 
-                // Add/Edit/Delete buttons
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(2.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(end = 30.dp)
+                // Buttons on the right in 2 rows
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.padding(end = 35.dp)
                 ) {
-                    IconButton(
-                        onClick = onBulkImport,
-                        modifier = Modifier.size(36.dp)
+                    Row(
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier.width(80.dp)
                     ) {
-                        Icon(Icons.Default.Add, contentDescription = "Ajouter")
+                        IconButton(
+                            onClick = { onRename(flashcardList.name) },
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Icon(Icons.Default.Edit, contentDescription = "Éditer")
+                        }
+                        IconButton(
+                            onClick = { showDeleteDialog = true },
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Icon(Icons.Default.Delete, contentDescription = "Supprimer")
+                        }
                     }
-                    IconButton(
-                        onClick = { onRename(flashcardList.name) },
-                        modifier = Modifier.size(36.dp)
+                    Row(
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier.width(80.dp)
                     ) {
-                        Icon(Icons.Default.Edit, contentDescription = "Éditer")
-                    }
-                    IconButton(
-                        onClick = { showDeleteDialog = true },
-                        modifier = Modifier.size(36.dp)
-                    ) {
-                        Icon(Icons.Default.Delete, contentDescription = "Supprimer")
+                        IconButton(
+                            onClick = onPlay,
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Icon(Icons.Default.PlayArrow, contentDescription = "Jouer")
+                        }
+                        IconButton(
+                            onClick = onBulkImport,
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Icon(Icons.Default.Add, contentDescription = "Ajouter")
+                        }
                     }
                 }
             }
