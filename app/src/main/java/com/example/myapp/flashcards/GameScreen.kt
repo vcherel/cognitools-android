@@ -88,10 +88,15 @@ fun FlashcardGameScreen(listId: String, navController: NavController, onBack: ()
     var isProcessingSwipe by remember { mutableStateOf(false) }
     var showFront by remember { mutableStateOf(true) }
     var activeDifficultCards by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var localUpdates by remember { mutableStateOf<Map<String, FlashcardElement>>(emptyMap()) } // To update UI faster than database
 
-    val dueCards by remember(allElements) {
+    val dueCards by remember(allElements, localUpdates) {
         derivedStateOf {
-            val due = allElements.filter { isDue(it) }
+            val updated = allElements.map { element ->
+                localUpdates[element.id] ?: element
+            }
+
+            val due = updated.filter { isDue(it) }
             val difficult = due.filter { it.score < 2 }.take(MAX_DIFFICULT_CARDS)
             val easy = due.filter { it.score >= 2 }
             difficult + easy
@@ -185,16 +190,15 @@ fun FlashcardGameScreen(listId: String, navController: NavController, onBack: ()
             val quality = if (wasCorrect) 4 else 2
             val updatedCard = updateCards(card, quality)
 
-            // Update via repository
+            localUpdates = localUpdates + (card.id to updatedCard)
+
             scope.launch {
                 repository.updateElement(listId, updatedCard)
             }
 
-            // Remove the card from active difficult cards if the score is high enough
             if (wasCorrect && card.score >= 2) {
                 activeDifficultCards = activeDifficultCards - card.id
 
-                // Refill active difficult cards up to MAX_DIFFICULT_CARDS if needed
                 val remainingDifficult = allElements.filter {
                     it.score < 2 && it.id !in activeDifficultCards
                 }
@@ -205,7 +209,6 @@ fun FlashcardGameScreen(listId: String, navController: NavController, onBack: ()
                 }
             }
 
-            // Move to next card
             showDefinition = false
             val availableCards = dueCards.filter { it.id != card.id }
             currentCard = if (availableCards.isNotEmpty()) {
@@ -215,8 +218,14 @@ fun FlashcardGameScreen(listId: String, navController: NavController, onBack: ()
             } else {
                 null
             }
-
             isProcessingSwipe = false
+        }
+    }
+
+    // Clear localUpdates when allElements updates to avoid memory buildup
+    LaunchedEffect(allElements) {
+        if (localUpdates.isNotEmpty()) {
+            localUpdates = emptyMap()
         }
     }
 
