@@ -1,5 +1,6 @@
 package com.example.myapp.flashcards
 
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -44,6 +45,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -85,11 +87,11 @@ fun FlashcardDetailScreen(
     var dialogName by remember { mutableStateOf("") }
     var dialogDefinition by remember { mutableStateOf("") }
     var editingIndex by remember { mutableStateOf<Int?>(null) }
-    var sortAscending by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
     var elementToDelete by remember { mutableStateOf<FlashcardElement?>(null) }
     var selectedElement by remember { mutableStateOf<FlashcardElement?>(null) }
     var isLoading by remember { mutableStateOf(true) }
+    var sortState by remember { mutableIntStateOf(0) }
 
     // Observe lists
     val lists by repository.observeLists().collectAsState(initial = emptyList())
@@ -115,18 +117,21 @@ fun FlashcardDetailScreen(
     }
 
     // Computed filtered & sorted list in-place to avoid repeated list allocations
-    val visibleElements = remember(elementsState, searchQuery, sortAscending) {
+    val visibleElements = remember(elementsState, searchQuery, sortState) {
         derivedStateOf {
-            elementsState
-                .filter {
-                    searchQuery.isEmpty() ||
-                            it.name.contains(searchQuery, ignoreCase = true) ||
-                            it.definition.contains(searchQuery, ignoreCase = true)
-                }
-                .let { list ->
-                    if (sortAscending) list.sortedBy { it.lastReview + it.interval * 60_000L }
-                    else list.sortedByDescending { it.lastReview + it.interval * 60_000L }
-                }
+            val filtered = elementsState.filter {
+                searchQuery.isEmpty() ||
+                        it.name.contains(searchQuery, ignoreCase = true) ||
+                        it.definition.contains(searchQuery, ignoreCase = true)
+            }
+
+            when (sortState) {
+                0 -> filtered.sortedByDescending { it.lastReview + it.interval * 60_000L } // time until next play descending
+                1 -> filtered.sortedBy { it.lastReview + it.interval * 60_000L }           // time until next play ascending
+                2 -> filtered.sortedByDescending { it.totalWins + it.totalLosses }         // total times played descending
+                3 -> filtered.sortedBy { it.totalWins + it.totalLosses }                   // total times played ascending
+                else -> filtered
+            }
         }
     }
 
@@ -158,8 +163,22 @@ fun FlashcardDetailScreen(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         IconButton(onClick = {
                             scope.launch { listState.scrollToItem(0) }
-                            sortAscending = !sortAscending
-                        }) { Icon(Icons.Default.SwapVert, contentDescription = "Trier") }
+
+                            // Cycle through 0 -> 1 -> 2 -> 3 -> 0
+                            sortState = (sortState + 1) % 4
+
+                            // Show a toast for the current sort
+                            val toastMessage = when(sortState) {
+                                0 -> "Tri: Intervalle révision (décroissant)"
+                                1 -> "Tri: Intervalle révision (croissant)"
+                                2 -> "Tri: Nombre vues totales (décroissant)"
+                                3 -> "Tri: Nombre vues totales (croissant)"
+                                else -> ""
+                            }
+                            Toast.makeText(context, toastMessage, Toast.LENGTH_SHORT).show()
+                        }) {
+                            Icon(Icons.Default.SwapVert, contentDescription = "Trier")
+                        }
 
                         Spacer(Modifier.width(8.dp))
                         Box(
