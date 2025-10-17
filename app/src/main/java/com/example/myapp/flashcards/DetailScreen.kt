@@ -39,7 +39,6 @@ import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
@@ -112,22 +111,25 @@ fun FlashcardDetailScreen(
     }
 
     // Computed filtered & sorted list in-place to avoid repeated list allocations
-    val visibleElements = remember(elementsState, searchQuery, sortState) {
-        derivedStateOf {
-            val filtered = elementsState.filter {
-                searchQuery.isEmpty() ||
-                        it.name.contains(searchQuery, ignoreCase = true) ||
-                        it.definition.contains(searchQuery, ignoreCase = true)
-            }
+    val visibleElements = remember { mutableStateListOf<FlashcardElement>() }
 
-            when (sortState) {
-                0 -> filtered.sortedByDescending { it.lastReview + it.interval * 60_000L } // time until next play descending
-                1 -> filtered.sortedBy { it.lastReview + it.interval * 60_000L }           // time until next play ascending
-                2 -> filtered.sortedByDescending { it.totalWins + it.totalLosses }         // total times played descending
-                3 -> filtered.sortedBy { it.totalWins + it.totalLosses }                   // total times played ascending
-                else -> filtered
-            }
+    LaunchedEffect(elementsState.toList(), searchQuery, sortState) {
+        val filtered = elementsState.filter {
+            searchQuery.isEmpty() ||
+                    it.name.contains(searchQuery, ignoreCase = true) ||
+                    it.definition.contains(searchQuery, ignoreCase = true)
         }
+
+        val sorted = when (sortState) {
+            0 -> filtered.sortedByDescending { it.lastReview + it.interval * 60_000L }
+            1 -> filtered.sortedBy { it.lastReview + it.interval * 60_000L }
+            2 -> filtered.sortedByDescending { it.totalWins + it.totalLosses }
+            3 -> filtered.sortedBy { it.totalWins + it.totalLosses }
+            else -> filtered
+        }
+
+        visibleElements.clear()
+        visibleElements.addAll(sorted)
     }
 
     BackHandler {
@@ -220,11 +222,10 @@ fun FlashcardDetailScreen(
                         state = listState
                     ) {
                         items(
-                            count = visibleElements.value.size,
-                            key = { index -> visibleElements.value[index].id }
+                            count = visibleElements.size,
+                            key = { index -> visibleElements[index].id }
                         ) { index ->
-                            val element = visibleElements.value[index]
-
+                            val element = visibleElements[index]
                             Card(
                                 modifier = Modifier
                                     .fillMaxWidth()
