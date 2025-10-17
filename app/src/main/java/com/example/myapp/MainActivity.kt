@@ -162,10 +162,12 @@ fun FlashcardsNavGraph(onBack: () -> Unit) {
 
 @Composable
 fun MenuScreen(onNavigate: (String) -> Unit) {
+    val spaceHeight = 32.dp
+
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp),
+            .padding(12.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -174,20 +176,22 @@ fun MenuScreen(onNavigate: (String) -> Unit) {
             style = MaterialTheme.typography.headlineLarge,
             textAlign = TextAlign.Center
         )
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(modifier = Modifier.height(25.dp))
         Text(
             text = "Choisis une option pour commencer :",
             style = MaterialTheme.typography.titleMedium,
             fontStyle = FontStyle.Italic,
             textAlign = TextAlign.Center
         )
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(modifier = Modifier.height(30.dp))
         MyButton(text = "Générateur aléatoire") { onNavigate("randomGenerator") }
-        Spacer(modifier = Modifier.height(40.dp))
+        Spacer(modifier = Modifier.height(spaceHeight))
         MyButton(text = "Volume booster") { onNavigate("volumeBooster") }
-        Spacer(modifier = Modifier.height(40.dp))
+        Spacer(modifier = Modifier.height(spaceHeight))
         MyButton(text = "Flashcards") { onNavigate("flashcards") }
-        Spacer(modifier = Modifier.height(40.dp))
+        Spacer(modifier = Modifier.height(spaceHeight))
         MyButton(text = "Undercover") { onNavigate("undercover") }
+        Spacer(modifier = Modifier.height(spaceHeight))
+        MyButton(text = "Wikipedia") {  }
     }
 }
