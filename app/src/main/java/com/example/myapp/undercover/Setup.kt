@@ -26,7 +26,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -143,7 +142,7 @@ fun HandlePlayerSetup(
 
             ShowAlertDialog(
                 show = showQuickStartDialog,
-                onDismiss = { /* no-op or leave empty */ },
+                onDismiss = { },
                 title = "ATTENTION",
                 textContent = {
                     Text(
@@ -153,9 +152,11 @@ fun HandlePlayerSetup(
                                 append(currentPlayer.name)
                             }
                             append(" va être affiché, cache toi des autres zouaves !")
-                        }
+                        },
+                        fontSize = 18.sp
                     )
-                },
+                }
+                ,
                 confirmText = "Ok",
                 cancelText = null,
                 onConfirm = {
