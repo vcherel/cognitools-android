@@ -1,6 +1,7 @@
 package com.example.myapp
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -20,6 +21,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -35,11 +37,15 @@ import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
+import java.net.URLEncoder
 
 @Composable
 fun WikipediaScreen(onBack: () -> Unit) {
     var isLoading by remember { mutableStateOf(false) }
+    var isLoadingMore by remember { mutableStateOf(false) }
     var wikiContent by remember { mutableStateOf<WikipediaContent?>(null) }
+    var fullContent by remember { mutableStateOf<String?>(null) }
+    var displayedParagraphs by remember { mutableIntStateOf(0) }
     var error by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
 
@@ -83,6 +89,8 @@ fun WikipediaScreen(onBack: () -> Unit) {
                     scope.launch {
                         isLoading = true
                         error = null
+                        fullContent = null
+                        displayedParagraphs = 0
                         try {
                             wikiContent = fetchRandomWikipedia()
                         } catch (e: Exception) {
@@ -126,6 +134,53 @@ fun WikipediaScreen(onBack: () -> Unit) {
                             style = MaterialTheme.typography.bodyMedium,
                             lineHeight = 24.sp
                         )
+
+                        // Display additional content if loaded
+                        if (fullContent != null && displayedParagraphs > 0) {
+                            val paragraphs = fullContent!!.split("\n\n").filter { it.isNotBlank() }
+                            val toDisplay = paragraphs.take(displayedParagraphs)
+
+                            toDisplay.forEach { paragraph ->
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Text(
+                                    text = paragraph,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    lineHeight = 24.sp
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        if (isLoadingMore) {
+                            CircularProgressIndicator(
+                                modifier = Modifier
+                                    .align(Alignment.CenterHorizontally)
+                                    .padding(16.dp)
+                            )
+                        } else {
+                            Text(
+                                text = "Lire plus",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.clickable {
+                                    scope.launch {
+                                        isLoadingMore = true
+                                        try {
+                                            if (fullContent == null) {
+                                                fullContent =
+                                                    fetchFullWikipediaContent(content.title)
+                                            }
+                                            displayedParagraphs += 2 // Load 2 more paragraphs each time
+                                        } catch (e: Exception) {
+                                            error = "Erreur de chargement: ${e.message}"
+                                        } finally {
+                                            isLoadingMore = false
+                                        }
+                                    }
+                                }
+                            )
+                        }
                     }
                 }
             }
@@ -157,6 +212,27 @@ suspend fun fetchRandomWikipedia(): WikipediaContent = withContext(Dispatchers.I
                 .getJSONObject("desktop")
                 .getString("page")
         )
+    } finally {
+        connection.disconnect()
+    }
+}
+
+suspend fun fetchFullWikipediaContent(title: String): String = withContext(Dispatchers.IO) {
+    val encodedTitle = URLEncoder.encode(title, "UTF-8")
+    val url = URL("https://fr.wikipedia.org/w/api.php?action=query&format=json&prop=extracts&explaintext=1&titles=$encodedTitle")
+    val connection = url.openConnection() as HttpURLConnection
+
+    try {
+        connection.requestMethod = "GET"
+        connection.setRequestProperty("User-Agent", "WikiApp/1.0")
+
+        val response = connection.inputStream.bufferedReader().readText()
+        val json = JSONObject(response)
+        val pages = json.getJSONObject("query").getJSONObject("pages")
+        val pageId = pages.keys().next()
+        val page = pages.getJSONObject(pageId)
+
+        page.getString("extract")
     } finally {
         connection.disconnect()
     }
