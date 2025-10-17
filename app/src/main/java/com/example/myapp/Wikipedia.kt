@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -47,6 +48,8 @@ fun WikipediaScreen(onBack: () -> Unit) {
     var fullContent by remember { mutableStateOf<String?>(null) }
     var displayedParagraphs by remember { mutableIntStateOf(0) }
     var error by remember { mutableStateOf<String?>(null) }
+    var selectedLanguage by remember { mutableStateOf("fr") }
+
     val scope = rememberCoroutineScope()
 
     BackHandler { onBack() }
@@ -83,25 +86,39 @@ fun WikipediaScreen(onBack: () -> Unit) {
         ) {
             Spacer(modifier = Modifier.height(32.dp))
 
-            MyButton(
-                text = "Je veux me perdre",
-                onClick = {
-                    scope.launch {
-                        isLoading = true
-                        error = null
-                        fullContent = null
-                        displayedParagraphs = 0
-                        try {
-                            wikiContent = fetchRandomWikipedia()
-                        } catch (e: Exception) {
-                            error = "Erreur de chargement: ${e.message}"
-                        } finally {
-                            isLoading = false
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                MyButton(
+                    text = "Je veux me perdre",
+                    onClick = {
+                        scope.launch {
+                            isLoading = true
+                            error = null
+                            fullContent = null
+                            displayedParagraphs = 0
+                            try {
+                                wikiContent = fetchRandomWikipedia(selectedLanguage)
+                            } catch (e: Exception) {
+                                error = "Erreur de chargement: ${e.message}"
+                            } finally {
+                                isLoading = false
+                            }
                         }
-                    }
-                },
-                enabled = !isLoading
-            )
+                    },
+                    enabled = !isLoading,
+                    modifier = Modifier.weight(0.8f).height(75.dp)
+                )
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                // Smaller language selection button
+                MyButton(
+                    text = if (selectedLanguage == "fr") "FR" else "EN",
+                    onClick = {
+                        selectedLanguage = if (selectedLanguage == "fr") "en" else "fr"
+                    },
+                    modifier = Modifier.weight(0.2f).height(75.dp)
+                )
+            }
 
             if (isLoading) {
                 CircularProgressIndicator(modifier = Modifier.padding(32.dp))
@@ -233,8 +250,8 @@ data class WikipediaContent(
     val url: String
 )
 
-suspend fun fetchRandomWikipedia(): WikipediaContent = withContext(Dispatchers.IO) {
-    val url = URL("https://fr.wikipedia.org/api/rest_v1/page/random/summary")
+suspend fun fetchRandomWikipedia(language: String = "fr"): WikipediaContent = withContext(Dispatchers.IO) {
+    val url = URL("https://$language.wikipedia.org/api/rest_v1/page/random/summary")
     val connection = url.openConnection() as HttpURLConnection
 
     try {
