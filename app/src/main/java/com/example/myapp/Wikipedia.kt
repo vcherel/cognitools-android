@@ -210,15 +210,16 @@ fun WikipediaScreen(onBack: () -> Unit) {
                         val paragraphs = remember(doc) {
                             doc.body()
                                 .select("p")
-                                .filter {
-                                    val text = it.text().trim()
-                                    text.isNotBlank() &&
-                                            !text.startsWith("Vous lisez un", ignoreCase = true) && // Article de qualité
-                                            !text.startsWith("Cet article est une", ignoreCase = true) && // Ebauche
-                                            !text.startsWith("Pour les articles", ignoreCase = true) && // Homonymes
-                                            !text.startsWith("modifier", ignoreCase = true) && // Modifier code
-                                            !text.startsWith("Cet article ne", ignoreCase = true) && // Problème source
-                                    !text.startsWith("Si vous disposez", ignoreCase = true) // Ouvrage de référence
+                                .filter { p ->
+                                    // Skip paragraphs inside info-boxes
+                                    p.parents().none { it.tagName() == "table" && it.hasClass("infobox") } &&
+                                            p.text().trim().isNotBlank() &&
+                                            !p.text().startsWith("Vous lisez un", ignoreCase = true) &&
+                                            !p.text().startsWith("Cet article est une", ignoreCase = true) &&
+                                            !p.text().startsWith("Pour les articles", ignoreCase = true) &&
+                                            !p.text().startsWith("modifier", ignoreCase = true) &&
+                                            !p.text().startsWith("Cet article ne", ignoreCase = true) &&
+                                            !p.text().startsWith("Si vous disposez", ignoreCase = true)
                                 }
                         }
                         val paragraphsToShow = paragraphs.take(displayedParagraphs)
