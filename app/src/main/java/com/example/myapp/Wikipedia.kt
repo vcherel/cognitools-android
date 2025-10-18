@@ -58,15 +58,25 @@ fun WikipediaScreen(onBack: () -> Unit) {
     var error by remember { mutableStateOf<String?>(null) }
     var selectedLanguage by remember { mutableStateOf("fr") }
 
+    // Navigation history stack
+    var navigationHistory by remember { mutableStateOf<List<WikipediaContent>>(emptyList()) }
+
     val scope = rememberCoroutineScope()
 
-    val loadArticle: (String, String) -> Unit = { title, language ->
+    val loadArticle: (String, String, Boolean) -> Unit = { title, language, addToHistory ->
         scope.launch {
             isLoading = true
             error = null
             displayedParagraphs = 1
             try {
-                wikiContent = fetchWikipediaByTitle(title, language)
+                val newContent = fetchWikipediaByTitle(title, language)
+
+                // Add current content to history before loading new one
+                if (addToHistory && wikiContent != null) {
+                    navigationHistory = navigationHistory + wikiContent!!
+                }
+
+                wikiContent = newContent
             } catch (e: Exception) {
                 error = "Erreur de chargement: ${e.message}"
             } finally {
@@ -75,7 +85,18 @@ fun WikipediaScreen(onBack: () -> Unit) {
         }
     }
 
-    BackHandler { onBack() }
+    val goBackInHistory: () -> Unit = {
+        if (navigationHistory.isNotEmpty()) {
+            wikiContent = navigationHistory.last()
+            navigationHistory = navigationHistory.dropLast(1)
+            displayedParagraphs = 1
+            error = null
+        } else {
+            onBack()
+        }
+    }
+
+    BackHandler { goBackInHistory() }
 
     Column(
         modifier = Modifier.fillMaxSize()
@@ -89,7 +110,7 @@ fun WikipediaScreen(onBack: () -> Unit) {
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.weight(1f)
             ) {
-                IconButton(onClick = onBack) {
+                IconButton(onClick = goBackInHistory) {
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Retour")
                 }
                 Text(
@@ -97,6 +118,15 @@ fun WikipediaScreen(onBack: () -> Unit) {
                     style = MaterialTheme.typography.headlineMedium,
                     modifier = Modifier.padding(start = 8.dp)
                 )
+
+                // Show history depth indicator
+                if (navigationHistory.isNotEmpty()) {
+                    Text(
+                        text = " (${navigationHistory.size})",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
         }
 
@@ -118,7 +148,14 @@ fun WikipediaScreen(onBack: () -> Unit) {
                             error = null
                             displayedParagraphs = 1
                             try {
-                                wikiContent = fetchCompleteWikipedia(selectedLanguage)
+                                val newContent = fetchCompleteWikipedia(selectedLanguage)
+
+                                // Add current content to history before loading random
+                                if (wikiContent != null) {
+                                    navigationHistory = navigationHistory + wikiContent!!
+                                }
+
+                                wikiContent = newContent
                             } catch (e: Exception) {
                                 error = "Erreur de chargement: ${e.message}"
                             } finally {
@@ -185,7 +222,7 @@ fun WikipediaScreen(onBack: () -> Unit) {
                                 wikiPattern.find(url)?.let { matchResult ->
                                     val lang = matchResult.groupValues[1]
                                     val title = URLDecoder.decode(matchResult.groupValues[2], "UTF-8")
-                                    loadArticle(title, lang)
+                                    loadArticle(title, lang, true) // true = add to history
                                 }
                             }
                         )
