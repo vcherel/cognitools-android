@@ -27,6 +27,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material3.Card
@@ -320,10 +321,10 @@ fun FlashcardDetailScreen(
                                                 }
 
                                                 Spacer(modifier = Modifier.width(4.dp))
+
                                                 IconButton(
                                                     onClick = {
-                                                        editingIndex =
-                                                            elementsState.indexOfFirst { it.id == element.id }
+                                                        editingIndex = elementsState.indexOfFirst { it.id == element.id }
                                                         dialogName = element.name
                                                         dialogDefinition = element.definition
                                                         showDialog = true
@@ -344,6 +345,17 @@ fun FlashcardDetailScreen(
                                                     Icon(
                                                         Icons.Default.Delete,
                                                         contentDescription = "Supprimer",
+                                                        modifier = Modifier.size(20.dp)
+                                                    )
+                                                }
+
+                                                IconButton(
+                                                    onClick = { scope.launch { repository.resetElement(listId, element.id) } },
+                                                    modifier = Modifier.size(24.dp)
+                                                ) {
+                                                    Icon(
+                                                        Icons.Default.Refresh,
+                                                        contentDescription = "Réinitialiser",
                                                         modifier = Modifier.size(20.dp)
                                                     )
                                                 }

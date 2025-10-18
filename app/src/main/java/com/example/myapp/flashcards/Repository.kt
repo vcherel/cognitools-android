@@ -141,6 +141,24 @@ class FlashcardRepository(private val context: Context) {
         val allElements = getAllElements()
         return lists to allElements
     }
+
+    suspend fun resetElement(listId: String, elementId: String) {
+        val current = getElements(listId)
+        val updated = current.map { element ->
+            if (element.id == elementId) {
+                element.copy(
+                    easeFactor = 2.5,
+                    interval = 0,
+                    repetitions = 0,
+                    lastReview = System.currentTimeMillis(),
+                    totalWins = 0,
+                    totalLosses = 0,
+                    score = 0.0
+                )
+            } else element
+        }
+        saveElements(listId, updated)
+    }
 }
 
 val Context.dataStore by preferencesDataStore("flashcards")
