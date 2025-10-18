@@ -350,7 +350,24 @@ fun FlashcardDetailScreen(
                                                 }
 
                                                 IconButton(
-                                                    onClick = { scope.launch { repository.resetElement(listId, element.id) } },
+                                                    onClick = {
+                                                        scope.launch {
+                                                            // Update local state immediately for UI stability
+                                                            val index = elementsState.indexOfFirst { it.id == element.id }
+                                                            if (index != -1) {
+                                                                elementsState[index] = element.copy(
+                                                                    easeFactor = 2.5,
+                                                                    interval = 0,
+                                                                    repetitions = 0,
+                                                                    lastReview = System.currentTimeMillis(),
+                                                                    totalWins = 0,
+                                                                    totalLosses = 0,
+                                                                    score = 0.0
+                                                                )
+                                                            }
+                                                            repository.resetElement(listId, element.id)
+                                                        }
+                                                    },
                                                     modifier = Modifier.size(24.dp)
                                                 ) {
                                                     Icon(
