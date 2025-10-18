@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.ClickableText
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -31,10 +30,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextLinkStyles
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.withLink
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.Dispatchers
@@ -267,17 +268,9 @@ fun HtmlTextWithLinks(html: String) {
         }
     }
 
-    ClickableText(
+    Text(
         text = annotatedString,
-        style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 24.sp),
-        onClick = { offset ->
-            annotatedString.getStringAnnotations("URL", offset, offset)
-                .firstOrNull()?.let { annotation ->
-                    val url = annotation.item
-                    // Open in browser
-                    println("Clicked: $url")
-                }
-        }
+        style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 24.sp)
     )
 }
 
@@ -286,14 +279,20 @@ fun appendElementRecursively(element: org.jsoup.nodes.Element, builder: Annotate
         "a" -> {
             val url = element.attr("href")
             val text = element.text()
-            builder.pushStringAnnotation(tag = "URL", annotation = url)
-            builder.withStyle(style = SpanStyle(
-                fontWeight = FontWeight.Bold
-            )
-            ) {
+            val linkAnnotation = LinkAnnotation.Url(
+                url = url,
+                styles = TextLinkStyles(
+                    style = SpanStyle(
+                        fontWeight = FontWeight.Bold
+                    )
+                )
+            ) { clickedLink ->
+                val clickedUrl = (clickedLink as LinkAnnotation.Url).url
+                println("Clicked: $clickedUrl")
+            }
+            builder.withLink(linkAnnotation) {
                 append(text)
             }
-            builder.pop()
         }
         else -> {
             element.childNodes().forEach { node ->
