@@ -219,7 +219,8 @@ fun WikipediaScreen(onBack: () -> Unit) {
                                             !text.startsWith("Cet article est une", ignoreCase = true) && // Ebauche
                                             !text.startsWith("Pour les articles", ignoreCase = true) && // Homonymes
                                             !text.startsWith("modifier", ignoreCase = true) && // Modifier code
-                                            !text.startsWith("Cet article ne", ignoreCase = true) // Problème source
+                                            !text.startsWith("Cet article ne", ignoreCase = true) && // Problème source
+                                    !text.startsWith("Si vous disposez", ignoreCase = true) // Ouvrage de référence
                                 }
                         }
                         val paragraphsToShow = paragraphs.take(displayedParagraphs)
@@ -363,7 +364,7 @@ fun appendElementRecursively(
         "a" -> {
             val url = element.attr("href")
             val text = element.text()
-            if (text.isNotBlank()) {
+            if (text.isNotBlank() && !text.matches(Regex("""^\d+$"""))) { // Skip purely numeric links
                 val absoluteUrl = if (url.startsWith("/wiki/")) {
                     "https://fr.wikipedia.org$url"
                 } else url
@@ -382,6 +383,9 @@ fun appendElementRecursively(
                 builder.withLink(linkAnnotation) {
                     append(text)
                 }
+            } else {
+                // If it's numeric or blank, just append text without link
+                builder.append(text)
             }
         }
         else -> {
