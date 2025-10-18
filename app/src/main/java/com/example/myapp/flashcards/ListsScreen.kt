@@ -98,7 +98,12 @@ fun FlashcardListsScreen(onBack: () -> Unit, navController: NavController) {
 
     var isLoading by remember { mutableStateOf(true) }
     LaunchedEffect(listsWithCountsState) {
-        isLoading = listsWithCountsState.first.isEmpty() && listsWithCountsState.second.isEmpty()
+        if (listsWithCountsState.first.isNotEmpty() || listsWithCountsState.second.isNotEmpty()) {
+            isLoading = false
+        } else {
+            kotlinx.coroutines.delay(300)
+            isLoading = false
+        }
     }
 
     BackHandler { onBack() }
