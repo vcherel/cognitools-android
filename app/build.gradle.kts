@@ -31,24 +31,26 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            // Sign release builds with debug key to preserve app data
+            signingConfig = signingConfigs.getByName("debug")
         }
 
         debug {
             isMinifyEnabled = false
             isShrinkResources = false
         }
+    }
 
-        // Reduce APK size
-        bundle {
-            language {
-                enableSplit = true
-            }
-            density {
-                enableSplit = true
-            }
-            abi {
-                enableSplit = true
-            }
+    // Reduce APK size
+    bundle {
+        language {
+            enableSplit = true
+        }
+        density {
+            enableSplit = true
+        }
+        abi {
+            enableSplit = true
         }
     }
 
