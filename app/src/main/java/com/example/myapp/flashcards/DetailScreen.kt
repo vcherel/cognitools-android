@@ -137,7 +137,7 @@ fun FlashcardDetailScreen(
 
     BackHandler {
         if (searchQuery.isNotEmpty()) searchQuery = ""
-        else onBack()
+        else navController.navigate("lists")
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
