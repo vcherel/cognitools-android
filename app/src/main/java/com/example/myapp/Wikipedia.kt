@@ -356,17 +356,17 @@ fun appendElementRecursively(
     builder: AnnotatedString.Builder,
     onLinkClick: (String) -> Unit
 ) {
+    // Skip reference links
+    if (element.tagName() == "sup" && element.hasClass("reference")) return
+
     when (element.tagName()) {
         "a" -> {
             val url = element.attr("href")
             val text = element.text()
             if (text.isNotBlank()) {
-                // Convert relative URLs to absolute URLs
                 val absoluteUrl = if (url.startsWith("/wiki/")) {
                     "https://fr.wikipedia.org$url"
-                } else {
-                    url
-                }
+                } else url
 
                 val linkAnnotation = LinkAnnotation.Clickable(
                     tag = "wiki_link",
