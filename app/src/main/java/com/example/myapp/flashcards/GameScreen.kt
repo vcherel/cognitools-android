@@ -256,7 +256,7 @@ fun FlashcardGameScreen(listId: String, navController: NavController, onBack: ()
                                 // Left swipe (green)
                                 Brush.horizontalGradient(
                                     colors = listOf(
-                                        shadowColor.copy(alpha = swipeProgress * 0.4f),
+                                        shadowColor.copy(alpha = swipeProgress * 0.6f),
                                         Color.Transparent
                                     ),
                                     startX = 0f,
@@ -267,7 +267,7 @@ fun FlashcardGameScreen(listId: String, navController: NavController, onBack: ()
                                 Brush.horizontalGradient(
                                     colors = listOf(
                                         Color.Transparent,
-                                        shadowColor.copy(alpha = swipeProgress * 0.4f)
+                                        shadowColor.copy(alpha = swipeProgress * 0.6f)
                                     ),
                                     startX = containerWidth - gradientWidth,
                                     endX = containerWidth
