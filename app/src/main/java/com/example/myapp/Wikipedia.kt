@@ -211,19 +211,20 @@ fun WikipediaScreen(onBack: () -> Unit) {
                             doc.body()
                                 .select("p")
                                 .filter { p ->
-                                    // Skip paragraphs inside info-boxes
-                                    p.parents().none { it.tagName() == "table" && it.hasClass("infobox") } &&
-                                            p.text().trim().isNotBlank() &&
-                                            !p.text().startsWith("Vous lisez un", ignoreCase = true) &&
-                                            !p.text().startsWith("Cet article est une", ignoreCase = true) &&
-                                            !p.text().startsWith("Pour les articles", ignoreCase = true) &&
-                                            !p.text().startsWith("modifier", ignoreCase = true) &&
-                                            !p.text().startsWith("Cet article ne", ignoreCase = true) &&
-                                            !p.text().startsWith("Si vous disposez", ignoreCase = true) &&
-                                            !p.text().startsWith("Pour des articles plus généraux", ignoreCase = true) &&
-                                            !p.text().startsWith("Pour un article plus général", ignoreCase = true) &&
-                                            !p.text().startsWith("Cet article est orphelin", ignoreCase = true) &&
-                                            !p.text().contains("redirige ici. Pour", ignoreCase = true) &&
+                                    val text = p.text().trim()
+                                    val wordCount = text.split("\\s+".toRegex()).size
+                                    wordCount >= 10 &&
+                                            p.parents().none { it.tagName() == "table" && it.hasClass("infobox") } &&
+                                            !text.startsWith("Vous lisez un", ignoreCase = true) &&
+                                            !text.startsWith("Cet article est une", ignoreCase = true) &&
+                                            !text.startsWith("Pour les articles", ignoreCase = true) &&
+                                            !text.startsWith("modifier", ignoreCase = true) &&
+                                            !text.startsWith("Cet article ne", ignoreCase = true) &&
+                                            !text.startsWith("Si vous disposez", ignoreCase = true) &&
+                                            !text.startsWith("Pour des articles plus généraux", ignoreCase = true) &&
+                                            !text.startsWith("Pour un article plus général", ignoreCase = true) &&
+                                            !text.startsWith("Cet article est orphelin", ignoreCase = true) &&
+                                            !text.contains("redirige ici. Pour", ignoreCase = true) &&
                                             p.select("a").none { it.text().contains("Écouter") }
                                 }
                         }
