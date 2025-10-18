@@ -219,7 +219,10 @@ fun WikipediaScreen(onBack: () -> Unit) {
                                             !p.text().startsWith("Pour les articles", ignoreCase = true) &&
                                             !p.text().startsWith("modifier", ignoreCase = true) &&
                                             !p.text().startsWith("Cet article ne", ignoreCase = true) &&
-                                            !p.text().startsWith("Si vous disposez", ignoreCase = true)
+                                            !p.text().startsWith("Si vous disposez", ignoreCase = true) &&
+                                            !p.text().startsWith("Si vous disposez", ignoreCase = true) &&
+                                            !p.text().startsWith("Pour des articles plus généraux", ignoreCase = true) &&
+                                            !p.text().startsWith("Pour un article plus général", ignoreCase = true)
                                 }
                         }
                         val paragraphsToShow = paragraphs.take(displayedParagraphs)
@@ -359,11 +362,14 @@ fun appendElementRecursively(
     // Skip reference links
     if (element.tagName() == "sup" && element.hasClass("reference")) return
 
+    // Skip anything inside an infobox
+    if (element.parents().any { it.tagName() == "table" && it.hasClass("infobox") }) return
+
     when (element.tagName()) {
         "a" -> {
             val url = element.attr("href")
             val text = element.text()
-            if (text.isNotBlank() && !text.matches(Regex("""^\d+$"""))) { // Skip purely numeric links
+            if (text.isNotBlank() && !text.matches(Regex("""^\d+$"""))) {
                 val absoluteUrl = if (url.startsWith("/wiki/")) {
                     "https://fr.wikipedia.org$url"
                 } else url
@@ -379,11 +385,8 @@ fun appendElementRecursively(
                 ) {
                     onLinkClick(absoluteUrl)
                 }
-                builder.withLink(linkAnnotation) {
-                    append(text)
-                }
+                builder.withLink(linkAnnotation) { append(text) }
             } else {
-                // If it's numeric or blank, just append text without link
                 builder.append(text)
             }
         }
