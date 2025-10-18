@@ -29,6 +29,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
@@ -52,8 +53,7 @@ fun WikipediaScreen(onBack: () -> Unit) {
     var isLoading by remember { mutableStateOf(false) }
     var isLoadingMore by remember { mutableStateOf(false) }
     var wikiContent by remember { mutableStateOf<WikipediaContent?>(null) }
-    var fullContent by remember { mutableStateOf<String?>(null) }
-    var displayedParagraphs by remember { mutableIntStateOf(0) }
+    var displayedParagraphs by remember { mutableIntStateOf(1) } // Start with 1 to show extract
     var error by remember { mutableStateOf<String?>(null) }
     var selectedLanguage by remember { mutableStateOf("fr") }
 
@@ -100,10 +100,9 @@ fun WikipediaScreen(onBack: () -> Unit) {
                         scope.launch {
                             isLoading = true
                             error = null
-                            fullContent = null
-                            displayedParagraphs = 0
+                            displayedParagraphs = 1
                             try {
-                                wikiContent = fetchRandomWikipedia(selectedLanguage)
+                                wikiContent = fetchCompleteWikipedia(selectedLanguage)
                             } catch (e: Exception) {
                                 error = "Erreur de chargement: ${e.message}"
                             } finally {
@@ -117,7 +116,6 @@ fun WikipediaScreen(onBack: () -> Unit) {
 
                 Spacer(modifier = Modifier.width(8.dp))
 
-                // Smaller language selection button
                 MyButton(
                     text = if (selectedLanguage == "fr") "FR" else "EN",
                     onClick = {
@@ -154,56 +152,41 @@ fun WikipediaScreen(onBack: () -> Unit) {
                             modifier = Modifier.padding(bottom = 16.dp)
                         )
 
-                        // Summary (extract)
-                        Text(
-                            text = content.extract,
-                            style = MaterialTheme.typography.bodyMedium,
-                            lineHeight = 24.sp
+                        // Content with links
+                        val doc = remember(content.fullContentHtml) {
+                            Jsoup.parse(content.fullContentHtml)
+                        }
+                        val paragraphs = remember(doc) {
+                            doc.body().select("p").filter { it.text().isNotBlank() }
+                        }
+                        val paragraphsToShow = paragraphs.take(displayedParagraphs)
+
+                        HtmlTextWithLinks(
+                            html = paragraphsToShow.joinToString("") { it.outerHtml() }
                         )
 
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        // Full content with links
-                        fullContent?.let { contentHtml ->
-                            val doc = remember(contentHtml) { Jsoup.parse(contentHtml) }
-                            val paragraphs = doc.body().select("p")
-                            val paragraphsToShow = paragraphs.take(displayedParagraphs)
-
-                            HtmlTextWithLinks(
-                                html = paragraphsToShow.joinToString("") { it.outerHtml() }
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        // Lire plus button
-                        if (!isLoadingMore) {
-                            Text(
-                                text = "Lire plus",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.clickable {
-                                    scope.launch {
+                        // Lire plus button - only show if there are more paragraphs
+                        if (displayedParagraphs < paragraphs.size) {
+                            if (!isLoadingMore) {
+                                Text(
+                                    text = "Lire plus",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.clickable {
                                         isLoadingMore = true
-                                        try {
-                                            if (fullContent == null) {
-                                                fullContent = fetchFullWikipediaContentHtml(content.title, selectedLanguage)
-                                            }
-                                            displayedParagraphs += 1
-                                        } catch (e: Exception) {
-                                            error = "Erreur de chargement: ${e.message}"
-                                        } finally {
-                                            isLoadingMore = false
-                                        }
+                                        displayedParagraphs += 2 // Load 2 paragraphs at a time
+                                        isLoadingMore = false
                                     }
-                                }
-                            )
-                        } else {
-                            CircularProgressIndicator(
-                                modifier = Modifier
-                                    .align(Alignment.CenterHorizontally)
-                                    .padding(16.dp)
-                            )
+                                )
+                            } else {
+                                CircularProgressIndicator(
+                                    modifier = Modifier
+                                        .align(Alignment.CenterHorizontally)
+                                        .padding(16.dp)
+                                )
+                            }
                         }
                     }
                 }
@@ -214,47 +197,46 @@ fun WikipediaScreen(onBack: () -> Unit) {
 
 data class WikipediaContent(
     val title: String,
-    val extract: String,
+    val fullContentHtml: String,
     val url: String
 )
 
-suspend fun fetchRandomWikipedia(language: String = "fr"): WikipediaContent = withContext(Dispatchers.IO) {
-    val url = URL("https://$language.wikipedia.org/api/rest_v1/page/random/summary")
-    val connection = url.openConnection() as HttpURLConnection
+suspend fun fetchCompleteWikipedia(language: String = "fr"): WikipediaContent = withContext(Dispatchers.IO) {
+    // First, get a random article
+    val randomUrl = URL("https://$language.wikipedia.org/api/rest_v1/page/random/summary")
+    val randomConnection = randomUrl.openConnection() as HttpURLConnection
+
+    val title = try {
+        randomConnection.requestMethod = "GET"
+        randomConnection.setRequestProperty("User-Agent", "WikiApp/1.0")
+
+        val response = randomConnection.inputStream.bufferedReader().readText()
+        val json = JSONObject(response)
+        json.getString("title")
+    } finally {
+        randomConnection.disconnect()
+    }
+
+    // Then fetch the full content with HTML
+    val encodedTitle = URLEncoder.encode(title, "UTF-8")
+    val contentUrl = URL("https://$language.wikipedia.org/w/api.php?action=parse&format=json&page=$encodedTitle&prop=text")
+    val contentConnection = contentUrl.openConnection() as HttpURLConnection
 
     try {
-        connection.requestMethod = "GET"
-        connection.setRequestProperty("User-Agent", "WikiApp/1.0")
+        contentConnection.requestMethod = "GET"
+        contentConnection.setRequestProperty("User-Agent", "WikiApp/1.0")
 
-        val response = connection.inputStream.bufferedReader().readText()
+        val response = contentConnection.inputStream.bufferedReader().readText()
         val json = JSONObject(response)
+        val htmlContent = json.getJSONObject("parse").getJSONObject("text").getString("*")
 
         WikipediaContent(
-            title = json.getString("title"),
-            extract = json.getString("extract"),
-            url = JSONObject(json.getString("content_urls"))
-                .getJSONObject("desktop")
-                .getString("page")
+            title = title,
+            fullContentHtml = htmlContent,
+            url = "https://$language.wikipedia.org/wiki/${encodedTitle}"
         )
     } finally {
-        connection.disconnect()
-    }
-}
-
-suspend fun fetchFullWikipediaContentHtml(title: String, language: String = "fr"): String = withContext(Dispatchers.IO) {
-    val encodedTitle = URLEncoder.encode(title, "UTF-8")
-    val url = URL("https://$language.wikipedia.org/w/api.php?action=parse&format=json&page=$encodedTitle&prop=text")
-    val connection = url.openConnection() as HttpURLConnection
-
-    try {
-        connection.requestMethod = "GET"
-        connection.setRequestProperty("User-Agent", "WikiApp/1.0")
-
-        val response = connection.inputStream.bufferedReader().readText()
-        val json = JSONObject(response)
-        json.getJSONObject("parse").getJSONObject("text").getString("*")
-    } finally {
-        connection.disconnect()
+        contentConnection.disconnect()
     }
 }
 
@@ -279,19 +261,22 @@ fun appendElementRecursively(element: org.jsoup.nodes.Element, builder: Annotate
         "a" -> {
             val url = element.attr("href")
             val text = element.text()
-            val linkAnnotation = LinkAnnotation.Url(
-                url = url,
-                styles = TextLinkStyles(
-                    style = SpanStyle(
-                        fontWeight = FontWeight.Bold
+            if (text.isNotBlank()) {
+                val linkAnnotation = LinkAnnotation.Url(
+                    url = url,
+                    styles = TextLinkStyles(
+                        style = SpanStyle(
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF1976D2)
+                        )
                     )
-                )
-            ) { clickedLink ->
-                val clickedUrl = (clickedLink as LinkAnnotation.Url).url
-                println("Clicked: $clickedUrl")
-            }
-            builder.withLink(linkAnnotation) {
-                append(text)
+                ) { clickedLink ->
+                    val clickedUrl = (clickedLink as LinkAnnotation.Url).url
+                    println("Clicked: $clickedUrl")
+                }
+                builder.withLink(linkAnnotation) {
+                    append(text)
+                }
             }
         }
         else -> {
