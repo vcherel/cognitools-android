@@ -220,9 +220,10 @@ fun WikipediaScreen(onBack: () -> Unit) {
                                             !p.text().startsWith("modifier", ignoreCase = true) &&
                                             !p.text().startsWith("Cet article ne", ignoreCase = true) &&
                                             !p.text().startsWith("Si vous disposez", ignoreCase = true) &&
-                                            !p.text().startsWith("Si vous disposez", ignoreCase = true) &&
                                             !p.text().startsWith("Pour des articles plus généraux", ignoreCase = true) &&
-                                            !p.text().startsWith("Pour un article plus général", ignoreCase = true)
+                                            !p.text().startsWith("Pour un article plus général", ignoreCase = true) &&
+                                            !p.text().contains("redirige ici. Pour", ignoreCase = true) && // new filter
+                                            p.select("a").none { it.text().contains("Écouter") }
                                 }
                         }
                         val paragraphsToShow = paragraphs.take(displayedParagraphs)
