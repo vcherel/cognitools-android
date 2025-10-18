@@ -46,6 +46,7 @@ import org.json.JSONObject
 import org.jsoup.Jsoup
 import java.net.HttpURLConnection
 import java.net.URL
+import java.net.URLDecoder
 import java.net.URLEncoder
 
 @Composable
@@ -53,11 +54,26 @@ fun WikipediaScreen(onBack: () -> Unit) {
     var isLoading by remember { mutableStateOf(false) }
     var isLoadingMore by remember { mutableStateOf(false) }
     var wikiContent by remember { mutableStateOf<WikipediaContent?>(null) }
-    var displayedParagraphs by remember { mutableIntStateOf(1) } // Start with 1 to show extract
+    var displayedParagraphs by remember { mutableIntStateOf(1) }
     var error by remember { mutableStateOf<String?>(null) }
     var selectedLanguage by remember { mutableStateOf("fr") }
 
     val scope = rememberCoroutineScope()
+
+    val loadArticle: (String, String) -> Unit = { title, language ->
+        scope.launch {
+            isLoading = true
+            error = null
+            displayedParagraphs = 1
+            try {
+                wikiContent = fetchWikipediaByTitle(title, language)
+            } catch (e: Exception) {
+                error = "Erreur de chargement: ${e.message}"
+            } finally {
+                isLoading = false
+            }
+        }
+    }
 
     BackHandler { onBack() }
 
@@ -162,7 +178,16 @@ fun WikipediaScreen(onBack: () -> Unit) {
                         val paragraphsToShow = paragraphs.take(displayedParagraphs)
 
                         HtmlTextWithLinks(
-                            html = paragraphsToShow.joinToString("") { it.outerHtml() }
+                            html = paragraphsToShow.joinToString("") { it.outerHtml() },
+                            onLinkClick = { url ->
+                                // Extract title from Wikipedia URL
+                                val wikiPattern = """https?://(\w+)\.wikipedia\.org/wiki/(.+)""".toRegex()
+                                wikiPattern.find(url)?.let { matchResult ->
+                                    val lang = matchResult.groupValues[1]
+                                    val title = URLDecoder.decode(matchResult.groupValues[2], "UTF-8")
+                                    loadArticle(title, lang)
+                                }
+                            }
                         )
 
                         Spacer(modifier = Modifier.height(16.dp))
@@ -240,12 +265,35 @@ suspend fun fetchCompleteWikipedia(language: String = "fr"): WikipediaContent = 
     }
 }
 
+suspend fun fetchWikipediaByTitle(title: String, language: String = "fr"): WikipediaContent = withContext(Dispatchers.IO) {
+    val encodedTitle = URLEncoder.encode(title, "UTF-8")
+    val contentUrl = URL("https://$language.wikipedia.org/w/api.php?action=parse&format=json&page=$encodedTitle&prop=text")
+    val contentConnection = contentUrl.openConnection() as HttpURLConnection
+
+    try {
+        contentConnection.requestMethod = "GET"
+        contentConnection.setRequestProperty("User-Agent", "WikiApp/1.0")
+
+        val response = contentConnection.inputStream.bufferedReader().readText()
+        val json = JSONObject(response)
+        val htmlContent = json.getJSONObject("parse").getJSONObject("text").getString("*")
+
+        WikipediaContent(
+            title = title,
+            fullContentHtml = htmlContent,
+            url = "https://$language.wikipedia.org/wiki/${encodedTitle}"
+        )
+    } finally {
+        contentConnection.disconnect()
+    }
+}
+
 @Composable
-fun HtmlTextWithLinks(html: String) {
+fun HtmlTextWithLinks(html: String, onLinkClick: (String) -> Unit) {
     val doc = remember(html) { Jsoup.parse(html) }
     val annotatedString = buildAnnotatedString {
         doc.body().children().forEach { element ->
-            appendElementRecursively(element, this)
+            appendElementRecursively(element, this, onLinkClick)
             append("\n\n")
         }
     }
@@ -256,23 +304,33 @@ fun HtmlTextWithLinks(html: String) {
     )
 }
 
-fun appendElementRecursively(element: org.jsoup.nodes.Element, builder: AnnotatedString.Builder) {
+fun appendElementRecursively(
+    element: org.jsoup.nodes.Element,
+    builder: AnnotatedString.Builder,
+    onLinkClick: (String) -> Unit
+) {
     when (element.tagName()) {
         "a" -> {
             val url = element.attr("href")
             val text = element.text()
             if (text.isNotBlank()) {
-                val linkAnnotation = LinkAnnotation.Url(
-                    url = url,
+                // Convert relative URLs to absolute URLs
+                val absoluteUrl = if (url.startsWith("/wiki/")) {
+                    "https://fr.wikipedia.org$url"
+                } else {
+                    url
+                }
+
+                val linkAnnotation = LinkAnnotation.Clickable(
+                    tag = "wiki_link",
                     styles = TextLinkStyles(
                         style = SpanStyle(
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFF1976D2)
                         )
                     )
-                ) { clickedLink ->
-                    val clickedUrl = (clickedLink as LinkAnnotation.Url).url
-                    println("Clicked: $clickedUrl")
+                ) {
+                    onLinkClick(absoluteUrl)
                 }
                 builder.withLink(linkAnnotation) {
                     append(text)
@@ -283,7 +341,7 @@ fun appendElementRecursively(element: org.jsoup.nodes.Element, builder: Annotate
             element.childNodes().forEach { node ->
                 when (node) {
                     is org.jsoup.nodes.TextNode -> builder.append(node.text())
-                    is org.jsoup.nodes.Element -> appendElementRecursively(node, builder)
+                    is org.jsoup.nodes.Element -> appendElementRecursively(node, builder, onLinkClick)
                 }
             }
         }
