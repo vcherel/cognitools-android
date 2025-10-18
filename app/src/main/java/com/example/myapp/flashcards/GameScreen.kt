@@ -576,7 +576,7 @@ fun FlashcardGameScreen(listId: String, navController: NavController, onBack: ()
                     Spacer(Modifier.height(32.dp))
                     MyButton(
                         text = "Retour",
-                        onClick = onBack,
+                        onClick = { navController.navigate("elements/${listId}") },
                         modifier = Modifier.fillMaxWidth().height(56.dp)
                     )
 
