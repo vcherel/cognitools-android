@@ -222,7 +222,8 @@ fun WikipediaScreen(onBack: () -> Unit) {
                                             !p.text().startsWith("Si vous disposez", ignoreCase = true) &&
                                             !p.text().startsWith("Pour des articles plus généraux", ignoreCase = true) &&
                                             !p.text().startsWith("Pour un article plus général", ignoreCase = true) &&
-                                            !p.text().contains("redirige ici. Pour", ignoreCase = true) && // new filter
+                                            !p.text().startsWith("Cet article est orphelin", ignoreCase = true) &&
+                                            !p.text().contains("redirige ici. Pour", ignoreCase = true) &&
                                             p.select("a").none { it.text().contains("Écouter") }
                                 }
                         }
@@ -252,7 +253,7 @@ fun WikipediaScreen(onBack: () -> Unit) {
                                     color = MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.clickable {
                                         isLoadingMore = true
-                                        displayedParagraphs += 2 // Load 2 paragraphs at a time
+                                        displayedParagraphs += 1 // Load 2 paragraphs at a time
                                         isLoadingMore = false
                                     }
                                 )
@@ -369,8 +370,12 @@ fun appendElementRecursively(
     when (element.tagName()) {
         "a" -> {
             val url = element.attr("href")
-            val text = element.text()
-            if (text.isNotBlank() && !text.matches(Regex("""^\d+$"""))) {
+            val text = element.text().replace("""\\displaystyle""", "")
+
+            // Skip red links (non-existing pages)
+            val isRedLink = element.hasClass("new")
+
+            if (!isRedLink && text.isNotBlank() && !text.matches(Regex("""^\d+$"""))) {
                 val absoluteUrl = if (url.startsWith("/wiki/")) {
                     "https://fr.wikipedia.org$url"
                 } else url
