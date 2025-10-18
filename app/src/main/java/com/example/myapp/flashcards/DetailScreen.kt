@@ -61,6 +61,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.myapp.MyButton
@@ -247,7 +248,16 @@ fun FlashcardDetailScreen(
                                         verticalAlignment = Alignment.Top
                                     ) {
                                         Column(modifier = Modifier.weight(1f)) {
-                                            Text(element.name, style = MaterialTheme.typography.titleMedium)
+                                            var expandedName by remember { mutableStateOf(false) }
+                                            Text(
+                                                text = element.name,
+                                                style = MaterialTheme.typography.titleMedium,
+                                                maxLines = if (expandedName) Int.MAX_VALUE else 1,
+                                                overflow = if (expandedName) TextOverflow.Visible else TextOverflow.Ellipsis,
+                                                modifier = Modifier
+                                                    .clickable { expandedName = !expandedName }
+                                            )
+
                                             Text(
                                                 element.definition,
                                                 style = MaterialTheme.typography.bodyLarge
