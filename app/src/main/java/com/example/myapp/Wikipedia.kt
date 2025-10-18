@@ -210,7 +210,17 @@ fun WikipediaScreen(onBack: () -> Unit) {
                             Jsoup.parse(content.fullContentHtml)
                         }
                         val paragraphs = remember(doc) {
-                            doc.body().select("p").filter { it.text().isNotBlank() }
+                            doc.body()
+                                .select("p")
+                                .filter {
+                                    val text = it.text().trim()
+                                    text.isNotBlank() &&
+                                            !text.startsWith("Vous lisez un", ignoreCase = true) && // Article de qualité
+                                            !text.startsWith("Cet article est une", ignoreCase = true) && // Ebauche
+                                            !text.startsWith("Pour les articles", ignoreCase = true) && // Homonymes
+                                            !text.startsWith("modifier", ignoreCase = true) && // Modifier code
+                                            !text.startsWith("Cet article ne", ignoreCase = true) // Problème source
+                                }
                         }
                         val paragraphsToShow = paragraphs.take(displayedParagraphs)
 
