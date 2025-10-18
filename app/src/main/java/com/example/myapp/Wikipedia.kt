@@ -150,10 +150,8 @@ fun WikipediaScreen(onBack: () -> Unit) {
                             try {
                                 val newContent = fetchCompleteWikipedia(selectedLanguage)
 
-                                // Add current content to history before loading random
-                                if (wikiContent != null) {
-                                    navigationHistory = navigationHistory + wikiContent!!
-                                }
+                                // Clear history before loading random article
+                                navigationHistory = emptyList()
 
                                 wikiContent = newContent
                             } catch (e: Exception) {
