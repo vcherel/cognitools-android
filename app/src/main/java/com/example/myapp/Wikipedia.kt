@@ -229,7 +229,7 @@ fun WikipediaScreen(onBack: () -> Unit) {
                         val paragraphsToShow = paragraphs.take(displayedParagraphs)
 
                         HtmlTextWithLinks(
-                            html = paragraphsToShow.joinToString("") { it.outerHtml() },
+                            html = paragraphsToShow.joinToString("\n\n") { it.outerHtml().trim() },
                             onLinkClick = { url ->
                                 // Extract title from Wikipedia URL
                                 val wikiPattern = """https?://(\w+)\.wikipedia\.org/wiki/(.+)""".toRegex()
