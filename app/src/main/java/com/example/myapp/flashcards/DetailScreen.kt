@@ -104,30 +104,25 @@ fun FlashcardDetailScreen(
     val elementsState = remember { mutableStateListOf<FlashcardElement>() }
 
     // Sync repository elements into local state
-    LaunchedEffect(listId, lists.size) {
+    LaunchedEffect(listId, lists) {
         isLoading = true
+        elementsState.clear()
+
         if (isAllLists) {
-            // Get all elements from all lists
-            scope.launch {
-                val allElements = mutableListOf<FlashcardElement>()
-                lists.forEach { list ->
-                    allElements.addAll(repository.getElements(list.id))
-                }
-                elementsState.clear()
-                val chunkSize = 20
-                allElements.chunked(chunkSize).forEach { chunk ->
-                    elementsState.addAll(chunk)
-                    delay(16) // 60 FPS
-                }
-                isLoading = false
+            val allElements = lists.flatMap { list -> repository.getElements(list.id) }
+            val chunkSize = 20
+            allElements.chunked(chunkSize).forEach { chunk ->
+                elementsState.addAll(chunk)
+                delay(16)
             }
+            isLoading = false
         } else {
             repository.observeElements(listId).collect { list ->
                 elementsState.clear()
                 val chunkSize = 20
                 list.chunked(chunkSize).forEach { chunk ->
                     elementsState.addAll(chunk)
-                    delay(16) // 60 FPS
+                    delay(16)
                 }
                 isLoading = false
             }
