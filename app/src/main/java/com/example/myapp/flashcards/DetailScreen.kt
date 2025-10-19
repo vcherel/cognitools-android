@@ -557,7 +557,7 @@ fun FlashcardDetailScreen(
 
     val focusRequester2 = remember { FocusRequester() }
 
-    if (showDialog && !isAllLists) {
+    if (showDialog) {
         fun saveElement() {
             if (dialogName.isNotBlank() && dialogDefinition.isNotBlank()) {
                 scope.launch {
