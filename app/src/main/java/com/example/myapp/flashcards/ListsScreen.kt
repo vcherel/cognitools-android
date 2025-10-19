@@ -136,6 +136,13 @@ fun FlashcardListsScreen(onBack: () -> Unit, navController: NavController) {
                 }
 
                 Row {
+                    // Play All button
+                    IconButton(onClick = {
+                        navController.navigate("game/all")
+                    }) {
+                        Icon(Icons.Default.PlayArrow, contentDescription = "Jouer tout")
+                    }
+
                     IconButton(onClick = {
                         scope.launch(Dispatchers.IO) {
                             val exportData = repository.getExportData()

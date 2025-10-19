@@ -43,6 +43,7 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -78,8 +79,23 @@ fun FlashcardGameScreen(listId: String, navController: NavController, onBack: ()
     // Create repository instance
     val repository = remember { FlashcardRepository(context) }
 
+    // Check if we're in "all lists" mode
+    val isAllListsMode = listId == "all"
+
     // Observe elements from repository
-    val allElements by repository.observeElements(listId).collectAsState(initial = emptyList())
+    val allElements by if (isAllListsMode) {
+        // Get all elements from all lists
+        produceState(initialValue = emptyList()) {
+            repository.observeLists().collect { lists ->
+                val allCards = lists.flatMap { list ->
+                    repository.getElements(list.id)
+                }
+                value = allCards
+            }
+        }
+    } else {
+        repository.observeElements(listId).collectAsState(initial = emptyList())
+    }
 
     var currentCard by remember { mutableStateOf<FlashcardElement?>(null) }
     var isLoading by remember { mutableStateOf(true) }
@@ -88,7 +104,7 @@ fun FlashcardGameScreen(listId: String, navController: NavController, onBack: ()
     var isProcessingSwipe by remember { mutableStateOf(false) }
     var showFront by remember { mutableStateOf(true) }
     var activeDifficultCards by remember { mutableStateOf<Set<String>>(emptySet()) }
-    var localUpdates by remember { mutableStateOf<Map<String, FlashcardElement>>(emptyMap()) } // To update UI faster than database
+    var localUpdates by remember { mutableStateOf<Map<String, FlashcardElement>>(emptyMap()) }
 
     val dueCards by remember(allElements, localUpdates) {
         derivedStateOf {
@@ -193,7 +209,8 @@ fun FlashcardGameScreen(listId: String, navController: NavController, onBack: ()
             localUpdates = localUpdates + (card.id to updatedCard)
 
             scope.launch {
-                repository.updateElement(listId, updatedCard)
+                // Update in the correct list
+                repository.updateElement(card.listId, updatedCard)
             }
 
             if (wasCorrect && card.score >= 2) {
@@ -573,13 +590,15 @@ fun FlashcardGameScreen(listId: String, navController: NavController, onBack: ()
                         modifier = Modifier.fillMaxWidth().height(56.dp)
                     )
 
-                    Spacer(Modifier.height(32.dp))
-                    MyButton(
-                        text = "Retour",
-                        onClick = { navController.navigate("elements/${listId}") },
-                        modifier = Modifier.fillMaxWidth().height(56.dp)
-                    )
-
+                    // Show different back button depending on mode
+                    if (!isAllListsMode) {
+                        Spacer(Modifier.height(32.dp))
+                        MyButton(
+                            text = "Retour",
+                            onClick = { navController.navigate("elements/${listId}") },
+                            modifier = Modifier.fillMaxWidth().height(56.dp)
+                        )
+                    }
                 }
             }
         }
