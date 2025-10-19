@@ -105,7 +105,6 @@ fun FlashcardDetailScreen(
     // Sync repository elements into local state
     LaunchedEffect(listId, lists) {
         isLoading = true
-        elementsState.clear()
 
         if (isAllLists) {
             val allElements = lists.flatMap { list -> repository.getElements(list.id) }
