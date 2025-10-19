@@ -296,31 +296,12 @@ suspend fun fetchCompleteWikipedia(language: String = "fr"): WikipediaContent = 
     }
 
     // Then fetch the full content with HTML
-    val encodedTitle = URLEncoder.encode(title, "UTF-8")
-    val contentUrl = URL("https://$language.wikipedia.org/w/api.php?action=parse&format=json&page=$encodedTitle&prop=text")
-    val contentConnection = contentUrl.openConnection() as HttpURLConnection
-
-    try {
-        contentConnection.requestMethod = "GET"
-        contentConnection.setRequestProperty("User-Agent", "WikiApp/1.0")
-
-        val response = contentConnection.inputStream.bufferedReader().readText()
-        val json = JSONObject(response)
-        val htmlContent = json.getJSONObject("parse").getJSONObject("text").getString("*")
-
-        WikipediaContent(
-            title = title,
-            fullContentHtml = htmlContent,
-            url = "https://$language.wikipedia.org/wiki/${encodedTitle}"
-        )
-    } finally {
-        contentConnection.disconnect()
-    }
+    fetchWikipediaByTitle(title, language)
 }
 
 suspend fun fetchWikipediaByTitle(title: String, language: String = "fr"): WikipediaContent = withContext(Dispatchers.IO) {
     val encodedTitle = URLEncoder.encode(title, "UTF-8")
-    val contentUrl = URL("https://$language.wikipedia.org/w/api.php?action=parse&format=json&page=$encodedTitle&prop=text")
+    val contentUrl = URL("https://$language.wikipedia.org/w/api.php?action=parse&format=json&page=$encodedTitle&prop=text&redirects=1")
     val contentConnection = contentUrl.openConnection() as HttpURLConnection
 
     try {
@@ -329,12 +310,20 @@ suspend fun fetchWikipediaByTitle(title: String, language: String = "fr"): Wikip
 
         val response = contentConnection.inputStream.bufferedReader().readText()
         val json = JSONObject(response)
-        val htmlContent = json.getJSONObject("parse").getJSONObject("text").getString("*")
+
+        // Check if there's an error (page doesn't exist)
+        if (json.has("error")) {
+            throw Exception("Page not found: ${json.getJSONObject("error").getString("info")}")
+        }
+
+        val parseObject = json.getJSONObject("parse")
+        val actualTitle = parseObject.getString("title")
+        val htmlContent = parseObject.getJSONObject("text").getString("*")
 
         WikipediaContent(
-            title = title,
+            title = actualTitle,
             fullContentHtml = htmlContent,
-            url = "https://$language.wikipedia.org/wiki/${encodedTitle}"
+            url = "https://$language.wikipedia.org/wiki/${URLEncoder.encode(actualTitle, "UTF-8")}"
         )
     } finally {
         contentConnection.disconnect()
