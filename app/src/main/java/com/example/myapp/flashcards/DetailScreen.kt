@@ -96,7 +96,7 @@ fun FlashcardDetailScreen(
     // Observe lists
     val lists by repository.observeLists().collectAsState(initial = emptyList())
     val listName = remember(lists, listId) {
-        if (isAllLists) "Toutes les listes"
+        if (isAllLists) "Tout"
         else lists.find { it.id == listId }?.name ?: ""
     }
 
@@ -182,47 +182,45 @@ fun FlashcardDetailScreen(
                     }
                 )
 
-                if (!isAllLists) {
-                    Spacer(modifier = Modifier.width(16.dp))
+                Spacer(modifier = Modifier.width(16.dp))
 
-                    Column(horizontalAlignment = Alignment.End) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            IconButton(onClick = {
-                                // Cycle through 0 -> 1 -> 2 -> 3 -> 0
-                                sortState = (sortState + 1) % 4
+                Column(horizontalAlignment = Alignment.End) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(onClick = {
+                            // Cycle through 0 -> 1 -> 2 -> 3 -> 0
+                            sortState = (sortState + 1) % 4
 
-                                // Show a toast for the current sort
-                                val toastMessage = when(sortState) {
-                                    0 -> "Tri : Intervalle révision (décroissant)"
-                                    1 -> "Tri : Intervalle révision (croissant)"
-                                    2 -> "Tri : Nombre vues totales (décroissant)"
-                                    3 -> "Tri : Nombre vues totales (croissant)"
-                                    else -> ""
-                                }
-                                Toast.makeText(context, toastMessage, Toast.LENGTH_SHORT).show()
-
-                                // Scroll to top after sort state changes
-                                scope.launch {
-                                    delay(50)
-                                    listState.scrollToItem(0)
-                                }
-                            }) {
-                                Icon(Icons.Default.SwapVert, contentDescription = "Trier")
+                            // Show a toast for the current sort
+                            val toastMessage = when(sortState) {
+                                0 -> "Tri : Intervalle révision (décroissant)"
+                                1 -> "Tri : Intervalle révision (croissant)"
+                                2 -> "Tri : Nombre vues totales (décroissant)"
+                                3 -> "Tri : Nombre vues totales (croissant)"
+                                else -> ""
                             }
+                            Toast.makeText(context, toastMessage, Toast.LENGTH_SHORT).show()
 
-                            Spacer(Modifier.width(8.dp))
-                            Box(
-                                modifier = Modifier
-                                    .height(24.dp)
-                                    .width(1.dp)
-                                    .background(Color.Gray)
-                            )
-                            Spacer(Modifier.width(8.dp))
-                            Text(
-                                "${elementsState.count { isDue(it) }} à réviser",
-                                style = MaterialTheme.typography.bodyMedium
-                            )
+                            // Scroll to top after sort state changes
+                            scope.launch {
+                                delay(50)
+                                listState.scrollToItem(0)
+                            }
+                        }) {
+                            Icon(Icons.Default.SwapVert, contentDescription = "Trier")
                         }
+
+                        Spacer(Modifier.width(8.dp))
+                        Box(
+                            modifier = Modifier
+                                .height(24.dp)
+                                .width(1.dp)
+                                .background(Color.Gray)
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            "${elementsState.count { isDue(it) }} à réviser",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
                     }
                 }
             }
