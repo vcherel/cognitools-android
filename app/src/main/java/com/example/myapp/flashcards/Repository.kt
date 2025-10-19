@@ -159,6 +159,12 @@ class FlashcardRepository(private val context: Context) {
         }
         saveElements(listId, updated)
     }
+
+    suspend fun getListNameById(listId: String): String {
+        val lists = getLists()
+        return lists.find { it.id == listId }?.name ?: ""
+    }
+
 }
 
 val Context.dataStore by preferencesDataStore("flashcards")

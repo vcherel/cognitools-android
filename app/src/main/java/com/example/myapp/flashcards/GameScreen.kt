@@ -57,6 +57,7 @@ import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -105,6 +106,15 @@ fun FlashcardGameScreen(listId: String, navController: NavController, onBack: ()
     var showFront by remember { mutableStateOf(true) }
     var activeDifficultCards by remember { mutableStateOf<Set<String>>(emptySet()) }
     var localUpdates by remember { mutableStateOf<Map<String, FlashcardElement>>(emptyMap()) }
+    var listName by remember { mutableStateOf("") }
+
+    LaunchedEffect(currentCard) {
+        listName = if (isAllListsMode && currentCard != null) {
+            repository.getListNameById(currentCard!!.listId)
+        } else {
+            ""
+        }
+    }
 
     val dueCards by remember(allElements, localUpdates) {
         derivedStateOf {
@@ -426,6 +436,20 @@ fun FlashcardGameScreen(listId: String, navController: NavController, onBack: ()
                                     fontWeight = FontWeight.Bold
                                 )
                             }
+
+                            if (isAllListsMode) {
+                                Text(
+                                    text = listName,
+                                    style = MaterialTheme.typography.bodyMedium.copy(
+                                        color = Color.Gray,
+                                        fontStyle = FontStyle.Italic
+                                    ),
+                                    modifier = Modifier
+                                        .align(Alignment.BottomStart)
+                                        .padding(12.dp)
+                                )
+                            }
+
                         }
                     }
                 }
