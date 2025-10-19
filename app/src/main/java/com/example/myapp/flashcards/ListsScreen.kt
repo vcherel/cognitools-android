@@ -132,7 +132,13 @@ fun FlashcardListsScreen(onBack: () -> Unit, navController: NavController) {
                     Text(
                         "Mes listes",
                         style = MaterialTheme.typography.headlineSmall,
-                        modifier = Modifier.padding(start = 8.dp)
+                        modifier = Modifier.padding(start = 8.dp, end = 15.dp)
+                    )
+                    Box(
+                        modifier = Modifier
+                            .width(2.dp)
+                            .height(24.dp)
+                            .background(Color.LightGray)
                     )
                 }
 

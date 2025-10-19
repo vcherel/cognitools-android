@@ -177,7 +177,7 @@ fun MenuScreen(onNavigate: (String) -> Unit) {
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
-            text = "Bienvenue!",
+            text = "Bienvenue !",
             style = MaterialTheme.typography.headlineLarge,
             textAlign = TextAlign.Center
         )
