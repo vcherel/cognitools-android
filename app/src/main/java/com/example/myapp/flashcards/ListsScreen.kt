@@ -136,9 +136,9 @@ fun FlashcardListsScreen(onBack: () -> Unit, navController: NavController) {
                     )
                     Box(
                         modifier = Modifier
-                            .width(2.dp)
+                            .width(1.dp)
                             .height(24.dp)
-                            .background(Color.LightGray)
+                            .background(Color.Gray)
                     )
                 }
 

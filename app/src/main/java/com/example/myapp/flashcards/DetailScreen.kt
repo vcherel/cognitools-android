@@ -168,60 +168,67 @@ fun FlashcardDetailScreen(
         Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
             Spacer(Modifier.height(16.dp))
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 2.dp, end = 16.dp, top = 8.dp, bottom = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                IconButton(onClick = { onBack() }) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Retour")
-                }
-                Text(
-                    listName,
-                    style = MaterialTheme.typography.headlineSmall,
-                    modifier = Modifier.clickable {
-                        scope.launch { listState.scrollToItem(0) }
+                // Left side: back button + title
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = { onBack() }) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Retour")
                     }
-                )
-
-                Spacer(modifier = Modifier.width(16.dp))
-
-                Column(horizontalAlignment = Alignment.End) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        IconButton(onClick = {
-                            // Cycle through 0 -> 1 -> 2 -> 3 -> 0
-                            sortState = (sortState + 1) % 4
-
-                            // Show a toast for the current sort
-                            val toastMessage = when(sortState) {
-                                0 -> "Tri : Intervalle révision (décroissant)"
-                                1 -> "Tri : Intervalle révision (croissant)"
-                                2 -> "Tri : Nombre vues totales (décroissant)"
-                                3 -> "Tri : Nombre vues totales (croissant)"
-                                else -> ""
-                            }
-                            Toast.makeText(context, toastMessage, Toast.LENGTH_SHORT).show()
-
-                            // Scroll to top after sort state changes
-                            scope.launch {
-                                delay(50)
-                                listState.scrollToItem(0)
-                            }
-                        }) {
-                            Icon(Icons.Default.SwapVert, contentDescription = "Trier")
+                    Text(
+                        listName,
+                        style = MaterialTheme.typography.headlineSmall,
+                        modifier = Modifier.clickable {
+                            scope.launch { listState.scrollToItem(0) }
                         }
+                    )
+                }
 
-                        Spacer(Modifier.width(8.dp))
-                        Box(
-                            modifier = Modifier
-                                .height(24.dp)
-                                .width(1.dp)
-                                .background(Color.Gray)
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        Text(
-                            "${elementsState.count { isDue(it) }} à réviser",
-                            style = MaterialTheme.typography.bodyMedium
-                        )
+                // Right side: sort button + divider + "X à réviser"
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    IconButton(onClick = {
+                        sortState = (sortState + 1) % 4
+                        val toastMessage = when(sortState) {
+                            0 -> "Tri : Intervalle révision (décroissant)"
+                            1 -> "Tri : Intervalle révision (croissant)"
+                            2 -> "Tri : Nombre vues totales (décroissant)"
+                            3 -> "Tri : Nombre vues totales (croissant)"
+                            else -> ""
+                        }
+                        Toast.makeText(context, toastMessage, Toast.LENGTH_SHORT).show()
+                        scope.launch {
+                            delay(50)
+                            listState.scrollToItem(0)
+                        }
+                    }) {
+                        Icon(Icons.Default.SwapVert, contentDescription = "Trier")
                     }
+
+                    Spacer(Modifier.width(2.dp))
+
+                    Box(
+                        modifier = Modifier
+                            .height(24.dp)
+                            .width(1.dp)
+                            .background(Color.Gray)
+                    )
+
+                    Spacer(Modifier.width(8.dp))
+
+                    Text(
+                        "${elementsState.count { isDue(it) }} à réviser",
+                        style = MaterialTheme.typography.bodyMedium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        textAlign = TextAlign.End
+                    )
                 }
             }
 
