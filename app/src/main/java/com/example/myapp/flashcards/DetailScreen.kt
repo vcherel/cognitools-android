@@ -379,64 +379,61 @@ fun FlashcardDetailScreen(
                                                     )
                                                 }
 
-                                                // Only show action buttons if not in "all lists" mode
-                                                if (!isAllLists) {
-                                                    Spacer(modifier = Modifier.width(4.dp))
+                                                Spacer(modifier = Modifier.width(4.dp))
 
-                                                    IconButton(
-                                                        onClick = {
-                                                            editingElement = element
-                                                            dialogName = element.name
-                                                            dialogDefinition = element.definition
-                                                            showDialog = true
+                                                IconButton(
+                                                    onClick = {
+                                                        editingElement = element
+                                                        dialogName = element.name
+                                                        dialogDefinition = element.definition
+                                                        showDialog = true
                                                         },
-                                                        modifier = Modifier.size(24.dp)
-                                                    ) {
-                                                        Icon(
-                                                            Icons.Default.Edit,
-                                                            contentDescription = "Éditer",
-                                                            modifier = Modifier.size(20.dp)
-                                                        )
-                                                    }
+                                                    modifier = Modifier.size(24.dp)
+                                                ) {
+                                                    Icon(
+                                                        Icons.Default.Edit,
+                                                        contentDescription = "Éditer",
+                                                        modifier = Modifier.size(20.dp)
+                                                    )
+                                                }
 
-                                                    IconButton(
-                                                        onClick = { elementToDelete = element },
-                                                        modifier = Modifier.size(24.dp)
-                                                    ) {
-                                                        Icon(
-                                                            Icons.Default.Delete,
-                                                            contentDescription = "Supprimer",
-                                                            modifier = Modifier.size(20.dp)
-                                                        )
-                                                    }
+                                                IconButton(
+                                                    onClick = { elementToDelete = element },
+                                                    modifier = Modifier.size(24.dp)
+                                                ) {
+                                                    Icon(
+                                                        Icons.Default.Delete,
+                                                        contentDescription = "Supprimer",
+                                                        modifier = Modifier.size(20.dp)
+                                                    )
+                                                }
 
-                                                    IconButton(
-                                                        onClick = {
-                                                            scope.launch {
-                                                                // Update local state immediately for UI stability
-                                                                val idx = elementsState.indexOfFirst { it.id == element.id }
-                                                                if (idx != -1) {
-                                                                    elementsState[idx] = element.copy(
-                                                                        easeFactor = 2.5,
-                                                                        interval = 0,
-                                                                        repetitions = 0,
-                                                                        lastReview = System.currentTimeMillis(),
-                                                                        totalWins = 0,
-                                                                        totalLosses = 0,
-                                                                        score = 0.0
-                                                                    )
-                                                                }
-                                                                repository.resetElement(element.listId, element.id)
+                                                IconButton(
+                                                    onClick = {
+                                                        scope.launch {
+                                                            // Update local state immediately for UI stability
+                                                            val idx = elementsState.indexOfFirst { it.id == element.id }
+                                                            if (idx != -1) {
+                                                                elementsState[idx] = element.copy(
+                                                                    easeFactor = 2.5,
+                                                                    interval = 0,
+                                                                    repetitions = 0,
+                                                                    lastReview = System.currentTimeMillis(),
+                                                                    totalWins = 0,
+                                                                    totalLosses = 0,
+                                                                    score = 0.0
+                                                                )
                                                             }
-                                                        },
-                                                        modifier = Modifier.size(24.dp)
-                                                    ) {
-                                                        Icon(
-                                                            Icons.Default.Refresh,
-                                                            contentDescription = "Réinitialiser",
-                                                            modifier = Modifier.size(20.dp)
-                                                        )
-                                                    }
+                                                            repository.resetElement(element.listId, element.id)
+                                                        }
+                                                    },
+                                                    modifier = Modifier.size(24.dp)
+                                                ) {
+                                                    Icon(
+                                                        Icons.Default.Refresh,
+                                                        contentDescription = "Réinitialiser",
+                                                        modifier = Modifier.size(20.dp)
+                                                    )
                                                 }
                                             }
                                         }
