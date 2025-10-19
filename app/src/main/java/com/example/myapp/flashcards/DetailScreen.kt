@@ -543,7 +543,11 @@ fun FlashcardDetailScreen(
             title = "T'es sûr ??",
             onCancel = { elementToDelete = null },
             onConfirm = {
-                scope.launch { repository.deleteElement(element.listId, element.id) }
+                scope.launch {
+                    repository.deleteElement(element.listId, element.id)
+                    // Update UI immediately
+                    elementsState.removeIf { it.id == element.id && it.listId == element.listId }
+                }
                 elementToDelete = null
             },
             cancelText = "Oula non merci",
