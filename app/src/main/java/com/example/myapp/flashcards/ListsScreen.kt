@@ -32,6 +32,7 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
@@ -136,6 +137,13 @@ fun FlashcardListsScreen(onBack: () -> Unit, navController: NavController) {
                 }
 
                 Row {
+                    // Search All button
+                    IconButton(onClick = {
+                        navController.navigate("elements/all")
+                    }) {
+                        Icon(Icons.Default.Search, contentDescription = "Rechercher dans tout")
+                    }
+
                     // Play All button
                     IconButton(onClick = {
                         navController.navigate("game/all")

@@ -1,5 +1,6 @@
 package com.example.myapp.flashcards
 
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
@@ -83,33 +84,53 @@ fun FlashcardDetailScreen(
     var showDialog by remember { mutableStateOf(false) }
     var dialogName by remember { mutableStateOf("") }
     var dialogDefinition by remember { mutableStateOf("") }
-    var editingIndex by remember { mutableStateOf<Int?>(null) }
+    var editingElement by remember { mutableStateOf<FlashcardElement?>(null) }
     var searchQuery by remember { mutableStateOf("") }
     var elementToDelete by remember { mutableStateOf<FlashcardElement?>(null) }
     var selectedElement by remember { mutableStateOf<FlashcardElement?>(null) }
     var isLoading by remember { mutableStateOf(true) }
     var sortState by remember { mutableIntStateOf(0) }
 
+    val isAllLists = listId == "all"
+
     // Observe lists
     val lists by repository.observeLists().collectAsState(initial = emptyList())
     val listName = remember(lists, listId) {
-        lists.find { it.id == listId }?.name ?: ""
+        if (isAllLists) "Toutes les listes"
+        else lists.find { it.id == listId }?.name ?: ""
     }
 
     // Local mutable list for fast UI updates
     val elementsState = remember { mutableStateListOf<FlashcardElement>() }
 
     // Sync repository elements into local state
-    LaunchedEffect(listId) {
+    LaunchedEffect(listId, lists.size) {
         isLoading = true
-        repository.observeElements(listId).collect { list ->
-            elementsState.clear()
-            val chunkSize = 20
-            list.chunked(chunkSize).forEach { chunk ->
-                elementsState.addAll(chunk)
-                delay(16) // 60 FPS
+        if (isAllLists) {
+            // Get all elements from all lists
+            scope.launch {
+                val allElements = mutableListOf<FlashcardElement>()
+                lists.forEach { list ->
+                    allElements.addAll(repository.getElements(list.id))
+                }
+                elementsState.clear()
+                val chunkSize = 20
+                allElements.chunked(chunkSize).forEach { chunk ->
+                    elementsState.addAll(chunk)
+                    delay(16) // 60 FPS
+                }
+                isLoading = false
             }
-            isLoading = false
+        } else {
+            repository.observeElements(listId).collect { list ->
+                elementsState.clear()
+                val chunkSize = 20
+                list.chunked(chunkSize).forEach { chunk ->
+                    elementsState.addAll(chunk)
+                    delay(16) // 60 FPS
+                }
+                isLoading = false
+            }
         }
     }
 
@@ -131,8 +152,11 @@ fun FlashcardDetailScreen(
             else -> filtered
         }
 
+        // Deduplicate by composite key (listId + id)
+        val unique = sorted.distinctBy { "${it.listId}_${it.id}" }
+
         visibleElements.clear()
-        visibleElements.addAll(sorted)
+        visibleElements.addAll(unique)
     }
 
     BackHandler {
@@ -158,45 +182,47 @@ fun FlashcardDetailScreen(
                     }
                 )
 
-                Spacer(modifier = Modifier.width(16.dp))
+                if (!isAllLists) {
+                    Spacer(modifier = Modifier.width(16.dp))
 
-                Column(horizontalAlignment = Alignment.End) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        IconButton(onClick = {
-                            // Cycle through 0 -> 1 -> 2 -> 3 -> 0
-                            sortState = (sortState + 1) % 4
+                    Column(horizontalAlignment = Alignment.End) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            IconButton(onClick = {
+                                // Cycle through 0 -> 1 -> 2 -> 3 -> 0
+                                sortState = (sortState + 1) % 4
 
-                            // Show a toast for the current sort
-                            val toastMessage = when(sortState) {
-                                0 -> "Tri : Intervalle révision (décroissant)"
-                                1 -> "Tri : Intervalle révision (croissant)"
-                                2 -> "Tri : Nombre vues totales (décroissant)"
-                                3 -> "Tri : Nombre vues totales (croissant)"
-                                else -> ""
+                                // Show a toast for the current sort
+                                val toastMessage = when(sortState) {
+                                    0 -> "Tri : Intervalle révision (décroissant)"
+                                    1 -> "Tri : Intervalle révision (croissant)"
+                                    2 -> "Tri : Nombre vues totales (décroissant)"
+                                    3 -> "Tri : Nombre vues totales (croissant)"
+                                    else -> ""
+                                }
+                                Toast.makeText(context, toastMessage, Toast.LENGTH_SHORT).show()
+
+                                // Scroll to top after sort state changes
+                                scope.launch {
+                                    delay(50)
+                                    listState.scrollToItem(0)
+                                }
+                            }) {
+                                Icon(Icons.Default.SwapVert, contentDescription = "Trier")
                             }
-                            Toast.makeText(context, toastMessage, Toast.LENGTH_SHORT).show()
 
-                            // Scroll to top after sort state changes
-                            scope.launch {
-                                delay(50)
-                                listState.scrollToItem(0)
-                            }
-                        }) {
-                            Icon(Icons.Default.SwapVert, contentDescription = "Trier")
+                            Spacer(Modifier.width(8.dp))
+                            Box(
+                                modifier = Modifier
+                                    .height(24.dp)
+                                    .width(1.dp)
+                                    .background(Color.Gray)
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                "${elementsState.count { isDue(it) }} à réviser",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
                         }
-
-                        Spacer(Modifier.width(8.dp))
-                        Box(
-                            modifier = Modifier
-                                .height(24.dp)
-                                .width(1.dp)
-                                .background(Color.Gray)
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        Text(
-                            "${elementsState.count { isDue(it) }} à réviser",
-                            style = MaterialTheme.typography.bodyMedium
-                        )
                     }
                 }
             }
@@ -226,14 +252,27 @@ fun FlashcardDetailScreen(
                 Box(modifier = Modifier.weight(1f)) {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(bottom = 116.dp),
+                        contentPadding = PaddingValues(bottom = if (isAllLists) 16.dp else 116.dp),
                         state = listState
                     ) {
+                        val duplicates = elementsState.groupingBy { "${it.listId}_${it.id}" }
+                            .eachCount().filter { it.value > 1 }
+
+                        if (duplicates.isNotEmpty()) {
+                            Log.w("FlashcardDetail", "Duplicate keys found: $duplicates")
+                        }
+
                         items(
                             count = visibleElements.size,
-                            key = { index -> visibleElements[index].id }
+                            key = { index ->
+                                val e = visibleElements[index]
+                                if (isAllLists) "${e.listId}_${e.id}" else e.id
+                            }
+
                         ) { index ->
                             val element = visibleElements[index]
+                            val elementListName = lists.find { it.id == element.listId }?.name ?: ""
+
                             Card(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -242,6 +281,16 @@ fun FlashcardDetailScreen(
                                 elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
                             ) {
                                 Column(modifier = Modifier.padding(10.dp)) {
+                                    // Show list name if viewing all lists
+                                    if (isAllLists && elementListName.isNotBlank()) {
+                                        Text(
+                                            text = elementListName,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.padding(bottom = 4.dp)
+                                        )
+                                    }
+
                                     Row(
                                         modifier = Modifier.fillMaxWidth(),
                                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -330,61 +379,64 @@ fun FlashcardDetailScreen(
                                                     )
                                                 }
 
-                                                Spacer(modifier = Modifier.width(4.dp))
+                                                // Only show action buttons if not in "all lists" mode
+                                                if (!isAllLists) {
+                                                    Spacer(modifier = Modifier.width(4.dp))
 
-                                                IconButton(
-                                                    onClick = {
-                                                        editingIndex = elementsState.indexOfFirst { it.id == element.id }
-                                                        dialogName = element.name
-                                                        dialogDefinition = element.definition
-                                                        showDialog = true
-                                                    },
-                                                    modifier = Modifier.size(24.dp)
-                                                ) {
-                                                    Icon(
-                                                        Icons.Default.Edit,
-                                                        contentDescription = "Éditer",
-                                                        modifier = Modifier.size(20.dp)
-                                                    )
-                                                }
+                                                    IconButton(
+                                                        onClick = {
+                                                            editingElement = element
+                                                            dialogName = element.name
+                                                            dialogDefinition = element.definition
+                                                            showDialog = true
+                                                        },
+                                                        modifier = Modifier.size(24.dp)
+                                                    ) {
+                                                        Icon(
+                                                            Icons.Default.Edit,
+                                                            contentDescription = "Éditer",
+                                                            modifier = Modifier.size(20.dp)
+                                                        )
+                                                    }
 
-                                                IconButton(
-                                                    onClick = { elementToDelete = element },
-                                                    modifier = Modifier.size(24.dp)
-                                                ) {
-                                                    Icon(
-                                                        Icons.Default.Delete,
-                                                        contentDescription = "Supprimer",
-                                                        modifier = Modifier.size(20.dp)
-                                                    )
-                                                }
+                                                    IconButton(
+                                                        onClick = { elementToDelete = element },
+                                                        modifier = Modifier.size(24.dp)
+                                                    ) {
+                                                        Icon(
+                                                            Icons.Default.Delete,
+                                                            contentDescription = "Supprimer",
+                                                            modifier = Modifier.size(20.dp)
+                                                        )
+                                                    }
 
-                                                IconButton(
-                                                    onClick = {
-                                                        scope.launch {
-                                                            // Update local state immediately for UI stability
-                                                            val index = elementsState.indexOfFirst { it.id == element.id }
-                                                            if (index != -1) {
-                                                                elementsState[index] = element.copy(
-                                                                    easeFactor = 2.5,
-                                                                    interval = 0,
-                                                                    repetitions = 0,
-                                                                    lastReview = System.currentTimeMillis(),
-                                                                    totalWins = 0,
-                                                                    totalLosses = 0,
-                                                                    score = 0.0
-                                                                )
+                                                    IconButton(
+                                                        onClick = {
+                                                            scope.launch {
+                                                                // Update local state immediately for UI stability
+                                                                val idx = elementsState.indexOfFirst { it.id == element.id }
+                                                                if (idx != -1) {
+                                                                    elementsState[idx] = element.copy(
+                                                                        easeFactor = 2.5,
+                                                                        interval = 0,
+                                                                        repetitions = 0,
+                                                                        lastReview = System.currentTimeMillis(),
+                                                                        totalWins = 0,
+                                                                        totalLosses = 0,
+                                                                        score = 0.0
+                                                                    )
+                                                                }
+                                                                repository.resetElement(element.listId, element.id)
                                                             }
-                                                            repository.resetElement(listId, element.id)
-                                                        }
-                                                    },
-                                                    modifier = Modifier.size(24.dp)
-                                                ) {
-                                                    Icon(
-                                                        Icons.Default.Refresh,
-                                                        contentDescription = "Réinitialiser",
-                                                        modifier = Modifier.size(20.dp)
-                                                    )
+                                                        },
+                                                        modifier = Modifier.size(24.dp)
+                                                    ) {
+                                                        Icon(
+                                                            Icons.Default.Refresh,
+                                                            contentDescription = "Réinitialiser",
+                                                            modifier = Modifier.size(20.dp)
+                                                        )
+                                                    }
                                                 }
                                             }
                                         }
@@ -394,54 +446,59 @@ fun FlashcardDetailScreen(
                         }
                     }
 
-                    // Gradient overlay at the bottom
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.BottomCenter)
-                            .fillMaxWidth()
-                            .height(150.dp)
-                            .background(
-                                brush = Brush.verticalGradient(
-                                    colors = listOf(
-                                        Color.Transparent,
-                                        Color(0xFFFEF7FF)
-                                    ),
-                                    startY = 0f,
-                                    endY = Float.POSITIVE_INFINITY
+                    // Gradient overlay at the bottom (only if not in "all lists" mode)
+                    if (!isAllLists) {
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.BottomCenter)
+                                .fillMaxWidth()
+                                .height(150.dp)
+                                .background(
+                                    brush = Brush.verticalGradient(
+                                        colors = listOf(
+                                            Color.Transparent,
+                                            Color(0xFFFEF7FF)
+                                        ),
+                                        startY = 0f,
+                                        endY = Float.POSITIVE_INFINITY
+                                    )
                                 )
-                            )
-                    )
+                        )
+                    }
                 }
 
                 Spacer(Modifier.height(16.dp))
             }
         }
 
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.Bottom
-        ) {
-            Row(
+        // Show action buttons only if not in "all lists" mode
+        if (!isAllLists) {
+            Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .height(100.dp),
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    .fillMaxSize()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.Bottom
             ) {
-                MyButton(
-                    text = "Jouer",
-                    modifier = Modifier.weight(1f).height(100.dp)
-                ) { navController.navigate("game/$listId") }
-
-                MyButton(
-                    text = "Ajouter",
-                    modifier = Modifier.weight(1f).height(100.dp)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(100.dp),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    dialogName = ""
-                    dialogDefinition = ""
-                    editingIndex = null
-                    showDialog = true
+                    MyButton(
+                        text = "Jouer",
+                        modifier = Modifier.weight(1f).height(100.dp)
+                    ) { navController.navigate("game/$listId") }
+
+                    MyButton(
+                        text = "Ajouter",
+                        modifier = Modifier.weight(1f).height(100.dp)
+                    ) {
+                        dialogName = ""
+                        dialogDefinition = ""
+                        editingElement = null
+                        showDialog = true
+                    }
                 }
             }
         }
@@ -491,7 +548,7 @@ fun FlashcardDetailScreen(
             title = "T'es sûr ??",
             onCancel = { elementToDelete = null },
             onConfirm = {
-                scope.launch { repository.deleteElement(listId, element.id) }
+                scope.launch { repository.deleteElement(element.listId, element.id) }
                 elementToDelete = null
             },
             cancelText = "Oula non merci",
@@ -501,11 +558,11 @@ fun FlashcardDetailScreen(
 
     val focusRequester2 = remember { FocusRequester() }
 
-    if (showDialog) {
+    if (showDialog && !isAllLists) {
         fun saveElement() {
             if (dialogName.isNotBlank() && dialogDefinition.isNotBlank()) {
                 scope.launch {
-                    if (editingIndex == null) {
+                    if (editingElement == null) {
                         val newElement = FlashcardElement(
                             listId = listId,
                             name = dialogName,
@@ -514,12 +571,15 @@ fun FlashcardDetailScreen(
                         elementsState.add(newElement)
                         repository.addElement(listId, newElement)
                     } else {
-                        val updatedElement = elementsState[editingIndex!!].copy(
+                        val updatedElement = editingElement!!.copy(
                             name = dialogName,
                             definition = dialogDefinition
                         )
-                        elementsState[editingIndex!!] = updatedElement
-                        repository.updateElement(listId, updatedElement)
+                        val idx = elementsState.indexOfFirst { it.id == editingElement!!.id }
+                        if (idx != -1) {
+                            elementsState[idx] = updatedElement
+                        }
+                        repository.updateElement(editingElement!!.listId, updatedElement)
                     }
                 }
                 showDialog = false
@@ -528,7 +588,7 @@ fun FlashcardDetailScreen(
 
         ShowAlertDialog(
             onDismiss = { showDialog = false },
-            title = if (editingIndex == null) "Nouvel élément" else "Modifier élément",
+            title = if (editingElement == null) "Nouvel élément" else "Modifier élément",
             textContent = {
                 Column {
                     TextField(
