@@ -168,9 +168,7 @@ fun FlashcardDetailScreen(
         Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
             Spacer(Modifier.height(16.dp))
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = 2.dp, end = 16.dp, top = 8.dp, bottom = 8.dp),
+                modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
