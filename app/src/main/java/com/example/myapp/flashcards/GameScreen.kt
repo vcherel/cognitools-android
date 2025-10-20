@@ -148,7 +148,7 @@ fun FlashcardGameScreen(listId: String, navController: NavController, onBack: ()
         val needed = (MAX_DIFFICULT_CARDS - currentActiveDifficultCards.size).coerceAtLeast(0)
         val availableToAdd = allElements.filter {
             it.score < 2 && it.id !in activeDifficultCards
-        }
+        }.shuffled()
 
         if (needed > 0 && availableToAdd.isNotEmpty()) {
             activeDifficultCards = (currentActiveDifficultCards.map { it.id } +
@@ -228,7 +228,7 @@ fun FlashcardGameScreen(listId: String, navController: NavController, onBack: ()
 
                 val remainingDifficult = allElements.filter {
                     it.score < 2 && it.id !in activeDifficultCards
-                }
+                }.shuffled()
                 val needed = MAX_DIFFICULT_CARDS - activeDifficultCards.size
                 if (needed > 0) {
                     activeDifficultCards = activeDifficultCards +
