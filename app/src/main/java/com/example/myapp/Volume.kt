@@ -5,7 +5,10 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
+import android.content.ComponentName
+import android.content.Context
 import android.content.Intent
+import android.content.ServiceConnection
 import android.media.audiofx.LoudnessEnhancer
 import android.os.Binder
 import android.os.IBinder
@@ -21,20 +24,28 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 
 class VolumeBoosterService : Service() {
     private var loudnessEnhancer: LoudnessEnhancer? = null
     private val binder = LocalBinder()
+    private var currentGain = 0
 
     companion object {
         private const val NOTIFICATION_ID = 1
         private const val CHANNEL_ID = "volume_booster_channel"
         const val ACTION_STOP = "com.myapp.STOP_BOOST"
+        const val ACTION_SET_GAIN = "com.myapp.SET_GAIN"
+        const val EXTRA_GAIN = "extra_gain"
+        const val GAIN_STEP_POSITIVE = 1000
+        const val GAIN_STEP_NEGATIVE = 500
     }
 
-    inner class LocalBinder : Binder()
+    inner class LocalBinder : Binder() {
+        fun getService(): VolumeBoosterService = this@VolumeBoosterService
+    }
 
     override fun onBind(intent: Intent): IBinder = binder
 
@@ -49,6 +60,10 @@ class VolumeBoosterService : Service() {
                 stopBoost()
                 stopSelf()
             }
+            ACTION_SET_GAIN -> {
+                val gain = intent.getIntExtra(EXTRA_GAIN, 0)
+                setGain(gain)
+            }
             else -> {
                 startForeground(NOTIFICATION_ID, createNotification())
                 startBoost()
@@ -62,17 +77,22 @@ class VolumeBoosterService : Service() {
             if (loudnessEnhancer == null) {
                 loudnessEnhancer = LoudnessEnhancer(0).apply {
                     enabled = true
-                    setTargetGain(4000)
+                    setTargetGain(currentGain)
                 }
             } else {
                 loudnessEnhancer?.apply {
                     enabled = true
-                    setTargetGain(4000)
+                    setTargetGain(currentGain)
                 }
             }
         } catch (e: Exception) {
             e.printStackTrace()
         }
+    }
+
+    fun setGain(gain: Int) {
+        currentGain = gain
+        loudnessEnhancer?.setTargetGain(currentGain)
     }
 
     fun stopBoost() {
@@ -128,6 +148,28 @@ class VolumeBoosterService : Service() {
 fun VolumeBoosterScreen(onBack: () -> Unit) {
     val context = LocalContext.current
     var isBoostEnabled by remember { mutableStateOf(false) }
+    var currentGain by remember { mutableIntStateOf(0) }
+    var serviceBinder by remember { mutableStateOf<VolumeBoosterService.LocalBinder?>(null) }
+
+    val serviceConnection = remember {
+        object : ServiceConnection {
+            override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
+                serviceBinder = service as? VolumeBoosterService.LocalBinder
+            }
+
+            override fun onServiceDisconnected(name: ComponentName?) {
+                serviceBinder = null
+            }
+        }
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            if (isBoostEnabled) {
+                context.unbindService(serviceConnection)
+            }
+        }
+    }
 
     BackHandler {
         onBack()
@@ -165,6 +207,31 @@ fun VolumeBoosterScreen(onBack: () -> Unit) {
             fontWeight = FontWeight.Bold
         )
 
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // Display current gain
+        Row(
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Gain : ",
+                style = MaterialTheme.typography.headlineSmall,
+                color = MaterialTheme.colorScheme.onSurface,
+                fontWeight = FontWeight.Bold
+            )
+            val displayValue = if (currentGain >= 0) {
+                currentGain / 1000
+            } else {
+                currentGain / 500
+            }
+
+            Text(
+                text = "${if (currentGain > 0) "+" else if (currentGain < 0) "-" else ""}${kotlin.math.abs(displayValue)}",
+                style = MaterialTheme.typography.headlineSmall,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+        }
+
         Spacer(modifier = Modifier.height(48.dp))
 
         MySwitch(
@@ -175,13 +242,64 @@ fun VolumeBoosterScreen(onBack: () -> Unit) {
                 if (enabled) {
                     val intent = Intent(context, VolumeBoosterService::class.java)
                     ContextCompat.startForegroundService(context, intent)
+
+                    // Bind to service to control gain
+                    val bindIntent = Intent(context, VolumeBoosterService::class.java)
+                    context.bindService(bindIntent, serviceConnection, Context.BIND_AUTO_CREATE)
                 } else {
                     val intent = Intent(context, VolumeBoosterService::class.java).apply {
                         action = VolumeBoosterService.ACTION_STOP
                     }
                     context.startService(intent)
+                    context.unbindService(serviceConnection)
+                    serviceBinder = null
+                    currentGain = 0 // Reset gain when disabled
                 }
             }
         )
+
+        Spacer(modifier = Modifier.height(48.dp))
+
+        // Gain control buttons
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(24.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Minus button
+            MyButton(
+                text = "-",
+                modifier = Modifier.width(100.dp),
+                fontSize = 32.sp,
+                enabled = isBoostEnabled,
+                onClick = {
+                    val step = if (currentGain > 0) {
+                        VolumeBoosterService.GAIN_STEP_POSITIVE
+                    } else {
+                        VolumeBoosterService.GAIN_STEP_NEGATIVE
+                    }
+                    val newGain = currentGain - step
+                    currentGain = newGain
+                    serviceBinder?.getService()?.setGain(newGain)
+                }
+            )
+
+            // Plus button
+            MyButton(
+                text = "+",
+                modifier = Modifier.width(100.dp),
+                fontSize = 32.sp,
+                enabled = isBoostEnabled,
+                onClick = {
+                    val step = if (currentGain >= 0) {
+                        VolumeBoosterService.GAIN_STEP_POSITIVE
+                    } else {
+                        VolumeBoosterService.GAIN_STEP_NEGATIVE
+                    }
+                    val newGain = currentGain + step
+                    currentGain = newGain
+                    serviceBinder?.getService()?.setGain(newGain)
+                }
+            )
+        }
     }
 }
