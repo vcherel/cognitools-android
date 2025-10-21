@@ -38,6 +38,8 @@ class VolumeBoosterService : Service() {
         private const val CHANNEL_ID = "volume_booster_channel"
         const val ACTION_STOP = "com.myapp.STOP_BOOST"
         const val ACTION_SET_GAIN = "com.myapp.SET_GAIN"
+        const val ACTION_INCREASE_GAIN = "com.myapp.INCREASE_GAIN"
+        const val ACTION_DECREASE_GAIN = "com.myapp.DECREASE_GAIN"
         const val EXTRA_GAIN = "extra_gain"
         const val GAIN_STEP_POSITIVE = 1000
         const val GAIN_STEP_NEGATIVE = 500
@@ -63,6 +65,24 @@ class VolumeBoosterService : Service() {
             ACTION_SET_GAIN -> {
                 val gain = intent.getIntExtra(EXTRA_GAIN, 0)
                 setGain(gain)
+            }
+            ACTION_INCREASE_GAIN -> {
+                val step = if (currentGain >= 0) {
+                    GAIN_STEP_POSITIVE
+                } else {
+                    GAIN_STEP_NEGATIVE
+                }
+                setGain(currentGain + step)
+                updateNotification()
+            }
+            ACTION_DECREASE_GAIN -> {
+                val step = if (currentGain > 0) {
+                    GAIN_STEP_POSITIVE
+                } else {
+                    GAIN_STEP_NEGATIVE
+                }
+                setGain(currentGain - step)
+                updateNotification()
             }
             else -> {
                 startForeground(NOTIFICATION_ID, createNotification())
@@ -101,6 +121,11 @@ class VolumeBoosterService : Service() {
         loudnessEnhancer = null
     }
 
+    private fun updateNotification() {
+        val manager = getSystemService(NotificationManager::class.java)
+        manager.notify(NOTIFICATION_ID, createNotification())
+    }
+
     private fun createNotificationChannel() {
         val channel = NotificationChannel(
             CHANNEL_ID,
@@ -114,6 +139,20 @@ class VolumeBoosterService : Service() {
         manager.createNotificationChannel(channel)
     }
 
+    private fun formatGainDisplay(): String {
+        val displayValue = if (currentGain >= 0) {
+            currentGain / 1000
+        } else {
+            currentGain / 500
+        }
+
+        return when {
+            currentGain > 0 -> "+$displayValue"
+            currentGain < 0 -> "-${kotlin.math.abs(displayValue)}"
+            else -> "0"
+        }
+    }
+
     private fun createNotification(): Notification {
         val stopIntent = Intent(this, VolumeBoosterService::class.java).apply {
             action = ACTION_STOP
@@ -125,11 +164,42 @@ class VolumeBoosterService : Service() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
+        val decreaseIntent = Intent(this, VolumeBoosterService::class.java).apply {
+            action = ACTION_DECREASE_GAIN
+        }
+        val decreasePendingIntent = PendingIntent.getService(
+            this,
+            1,
+            decreaseIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val increaseIntent = Intent(this, VolumeBoosterService::class.java).apply {
+            action = ACTION_INCREASE_GAIN
+        }
+        val increasePendingIntent = PendingIntent.getService(
+            this,
+            2,
+            increaseIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("Volume Booster Actif")
+            .setContentText("Gain : ${formatGainDisplay()}")
             .setSmallIcon(android.R.drawable.ic_lock_silent_mode_off)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setOngoing(true)
+            .addAction(
+                android.R.drawable.ic_media_previous,
+                "-",
+                decreasePendingIntent
+            )
+            .addAction(
+                android.R.drawable.ic_media_next,
+                "+",
+                increasePendingIntent
+            )
             .addAction(
                 android.R.drawable.ic_delete,
                 "Arrêter",
