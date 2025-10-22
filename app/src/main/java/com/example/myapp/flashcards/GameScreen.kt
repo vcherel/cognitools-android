@@ -24,6 +24,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
@@ -107,6 +108,12 @@ fun FlashcardGameScreen(listId: String, navController: NavController, onBack: ()
     var activeDifficultCards by remember { mutableStateOf<Set<String>>(emptySet()) }
     var localUpdates by remember { mutableStateOf<Map<String, FlashcardElement>>(emptyMap()) }
     var listName by remember { mutableStateOf("") }
+
+    // Undo state
+    var lastCard by remember { mutableStateOf<FlashcardElement?>(null) }
+    var lastCardBeforeUpdate by remember { mutableStateOf<FlashcardElement?>(null) }
+    var lastShowFront by remember { mutableStateOf(true) }
+    var canUndo by remember { mutableStateOf(false) }
 
     LaunchedEffect(currentCard) {
         listName = if (isAllListsMode && currentCard != null) {
@@ -213,6 +220,11 @@ fun FlashcardGameScreen(listId: String, navController: NavController, onBack: ()
         isProcessingSwipe = true
 
         currentCard?.let { card ->
+            // Save state for undo
+            lastCard = card.copy()
+            lastCardBeforeUpdate = card.copy()
+            lastShowFront = showFront
+
             val quality = if (wasCorrect) 4 else 2
             val updatedCard = updateCards(card, quality)
 
@@ -221,6 +233,7 @@ fun FlashcardGameScreen(listId: String, navController: NavController, onBack: ()
             scope.launch {
                 // Update in the correct list
                 repository.updateElement(card.listId, updatedCard)
+                canUndo = true
             }
 
             if (wasCorrect && card.score >= 2) {
@@ -246,6 +259,29 @@ fun FlashcardGameScreen(listId: String, navController: NavController, onBack: ()
                 null
             }
             isProcessingSwipe = false
+        }
+    }
+
+    fun handleUndo() {
+        lastCard?.let { card ->
+            lastCardBeforeUpdate?.let { originalCard ->
+                // Restore the card to its previous state
+                localUpdates = localUpdates + (card.id to originalCard)
+
+                scope.launch {
+                    repository.updateElement(card.listId, originalCard)
+                }
+
+                // Restore the current card and state
+                currentCard = card
+                showFront = lastShowFront
+                showDefinition = false
+
+                // Clear undo state
+                canUndo = false
+                lastCard = null
+                lastCardBeforeUpdate = null
+            }
         }
     }
 
@@ -320,10 +356,29 @@ fun FlashcardGameScreen(listId: String, navController: NavController, onBack: ()
                 IconButton(onClick = onBack) {
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Retour")
                 }
-                Text(
-                    text = "Cartes à réviser: ${dueCards.size}",
-                    style = MaterialTheme.typography.titleMedium
-                )
+
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Cartes à réviser: ${dueCards.size}",
+                        style = MaterialTheme.typography.titleMedium
+                    )
+
+                    // Undo button
+                    IconButton(
+                        onClick = { handleUndo() },
+                        enabled = canUndo
+                    ) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.Undo,
+                            contentDescription = "Annuler",
+                            tint = if (canUndo) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                        )
+                    }
+                }
             }
 
             Spacer(Modifier.height(32.dp))
