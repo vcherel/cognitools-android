@@ -131,7 +131,17 @@ fun FlashcardDetailScreen(
     // Computed filtered & sorted list in-place to avoid repeated list allocations
     val visibleElements = remember { mutableStateListOf<FlashcardElement>() }
 
+    // Store the current first visible item key before updates
+    val currentFirstVisibleKey = remember { mutableStateOf<String?>(null) }
+
     LaunchedEffect(elementsState.toList(), searchQuery, sortState) {
+        // Capture current scroll position
+        val firstVisibleIndex = listState.firstVisibleItemIndex
+        if (firstVisibleIndex >= 0 && firstVisibleIndex < visibleElements.size) {
+            val element = visibleElements[firstVisibleIndex]
+            currentFirstVisibleKey.value = if (isAllLists) "${element.listId}_${element.id}" else element.id
+        }
+
         val filtered = elementsState.filter {
             searchQuery.isEmpty() ||
                     it.name.contains(searchQuery, ignoreCase = true) ||
@@ -151,6 +161,17 @@ fun FlashcardDetailScreen(
 
         visibleElements.clear()
         visibleElements.addAll(unique)
+
+        // Restore scroll position if we have a saved key
+        currentFirstVisibleKey.value?.let { savedKey ->
+            val newIndex = visibleElements.indexOfFirst { element ->
+                val key = if (isAllLists) "${element.listId}_${element.id}" else element.id
+                key == savedKey
+            }
+            if (newIndex >= 0) {
+                listState.scrollToItem(newIndex, listState.firstVisibleItemScrollOffset)
+            }
+        }
     }
 
     BackHandler {
@@ -389,7 +410,7 @@ fun FlashcardDetailScreen(
                                                         dialogName = element.name
                                                         dialogDefinition = element.definition
                                                         showDialog = true
-                                                        },
+                                                    },
                                                     modifier = Modifier.size(24.dp)
                                                 ) {
                                                     Icon(
