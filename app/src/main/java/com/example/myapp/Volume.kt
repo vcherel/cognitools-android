@@ -28,6 +28,10 @@ import androidx.compose.ui.unit.sp
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 
+
+const val GAIN_STEP_POSITIVE = 1000
+const val GAIN_STEP_NEGATIVE = 250
+
 class VolumeBoosterService : Service() {
     private var loudnessEnhancer: LoudnessEnhancer? = null
     private val binder = LocalBinder()
@@ -41,8 +45,6 @@ class VolumeBoosterService : Service() {
         const val ACTION_INCREASE_GAIN = "com.myapp.INCREASE_GAIN"
         const val ACTION_DECREASE_GAIN = "com.myapp.DECREASE_GAIN"
         const val EXTRA_GAIN = "extra_gain"
-        const val GAIN_STEP_POSITIVE = 1000
-        const val GAIN_STEP_NEGATIVE = 500
     }
 
     inner class LocalBinder : Binder() {
@@ -60,6 +62,7 @@ class VolumeBoosterService : Service() {
         when (intent?.action) {
             ACTION_STOP -> {
                 stopBoost()
+                stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
             }
             ACTION_SET_GAIN -> {
@@ -141,14 +144,14 @@ class VolumeBoosterService : Service() {
 
     private fun formatGainDisplay(): String {
         val displayValue = if (currentGain >= 0) {
-            currentGain / 1000
+            currentGain / GAIN_STEP_POSITIVE
         } else {
-            currentGain / 500
+            (-currentGain) / GAIN_STEP_NEGATIVE
         }
 
         return when {
             currentGain > 0 -> "+$displayValue"
-            currentGain < 0 -> "-${kotlin.math.abs(displayValue)}"
+            currentGain < 0 -> "-$displayValue"
             else -> "0"
         }
     }
@@ -290,9 +293,9 @@ fun VolumeBoosterScreen(onBack: () -> Unit) {
                 fontWeight = FontWeight.Bold
             )
             val displayValue = if (currentGain >= 0) {
-                currentGain / 1000
+                currentGain / GAIN_STEP_POSITIVE
             } else {
-                currentGain / 500
+                currentGain / GAIN_STEP_NEGATIVE
             }
 
             Text(
@@ -343,9 +346,9 @@ fun VolumeBoosterScreen(onBack: () -> Unit) {
                 enabled = isBoostEnabled,
                 onClick = {
                     val step = if (currentGain > 0) {
-                        VolumeBoosterService.GAIN_STEP_POSITIVE
+                        GAIN_STEP_POSITIVE
                     } else {
-                        VolumeBoosterService.GAIN_STEP_NEGATIVE
+                        GAIN_STEP_NEGATIVE
                     }
                     val newGain = currentGain - step
                     currentGain = newGain
@@ -361,9 +364,9 @@ fun VolumeBoosterScreen(onBack: () -> Unit) {
                 enabled = isBoostEnabled,
                 onClick = {
                     val step = if (currentGain >= 0) {
-                        VolumeBoosterService.GAIN_STEP_POSITIVE
+                        GAIN_STEP_POSITIVE
                     } else {
-                        VolumeBoosterService.GAIN_STEP_NEGATIVE
+                        GAIN_STEP_NEGATIVE
                     }
                     val newGain = currentGain + step
                     currentGain = newGain
