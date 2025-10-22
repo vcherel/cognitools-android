@@ -304,9 +304,14 @@ fun FlashcardDetailScreen(
                                                     .clickable { expandedName = !expandedName }
                                             )
 
+                                            var expandedDefinition by remember { mutableStateOf(false) }
                                             Text(
-                                                element.definition,
-                                                style = MaterialTheme.typography.bodyLarge
+                                                text = element.definition,
+                                                style = MaterialTheme.typography.bodyLarge,
+                                                maxLines = if (expandedDefinition) Int.MAX_VALUE else 1,
+                                                overflow = if (expandedDefinition) TextOverflow.Visible else TextOverflow.Ellipsis,
+                                                modifier = Modifier
+                                                    .clickable { expandedDefinition = !expandedDefinition }
                                             )
                                         }
 
