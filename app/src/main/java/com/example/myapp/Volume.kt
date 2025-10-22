@@ -39,7 +39,7 @@ class VolumeBoosterService : Service() {
 
     companion object {
         private const val NOTIFICATION_ID = 1
-        private const val CHANNEL_ID = "volume_booster_channel"
+        private const val CHANNEL_ID = "volume_booster"
         const val ACTION_STOP = "com.myapp.STOP_BOOST"
         const val ACTION_SET_GAIN = "com.myapp.SET_GAIN"
         const val ACTION_INCREASE_GAIN = "com.myapp.INCREASE_GAIN"
@@ -133,7 +133,7 @@ class VolumeBoosterService : Service() {
         val channel = NotificationChannel(
             CHANNEL_ID,
             "Volume Booster",
-            NotificationManager.IMPORTANCE_LOW
+            NotificationManager.IMPORTANCE_DEFAULT
         ).apply {
             description = "Volume boost is active"
             setShowBadge(false)
@@ -192,6 +192,7 @@ class VolumeBoosterService : Service() {
             .setContentText("Gain : ${formatGainDisplay()}")
             .setSmallIcon(android.R.drawable.ic_lock_silent_mode_off)
             .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setOngoing(true)
             .addAction(
                 android.R.drawable.ic_media_previous,
