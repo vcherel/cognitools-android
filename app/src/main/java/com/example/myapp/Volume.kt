@@ -124,7 +124,7 @@ class VolumeBoosterService : Service() {
         loudnessEnhancer = null
     }
 
-    private fun updateNotification() {
+    fun updateNotification() {
         val manager = getSystemService(NotificationManager::class.java)
         manager.notify(NOTIFICATION_ID, createNotification())
     }
@@ -353,7 +353,10 @@ fun VolumeBoosterScreen(onBack: () -> Unit) {
                     }
                     val newGain = currentGain - step
                     currentGain = newGain
-                    serviceBinder?.getService()?.setGain(newGain)
+                    serviceBinder?.getService()?.apply {
+                        setGain(newGain)
+                        updateNotification()
+                    }
                 }
             )
 
@@ -371,7 +374,10 @@ fun VolumeBoosterScreen(onBack: () -> Unit) {
                     }
                     val newGain = currentGain + step
                     currentGain = newGain
-                    serviceBinder?.getService()?.setGain(newGain)
+                    serviceBinder?.getService()?.apply {
+                        setGain(newGain)
+                        updateNotification()
+                    }
                 }
             )
         }
