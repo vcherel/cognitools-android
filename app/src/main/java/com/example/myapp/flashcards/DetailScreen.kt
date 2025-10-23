@@ -115,6 +115,7 @@ fun FlashcardDetailScreen(
                 delay(16)
             }
             isLoading = false
+            scope.launch { listState.scrollToItem(0) }
         } else {
             repository.observeElements(listId).collect { list ->
                 elementsState.clear()
@@ -124,6 +125,7 @@ fun FlashcardDetailScreen(
                     delay(16)
                 }
                 isLoading = false
+                scope.launch { listState.scrollToItem(0) }
             }
         }
     }
