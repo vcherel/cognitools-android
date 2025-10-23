@@ -33,10 +33,36 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.preferencesDataStore
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import java.text.NumberFormat
 import java.util.Locale
+
+val Context.dataStore by preferencesDataStore("random_generator_prefs")
+
+object RandomPrefs {
+    val MIN_KEY = intPreferencesKey("min_value")
+    val MAX_KEY = intPreferencesKey("max_value")
+}
+
+suspend fun Context.saveMinMax(min: Int, max: Int) {
+    dataStore.edit { prefs ->
+        prefs[RandomPrefs.MIN_KEY] = min
+        prefs[RandomPrefs.MAX_KEY] = max
+    }
+}
+
+fun Context.readMinMax() = dataStore.data.map { prefs ->
+    val min = prefs[RandomPrefs.MIN_KEY] ?: 1
+    val max = prefs[RandomPrefs.MAX_KEY] ?: 100
+    min to max
+}
+
 
 @Composable
 fun RandomGeneratorScreen(onBack: () -> Unit, context: Context = LocalContext.current) {
@@ -51,6 +77,14 @@ fun RandomGeneratorScreen(onBack: () -> Unit, context: Context = LocalContext.cu
     var words by remember { mutableStateOf<List<String>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var wordResult by remember { mutableStateOf<String?>(null) }
+
+    // Load min/max from DataStore
+    LaunchedEffect(Unit) {
+        context.readMinMax().collect { (savedMin, savedMax) ->
+            min = savedMin.toString()
+            max = savedMax.toString()
+        }
+    }
 
     // Load words
     LaunchedEffect(Unit) {
@@ -102,7 +136,13 @@ fun RandomGeneratorScreen(onBack: () -> Unit, context: Context = LocalContext.cu
             MyButton("Générer") {
                 val minInt = min.toIntOrNull() ?: 1
                 val maxInt = max.toIntOrNull() ?: 100
-                if (minInt <= maxInt) intResult = (minInt..maxInt).random()
+                if (minInt <= maxInt) {
+                    intResult = (minInt..maxInt).random()
+                    // Save values persistently
+                    CoroutineScope(Dispatchers.IO).launch {
+                        context.saveMinMax(minInt, maxInt)
+                    }
+                }
             }
 
             Box(
