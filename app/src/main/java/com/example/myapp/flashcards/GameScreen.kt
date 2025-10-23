@@ -43,6 +43,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
@@ -84,6 +85,10 @@ fun FlashcardGameScreen(listId: String, navController: NavController, onBack: ()
     // Check if we're in "all lists" mode
     val isAllListsMode = listId == "all"
 
+    // Generate a session seed once at the start
+    val sessionSeed by remember { mutableIntStateOf(System.currentTimeMillis().toInt()) }
+    val sessionRandom = remember(sessionSeed) { Random(sessionSeed) }
+
     // Observe elements from repository
     val allElements by if (isAllListsMode) {
         // Get all elements from all lists
@@ -123,14 +128,18 @@ fun FlashcardGameScreen(listId: String, navController: NavController, onBack: ()
         }
     }
 
-    val dueCards by remember(allElements, localUpdates) {
+    val dueCards by remember(allElements, localUpdates, sessionSeed) {
         derivedStateOf {
             val updated = allElements.map { element ->
                 localUpdates[element.id] ?: element
             }
 
             val due = updated.filter { isDue(it) }
-            val difficult = due.filter { it.score < 2 }.take(MAX_DIFFICULT_CARDS)
+            // Shuffle difficult cards with session seed before taking MAX_DIFFICULT_CARDS
+            val difficult = due.filter { it.score < 2 }
+                .sortedBy { it.id } // Sort first for consistency
+                .shuffled(Random(sessionSeed)) // Then shuffle with seed
+                .take(MAX_DIFFICULT_CARDS)
             val easy = due.filter { it.score >= 2 }
             difficult + easy
         }
@@ -155,7 +164,7 @@ fun FlashcardGameScreen(listId: String, navController: NavController, onBack: ()
         val needed = (MAX_DIFFICULT_CARDS - currentActiveDifficultCards.size).coerceAtLeast(0)
         val availableToAdd = allElements.filter {
             it.score < 2 && it.id !in activeDifficultCards
-        }.shuffled()
+        }.shuffled(sessionRandom) // Use session-seeded random
 
         if (needed > 0 && availableToAdd.isNotEmpty()) {
             activeDifficultCards = (currentActiveDifficultCards.map { it.id } +
@@ -164,8 +173,8 @@ fun FlashcardGameScreen(listId: String, navController: NavController, onBack: ()
 
         // Pick a random current card if none is selected yet
         if (currentCard == null && dueCards.isNotEmpty()) {
-            currentCard = dueCards.random()
-            showFront = Random.nextBoolean()
+            currentCard = dueCards.random(sessionRandom) // Use session-seeded random
+            showFront = sessionRandom.nextBoolean() // Use session-seeded random
         }
     }
 
@@ -241,19 +250,21 @@ fun FlashcardGameScreen(listId: String, navController: NavController, onBack: ()
 
                 val remainingDifficult = allElements.filter {
                     it.score < 2 && it.id !in activeDifficultCards
-                }.shuffled()
+                }.shuffled(sessionRandom) // Use session-seeded random
                 val needed = MAX_DIFFICULT_CARDS - activeDifficultCards.size
+
                 if (needed > 0) {
-                    activeDifficultCards = activeDifficultCards +
-                            remainingDifficult.take(needed).map { it.id }.toSet()
+                    val newIds = remainingDifficult.take(needed).map { it.id }.toSet()
+                    activeDifficultCards = activeDifficultCards + newIds
                 }
             }
 
             showDefinition = false
             val availableCards = dueCards.filter { it.id != card.id }
+
             currentCard = if (availableCards.isNotEmpty()) {
-                val card = availableCards.random()
-                showFront = Random.nextBoolean()
+                val card = availableCards.random(sessionRandom) // Use session-seeded random
+                showFront = sessionRandom.nextBoolean() // Use session-seeded random
                 card
             } else {
                 null
