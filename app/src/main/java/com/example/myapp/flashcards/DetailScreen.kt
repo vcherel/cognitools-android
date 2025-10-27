@@ -1,7 +1,6 @@
 package com.example.myapp.flashcards
 
 import android.util.Log
-import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -34,6 +33,8 @@ import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -90,6 +91,7 @@ fun FlashcardDetailScreen(
     var selectedElement by remember { mutableStateOf<FlashcardElement?>(null) }
     var isLoading by remember { mutableStateOf(true) }
     var sortState by remember { mutableIntStateOf(0) }
+    var showSortMenu by remember { mutableStateOf(false) }
 
     val isAllLists = listId == "all"
 
@@ -155,6 +157,8 @@ fun FlashcardDetailScreen(
             1 -> filtered.sortedBy { it.lastReview + it.interval * 60_000L }
             2 -> filtered.sortedByDescending { it.totalWins + it.totalLosses }
             3 -> filtered.sortedBy { it.totalWins + it.totalLosses }
+            4 -> filtered.sortedByDescending { it.score }
+            5 -> filtered.sortedBy { it.score }
             else -> filtered
         }
 
@@ -208,22 +212,49 @@ fun FlashcardDetailScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.End
                 ) {
-                    IconButton(onClick = {
-                        sortState = (sortState + 1) % 4
-                        val toastMessage = when(sortState) {
-                            0 -> "Tri : Intervalle révision (décroissant)"
-                            1 -> "Tri : Intervalle révision (croissant)"
-                            2 -> "Tri : Nombre vues totales (décroissant)"
-                            3 -> "Tri : Nombre vues totales (croissant)"
-                            else -> ""
+                    Box {
+                        IconButton(onClick = { showSortMenu = true }) {
+                            Icon(Icons.Default.SwapVert, contentDescription = "Trier")
                         }
-                        Toast.makeText(context, toastMessage, Toast.LENGTH_SHORT).show()
-                        scope.launch {
-                            delay(50)
-                            listState.scrollToItem(0)
+
+                        DropdownMenu(
+                            expanded = showSortMenu,
+                            onDismissRequest = { showSortMenu = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Intervalle révision") },
+                                onClick = {
+                                    sortState = if (sortState == 0) 1 else 0
+                                    showSortMenu = false
+                                    scope.launch {
+                                        delay(50)
+                                        listState.scrollToItem(0)
+                                    }
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Nombre vues totales") },
+                                onClick = {
+                                    sortState = if (sortState == 2) 3 else 2
+                                    showSortMenu = false
+                                    scope.launch {
+                                        delay(50)
+                                        listState.scrollToItem(0)
+                                    }
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Score") },
+                                onClick = {
+                                    sortState = if (sortState == 4) 5 else 4
+                                    showSortMenu = false
+                                    scope.launch {
+                                        delay(50)
+                                        listState.scrollToItem(0)
+                                    }
+                                }
+                            )
                         }
-                    }) {
-                        Icon(Icons.Default.SwapVert, contentDescription = "Trier")
                     }
 
                     Spacer(Modifier.width(2.dp))
