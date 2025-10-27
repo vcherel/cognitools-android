@@ -291,7 +291,7 @@ fun PlayerSetupScreen(
     ShowAlertDialog(
         show = showConfirmationDialog,
         onDismiss = { showConfirmationDialog = false },
-        title = if (name == "Valenchien") "Beau gosse" else "Ton nom est moche",
+        title = if (name == "Valenchien" || name == "Valentin") "Beau gosse" else "Ton nom est moche",
         textContent = { Text("Cache toi tu vas découvrir ton rôle jeune troubadour", fontSize = 20.sp) },
         confirmText = "Fais péter",
         cancelText = "NOON",

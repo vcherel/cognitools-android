@@ -254,7 +254,7 @@ fun WikipediaScreen(onBack: () -> Unit) {
                                     color = MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.clickable {
                                         isLoadingMore = true
-                                        displayedParagraphs += 1 // Load 2 paragraphs at a time
+                                        displayedParagraphs = paragraphs.size
                                         isLoadingMore = false
                                     }
                                 )
