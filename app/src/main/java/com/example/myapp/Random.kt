@@ -43,7 +43,7 @@ import kotlinx.coroutines.launch
 import java.text.NumberFormat
 import java.util.Locale
 
-val Context.dataStore by preferencesDataStore("random_generator_prefs")
+val Context.randomDataStore by preferencesDataStore("random_generator_prefs")
 
 object RandomPrefs {
     val MIN_KEY = intPreferencesKey("min_value")
@@ -51,13 +51,13 @@ object RandomPrefs {
 }
 
 suspend fun Context.saveMinMax(min: Int, max: Int) {
-    dataStore.edit { prefs ->
+    randomDataStore.edit { prefs ->
         prefs[RandomPrefs.MIN_KEY] = min
         prefs[RandomPrefs.MAX_KEY] = max
     }
 }
 
-fun Context.readMinMax() = dataStore.data.map { prefs ->
+fun Context.readMinMax() = randomDataStore.data.map { prefs ->
     val min = prefs[RandomPrefs.MIN_KEY] ?: 1
     val max = prefs[RandomPrefs.MAX_KEY] ?: 100
     min to max

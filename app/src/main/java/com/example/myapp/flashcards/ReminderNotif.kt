@@ -28,7 +28,7 @@ class FlashcardReminderWorker(context: Context, params: WorkerParameters) : Coro
     override suspend fun doWork(): Result {
         return try {
             // Load flashcards from DataStore
-            val flashcards = applicationContext.dataStore.data.map { prefs ->
+            val flashcards = applicationContext.flashcardDataStore.data.map { prefs ->
                 val listsJson = prefs[stringPreferencesKey("lists")] ?: "[]"
                 val lists = FlashcardList.listFromJsonString(listsJson)
 
