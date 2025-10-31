@@ -117,41 +117,49 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+val LocalIsDarkMode = compositionLocalOf { false }
 @Composable
 fun MainScreen(themeManager: ThemeManager, isDarkMode: Boolean) {
-    var currentScreen by remember { mutableStateOf("menu") }
+    CompositionLocalProvider(LocalIsDarkMode provides isDarkMode) {
+        var currentScreen by remember { mutableStateOf("menu") }
 
-    Scaffold { innerPadding ->
-        Box(modifier = Modifier.padding(innerPadding)) {
-            when (currentScreen) {
-                "menu" -> MenuScreen(
-                    onNavigate = { screen -> currentScreen = screen },
-                    themeManager = themeManager,
-                    isDarkMode = isDarkMode
-                )
-                "randomGenerator" -> {
-                    key("randomGenerator") {
-                        RandomGeneratorScreen(onBack = { currentScreen = "menu" })
+        Scaffold { innerPadding ->
+            Box(modifier = Modifier.padding(innerPadding)) {
+                when (currentScreen) {
+                    "menu" -> MenuScreen(
+                        onNavigate = { screen -> currentScreen = screen },
+                        themeManager = themeManager,
+                        isDarkMode = isDarkMode
+                    )
+
+                    "randomGenerator" -> {
+                        key("randomGenerator") {
+                            RandomGeneratorScreen(onBack = { currentScreen = "menu" })
+                        }
                     }
-                }
-                "volumeBooster" -> {
-                    key("volumeBooster") {
-                        VolumeBoosterScreen(onBack = { currentScreen = "menu" })
+
+                    "volumeBooster" -> {
+                        key("volumeBooster") {
+                            VolumeBoosterScreen(onBack = { currentScreen = "menu" })
+                        }
                     }
-                }
-                "flashcards" -> {
-                    key("flashcards") {
-                        FlashcardsNavGraph(onBack = { currentScreen = "menu" })
+
+                    "flashcards" -> {
+                        key("flashcards") {
+                            FlashcardsNavGraph(onBack = { currentScreen = "menu" })
+                        }
                     }
-                }
-                "undercover" -> {
-                    key("undercover") {
-                        UndercoverScreen(onBack = { currentScreen = "menu" })
+
+                    "undercover" -> {
+                        key("undercover") {
+                            UndercoverScreen(onBack = { currentScreen = "menu" })
+                        }
                     }
-                }
-                "wikipedia" -> {
-                    key("wikipedia") {
-                        WikipediaScreen(onBack = { currentScreen = "menu" })
+
+                    "wikipedia" -> {
+                        key("wikipedia") {
+                            WikipediaScreen(onBack = { currentScreen = "menu" })
+                        }
                     }
                 }
             }

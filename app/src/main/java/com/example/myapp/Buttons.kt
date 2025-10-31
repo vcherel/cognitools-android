@@ -49,9 +49,7 @@ fun MyButton(
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
 
-    val context = LocalContext.current
-    val themeManager = remember { ThemeManager(context) }
-    val isDarkMode by themeManager.isDarkMode.collectAsState(initial = false)
+    val isDarkMode = LocalIsDarkMode.current
 
     // Adjust visual state based on dark mode, pressed state, and enabled state
     val shadowColor = remember(isPressed, enabled, isDarkMode) {
