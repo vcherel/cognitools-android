@@ -40,6 +40,9 @@ import androidx.compose.ui.text.withLink
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -280,23 +283,54 @@ data class WikipediaContent(
 )
 
 suspend fun fetchCompleteWikipedia(language: String = "fr"): WikipediaContent = withContext(Dispatchers.IO) {
-    // First, get a random article
-    val randomUrl = URL("https://$language.wikipedia.org/api/rest_v1/page/random/summary")
-    val randomConnection = randomUrl.openConnection() as HttpURLConnection
-
-    val title = try {
-        randomConnection.requestMethod = "GET"
-        randomConnection.setRequestProperty("User-Agent", "WikiApp/1.0")
-
-        val response = randomConnection.inputStream.bufferedReader().readText()
-        val json = JSONObject(response)
-        json.getString("title")
-    } finally {
-        randomConnection.disconnect()
+    // 1. Fetch several random titles
+    val titles = coroutineScope {
+        (1..5).map {
+            async {
+                val url = URL("https://$language.wikipedia.org/api/rest_v1/page/random/summary")
+                val conn = url.openConnection() as HttpURLConnection
+                try {
+                    conn.requestMethod = "GET"
+                    conn.setRequestProperty("User-Agent", "WikiApp/1.0")
+                    val json = JSONObject(conn.inputStream.bufferedReader().readText())
+                    json.getString("title")
+                } finally {
+                    conn.disconnect()
+                }
+            }
+        }.awaitAll()
     }
 
-    // Then fetch the full content with HTML
-    fetchWikipediaByTitle(title, language)
+    // 2. For each title, fetch pageviews (last 30 days)
+    val viewCounts = coroutineScope {
+        titles.map { title ->
+            async {
+                val encodedTitle = URLEncoder.encode(title, "UTF-8")
+                val viewsUrl = URL(
+                    "https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/$language.wikipedia/all-access/all-agents/$encodedTitle/daily/20250101/20250130"
+                )
+                val conn = viewsUrl.openConnection() as HttpURLConnection
+                try {
+                    conn.requestMethod = "GET"
+                    conn.setRequestProperty("User-Agent", "WikiApp/1.0")
+                    val json = JSONObject(conn.inputStream.bufferedReader().readText())
+                    val items = json.optJSONArray("items") ?: return@async title to 0
+                    val totalViews = (0 until items.length()).sumOf { items.getJSONObject(it).optInt("views", 0) }
+                    title to totalViews
+                } catch (_: Exception) {
+                    title to 0
+                } finally {
+                    conn.disconnect()
+                }
+            }
+        }.awaitAll().toMap()
+    }
+
+    // 3. Pick the most viewed article
+    val bestTitle = viewCounts.maxByOrNull { it.value }?.key ?: titles.first()
+
+    // 4. Fetch full content
+    fetchWikipediaByTitle(bestTitle, language)
 }
 
 suspend fun fetchWikipediaByTitle(title: String, language: String = "fr"): WikipediaContent = withContext(Dispatchers.IO) {
