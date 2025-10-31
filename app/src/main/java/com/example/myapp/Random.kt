@@ -149,7 +149,7 @@ fun RandomGeneratorScreen(onBack: () -> Unit, context: Context = LocalContext.cu
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(80.dp)
-                    .background(Color(0xFFEFEFEF), shape = RoundedCornerShape(20.dp)),
+                    .background(MaterialTheme.colorScheme.surfaceVariant, shape = RoundedCornerShape(20.dp)),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
@@ -173,7 +173,7 @@ fun RandomGeneratorScreen(onBack: () -> Unit, context: Context = LocalContext.cu
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(80.dp)
-                    .background(Color(0xFFEFEFEF), shape = RoundedCornerShape(20.dp)),
+                    .background(MaterialTheme.colorScheme.surfaceVariant, shape = RoundedCornerShape(20.dp)),
                 contentAlignment = Alignment.Center
             ) {
                 Text(text = wordResult ?: "", fontSize = 32.sp)

@@ -32,7 +32,20 @@ import com.example.myapp.flashcards.FlashcardDetailScreen
 import com.example.myapp.flashcards.FlashcardGameScreen
 import com.example.myapp.flashcards.FlashcardListsScreen
 import com.example.myapp.undercover.UndercoverScreen
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
+
+class ThemeManager {
+    private var darkMode = false
+
+    val isDarkMode: Flow<Boolean> = MutableStateFlow(darkMode)
+
+    fun setDarkMode(enabled: Boolean) {
+        darkMode = enabled
+        (isDarkMode as MutableStateFlow).value = enabled
+    }
+}
 
 class MainActivity : ComponentActivity() {
     private val requestPermissionLauncher = registerForActivityResult(
@@ -87,7 +100,7 @@ class MainActivity : ComponentActivity() {
 
         enableEdgeToEdge()
         setContent {
-            val themeManager = remember { ThemeManager(applicationContext) }
+            val themeManager = remember { ThemeManager() }
             val isDarkMode by themeManager.isDarkMode.collectAsState(initial = false)
 
             MaterialTheme(
