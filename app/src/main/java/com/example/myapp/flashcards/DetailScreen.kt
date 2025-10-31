@@ -158,8 +158,18 @@ fun FlashcardDetailScreen(
             1 -> filtered.sortedBy { it.lastReview + it.interval * 60_000L }
             2 -> filtered.sortedByDescending { it.totalWins + it.totalLosses }
             3 -> filtered.sortedBy { it.totalWins + it.totalLosses }
-            4 -> filtered.sortedByDescending { it.score }
-            5 -> filtered.sortedBy { it.score }
+            4 -> filtered.sortedWith(
+                compareByDescending<FlashcardElement> { it.score }
+                    .thenByDescending { it.totalWins }
+                    .thenBy { it.totalLosses }
+                    .thenByDescending { it.lastReview + it.interval * 60_000L }
+            )
+            5 -> filtered.sortedWith(
+                compareBy<FlashcardElement> { it.score }
+                    .thenByDescending { it.totalWins }
+                    .thenBy { it.totalLosses }
+                    .thenBy { it.lastReview + it.interval * 60_000L }
+            )
             else -> filtered
         }
 

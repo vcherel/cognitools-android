@@ -11,6 +11,9 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -29,6 +32,7 @@ import com.example.myapp.flashcards.FlashcardDetailScreen
 import com.example.myapp.flashcards.FlashcardGameScreen
 import com.example.myapp.flashcards.FlashcardListsScreen
 import com.example.myapp.undercover.UndercoverScreen
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     private val requestPermissionLauncher = registerForActivityResult(
@@ -47,7 +51,7 @@ class MainActivity : ComponentActivity() {
 
         // Configure splash screen animation
         splashScreen.setOnExitAnimationListener { splashScreenView ->
-            try {  // Try catch to avoid NullPointerException
+            try {
                 val icon = splashScreenView.iconView
                 val scaleX = ObjectAnimator.ofFloat(icon, View.SCALE_X, 1f, 1.5f)
                 val scaleY = ObjectAnimator.ofFloat(icon, View.SCALE_Y, 1f, 1.5f)
@@ -67,12 +71,10 @@ class MainActivity : ComponentActivity() {
                 scaleY.start()
                 alpha.start()
             } catch (_: NullPointerException) {
-                // fallback if iconView unexpectedly null
                 splashScreenView.remove()
             }
         }
 
-        // Request notification permission (lightweight check)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (ContextCompat.checkSelfPermission(
                     this,
@@ -85,27 +87,48 @@ class MainActivity : ComponentActivity() {
 
         enableEdgeToEdge()
         setContent {
+            val themeManager = remember { ThemeManager(applicationContext) }
+            val isDarkMode by themeManager.isDarkMode.collectAsState(initial = false)
+
             MaterialTheme(
-                colorScheme = lightColorScheme(
-                    primary = Color.Black,
-                    secondary = Color.Black,
-                    tertiary = Color.Black,
-                )
+                colorScheme = if (isDarkMode) {
+                    darkColorScheme(
+                        primary = Color.White,
+                        secondary = Color.White,
+                        tertiary = Color.White,
+                        background = Color.Black,
+                        surface = Color(0xFF1C1C1C),
+                        onPrimary = Color.Black,
+                        onSecondary = Color.Black,
+                        onBackground = Color.White,
+                        onSurface = Color.White
+                    )
+                } else {
+                    lightColorScheme(
+                        primary = Color.Black,
+                        secondary = Color.Black,
+                        tertiary = Color.Black,
+                    )
+                }
             ) {
-                MainScreen()
+                MainScreen(themeManager = themeManager, isDarkMode = isDarkMode)
             }
         }
     }
 }
 
 @Composable
-fun MainScreen() {
+fun MainScreen(themeManager: ThemeManager, isDarkMode: Boolean) {
     var currentScreen by remember { mutableStateOf("menu") }
 
     Scaffold { innerPadding ->
         Box(modifier = Modifier.padding(innerPadding)) {
             when (currentScreen) {
-                "menu" -> MenuScreen(onNavigate = { screen -> currentScreen = screen })
+                "menu" -> MenuScreen(
+                    onNavigate = { screen -> currentScreen = screen },
+                    themeManager = themeManager,
+                    isDarkMode = isDarkMode
+                )
                 "randomGenerator" -> {
                     key("randomGenerator") {
                         RandomGeneratorScreen(onBack = { currentScreen = "menu" })
@@ -135,6 +158,7 @@ fun MainScreen() {
         }
     }
 }
+
 @Composable
 fun FlashcardsNavGraph(onBack: () -> Unit) {
     val navController = rememberNavController()
@@ -166,37 +190,63 @@ fun FlashcardsNavGraph(onBack: () -> Unit) {
 }
 
 @Composable
-fun MenuScreen(onNavigate: (String) -> Unit) {
+fun MenuScreen(
+    onNavigate: (String) -> Unit,
+    themeManager: ThemeManager,
+    isDarkMode: Boolean
+) {
     val spaceHeight = 32.dp
+    val coroutineScope = rememberCoroutineScope()
 
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxSize()
-            .padding(12.dp),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
+            .padding(12.dp)
     ) {
-        Text(
-            text = "Bienvenue !",
-            style = MaterialTheme.typography.headlineLarge,
-            textAlign = TextAlign.Center
-        )
-        Spacer(modifier = Modifier.height(25.dp))
-        Text(
-            text = "Choisis une option pour commencer :",
-            style = MaterialTheme.typography.titleMedium,
-            fontStyle = FontStyle.Italic,
-            textAlign = TextAlign.Center
-        )
-        Spacer(modifier = Modifier.height(30.dp))
-        MyButton(text = "Générateur aléatoire") { onNavigate("randomGenerator") }
-        Spacer(modifier = Modifier.height(spaceHeight))
-        MyButton(text = "Volume booster") { onNavigate("volumeBooster") }
-        Spacer(modifier = Modifier.height(spaceHeight))
-        MyButton(text = "Flashcards") { onNavigate("flashcards") }
-        Spacer(modifier = Modifier.height(spaceHeight))
-        MyButton(text = "Undercover") { onNavigate("undercover") }
-        Spacer(modifier = Modifier.height(spaceHeight))
-        MyButton(text = "Wikipedia") { onNavigate("wikipedia") }
+        // Main content
+        Column(
+            modifier = Modifier
+                .align(Alignment.Center)
+                .fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = "Bienvenue !",
+                style = MaterialTheme.typography.headlineLarge,
+                textAlign = TextAlign.Center
+            )
+            Spacer(modifier = Modifier.height(25.dp))
+            Text(
+                text = "Choisis une option pour commencer :",
+                style = MaterialTheme.typography.titleMedium,
+                fontStyle = FontStyle.Italic,
+                textAlign = TextAlign.Center
+            )
+            Spacer(modifier = Modifier.height(30.dp))
+            MyButton(text = "Générateur aléatoire") { onNavigate("randomGenerator") }
+            Spacer(modifier = Modifier.height(spaceHeight))
+            MyButton(text = "Volume booster") { onNavigate("volumeBooster") }
+            Spacer(modifier = Modifier.height(spaceHeight))
+            MyButton(text = "Flashcards") { onNavigate("flashcards") }
+            Spacer(modifier = Modifier.height(spaceHeight))
+            MyButton(text = "Undercover") { onNavigate("undercover") }
+            Spacer(modifier = Modifier.height(spaceHeight))
+            MyButton(text = "Wikipedia") { onNavigate("wikipedia") }
+        }
+
+        // Floating theme toggle button (top right)
+        IconButton(
+            onClick = {
+                coroutineScope.launch {
+                    themeManager.setDarkMode(!isDarkMode)
+                }
+            },
+            modifier = Modifier.align(Alignment.TopEnd)
+        ) {
+            Icon(
+                imageVector = if (isDarkMode) Icons.Default.LightMode else Icons.Default.DarkMode,
+                contentDescription = if (isDarkMode) "Mode clair" else "Mode sombre"
+            )
+        }
     }
 }
