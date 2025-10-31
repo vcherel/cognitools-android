@@ -156,9 +156,44 @@ fun MySwitch(
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
+    val isDarkMode = LocalIsDarkMode.current
 
     val boxWidth = if (text != null) 200.dp else 85.dp
     val boxHeight = if (text != null) 100.dp else 55.dp
+
+    val shadowColor = remember(isEnabled, isDarkMode) {
+        if (isEnabled) {
+            Color(0xFF1565C0)
+        } else {
+            if (isDarkMode) Color(0xFF424242) else Color(0xFFB0BEC5)
+        }
+    }
+
+    val gradient = remember(isEnabled, isDarkMode) {
+        if (isEnabled) {
+            Brush.horizontalGradient(
+                listOf(Color(0xFF2196F3), Color(0xFF1976D2))
+            )
+        } else {
+            if (isDarkMode) {
+                Brush.horizontalGradient(
+                    listOf(Color(0xFF455A64), Color(0xFF37474F))
+                )
+            } else {
+                Brush.horizontalGradient(
+                    listOf(Color(0xFFECEFF1), Color(0xFFCFD8DC))
+                )
+            }
+        }
+    }
+
+    val textColor = remember(isEnabled, isDarkMode) {
+        if (isEnabled) {
+            Color.White
+        } else {
+            if (isDarkMode) Color.White else Color.Black
+        }
+    }
 
     Box(
         modifier = modifier
@@ -171,7 +206,7 @@ fun MySwitch(
                 .fillMaxSize()
                 .offset(y = 5.dp)
                 .background(
-                    color = if (isEnabled) Color(0xFF1565C0) else Color(0xFFB0BEC5),
+                    color = shadowColor,
                     shape = RoundedCornerShape(40)
                 )
         )
@@ -180,12 +215,7 @@ fun MySwitch(
             modifier = Modifier
                 .fillMaxSize()
                 .background(
-                    brush = Brush.horizontalGradient(
-                        listOf(
-                            if (isEnabled) Color(0xFF2196F3) else Color(0xFFECEFF1),
-                            if (isEnabled) Color(0xFF1976D2) else Color(0xFFCFD8DC)
-                        )
-                    ),
+                    brush = gradient,
                     shape = RoundedCornerShape(40)
                 )
                 .clickable(
@@ -205,7 +235,7 @@ fun MySwitch(
                 if (text != null) {
                     Text(
                         text = text,
-                        color = if (isEnabled) Color.White else Color.Black,
+                        color = textColor,
                         fontSize = 24.sp,
                         fontWeight = FontWeight.Bold,
                         maxLines = 1,
@@ -220,7 +250,7 @@ fun MySwitch(
                         checkedThumbColor = Color.White,
                         checkedTrackColor = Color(0xFF0D47A1),
                         uncheckedThumbColor = Color.White,
-                        uncheckedTrackColor = Color(0xFFB0BEC5)
+                        uncheckedTrackColor = if (isDarkMode) Color(0xFF37474F) else Color(0xFFB0BEC5)
                     ),
                     modifier = Modifier.scale(1.2f) // slightly bigger
                 )
