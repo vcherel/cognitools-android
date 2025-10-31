@@ -1,6 +1,7 @@
 package com.example.myapp.flashcards
 
 import android.util.Log
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -273,7 +274,38 @@ fun FlashcardDetailScreen(
                         style = MaterialTheme.typography.bodyMedium,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        textAlign = TextAlign.End
+                        textAlign = TextAlign.End,
+                        modifier = Modifier.clickable {
+                            if (visibleElements.isNotEmpty()) {
+                                // Calculate average remaining interval in milliseconds
+                                val avgMillis = visibleElements.map {
+                                    val nextReviewTime = it.lastReview + it.interval * 60_000L
+                                    maxOf(0L, nextReviewTime - System.currentTimeMillis())
+                                }.average().toLong()
+
+                                // Convert average milliseconds to human-readable format
+                                val avgTimeFormatted = when {
+                                    avgMillis <= 0 -> "Maintenant"
+                                    avgMillis < 60 * 60 * 1000 -> "${(avgMillis / (60 * 1000)).toInt()}min"
+                                    avgMillis < 24 * 60 * 60 * 1000 -> "${(avgMillis / (60 * 60 * 1000)).toInt()}h"
+                                    avgMillis < 30 * 24 * 60 * 60 * 1000L -> "${(avgMillis / (24 * 60 * 60 * 1000)).toInt()}j"
+                                    else -> "${(avgMillis / (30 * 24 * 60 * 60 * 1000L)).toInt()}mois"
+                                }
+
+                                Toast.makeText(
+                                    context,
+                                    "Temps moyen avant révision: $avgTimeFormatted",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            } else {
+                                Toast.makeText(
+                                    context,
+                                    "Aucune carte à réviser",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        }
+
                     )
                 }
             }
@@ -384,8 +416,7 @@ fun FlashcardDetailScreen(
                                                         diffMs <= 0 -> "Maintenant"
                                                         diffMs < 60 * 60 * 1000 -> "${(diffMs / (60 * 1000)).toInt()}min"
                                                         diffMs < 24 * 60 * 60 * 1000 -> "${(diffMs / (60 * 60 * 1000)).toInt()}h"
-                                                        diffMs < 7 * 24 * 60 * 60 * 1000 -> "${(diffMs / (24 * 60 * 60 * 1000)).toInt()}j"
-                                                        diffMs < 30 * 24 * 60 * 60 * 1000L -> "${(diffMs / (7 * 24 * 60 * 60 * 1000)).toInt()}sem"
+                                                        diffMs < 30 * 24 * 60 * 60 * 1000L -> "${(diffMs / (24 * 60 * 60 * 1000)).toInt()}j"
                                                         else -> "${(diffMs / (30 * 24 * 60 * 60 * 1000L)).toInt()}mois"
                                                     }
                                                 }

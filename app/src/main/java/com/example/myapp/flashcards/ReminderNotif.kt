@@ -21,7 +21,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import java.util.concurrent.TimeUnit
 
-const val LIMIT_DUE_COUNT = 150
+const val LIMIT_DUE_COUNT = 50
 
 class FlashcardReminderWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
 
