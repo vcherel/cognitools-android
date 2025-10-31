@@ -22,6 +22,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -29,6 +30,7 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.TextUnit
@@ -47,31 +49,54 @@ fun MyButton(
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
 
-    // Adjust visual state if disabled
-    val shadowColor = remember(isPressed, enabled) {
+    val context = LocalContext.current
+    val themeManager = remember { ThemeManager(context) }
+    val isDarkMode by themeManager.isDarkMode.collectAsState(initial = false)
+
+    // Adjust visual state based on dark mode, pressed state, and enabled state
+    val shadowColor = remember(isPressed, enabled, isDarkMode) {
         when {
-            !enabled -> Color(0xFF9E9E9E)
+            !enabled -> if (isDarkMode) Color(0xFF424242) else Color(0xFF9E9E9E)
             isPressed -> Color(0xFF1565C0)
-            else -> Color(0xFFB0BEC5)
+            else -> if (isDarkMode) Color(0xFF37474F) else Color(0xFFB0BEC5)
         }
     }
 
-    val gradient = remember(isPressed, enabled) {
-        if (!enabled) {
-            Brush.horizontalGradient(listOf(Color(0xFFBDBDBD), Color(0xFF9E9E9E)))
-        } else {
-            Brush.horizontalGradient(
-                listOf(
-                    if (isPressed) Color(0xFF2196F3) else Color(0xFFECEFF1),
-                    if (isPressed) Color(0xFF1976D2) else Color(0xFFCFD8DC)
+    val gradient = remember(isPressed, enabled, isDarkMode) {
+        when {
+            !enabled -> {
+                if (isDarkMode) {
+                    Brush.horizontalGradient(listOf(Color(0xFF424242), Color(0xFF303030)))
+                } else {
+                    Brush.horizontalGradient(listOf(Color(0xFFBDBDBD), Color(0xFF9E9E9E)))
+                }
+            }
+            isPressed -> {
+                // Blue gradient when pressed (same for both modes)
+                Brush.horizontalGradient(
+                    listOf(Color(0xFF2196F3), Color(0xFF1976D2))
                 )
-            )
+            }
+            else -> {
+                if (isDarkMode) {
+                    Brush.horizontalGradient(
+                        listOf(Color(0xFF455A64), Color(0xFF37474F))
+                    )
+                } else {
+                    Brush.horizontalGradient(
+                        listOf(Color(0xFFECEFF1), Color(0xFFCFD8DC))
+                    )
+                }
+            }
         }
     }
 
-    val textColor = remember(isPressed, enabled) {
-        if (!enabled) Color(0xFF757575)
-        else if (isPressed) Color.White else Color.Black
+    val textColor = remember(isPressed, enabled, isDarkMode) {
+        when {
+            !enabled -> if (isDarkMode) Color(0xFF9E9E9E) else Color(0xFF757575)
+            isPressed -> Color.White
+            else -> if (isDarkMode) Color.White else Color.Black
+        }
     }
 
     Box(
