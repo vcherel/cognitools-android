@@ -65,6 +65,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.example.myapp.LocalIsDarkMode
 import com.example.myapp.MyButton
 import kotlinx.coroutines.launch
 import kotlin.math.abs
@@ -78,6 +79,10 @@ const val MAX_DIFFICULT_CARDS = 5
 fun FlashcardGameScreen(listId: String, navController: NavController, onBack: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+
+    val isDarkMode = LocalIsDarkMode.current
+    val greenColor = if (isDarkMode) Color(0xFF2D7516) else Color(0xFF56C92F)
+    val redColor = if (isDarkMode) Color(0xFF771212) else Color(0xFFDE1E1E)
 
     // Create repository instance
     val repository = remember { FlashcardRepository(context) }
@@ -309,9 +314,6 @@ fun FlashcardGameScreen(listId: String, navController: NavController, onBack: ()
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
-        val greenColor = Color(0xFF56C92F)
-        val redColor = Color(0xFFDE1E1E)
-
         if (cardOffset != 0f) {
             val swipeProgress = (abs(cardOffset) / 200f).coerceIn(0f, 1f)
             val shadowColor = if (cardOffset < 0) greenColor else redColor
@@ -525,7 +527,6 @@ fun FlashcardGameScreen(listId: String, navController: NavController, onBack: ()
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Spacer(Modifier.height(16.dp))
 
-                    // Answer buttons
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(20.dp)
