@@ -49,6 +49,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.myapp.LocalIsDarkMode
 import com.example.myapp.MyButton
 import com.example.myapp.ShowAlertDialog
 
@@ -61,6 +62,7 @@ fun PlayScreen(
 ) {
     val activePlayers = players.filter { !it.isEliminated }
     val startingPlayer = activePlayers.getOrNull(currentPlayerIndex)
+    val isDarkMode = LocalIsDarkMode.current
 
     Column(
         modifier = Modifier
@@ -79,11 +81,16 @@ fun PlayScreen(
         Spacer(modifier = Modifier.height(24.dp))
 
         // Rules in a fancy rectangle
+        val colors = if (isDarkMode) {
+            listOf(Color(0xFF0D47A1), Color(0xFF1976D2))
+        } else {
+            listOf(Color(0xFFE3F2FD), Color(0xFFBBDEFB))
+        }
         Box(
-            modifier = Modifier
+        modifier = Modifier
                 .fillMaxWidth()
                 .background(
-                    brush = Brush.horizontalGradient(listOf(Color(0xFFE3F2FD), Color(0xFFBBDEFB))),
+                    brush = Brush.horizontalGradient(colors),
                     shape = RoundedCornerShape(20.dp)
                 )
                 .padding(16.dp)

@@ -62,6 +62,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import androidx.work.WorkManager
+import com.example.myapp.LocalIsDarkMode
 import com.example.myapp.MyButton
 import com.example.myapp.ShowAlertDialog
 import kotlinx.coroutines.Dispatchers
@@ -73,6 +74,7 @@ fun FlashcardListsScreen(onBack: () -> Unit, navController: NavController) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val repository = remember { FlashcardRepository(context) }
+    val isDarkMode = LocalIsDarkMode.current
 
     var showDialog by remember { mutableStateOf(false) }
     var dialogTitle by remember { mutableStateOf("") }
@@ -245,6 +247,12 @@ fun FlashcardListsScreen(onBack: () -> Unit, navController: NavController) {
                             }
 
                             // Gradient overlay at the bottom
+                            val color = if (isDarkMode) {
+                                Color(0xFF000000)
+                            }
+                            else {
+                                Color(0xFFFEF7FF)
+                            }
                             Box(
                                 modifier = Modifier
                                     .align(Alignment.BottomCenter)
@@ -254,7 +262,7 @@ fun FlashcardListsScreen(onBack: () -> Unit, navController: NavController) {
                                         brush = Brush.verticalGradient(
                                             colors = listOf(
                                                 Color.Transparent,
-                                                Color(0xFFFEF7FF)
+                                                color
                                             ),
                                             startY = 0f,
                                             endY = Float.POSITIVE_INFINITY

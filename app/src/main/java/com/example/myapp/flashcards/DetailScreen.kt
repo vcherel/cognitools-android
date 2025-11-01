@@ -67,6 +67,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.example.myapp.LocalIsDarkMode
 import com.example.myapp.MyButton
 import com.example.myapp.ShowAlertDialog
 import kotlinx.coroutines.delay
@@ -82,6 +83,7 @@ fun FlashcardDetailScreen(
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
     val repository = remember { FlashcardRepository(context) }
+    val isDarkMode = LocalIsDarkMode.current
 
     var showDialog by remember { mutableStateOf(false) }
     var dialogName by remember { mutableStateOf("") }
@@ -541,6 +543,12 @@ fun FlashcardDetailScreen(
                     }
 
                     // Gradient overlay at the bottom
+                    val color = if (isDarkMode) {
+                        Color(0xFF000000)
+                    }
+                    else {
+                        Color(0xFFFEF7FF)
+                    }
                     Box(
                         modifier = Modifier
                             .align(Alignment.BottomCenter)
@@ -550,7 +558,7 @@ fun FlashcardDetailScreen(
                                 brush = Brush.verticalGradient(
                                     colors = listOf(
                                         Color.Transparent,
-                                        Color(0xFFFEF7FF)
+                                        color
                                     ),
                                     startY = 0f,
                                     endY = Float.POSITIVE_INFINITY

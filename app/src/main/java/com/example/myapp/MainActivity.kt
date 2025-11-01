@@ -262,7 +262,9 @@ fun MenuScreen(
                     themeManager.setDarkMode(!isDarkMode)
                 }
             },
-            modifier = Modifier.align(Alignment.TopEnd)
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .offset(y = 8.dp)
         ) {
             Icon(
                 imageVector = if (isDarkMode) Icons.Default.LightMode else Icons.Default.DarkMode,
