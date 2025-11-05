@@ -210,6 +210,22 @@ fun WikipediaScreen(onBack: () -> Unit) {
                         val doc = remember(content.fullContentHtml) {
                             Jsoup.parse(content.fullContentHtml)
                         }
+                        val excludeStarts = listOf(
+                            "Vous lisez un",
+                            "Cet article est une",
+                            "Pour les articles",
+                            "modifier",
+                            "Cet article ne",
+                            "Si vous disposez",
+                            "Pour des articles plus généraux",
+                            "Pour un article plus général",
+                            "Cet article est orphelin",
+                            "Ne pas confondre avec",
+                            "Ne doit pas être confondu avec",
+                            "Cet article concerne",
+                            "N.B."
+                        )
+
                         val paragraphs = remember(doc) {
                             doc.body()
                                 .select("p")
@@ -218,16 +234,7 @@ fun WikipediaScreen(onBack: () -> Unit) {
                                     val wordCount = text.split("\\s+".toRegex()).size
                                     wordCount >= 10 &&
                                             p.parents().none { it.tagName() == "table" && it.hasClass("infobox") } &&
-                                            !text.startsWith("Vous lisez un", ignoreCase = true) &&
-                                            !text.startsWith("Cet article est une", ignoreCase = true) &&
-                                            !text.startsWith("Pour les articles", ignoreCase = true) &&
-                                            !text.startsWith("modifier", ignoreCase = true) &&
-                                            !text.startsWith("Cet article ne", ignoreCase = true) &&
-                                            !text.startsWith("Si vous disposez", ignoreCase = true) &&
-                                            !text.startsWith("Pour des articles plus généraux", ignoreCase = true) &&
-                                            !text.startsWith("Pour un article plus général", ignoreCase = true) &&
-                                            !text.startsWith("Cet article est orphelin", ignoreCase = true) &&
-                                            !text.startsWith("N.B.", ignoreCase = true) &&
+                                            excludeStarts.none { start -> text.startsWith(start, ignoreCase = true) } &&
                                             !text.contains("redirige ici. Pour", ignoreCase = true) &&
                                             p.select("a").none { it.text().contains("Écouter") }
                                 }
