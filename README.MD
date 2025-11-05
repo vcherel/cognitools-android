@@ -3,7 +3,7 @@
 An Android app built in Kotlin for **fun**, designed to group all the little tools and games I like to have on my phone.
 
 <p align="center">
-  <img src="/images/main_menu.jpeg" alt="Main menu" width="200">
+  <img src="/images/main_menu.jpeg" alt="Main menu" width="300">
 </p>
 
 ### Features
@@ -20,8 +20,8 @@ Increase or decrease your phone's sound volume beyond the default limits.
 Learn word pairs efficiently. The app intelligently shows cards we know less often, so you focus on what you need to remember.
 
 <p align="center">
-  <img src="/images/flashcard_menu.jpeg" alt="Flashcard menu" width="200" style="margin-right: 20px;">
-  <img src="/images/flashcard.jpeg" alt="Flashcard game" width="200" style="margin-left: 20px;">
+  <img src="/images/flashcard_menu.jpeg" alt="Flashcard menu" width="300" style="margin-right: 20px;">
+  <img src="/images/flashcard.jpeg" alt="Flashcard game" width="300" style="margin-left: 20px;">
 </p
 
 - **Undercover Game**
