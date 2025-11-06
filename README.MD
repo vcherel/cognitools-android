@@ -1,4 +1,4 @@
-# BestApp
+# CogniTools
 
 An Android app built in Kotlin for **fun**, designed to group all the little tools and games I like to have on my phone.
 
