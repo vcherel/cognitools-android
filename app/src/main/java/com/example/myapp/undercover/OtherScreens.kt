@@ -15,17 +15,20 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
@@ -46,6 +49,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -64,10 +68,13 @@ fun PlayScreen(
     val startingPlayer = activePlayers.getOrNull(currentPlayerIndex)
     val isDarkMode = LocalIsDarkMode.current
 
+    var selectedPlayer by remember { mutableStateOf<Player?>(null) }
+    var showConfirmDialog by remember { mutableStateOf(false) }
+    var showPlayerInfo by remember { mutableStateOf(false) }
+
     Column(
         modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
+            .fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
@@ -87,7 +94,7 @@ fun PlayScreen(
             listOf(Color(0xFFE3F2FD), Color(0xFFBBDEFB))
         }
         Box(
-        modifier = Modifier
+            modifier = Modifier
                 .fillMaxWidth()
                 .background(
                     brush = Brush.horizontalGradient(colors),
@@ -103,7 +110,7 @@ fun PlayScreen(
                     textAlign = TextAlign.Center
                 )
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(10.dp))
 
                 Text(
                     buildAnnotatedString {
@@ -116,7 +123,9 @@ fun PlayScreen(
                     lineHeight = 24.sp,
                     textAlign = TextAlign.Center
                 )
-                Spacer(modifier = Modifier.height(12.dp))
+
+                Spacer(modifier = Modifier.height(10.dp))
+
                 Text(
                     buildAnnotatedString {
                         append("• Ne ")
@@ -129,7 +138,8 @@ fun PlayScreen(
                     lineHeight = 24.sp,
                     textAlign = TextAlign.Center
                 )
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(10.dp))
+
                 Text(
                     buildAnnotatedString {
                         append("• Dites pas des trucs trop simples, on est là\npour le ")
@@ -144,7 +154,7 @@ fun PlayScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(10.dp))
 
         if (startingPlayer != null) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -164,7 +174,24 @@ fun PlayScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(modifier = Modifier.height(20.dp))
+
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            contentPadding = PaddingValues(horizontal = 16.dp)
+        ) {
+            items(activePlayers) { player ->
+                PlayerCard(
+                    player = player,
+                    onClick = {
+                        selectedPlayer = player
+                        showConfirmDialog = true
+                    }
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(20.dp))
 
         MyButton(
             text = "Passons au conseil",
@@ -174,6 +201,122 @@ fun PlayScreen(
                 .widthIn(min = 180.dp, max = 250.dp),
             fontSize = 22.sp
         )
+    }
+
+    // Confirmation dialog
+    if (showConfirmDialog && selectedPlayer != null) {
+        AlertDialog(
+            onDismissRequest = {
+                showConfirmDialog = false
+                selectedPlayer = null
+            },
+            title = {
+                Text(
+                    text = "Voir le rôle et le mot ?",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showConfirmDialog = false
+                        showPlayerInfo = true
+                    }
+                ) {
+                    Text("Oui", fontSize = 16.sp)
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showConfirmDialog = false
+                        selectedPlayer = null
+                    }
+                ) {
+                    Text("Non", fontSize = 16.sp)
+                }
+            }
+        )
+    }
+
+    // Player info dialog
+    if (showPlayerInfo && selectedPlayer != null) {
+        AlertDialog(
+            onDismissRequest = {
+                showPlayerInfo = false
+                selectedPlayer = null
+            },
+            title = {
+                Text(
+                    text = selectedPlayer?.name ?: "",
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Column {
+                    Text(
+                        text = "Rôle: ${selectedPlayer?.role?.displayName() ?: ""}",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    selectedPlayer?.word?.takeIf { it.isNotEmpty() }?.let { word ->
+                        Text(
+                            text = "Mot: $word",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showPlayerInfo = false
+                        selectedPlayer = null
+                    }
+                ) {
+                    Text("OK", fontSize = 16.sp)
+                }
+            }
+        )
+    }
+}
+
+@Composable
+fun PlayerCard(
+    player: Player,
+    onClick: () -> Unit
+) {
+    val isDarkMode = LocalIsDarkMode.current
+    val backgroundColor = if (isDarkMode) Color(0xFF1E1E1E) else Color(0xFFF5F5F5)
+
+    Card(
+        modifier = Modifier
+            .width(120.dp)
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = backgroundColor),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .padding(12.dp)
+                .fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = player.name,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
     }
 }
 
