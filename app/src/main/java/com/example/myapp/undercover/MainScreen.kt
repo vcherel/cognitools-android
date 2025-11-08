@@ -90,10 +90,10 @@ fun UndercoverScreen(onBack: () -> Unit) {
                     },
                     onStart = {
                         if (!gameState.playAgain) {
-                            val assignedPlayers = generateAndAssignPlayers(context, state)
+                            val (assignedPlayers, firstIndex) = generateAndAssignPlayers(context, state)
                             state = state.copy(
                                 players = assignedPlayers,
-                                currentPlayerIndex = 0,
+                                currentPlayerIndex = firstIndex,
                                 currentRound = 1,
                                 mrWhiteGuesses = emptyMap(),
                                 gameState = GameState.PlayerSetup()
@@ -182,10 +182,10 @@ fun UndercoverScreen(onBack: () -> Unit) {
                         state = UndercoverGameState(gameState = GameState.Settings())
                     },
                     onNewGame = {
-                        val reassignedPlayers = reassignRolesAndWords(context, state)
+                        val (reassignedPlayers, firstIndex) = reassignRolesAndWords(context, state)
                         state = state.copy(
                             players = reassignedPlayers,
-                            currentPlayerIndex = 0,
+                            currentPlayerIndex = firstIndex,
                             currentRound = 1,
                             mrWhiteGuesses = emptyMap(),
                             gameState = GameState.PlayerSetup()
