@@ -41,7 +41,7 @@ import kotlin.random.Random
 
 const val MAX_NAME_LENGTH = 30
 
-fun generateAndAssignPlayers(context: Context, state: UndercoverGameState): List<Player> {
+fun generateAndAssignPlayers(context: Context, state: UndercoverGameState): Pair<List<Player>, Int> {
     val players = (0 until state.players.size).map { i -> Player() }.toMutableList()
 
     val wordPair = pickRandomPair(context)
@@ -91,16 +91,34 @@ fun generateAndAssignPlayers(context: Context, state: UndercoverGameState): List
         players[idx] = players[idx].copy(role = PlayerRole.CIVILIAN, word = civilianWord)
     }
 
-    return players
+    // Determine first player with weighted probability
+    val firstPlayerIndex = selectFirstPlayer(players)
+
+    return players to firstPlayerIndex
 }
 
-fun reassignRolesAndWords(context: Context, state: UndercoverGameState): List<Player> {
+private fun selectFirstPlayer(players: List<Player>): Int {
+    // Create a weighted list where Mr. White has weight 1, others have weight 10
+    val weightedIndices = mutableListOf<Int>()
+
+    players.forEachIndexed { index, player ->
+        val weight = if (player.role == PlayerRole.MR_WHITE) 1 else 10
+        repeat(weight) {
+            weightedIndices.add(index)
+        }
+    }
+
+    return weightedIndices.random()
+}
+
+fun reassignRolesAndWords(context: Context, state: UndercoverGameState): Pair<List<Player>, Int> {
     // When replaying game
-    val newPlayers = generateAndAssignPlayers(context, state)
+    val (newPlayers, firstIndex) = generateAndAssignPlayers(context, state)
     // Keep the original names
+
     return newPlayers.mapIndexed { index, p ->
         p.copy(name = state.players.getOrNull(index)?.name ?: p.name)
-    }
+    } to firstIndex
 }
 
 @Composable
