@@ -1,0 +1,6 @@
+tqdm
+fasttext
+pandas
+numpy
+faiss-cpu
+spacy
