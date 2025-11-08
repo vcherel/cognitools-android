@@ -30,6 +30,12 @@ Play a social deduction game where each player receives a secret word. Most play
 
 The pairs of words used in the game were generated automatically using **NLP** and **FastText embeddings**. Using this method, the game includes more than 280,000 pairs of related words.
 
+The code used to generate the pairs is available in generate_dataset.ipynb. To install all necessary libraries, run:
+```bash
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+```
 - **Wikipedia Reader**
 
 Explore random Wikipedia pages
