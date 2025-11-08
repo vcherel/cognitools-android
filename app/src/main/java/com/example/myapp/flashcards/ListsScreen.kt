@@ -109,7 +109,11 @@ fun FlashcardListsScreen(onBack: () -> Unit, navController: NavController) {
         }
     }
 
-    BackHandler { onBack() }
+    BackHandler {
+        if (!navController.popBackStack()) {
+            onBack()
+        }
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
@@ -128,7 +132,11 @@ fun FlashcardListsScreen(onBack: () -> Unit, navController: NavController) {
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.weight(1f)
                 ) {
-                    IconButton(onClick = { onBack() }) {
+                    IconButton(onClick = {
+                            if (!navController.popBackStack()) {
+                                onBack()
+                            }
+                        }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Retour")
                     }
                     Text(

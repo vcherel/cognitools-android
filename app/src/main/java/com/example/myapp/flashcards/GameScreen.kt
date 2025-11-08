@@ -125,6 +125,8 @@ fun FlashcardGameScreen(listId: String, navController: NavController, onBack: ()
     var lastShowFront by remember { mutableStateOf(true) }
     var canUndo by remember { mutableStateOf(false) }
 
+    var hasNavigatedBack by remember { mutableStateOf(false) }
+
     LaunchedEffect(currentCard) {
         listName = if (isAllListsMode && currentCard != null) {
             repository.getListNameById(currentCard!!.listId)
@@ -366,7 +368,14 @@ fun FlashcardGameScreen(listId: String, navController: NavController, onBack: ()
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(onClick = onBack) {
+                IconButton(
+                    onClick = {
+                        if (!hasNavigatedBack) {
+                            hasNavigatedBack = true
+                            navController.popBackStack()
+                        }
+                    }
+                ) {
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Retour")
                 }
 
