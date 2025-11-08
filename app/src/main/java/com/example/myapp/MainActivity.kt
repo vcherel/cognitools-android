@@ -136,6 +136,8 @@ fun MainScreen(themeManager: ThemeManager, isDarkMode: Boolean) {
     CompositionLocalProvider(LocalIsDarkMode provides isDarkMode) {
         var currentScreen by remember { mutableStateOf("menu") }
 
+        Log.d("MainScreen", "Recomposing - currentScreen: $currentScreen")
+
         Scaffold { innerPadding ->
             Box(modifier = Modifier.padding(innerPadding)) {
                 when (currentScreen) {
@@ -186,8 +188,14 @@ fun FlashcardsNavGraph(onBack: () -> Unit) {
 
     NavHost(navController = navController, startDestination = "lists") {
         composable("lists") {
+            Log.d("FlashcardsNavGraph", "Composing lists screen")
             FlashcardListsScreen(
-                onBack = onBack,
+                onBack = {
+                    val popped = navController.popBackStack()
+                    if (!popped) {
+                        onBack()
+                    }
+                },
                 navController = navController
             )
         }
@@ -204,7 +212,7 @@ fun FlashcardsNavGraph(onBack: () -> Unit) {
             FlashcardGameScreen(
                 listId = listId,
                 navController = navController,
-                onBack = { navController.popBackStack()}
+                onBack = { navController.popBackStack() }
             )
         }
     }
