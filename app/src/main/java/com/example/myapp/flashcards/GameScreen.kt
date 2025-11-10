@@ -214,8 +214,9 @@ fun FlashcardGameScreen(listId: String, navController: NavController, onBack: ()
             newReps == 1 -> 6.0
             else -> {
                 // Low score have less chance to have times 2 multiplier
-                val randomFactor = Math.random().pow(1.0 + ((10 - newScore) / 10.0))
-                val randomMultiplier = 0.8 + randomFactor * 1.2
+                val penaltyFactor = (11 - newScore) / 10.0
+                val randomFactor = Math.random().pow(1.0 + penaltyFactor)
+                val randomMultiplier = 0.5 + randomFactor * (1.0 - 0.5 * penaltyFactor)
                 card.interval * newEF * randomMultiplier
             }
         }
