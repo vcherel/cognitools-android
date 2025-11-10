@@ -72,7 +72,6 @@ import com.example.myapp.MyButton
 import com.example.myapp.ShowAlertDialog
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import java.text.Normalizer
 
 @Composable
 fun FlashcardDetailScreen(
@@ -150,20 +149,12 @@ fun FlashcardDetailScreen(
             currentFirstVisibleKey.value = if (isAllLists) "${element.listId}_${element.id}" else element.id
         }
 
-        fun String.normalizeForSearch(): String {
-            return Normalizer.normalize(this, Normalizer.Form.NFD)
-                .replace("\\p{Mn}+".toRegex(), "")
-                .lowercase()
-        }
-
+        val normalizedQuery = searchQuery.normalizeForSearch()
         val filtered = elementsState.filter {
-            val query = searchQuery.normalizeForSearch()
-            val name = it.name.normalizeForSearch()
-            val definition = it.definition.normalizeForSearch()
-
-            query.isEmpty() || name.contains(query) || definition.contains(query)
+            normalizedQuery.isEmpty() ||
+                    it.normalizedName.contains(normalizedQuery) ||
+                    it.normalizedDefinition.contains(normalizedQuery)
         }
-
 
         val sorted = when (sortState) {
             0 -> filtered.sortedByDescending { it.lastReview + it.interval * 60_000L }

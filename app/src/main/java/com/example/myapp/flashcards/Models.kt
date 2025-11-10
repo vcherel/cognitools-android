@@ -2,6 +2,7 @@ package com.example.myapp.flashcards
 
 import org.json.JSONArray
 import org.json.JSONObject
+import java.text.Normalizer
 import java.util.UUID
 
 
@@ -45,11 +46,19 @@ data class FlashcardList(
     }
 }
 
+fun String.normalizeForSearch(): String {
+    return Normalizer.normalize(this, Normalizer.Form.NFD)
+        .replace("\\p{Mn}+".toRegex(), "")
+        .lowercase()
+}
+
 data class FlashcardElement(
     val id: String = UUID.randomUUID().toString(),
     val listId: String,
     val name: String,
     val definition: String,
+    val normalizedName: String = name.normalizeForSearch(),
+    val normalizedDefinition: String = definition.normalizeForSearch(),
     var easeFactor: Double = 2.5,
     var interval: Int = 0,
     var repetitions: Int = 0,
@@ -76,11 +85,16 @@ data class FlashcardElement(
 
     companion object {
         fun fromJson(json: JSONObject): FlashcardElement {
+            val name = json.optString("name", "")
+            val definition = json.optString("definition", "")
+
             return FlashcardElement(
                 id = json.optString("id", UUID.randomUUID().toString()),
                 listId = json.optString("listId", ""),
-                name = json.optString("name", ""),
-                definition = json.optString("definition", ""),
+                name = name,
+                definition = definition,
+                normalizedName = name.normalizeForSearch(),
+                normalizedDefinition = definition.normalizeForSearch(),
                 easeFactor = json.optDouble("easeFactor", 2.5),
                 interval = json.optInt("interval", 0),
                 repetitions = json.optInt("repetitions", 0),
