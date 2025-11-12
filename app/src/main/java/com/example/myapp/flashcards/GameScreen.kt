@@ -213,10 +213,8 @@ fun FlashcardGameScreen(listId: String, navController: NavController, onBack: ()
             // On the first win we have to wait 6 minutes
             newReps == 1 -> 6.0
             else -> {
-                // Low score have less chance to have times 2 multiplier
-                val penaltyFactor = (11 - newScore) / 10.0
-                val randomFactor = Math.random().pow(1.0 + penaltyFactor)
-                val randomMultiplier = 0.5 + randomFactor * (1.0 - 0.5 * penaltyFactor)
+                val randomFactor = Math.random().pow(1.0 + ((10 - newScore) / 10.0))
+                val randomMultiplier = 0.6 + randomFactor * 1.4
                 card.interval * newEF * randomMultiplier
             }
         }
