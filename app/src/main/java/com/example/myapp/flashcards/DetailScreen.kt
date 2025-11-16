@@ -299,15 +299,34 @@ fun FlashcardDetailScreen(
                                 // Convert average milliseconds to human-readable format
                                 val avgTimeFormatted = when {
                                     avgMillis <= 0 -> "Maintenant"
-                                    avgMillis < 60 * 60 * 1000 -> "${(avgMillis / (60 * 1000)).toInt()}min"
-                                    avgMillis < 24 * 60 * 60 * 1000 -> "${(avgMillis / (60 * 60 * 1000)).toInt()}h"
-                                    avgMillis < 30 * 24 * 60 * 60 * 1000L -> "${(avgMillis / (24 * 60 * 60 * 1000)).toInt()}j"
-                                    else -> "${(avgMillis / (30 * 24 * 60 * 60 * 1000L)).toInt()}mois"
+                                    avgMillis < 60 * 1000 -> "${(avgMillis / 1000).toInt()}s"
+                                    avgMillis < 60 * 60 * 1000 -> {
+                                        val mins = (avgMillis / (60 * 1000)).toInt()
+                                        "${mins}min"
+                                    }
+                                    avgMillis < 24 * 60 * 60 * 1000 -> {
+                                        val hours = (avgMillis / (60 * 60 * 1000)).toInt()
+                                        val mins = ((avgMillis % (60 * 60 * 1000)) / (60 * 1000)).toInt()
+                                        "${hours}h ${mins}min"
+                                    }
+                                    avgMillis < 30 * 24 * 60 * 60 * 1000L -> {
+                                        val days = (avgMillis / (24 * 60 * 60 * 1000)).toInt()
+                                        val hours = ((avgMillis % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000)).toInt()
+                                        val mins = ((avgMillis % (60 * 60 * 1000)) / (60 * 1000)).toInt()
+                                        "${days}j ${hours}h ${mins}min"
+                                    }
+                                    else -> {
+                                        val months = (avgMillis / (30 * 24 * 60 * 60 * 1000L)).toInt()
+                                        val days = ((avgMillis % (30 * 24 * 60 * 60 * 1000L)) / (24 * 60 * 60 * 1000)).toInt()
+                                        val hours = ((avgMillis % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000)).toInt()
+                                        val mins = ((avgMillis % (60 * 60 * 1000)) / (60 * 1000)).toInt()
+                                        "${months}mois ${days}j ${hours}h ${mins}min"
+                                    }
                                 }
 
                                 Toast.makeText(
                                     context,
-                                    "Temps moyen avant révision: $avgTimeFormatted",
+                                    "Temps moyen : $avgTimeFormatted",
                                     Toast.LENGTH_SHORT
                                 ).show()
                             } else {
