@@ -142,7 +142,12 @@ fun FlashcardListsScreen(onBack: () -> Unit, navController: NavController) {
                     Text(
                         "Mes listes",
                         style = MaterialTheme.typography.headlineSmall,
-                        modifier = Modifier.padding(start = 8.dp, end = 15.dp)
+                        modifier = Modifier
+                            .padding(start = 8.dp, end = 15.dp)
+                            .clickable {
+                                val total = countsMap.values.sumOf { it.first }
+                                Toast.makeText(context, "$total éléments au total", Toast.LENGTH_SHORT).show()
+                            }
                     )
                     Box(
                         modifier = Modifier
