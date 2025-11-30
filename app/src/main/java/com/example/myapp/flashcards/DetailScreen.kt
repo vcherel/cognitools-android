@@ -30,7 +30,9 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.SwapVert
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -512,6 +514,24 @@ fun FlashcardDetailScreen(
                                                     Icon(
                                                         Icons.Default.Edit,
                                                         contentDescription = "Éditer",
+                                                        modifier = Modifier.size(20.dp)
+                                                    )
+                                                }
+
+                                                IconButton(
+                                                    onClick = {
+                                                        val idx = elementsState.indexOfFirst { it.id == element.id }
+                                                        if (idx != -1) {
+                                                            val updated = element.copy(randomSide = !element.randomSide)
+                                                            elementsState[idx] = updated
+                                                            scope.launch { repository.updateRandomSide(element.listId, element.id, updated.randomSide) }
+                                                        }
+                                                    },
+                                                    modifier = Modifier.size(24.dp)
+                                                ) {
+                                                    Icon(
+                                                        if (element.randomSide) Icons.Default.SwapHoriz else Icons.Default.VisibilityOff,
+                                                        contentDescription = "Basculer mode recto/verso",
                                                         modifier = Modifier.size(20.dp)
                                                     )
                                                 }

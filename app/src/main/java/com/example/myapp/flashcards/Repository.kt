@@ -165,6 +165,17 @@ class FlashcardRepository(private val context: Context) {
         return lists.find { it.id == listId }?.name ?: ""
     }
 
+    suspend fun updateRandomSide(listId: String, elementId: String, randomSide: Boolean) {
+        val current = getElements(listId)
+        val updated = current.map { element ->
+            if (element.id == elementId) {
+                element.copy(randomSide = randomSide)
+            } else {
+                element
+            }
+        }
+        saveElements(listId, updated)
+    }
 }
 
 val Context.flashcardDataStore by preferencesDataStore("flashcards")

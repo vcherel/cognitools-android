@@ -180,8 +180,13 @@ fun FlashcardGameScreen(listId: String, navController: NavController, onBack: ()
 
         // Pick a random current card if none is selected yet
         if (currentCard == null && dueCards.isNotEmpty()) {
-            currentCard = dueCards.random(sessionRandom) // Use session-seeded random
-            showFront = sessionRandom.nextBoolean() // Use session-seeded random
+            currentCard = dueCards.random(sessionRandom)
+            showFront = if (currentCard!!.randomSide) {
+                sessionRandom.nextBoolean()
+            } else {
+                true
+            }
+            showFront = sessionRandom.nextBoolean()
         }
     }
 
@@ -269,12 +274,15 @@ fun FlashcardGameScreen(listId: String, navController: NavController, onBack: ()
             val availableCards = dueCards.filter { it.id != card.id }
 
             currentCard = if (availableCards.isNotEmpty()) {
-                val card = availableCards.random(sessionRandom) // Use session-seeded random
-                showFront = sessionRandom.nextBoolean() // Use session-seeded random
+                val card = availableCards.random(sessionRandom)
+
+                showFront = if (card.randomSide) {
+                    sessionRandom.nextBoolean()
+                } else {
+                    true
+                }
                 card
-            } else {
-                null
-            }
+            } else null
             isProcessingSwipe = false
         }
     }

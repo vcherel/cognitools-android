@@ -3,7 +3,6 @@ package com.example.myapp
 import android.animation.ObjectAnimator
 import android.os.Build
 import android.os.Bundle
-import android.util.Log
 import android.view.View
 import android.view.animation.AnticipateInterpolator
 import androidx.activity.ComponentActivity
@@ -50,13 +49,7 @@ class ThemeManager {
 class MainActivity : ComponentActivity() {
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
-    ) { isGranted: Boolean ->
-        if (isGranted) {
-            Log.d("MainActivity", "Notification permission granted")
-        } else {
-            Log.d("MainActivity", "Notification permission denied")
-        }
-    }
+    ) { }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         val splashScreen = installSplashScreen()
@@ -136,8 +129,6 @@ fun MainScreen(themeManager: ThemeManager, isDarkMode: Boolean) {
     CompositionLocalProvider(LocalIsDarkMode provides isDarkMode) {
         var currentScreen by remember { mutableStateOf("menu") }
 
-        Log.d("MainScreen", "Recomposing - currentScreen: $currentScreen")
-
         Scaffold { innerPadding ->
             Box(modifier = Modifier.padding(innerPadding)) {
                 when (currentScreen) {
@@ -188,7 +179,6 @@ fun FlashcardsNavGraph(onBack: () -> Unit) {
 
     NavHost(navController = navController, startDestination = "lists") {
         composable("lists") {
-            Log.d("FlashcardsNavGraph", "Composing lists screen")
             FlashcardListsScreen(
                 onBack = {
                     val popped = navController.popBackStack()
