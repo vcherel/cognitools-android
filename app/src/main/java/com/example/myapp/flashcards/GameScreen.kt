@@ -186,7 +186,6 @@ fun FlashcardGameScreen(listId: String, navController: NavController, onBack: ()
             } else {
                 true
             }
-            showFront = sessionRandom.nextBoolean()
         }
     }
 
