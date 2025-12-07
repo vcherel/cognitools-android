@@ -41,6 +41,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
@@ -90,6 +91,7 @@ fun FlashcardDetailScreen(
     var showDialog by remember { mutableStateOf(false) }
     var dialogName by remember { mutableStateOf("") }
     var dialogDefinition by remember { mutableStateOf("") }
+    var dialogRandomSide by remember { mutableStateOf(true) }
     var editingElement by remember { mutableStateOf<FlashcardElement?>(null) }
     var searchQuery by remember { mutableStateOf("") }
     var elementToDelete by remember { mutableStateOf<FlashcardElement?>(null) }
@@ -153,9 +155,10 @@ fun FlashcardDetailScreen(
 
         val normalizedQuery = searchQuery.normalizeForSearch()
         val filtered = elementsState.filter {
-            normalizedQuery.isEmpty() ||
+            (normalizedQuery.isEmpty() ||
                     it.normalizedName.contains(normalizedQuery) ||
-                    it.normalizedDefinition.contains(normalizedQuery)
+                    it.normalizedDefinition.contains(normalizedQuery)) &&
+                    (sortState != 6 || !it.randomSide) && (sortState != 7 || it.randomSide)
         }
 
         val sorted = when (sortState) {
@@ -175,6 +178,8 @@ fun FlashcardDetailScreen(
                     .thenBy { it.totalLosses }
                     .thenByDescending { it.lastReview + it.interval * 60_000L }
             )
+            6 -> filtered.sortedByDescending { it.lastReview + it.interval * 60_000L }
+            7 -> filtered.sortedByDescending { it.lastReview + it.interval * 60_000L }
             else -> filtered
         }
 
@@ -263,6 +268,17 @@ fun FlashcardDetailScreen(
                                 text = { Text("Score") },
                                 onClick = {
                                     sortState = if (sortState == 4) 5 else 4
+                                    showSortMenu = false
+                                    scope.launch {
+                                        delay(50)
+                                        listState.scrollToItem(0)
+                                    }
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Face uniquement") },
+                                onClick = {
+                                    sortState = if (sortState == 6) 7 else 6
                                     showSortMenu = false
                                     scope.launch {
                                         delay(50)
@@ -507,6 +523,7 @@ fun FlashcardDetailScreen(
                                                         editingElement = element
                                                         dialogName = element.name
                                                         dialogDefinition = element.definition
+                                                        dialogRandomSide = element.randomSide
                                                         showDialog = true
                                                     },
                                                     modifier = Modifier.size(24.dp)
@@ -514,24 +531,6 @@ fun FlashcardDetailScreen(
                                                     Icon(
                                                         Icons.Default.Edit,
                                                         contentDescription = "Éditer",
-                                                        modifier = Modifier.size(20.dp)
-                                                    )
-                                                }
-
-                                                IconButton(
-                                                    onClick = {
-                                                        val idx = elementsState.indexOfFirst { it.id == element.id }
-                                                        if (idx != -1) {
-                                                            val updated = element.copy(randomSide = !element.randomSide)
-                                                            elementsState[idx] = updated
-                                                            scope.launch { repository.updateRandomSide(element.listId, element.id, updated.randomSide) }
-                                                        }
-                                                    },
-                                                    modifier = Modifier.size(24.dp)
-                                                ) {
-                                                    Icon(
-                                                        if (element.randomSide) Icons.Default.SwapHoriz else Icons.Default.VisibilityOff,
-                                                        contentDescription = "Basculer mode recto/verso",
                                                         modifier = Modifier.size(20.dp)
                                                     )
                                                 }
@@ -636,6 +635,7 @@ fun FlashcardDetailScreen(
                     ) {
                         dialogName = ""
                         dialogDefinition = ""
+                        dialogRandomSide = true
                         editingElement = null
                         showDialog = true
                     }
@@ -710,14 +710,16 @@ fun FlashcardDetailScreen(
                         val newElement = FlashcardElement(
                             listId = listId,
                             name = dialogName,
-                            definition = dialogDefinition
+                            definition = dialogDefinition,
+                            randomSide = dialogRandomSide
                         )
                         elementsState.add(newElement)
                         repository.addElement(listId, newElement)
                     } else {
                         val updatedElement = editingElement!!.copy(
                             name = dialogName,
-                            definition = dialogDefinition
+                            definition = dialogDefinition,
+                            randomSide = dialogRandomSide
                         )
                         val idx = elementsState.indexOfFirst { it.id == editingElement!!.id }
                         if (idx != -1) {
@@ -750,6 +752,17 @@ fun FlashcardDetailScreen(
                         keyboardActions = KeyboardActions(onDone = { saveElement() }),
                         modifier = Modifier.focusRequester(focusRequester2)
                     )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(top = 8.dp)
+                    ) {
+                        Text("Montrer face uniquement")
+                        Spacer(Modifier.weight(1f))
+                        Switch(
+                            checked = !dialogRandomSide,
+                            onCheckedChange = { dialogRandomSide = !it }
+                        )
+                    }
                 }
             },
             onCancel = { showDialog = false },
