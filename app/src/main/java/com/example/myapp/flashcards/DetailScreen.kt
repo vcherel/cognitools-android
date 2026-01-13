@@ -274,7 +274,7 @@ fun FlashcardDetailScreen(
                                 }
                             )
                             DropdownMenuItem(
-                                text = { Text("Face uniquement") },
+                                text = { Text("Toujours le même sens") },
                                 onClick = {
                                     sortState = if (sortState == 6) 7 else 6
                                     showSortMenu = false
@@ -754,11 +754,11 @@ fun FlashcardDetailScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.padding(top = 8.dp)
                     ) {
-                        Text("Montrer face uniquement")
+                        Text("Montrer côté aléatoire")
                         Spacer(Modifier.weight(1f))
                         Switch(
-                            checked = !dialogRandomSide,
-                            onCheckedChange = { dialogRandomSide = !it }
+                            checked = dialogRandomSide,
+                            onCheckedChange = { dialogRandomSide = it }
                         )
                     }
                 }
