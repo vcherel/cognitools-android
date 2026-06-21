@@ -332,7 +332,7 @@ fun FlashcardListsScreen(onBack: () -> Unit, navController: NavController) {
                         val randomSide = !processedLine.endsWith("#")
 
                         if (processedLine.endsWith("#")) {
-                            processedLine = processedLine.dropLast(3).trim()
+                            processedLine = processedLine.dropLast(1).trim()
                         }
 
                         val sep = separators.firstOrNull { processedLine.contains(it) } ?: return@mapNotNull null
