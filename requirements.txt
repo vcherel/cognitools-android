@@ -1,5 +1,0 @@
-fasttext
-pandas
-numpy
-faiss-cpu
-spacy

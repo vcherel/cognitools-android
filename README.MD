@@ -30,12 +30,15 @@ Play a social deduction game where each player receives a secret word. Most play
 
 The pairs of words used in the game were generated automatically using **NLP** and **FastText embeddings**. Using this method, the game includes approximatlely 80,000 pairs of related words.
 
-The code used to generate the pairs is available in generate_dataset.ipynb. To install all necessary libraries, run:
+The code used to generate the pairs lives in `src/generate_pairs.py`, with `generate_dataset.ipynb` as a thin driver to run and inspect it. The project uses [uv](https://docs.astral.sh/uv/) for the environment. To set it up and generate the pairs, run:
 ```bash
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-python3 -m spacy download fr_core_news_lg
+uv sync
+uv run python src/generate_pairs.py
+```
+To explore the results in the notebook instead:
+```bash
+uv sync --group notebook
+uv run jupyter notebook generate_dataset.ipynb
 ```
 
 - **Wikipedia Reader**
