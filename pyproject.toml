@@ -1,0 +1,17 @@
+[project]
+name = "cognitools-dataset"
+version = "0.1.0"
+description = "Generate the Undercover word pairs for the CogniTools Android app"
+requires-python = ">=3.10"
+dependencies = [
+    "fasttext",
+    "faiss-cpu",
+    "numpy",
+    "pandas",
+]
+
+[dependency-groups]
+notebook = ["ipykernel"]
+
+[tool.uv]
+package = false
