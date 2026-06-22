@@ -97,17 +97,9 @@ class VolumeBoosterService : Service() {
 
     private fun startBoost() {
         try {
-            if (loudnessEnhancer == null) {
-                loudnessEnhancer = LoudnessEnhancer(0).apply {
-                    enabled = true
-                    setTargetGain(currentGain)
-                }
-            } else {
-                loudnessEnhancer?.apply {
-                    enabled = true
-                    setTargetGain(currentGain)
-                }
-            }
+            val enhancer = loudnessEnhancer ?: LoudnessEnhancer(0).also { loudnessEnhancer = it }
+            enhancer.enabled = true
+            enhancer.setTargetGain(currentGain)
         } catch (e: Exception) {
             e.printStackTrace()
         }
