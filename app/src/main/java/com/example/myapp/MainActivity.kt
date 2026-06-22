@@ -27,22 +27,31 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.preferencesDataStore
 import com.example.myapp.flashcards.FlashcardDetailScreen
 import com.example.myapp.flashcards.FlashcardGameScreen
 import com.example.myapp.flashcards.FlashcardListsScreen
 import com.example.myapp.undercover.UndercoverScreen
+import android.content.Context
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
-class ThemeManager {
-    private var darkMode = false
+val Context.themeDataStore by preferencesDataStore("theme_preferences")
 
-    val isDarkMode: Flow<Boolean> = MutableStateFlow(darkMode)
+private val DARK_MODE_KEY = booleanPreferencesKey("dark_mode")
 
-    fun setDarkMode(enabled: Boolean) {
-        darkMode = enabled
-        (isDarkMode as MutableStateFlow).value = enabled
+class ThemeManager(private val context: Context) {
+    val isDarkMode: Flow<Boolean> = context.themeDataStore.data.map { prefs ->
+        prefs[DARK_MODE_KEY] ?: false
+    }
+
+    suspend fun setDarkMode(enabled: Boolean) {
+        context.themeDataStore.edit { prefs ->
+            prefs[DARK_MODE_KEY] = enabled
+        }
     }
 }
 
@@ -93,7 +102,7 @@ class MainActivity : ComponentActivity() {
 
         enableEdgeToEdge()
         setContent {
-            val themeManager = remember { ThemeManager() }
+            val themeManager = remember { ThemeManager(applicationContext) }
             val isDarkMode by themeManager.isDarkMode.collectAsState(initial = false)
 
             MaterialTheme(
