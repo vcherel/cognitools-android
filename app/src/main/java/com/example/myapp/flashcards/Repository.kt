@@ -18,9 +18,7 @@ class FlashcardRepository(private val context: Context) {
 
     fun observeLists(): Flow<List<FlashcardList>> {
         return context.flashcardDataStore.data.map { prefs ->
-            val jsonString = prefs[listsKey] ?: "[]"
-            val lists = FlashcardList.listFromJsonString(jsonString)
-            lists
+            FlashcardList.listFromJsonString(prefs[listsKey] ?: "[]")
         }
     }
 
@@ -42,10 +40,7 @@ class FlashcardRepository(private val context: Context) {
         }
     }
 
-    suspend fun getLists(): List<FlashcardList> {
-        val result = observeLists().first()
-        return result
-    }
+    suspend fun getLists(): List<FlashcardList> = observeLists().first()
 
     suspend fun saveLists(lists: List<FlashcardList>) {
         val sortedLists = lists.sortedBy { it.order }
@@ -89,16 +84,11 @@ class FlashcardRepository(private val context: Context) {
     fun observeElements(listId: String): Flow<List<FlashcardElement>> {
         val key = stringPreferencesKey("elements_$listId")
         return context.flashcardDataStore.data.map { prefs ->
-            val jsonString = prefs[key] ?: "[]"
-            val elements = FlashcardElement.listFromJsonString(jsonString)
-            elements
+            FlashcardElement.listFromJsonString(prefs[key] ?: "[]")
         }
     }
 
-    suspend fun getElements(listId: String): List<FlashcardElement> {
-        val result = observeElements(listId).first()
-        return result
-    }
+    suspend fun getElements(listId: String): List<FlashcardElement> = observeElements(listId).first()
 
     suspend fun saveElements(listId: String, elements: List<FlashcardElement>) {
         val key = stringPreferencesKey("elements_$listId")
@@ -130,11 +120,8 @@ class FlashcardRepository(private val context: Context) {
         saveElements(listId, current.filterNot { it.id == elementId })
     }
 
-    suspend fun getAllElements(): List<FlashcardElement> {
-        val lists = getLists()
-        val result = lists.flatMap { list -> getElements(list.id) }
-        return result
-    }
+    suspend fun getAllElements(): List<FlashcardElement> =
+        getLists().flatMap { list -> getElements(list.id) }
 
     suspend fun getExportData(): Pair<List<FlashcardList>, List<FlashcardElement>> {
         val lists = getLists()

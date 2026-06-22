@@ -108,7 +108,7 @@ fun handlePlayerElimination(
                     player = eliminatedPlayer,
                     correctWord = state.players.getCivilianWord(),
                     lastEliminated = eliminatedPlayer,
-                    scenario = MrWhiteScenario.EliminatedMrWhite()
+                    scenario = MrWhiteScenario.EliminatedMrWhite
                 )
             )
         }

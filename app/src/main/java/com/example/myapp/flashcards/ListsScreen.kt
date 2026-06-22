@@ -61,7 +61,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import androidx.work.WorkManager
 import com.example.myapp.LocalIsDarkMode
 import com.example.myapp.MyButton
 import com.example.myapp.ShowAlertDialog
@@ -85,9 +84,7 @@ fun FlashcardListsScreen(onBack: () -> Unit, navController: NavController) {
     var selectedListId by remember { mutableStateOf("") }
     var listsWithCountsState by remember { mutableStateOf(Pair(emptyList<FlashcardList>(), emptyMap<String, Pair<Int, Int>>())) }
 
-    // Schedule reminders once
     LaunchedEffect(Unit) {
-        WorkManager.getInstance(context)
         scheduleFlashcardReminders(context)
     }
 

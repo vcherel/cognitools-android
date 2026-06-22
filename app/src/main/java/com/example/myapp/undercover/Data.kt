@@ -37,7 +37,7 @@ sealed class GameState {
 }
 
 sealed class MrWhiteScenario {
-    data class EliminatedMrWhite(@Suppress("UNUSED_PARAMETER") val unused: Any? = null) : MrWhiteScenario() // No parameter but no warning
+    object EliminatedMrWhite : MrWhiteScenario()
     data class FinalTwo(val mrWhite: Player, val opponent: Player) : MrWhiteScenario()
     data class OnlyMrWhitesLeft(val activeMrWhites: List<Player>, val currentGuesser: Player) : MrWhiteScenario()
 }
