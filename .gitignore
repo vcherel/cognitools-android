@@ -17,3 +17,4 @@ local.properties
 cc*
 .kotlin/sessions
 venv
+backups/

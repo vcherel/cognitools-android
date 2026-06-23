@@ -11,14 +11,11 @@ import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
-import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.work.CoroutineWorker
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.map
 import java.util.concurrent.TimeUnit
 
 const val LIMIT_DUE_COUNT = 50
@@ -27,17 +24,7 @@ class FlashcardReminderWorker(context: Context, params: WorkerParameters) : Coro
 
     override suspend fun doWork(): Result {
         return try {
-            // Load flashcards from DataStore
-            val flashcards = applicationContext.flashcardDataStore.data.map { prefs ->
-                val listsJson = prefs[stringPreferencesKey("lists")] ?: "[]"
-                val lists = FlashcardList.listFromJsonString(listsJson)
-
-                lists.flatMap { list ->
-                    val key = stringPreferencesKey("elements_${list.id}")
-                    val cardsJson = prefs[key] ?: "[]"
-                    FlashcardElement.listFromJsonString(cardsJson)
-                }
-            }.first()
+            val flashcards = FlashcardRepository(applicationContext).getAllElements()
 
             // Count due cards
             val dueCount = flashcards.count { isDue(it) }
