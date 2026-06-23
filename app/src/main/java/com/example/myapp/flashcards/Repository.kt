@@ -2,137 +2,119 @@ package com.example.myapp.flashcards
 
 import android.content.Context
 import android.os.Environment
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.io.File
 import java.io.FileOutputStream
 
 class FlashcardRepository(private val context: Context) {
 
-    private val listsKey = stringPreferencesKey("lists")
-    private val listsTimestampKey = stringPreferencesKey("lists_timestamp")
+    private val dao = AppDatabase.get(context).flashcardDao()
 
-    fun observeLists(): Flow<List<FlashcardList>> {
-        return context.flashcardDataStore.data.map { prefs ->
-            FlashcardList.listFromJsonString(prefs[listsKey] ?: "[]")
-        }
+    fun observeLists(): Flow<List<FlashcardList>> = flow {
+        ensureMigrated()
+        emitAll(dao.observeLists())
     }
 
-    fun observeListsWithCounts(): Flow<Pair<List<FlashcardList>, Map<String, Pair<Int, Int>>>> {
-        return context.flashcardDataStore.data.map { prefs ->
-            val jsonString = prefs[listsKey] ?: "[]"
-            val lists = FlashcardList.listFromJsonString(jsonString)
-
-            // Map of listId -> (totalCount, dueCount)
-            val counts = lists.associate { list ->
-                val key = stringPreferencesKey("elements_${list.id}")
-                val cardsJson = prefs[key] ?: "[]"
-                val elements = FlashcardElement.listFromJsonString(cardsJson)
-                val due = elements.count { isDue(it) }
-                list.id to (elements.size to due)
+    fun observeListsWithCounts(): Flow<Pair<List<FlashcardList>, Map<String, Pair<Int, Int>>>> = flow {
+        ensureMigrated()
+        val now = System.currentTimeMillis()
+        emitAll(
+            combine(
+                dao.observeLists(),
+                dao.observeTotalCounts(),
+                dao.observeDueCounts(now)
+            ) { lists, totals, dues ->
+                val totalById = totals.associate { it.listId to it.c }
+                val dueById = dues.associate { it.listId to it.c }
+                val counts = lists.associate { list ->
+                    list.id to ((totalById[list.id] ?: 0) to (dueById[list.id] ?: 0))
+                }
+                lists to counts
             }
-
-            lists to counts
-        }
+        )
     }
 
-    suspend fun getLists(): List<FlashcardList> = observeLists().first()
-
-    suspend fun saveLists(lists: List<FlashcardList>) {
-        val sortedLists = lists.sortedBy { it.order }
-        val jsonString = FlashcardList.listToJsonString(sortedLists)
-
-        context.flashcardDataStore.edit { prefs ->
-            prefs[listsKey] = jsonString
-            // Force DataStore emit even if jsonString is identical
-            prefs[listsTimestampKey] = System.currentTimeMillis().toString()
-        }
+    suspend fun getLists(): List<FlashcardList> {
+        ensureMigrated()
+        return dao.getLists()
     }
 
     suspend fun addList(list: FlashcardList) {
         val current = getLists()
         val nextOrder = (current.maxOfOrNull { it.order } ?: 0) + 1
-        val newList = list.copy(order = nextOrder)
-        saveLists(current + newList)
+        dao.upsertList(list.copy(order = nextOrder))
     }
 
     suspend fun reorderLists(newOrder: List<FlashcardList>) {
-        val reordered = newOrder.mapIndexed { index, list -> list.copy(order = index) }
-        saveLists(reordered)
+        ensureMigrated()
+        dao.upsertLists(newOrder.mapIndexed { index, list -> list.copy(order = index) })
     }
 
     suspend fun updateList(listId: String, newName: String) {
         val current = getLists()
-        val updated = current.map { if (it.id == listId) it.copy(name = newName) else it }
-        saveLists(updated)
+        current.find { it.id == listId }?.let { dao.upsertList(it.copy(name = newName)) }
     }
 
     suspend fun deleteList(listId: String) {
         val current = getLists()
-        saveLists(current.filterNot { it.id == listId })
-        context.flashcardDataStore.edit { prefs ->
-            prefs.remove(stringPreferencesKey("elements_$listId"))
-            // also update timestamp so observers see something changed
-            prefs[listsTimestampKey] = System.currentTimeMillis().toString()
-        }
+        // Cards are removed by the ON DELETE CASCADE foreign key.
+        current.find { it.id == listId }?.let { dao.deleteList(it) }
     }
 
-    fun observeElements(listId: String): Flow<List<FlashcardElement>> {
-        val key = stringPreferencesKey("elements_$listId")
-        return context.flashcardDataStore.data.map { prefs ->
-            FlashcardElement.listFromJsonString(prefs[key] ?: "[]")
-        }
+    fun observeElements(listId: String): Flow<List<FlashcardElement>> = flow {
+        ensureMigrated()
+        emitAll(dao.observeElements(listId))
     }
 
-    suspend fun getElements(listId: String): List<FlashcardElement> = observeElements(listId).first()
-
-    suspend fun saveElements(listId: String, elements: List<FlashcardElement>) {
-        val key = stringPreferencesKey("elements_$listId")
-        val timestampKey = stringPreferencesKey("elements_timestamp_$listId")
-        context.flashcardDataStore.edit { prefs ->
-            prefs[key] = FlashcardElement.listToJsonString(elements)
-            prefs[timestampKey] = System.currentTimeMillis().toString()
-        }
+    suspend fun getElements(listId: String): List<FlashcardElement> {
+        ensureMigrated()
+        return dao.getElements(listId)
     }
 
     suspend fun addElement(listId: String, element: FlashcardElement) {
-        val current = getElements(listId)
-        saveElements(listId, listOf(element) + current)
+        ensureMigrated()
+        dao.upsertElement(element.copy(listId = listId))
     }
 
     suspend fun addElements(listId: String, elements: List<FlashcardElement>) {
-        val current = getElements(listId)
-        saveElements(listId, elements + current)
+        ensureMigrated()
+        dao.upsertElements(elements.map { it.copy(listId = listId) })
     }
 
     suspend fun updateElement(listId: String, element: FlashcardElement) {
-        val current = getElements(listId)
-        val updated = current.map { if (it.id == element.id) element else it }
-        saveElements(listId, updated)
+        ensureMigrated()
+        dao.upsertElement(element)
     }
 
     suspend fun deleteElement(listId: String, elementId: String) {
-        val current = getElements(listId)
-        saveElements(listId, current.filterNot { it.id == elementId })
+        ensureMigrated()
+        dao.deleteElement(elementId)
     }
 
-    suspend fun getAllElements(): List<FlashcardElement> =
-        getLists().flatMap { list -> getElements(list.id) }
+    suspend fun getAllElements(): List<FlashcardElement> {
+        ensureMigrated()
+        return dao.getAllElements()
+    }
 
     suspend fun getExportData(): Pair<List<FlashcardList>, List<FlashcardElement>> {
-        val lists = getLists()
-        val allElements = getAllElements()
-        return lists to allElements
+        ensureMigrated()
+        return dao.getLists() to dao.getAllElements()
     }
 
     suspend fun resetElement(listId: String, elementId: String) {
-        val current = getElements(listId)
-        val updated = current.map { element ->
-            if (element.id == elementId) {
+        ensureMigrated()
+        dao.getElement(elementId)?.let { element ->
+            dao.upsertElement(
                 element.copy(
                     easeFactor = 2.5,
                     interval = 0,
@@ -142,26 +124,52 @@ class FlashcardRepository(private val context: Context) {
                     totalLosses = 0,
                     score = 0.0
                 )
-            } else element
+            )
         }
-        saveElements(listId, updated)
     }
 
     suspend fun getListNameById(listId: String): String {
-        val lists = getLists()
-        return lists.find { it.id == listId }?.name ?: ""
+        ensureMigrated()
+        return dao.getLists().find { it.id == listId }?.name ?: ""
     }
 
     suspend fun updateRandomSide(listId: String, elementId: String, randomSide: Boolean) {
-        val current = getElements(listId)
-        val updated = current.map { element ->
-            if (element.id == elementId) {
-                element.copy(randomSide = randomSide)
-            } else {
-                element
+        ensureMigrated()
+        dao.getElement(elementId)?.let { dao.upsertElement(it.copy(randomSide = randomSide)) }
+    }
+
+    /**
+     * One-time copy of the old JSON-in-DataStore data into Room. Idempotent: guarded by a
+     * flag and a non-empty check, so it runs at most once. The old DataStore file is left
+     * untouched so the first run stays reversible.
+     */
+    private suspend fun ensureMigrated() {
+        if (migrated) return
+        migrationLock.withLock {
+            if (migrated) return
+            val prefs = context.flashcardDataStore.data.first()
+            val alreadyDone = prefs[migratedKey] == true || dao.listCount() > 0
+            if (!alreadyDone) {
+                val lists = FlashcardList.listFromJsonString(prefs[listsKey] ?: "[]")
+                if (lists.isNotEmpty()) {
+                    dao.upsertLists(lists)
+                    val allCards = lists.flatMap { list ->
+                        val key = stringPreferencesKey("elements_${list.id}")
+                        FlashcardElement.listFromJsonString(prefs[key] ?: "[]")
+                    }
+                    if (allCards.isNotEmpty()) dao.upsertElements(allCards)
+                }
             }
+            context.flashcardDataStore.edit { it[migratedKey] = true }
+            migrated = true
         }
-        saveElements(listId, updated)
+    }
+
+    companion object {
+        private val listsKey = stringPreferencesKey("lists")
+        private val migratedKey = booleanPreferencesKey("migrated_to_room")
+        private val migrationLock = Mutex()
+        @Volatile private var migrated = false
     }
 }
 

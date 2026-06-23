@@ -1,24 +1,21 @@
 package com.example.myapp.flashcards
 
+import androidx.room.Entity
+import androidx.room.ForeignKey
+import androidx.room.Index
+import androidx.room.PrimaryKey
 import org.json.JSONArray
 import org.json.JSONObject
 import java.text.Normalizer
 import java.util.UUID
 
 
+@Entity(tableName = "lists")
 data class FlashcardList(
-    val id: String = UUID.randomUUID().toString(),
+    @PrimaryKey val id: String = UUID.randomUUID().toString(),
     val name: String,
     val order: Int = 0
 ) {
-    fun toJson(): JSONObject {
-        return JSONObject().apply {
-            put("id", id)
-            put("name", name)
-            put("order", order)
-        }
-    }
-
     companion object {
         fun fromJson(json: JSONObject): FlashcardList {
             return FlashcardList(
@@ -26,13 +23,6 @@ data class FlashcardList(
                 name = json.optString("name", ""),
                 order = json.optInt("order", 0)
             )
-        }
-
-        fun listToJsonString(lists: List<FlashcardList>): String {
-            val sorted = lists.sortedBy { it.order }
-            val jsonArray = JSONArray()
-            sorted.forEach { jsonArray.put(it.toJson()) }
-            return jsonArray.toString()
         }
 
         fun listFromJsonString(jsonString: String): List<FlashcardList> {
@@ -52,8 +42,18 @@ fun String.normalizeForSearch(): String {
         .lowercase()
 }
 
+@Entity(
+    tableName = "cards",
+    foreignKeys = [ForeignKey(
+        entity = FlashcardList::class,
+        parentColumns = ["id"],
+        childColumns = ["listId"],
+        onDelete = ForeignKey.CASCADE          // deleting a list deletes its cards
+    )],
+    indices = [Index("listId")]
+)
 data class FlashcardElement(
-    val id: String = UUID.randomUUID().toString(),
+    @PrimaryKey val id: String = UUID.randomUUID().toString(),
     val listId: String,
     val name: String,
     val definition: String,
@@ -68,23 +68,6 @@ data class FlashcardElement(
     var score: Double = 0.0,
     var randomSide: Boolean = true
 ) {
-    fun toJson(): JSONObject {
-        return JSONObject().apply {
-            put("id", id)
-            put("listId", listId)
-            put("name", name)
-            put("definition", definition)
-            put("easeFactor", easeFactor)
-            put("interval", interval)
-            put("repetitions", repetitions)
-            put("lastReview", lastReview)
-            put("totalWins", totalWins)
-            put("totalLosses", totalLosses)
-            put("score", score)
-            put("randomSide", randomSide)
-        }
-    }
-
     companion object {
         fun fromJson(json: JSONObject): FlashcardElement {
             val name = json.optString("name", "")
@@ -106,12 +89,6 @@ data class FlashcardElement(
                 score = json.optDouble("score", 0.0),
                 randomSide = json.optBoolean("randomSide", true)
             )
-        }
-
-        fun listToJsonString(elements: List<FlashcardElement>): String {
-            val jsonArray = JSONArray()
-            elements.forEach { jsonArray.put(it.toJson()) }
-            return jsonArray.toString()
         }
 
         fun listFromJsonString(jsonString: String): List<FlashcardElement> {
