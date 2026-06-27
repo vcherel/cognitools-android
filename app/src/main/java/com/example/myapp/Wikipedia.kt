@@ -290,33 +290,51 @@ data class WikipediaContent(
     val url: String
 )
 
-suspend fun fetchRandomTitle(language: String): String = withContext(Dispatchers.IO) {
-    val url = URL("https://$language.wikipedia.org/api/rest_v1/page/random/summary")
-    val conn = url.openConnection() as HttpURLConnection
+// Wikimedia's User-Agent policy requires a descriptive agent with contact info,
+// otherwise requests can be rejected with an HTTP error.
+private const val USER_AGENT = "CognitoolsAndroid/1.0 (https://github.com/valentincherel; valentin.cherel22@yahoo.com)"
+
+private fun httpGet(url: String): String {
+    val conn = URL(url).openConnection() as HttpURLConnection
     try {
         conn.requestMethod = "GET"
-        conn.setRequestProperty("User-Agent", "WikiApp/1.0")
-        val json = JSONObject(conn.inputStream.bufferedReader().readText())
-        json.getString("title")
+        conn.setRequestProperty("User-Agent", USER_AGENT)
+        conn.setRequestProperty("Accept", "application/json")
+        val code = conn.responseCode
+        if (code !in 200..299) {
+            val body = (conn.errorStream ?: conn.inputStream)?.bufferedReader()?.readText().orEmpty()
+            throw Exception("HTTP $code ${conn.responseMessage}: ${body.take(200)}")
+        }
+        return conn.inputStream.bufferedReader().readText()
     } finally {
         conn.disconnect()
     }
 }
 
+suspend fun fetchRandomTitle(language: String): String = withContext(Dispatchers.IO) {
+    // Use the MediaWiki action API: it returns the title directly, with no HTTP
+    // redirect to follow, unlike the deprecated rest_v1 random/summary endpoint.
+    val url = "https://$language.wikipedia.org/w/api.php?action=query&format=json&list=random&rnnamespace=0&rnlimit=1"
+    val json = JSONObject(httpGet(url))
+    json.getJSONObject("query")
+        .getJSONArray("random")
+        .getJSONObject(0)
+        .getString("title")
+}
+
 suspend fun fetchPageViews(language: String, title: String): Int = withContext(Dispatchers.IO) {
     val encodedTitle = URLEncoder.encode(title, "UTF-8")
-    val viewsUrl = URL("https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/$language.wikipedia/all-access/all-agents/$encodedTitle/daily/20250101/20250130")
-    val conn = viewsUrl.openConnection() as HttpURLConnection
+    // Pageview data lags a day or two, so query the 30 days ending two days ago.
+    val fmt = java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd")
+    val end = java.time.LocalDate.now().minusDays(2)
+    val start = end.minusDays(30)
+    val viewsUrl = "https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/$language.wikipedia/all-access/all-agents/$encodedTitle/daily/${start.format(fmt)}/${end.format(fmt)}"
     try {
-        conn.requestMethod = "GET"
-        conn.setRequestProperty("User-Agent", "WikiApp/1.0")
-        val json = JSONObject(conn.inputStream.bufferedReader().readText())
+        val json = JSONObject(httpGet(viewsUrl))
         val items = json.optJSONArray("items") ?: return@withContext 0
         (0 until items.length()).sumOf { items.getJSONObject(it).optInt("views", 0) }
     } catch (_: Exception) {
         0
-    } finally {
-        conn.disconnect()
     }
 }
 
@@ -341,33 +359,23 @@ suspend fun fetchCompleteWikipedia(language: String = "fr"): WikipediaContent = 
 
 suspend fun fetchWikipediaByTitle(title: String, language: String = "fr"): WikipediaContent = withContext(Dispatchers.IO) {
     val encodedTitle = URLEncoder.encode(title, "UTF-8")
-    val contentUrl = URL("https://$language.wikipedia.org/w/api.php?action=parse&format=json&page=$encodedTitle&prop=text&redirects=1")
-    val contentConnection = contentUrl.openConnection() as HttpURLConnection
+    val contentUrl = "https://$language.wikipedia.org/w/api.php?action=parse&format=json&page=$encodedTitle&prop=text&redirects=1"
+    val json = JSONObject(httpGet(contentUrl))
 
-    try {
-        contentConnection.requestMethod = "GET"
-        contentConnection.setRequestProperty("User-Agent", "WikiApp/1.0")
-
-        val response = contentConnection.inputStream.bufferedReader().readText()
-        val json = JSONObject(response)
-
-        // Check if there's an error (page doesn't exist)
-        if (json.has("error")) {
-            throw Exception("Page not found: ${json.getJSONObject("error").getString("info")}")
-        }
-
-        val parseObject = json.getJSONObject("parse")
-        val actualTitle = parseObject.getString("title")
-        val htmlContent = parseObject.getJSONObject("text").getString("*")
-
-        WikipediaContent(
-            title = actualTitle,
-            fullContentHtml = htmlContent,
-            url = "https://$language.wikipedia.org/wiki/${URLEncoder.encode(actualTitle, "UTF-8")}"
-        )
-    } finally {
-        contentConnection.disconnect()
+    // Check if there's an error (page doesn't exist)
+    if (json.has("error")) {
+        throw Exception("Page not found: ${json.getJSONObject("error").getString("info")}")
     }
+
+    val parseObject = json.getJSONObject("parse")
+    val actualTitle = parseObject.getString("title")
+    val htmlContent = parseObject.getJSONObject("text").getString("*")
+
+    WikipediaContent(
+        title = actualTitle,
+        fullContentHtml = htmlContent,
+        url = "https://$language.wikipedia.org/wiki/${URLEncoder.encode(actualTitle, "UTF-8")}"
+    )
 }
 
 @Composable
