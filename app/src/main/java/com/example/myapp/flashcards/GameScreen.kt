@@ -70,7 +70,6 @@ import com.example.myapp.MyButton
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.min
-import kotlin.math.pow
 import kotlin.random.Random
 
 const val MAX_DIFFICULT_CARDS = 5
@@ -189,50 +188,8 @@ fun FlashcardGameScreen(listId: String, navController: NavController, onBack: ()
         }
     }
 
-    fun updateCards(card: FlashcardElement, quality: Int): FlashcardElement {
-        // Update ease factor
-        var newEF = card.easeFactor + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02))
-        if (newEF < 1.3) newEF = 1.3
-
-        // Bonus if didn't see answer
-        if (!showDefinition) {
-            newEF *= 1.05
-        }
-
-        // Update repetitions
-        val newReps = if (quality >= 3) card.repetitions + 1 else 0
-
-        // Update total wins/losses
-        val newWins = card.totalWins + if (quality >= 3) 1 else 0
-        val newLosses = card.totalLosses + if (quality < 3) 1 else 0
-
-        // Calculate new score
-        val newScore = ((newWins.toDouble() / (newWins + newLosses)) * 10).coerceIn(0.0, 10.0)
-
-        // Update interval
-        val newInterval = when {
-            // If we fail, the card comes again quickly (25% chance to wait a bit depending on score)
-            quality < 3 -> { if (Math.random() < 0.25) newScore.coerceAtLeast(1.0) else 0.0 }
-
-            // On the first win we have to wait 6 minutes
-            newReps == 1 -> 6.0
-            else -> {
-                val randomFactor = Math.random().pow(1.0 + ((10 - newScore) / 10.0))
-                val randomMultiplier = 0.6 + randomFactor * 1.4
-                card.interval * newEF * randomMultiplier
-            }
-        }
-
-        return card.copy(
-            easeFactor = newEF,
-            interval = newInterval.toInt(),
-            repetitions = newReps,
-            lastReview = System.currentTimeMillis(),
-            totalWins = newWins,
-            totalLosses = newLosses,
-            score = newScore
-        )
-    }
+    fun updateCards(card: FlashcardElement, quality: Int): FlashcardElement =
+        reviewCard(card, quality, sawAnswer = !showDefinition)
 
     fun handleAnswer(wasCorrect: Boolean) {
         if (isProcessingSwipe) return
