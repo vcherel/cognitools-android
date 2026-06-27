@@ -102,8 +102,7 @@ data class FlashcardElement(
     }
 }
 
-fun isDue(card: FlashcardElement): Boolean {
-    val now = System.currentTimeMillis()
+fun isDue(card: FlashcardElement, now: Long = System.currentTimeMillis()): Boolean {
     val intervalMs = card.interval * 60 * 1000L // interval is in minutes
     return (now - card.lastReview) >= intervalMs
 }

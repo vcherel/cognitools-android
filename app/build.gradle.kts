@@ -116,4 +116,7 @@ dependencies {
 
     // Scraping
     implementation(libs.jsoup)
+
+    // Unit testing
+    testImplementation(libs.junit)
 }
