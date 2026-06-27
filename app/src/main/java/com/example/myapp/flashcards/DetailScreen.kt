@@ -124,15 +124,23 @@ fun FlashcardDetailScreen(
             isLoading = false
             scope.launch { listState.scrollToItem(0) }
         } else {
+            var firstEmission = true
             repository.observeElements(listId).collect { list ->
-                elementsState.clear()
-                val chunkSize = 20
-                list.chunked(chunkSize).forEach { chunk ->
-                    elementsState.addAll(chunk)
-                    delay(16)
+                if (firstEmission) {
+                    // Initial load: paint in chunks to keep a big list smooth, then jump to top.
+                    elementsState.clear()
+                    list.chunked(20).forEach { chunk ->
+                        elementsState.addAll(chunk)
+                        delay(16)
+                    }
+                    isLoading = false
+                    firstEmission = false
+                    scope.launch { listState.scrollToItem(0) }
+                } else {
+                    // Later DB updates (reset, edit, ...): patch only what changed so just the
+                    // affected cards recompose and the scroll stays where it is.
+                    elementsState.patchTo(list)
                 }
-                isLoading = false
-                scope.launch { listState.scrollToItem(0) }
             }
         }
     }
@@ -140,16 +148,18 @@ fun FlashcardDetailScreen(
     // Computed filtered & sorted list in-place to avoid repeated list allocations
     val visibleElements = remember { mutableStateListOf<FlashcardElement>() }
 
-    // Store the current first visible item key before updates
-    val currentFirstVisibleKey = remember { mutableStateOf<String?>(null) }
+    // Detect whether this effect fired from a filter/sort change (jump to top) or from a data
+    // update like reset/edit (keep the viewport where it is).
+    val prevQuery = remember { mutableStateOf(searchQuery) }
+    val prevSort = remember { mutableIntStateOf(sortState) }
 
     LaunchedEffect(elementsState.toList(), searchQuery, sortState) {
-        // Capture current scroll position
-        val firstVisibleIndex = listState.firstVisibleItemIndex
-        if (firstVisibleIndex >= 0 && firstVisibleIndex < visibleElements.size) {
-            val element = visibleElements[firstVisibleIndex]
-            currentFirstVisibleKey.value = if (isAllLists) "${element.listId}_${element.id}" else element.id
-        }
+        // Capture the current scroll position before the visible list is rebuilt.
+        val savedIndex = listState.firstVisibleItemIndex
+        val savedOffset = listState.firstVisibleItemScrollOffset
+        val filterOrSortChanged = searchQuery != prevQuery.value || sortState != prevSort.value
+        prevQuery.value = searchQuery
+        prevSort.value = sortState
 
         val normalizedQuery = searchQuery.normalizeForSearch()
         val filtered = elementsState.filter {
@@ -187,15 +197,15 @@ fun FlashcardDetailScreen(
         visibleElements.clear()
         visibleElements.addAll(unique)
 
-        // Restore scroll position if we have a saved key
-        currentFirstVisibleKey.value?.let { savedKey ->
-            val newIndex = visibleElements.indexOfFirst { element ->
-                val key = if (isAllLists) "${element.listId}_${element.id}" else element.id
-                key == savedKey
-            }
-            if (newIndex >= 0) {
-                listState.scrollToItem(newIndex, listState.firstVisibleItemScrollOffset)
-            }
+        // A new search or sort jumps to the top; a data update (reset, edit, ...) keeps the
+        // viewport anchored to the same scroll offset so the touched card just moves underneath.
+        if (filterOrSortChanged) {
+            listState.scrollToItem(0)
+        } else {
+            listState.scrollToItem(
+                savedIndex.coerceAtMost(maxOf(0, visibleElements.size - 1)),
+                savedOffset
+            )
         }
     }
 
@@ -245,10 +255,6 @@ fun FlashcardDetailScreen(
                                 onClick = {
                                     sortState = if (sortState == 0) 1 else 0
                                     showSortMenu = false
-                                    scope.launch {
-                                        delay(50)
-                                        listState.scrollToItem(0)
-                                    }
                                 }
                             )
                             DropdownMenuItem(
@@ -256,10 +262,6 @@ fun FlashcardDetailScreen(
                                 onClick = {
                                     sortState = if (sortState == 2) 3 else 2
                                     showSortMenu = false
-                                    scope.launch {
-                                        delay(50)
-                                        listState.scrollToItem(0)
-                                    }
                                 }
                             )
                             DropdownMenuItem(
@@ -267,10 +269,6 @@ fun FlashcardDetailScreen(
                                 onClick = {
                                     sortState = if (sortState == 4) 5 else 4
                                     showSortMenu = false
-                                    scope.launch {
-                                        delay(50)
-                                        listState.scrollToItem(0)
-                                    }
                                 }
                             )
                             DropdownMenuItem(
@@ -278,10 +276,6 @@ fun FlashcardDetailScreen(
                                 onClick = {
                                     sortState = if (sortState == 6) 7 else 6
                                     showSortMenu = false
-                                    scope.launch {
-                                        delay(50)
-                                        listState.scrollToItem(0)
-                                    }
                                 }
                             )
                         }
@@ -766,5 +760,26 @@ fun FlashcardDetailScreen(
             onCancel = { showDialog = false },
             onConfirm = { saveElement() }
         )
+    }
+}
+
+/**
+ * Reconciles this list (the live UI state) with a fresh list from the database, mutating only the
+ * entries that actually changed. Removes deleted cards, replaces changed cards in place, and appends
+ * new ones. Cards are matched by id (unique within a single list). Display order is unaffected since
+ * the visible list is sorted separately. Touching only changed entries keeps recomposition and the
+ * scroll position stable, unlike a full clear-and-rebuild.
+ */
+private fun MutableList<FlashcardElement>.patchTo(new: List<FlashcardElement>) {
+    val newById = new.associateBy { it.id }
+    removeAll { it.id !in newById }
+    val existingIds = HashSet<String>(size)
+    for (i in indices) {
+        val updated = newById[this[i].id]
+        if (updated != null && updated != this[i]) this[i] = updated
+        existingIds.add(this[i].id)
+    }
+    for (card in new) {
+        if (card.id !in existingIds) add(card)
     }
 }
