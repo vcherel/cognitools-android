@@ -76,7 +76,7 @@ fun WikipediaScreen(onBack: () -> Unit) {
 
                 // Add current content to history before loading new one
                 if (addToHistory && wikiContent != null) {
-                    navigationHistory = navigationHistory + wikiContent!!
+                    navigationHistory = (navigationHistory + wikiContent!!).takeLast(5)
                 }
 
                 wikiContent = newContent

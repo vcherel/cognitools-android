@@ -29,7 +29,10 @@ interface FlashcardDao {
     @Query("SELECT * FROM cards WHERE id = :id")
     suspend fun getElement(id: String): FlashcardElement?
 
-    @Query("SELECT * FROM cards")                 // replaces N+1 getAllElements()
+    @Query("SELECT * FROM cards")
+    fun observeAllElements(): Flow<List<FlashcardElement>>
+
+    @Query("SELECT * FROM cards")
     suspend fun getAllElements(): List<FlashcardElement>
 
     @Query("SELECT COUNT(*) FROM lists")

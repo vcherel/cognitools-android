@@ -24,7 +24,7 @@ class FlashcardReminderWorker(context: Context, params: WorkerParameters) : Coro
 
     override suspend fun doWork(): Result {
         return try {
-            val flashcards = FlashcardRepository(applicationContext).getAllElements()
+            val flashcards = (applicationContext as com.example.myapp.MyApplication).flashcardRepository.getAllElements()
 
             // Count due cards
             val dueCount = flashcards.count { isDue(it) }
