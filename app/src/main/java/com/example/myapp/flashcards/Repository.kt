@@ -1,7 +1,6 @@
 package com.example.myapp.flashcards
 
 import android.content.Context
-import android.os.Environment
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
@@ -13,8 +12,8 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import java.io.File
-import java.io.FileOutputStream
+import org.json.JSONArray
+import org.json.JSONObject
 
 class FlashcardRepository(private val context: Context) {
 
@@ -101,14 +100,38 @@ class FlashcardRepository(private val context: Context) {
         dao.deleteElement(elementId)
     }
 
+    fun observeAllElements(): Flow<List<FlashcardElement>> = flow {
+        ensureMigrated()
+        emitAll(dao.observeAllElements())
+    }
+
     suspend fun getAllElements(): List<FlashcardElement> {
         ensureMigrated()
         return dao.getAllElements()
     }
 
-    suspend fun getExportData(): Pair<List<FlashcardList>, List<FlashcardElement>> {
+    suspend fun createBackupJson(): String {
         ensureMigrated()
-        return dao.getLists() to dao.getAllElements()
+        val lists = dao.getLists()
+        val cards = dao.getAllElements()
+        val jsonLists = JSONArray().also { arr -> lists.forEach { arr.put(it.toJson()) } }
+        val jsonCards = JSONArray().also { arr -> cards.forEach { arr.put(it.toJson()) } }
+        return JSONObject().apply {
+            put("version", 1)
+            put("lists", jsonLists)
+            put("cards", jsonCards)
+        }.toString(2)
+    }
+
+    suspend fun importFromJson(json: String) {
+        ensureMigrated()
+        val obj = JSONObject(json)
+        val lists = FlashcardList.listFromJsonString(obj.getJSONArray("lists").toString())
+        val cards = FlashcardElement.listFromJsonString(obj.getJSONArray("cards").toString())
+        val validListIds = lists.map { it.id }.toSet()
+        if (lists.isNotEmpty()) dao.upsertLists(lists)
+        val validCards = cards.filter { it.listId in validListIds }
+        if (validCards.isNotEmpty()) dao.upsertElements(validCards)
     }
 
     suspend fun resetElement(listId: String, elementId: String) {
@@ -174,22 +197,3 @@ class FlashcardRepository(private val context: Context) {
 }
 
 val Context.flashcardDataStore by preferencesDataStore("flashcards")
-
-fun exportFlashcards(lists: List<FlashcardList>, allFlashcards: List<FlashcardElement>) {
-    val flashcardsMap = allFlashcards.groupBy { it.listId }
-
-    val builder = StringBuilder()
-
-    lists.forEach { list ->
-        builder.appendLine("* ${list.name}")
-        flashcardsMap[list.id]?.forEach { card ->
-            builder.appendLine("${card.name} - ${card.definition}")
-        }
-        builder.appendLine() // Blank line between lists
-    }
-
-    val downloadsFolder = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-    val file = File(downloadsFolder, "flashcards_export.txt")
-
-    FileOutputStream(file).use { it.write(builder.toString().toByteArray()) }
-}
