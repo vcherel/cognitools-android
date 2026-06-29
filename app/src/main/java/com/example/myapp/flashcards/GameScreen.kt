@@ -141,6 +141,15 @@ fun FlashcardGameScreen(listId: String, navController: NavController, onBack: ()
         }
     }
 
+    val totalDueCount by remember(allElements, localUpdates) {
+        derivedStateOf {
+            val updated = allElements.map { element ->
+                localUpdates[element.id] ?: element
+            }
+            updated.count { isDue(it) }
+        }
+    }
+
     BackHandler {
         onBack()
     }
@@ -337,7 +346,7 @@ fun FlashcardGameScreen(listId: String, navController: NavController, onBack: ()
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Cartes à réviser: ${dueCards.size}",
+                        text = "Cartes à réviser: $totalDueCount",
                         style = MaterialTheme.typography.titleMedium
                     )
 
