@@ -83,7 +83,7 @@ fun FlashcardDetailScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
-    val repository = remember { FlashcardRepository(context) }
+    val repository = (context.applicationContext as com.example.myapp.MyApplication).flashcardRepository
     val isDarkMode = LocalIsDarkMode.current
 
     var showDialog by remember { mutableStateOf(false) }

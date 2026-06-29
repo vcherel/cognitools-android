@@ -45,7 +45,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -83,8 +82,7 @@ fun FlashcardGameScreen(listId: String, navController: NavController, onBack: ()
     val greenColor = if (isDarkMode) Color(0xFF2D7516) else Color(0xFF56C92F)
     val redColor = if (isDarkMode) Color(0xFF771212) else Color(0xFFDE1E1E)
 
-    // Create repository instance
-    val repository = remember { FlashcardRepository(context) }
+    val repository = (context.applicationContext as com.example.myapp.MyApplication).flashcardRepository
 
     // Check if we're in "all lists" mode
     val isAllListsMode = listId == "all"
@@ -95,15 +93,7 @@ fun FlashcardGameScreen(listId: String, navController: NavController, onBack: ()
 
     // Observe elements from repository
     val allElements by if (isAllListsMode) {
-        // Get all elements from all lists
-        produceState(initialValue = emptyList()) {
-            repository.observeLists().collect { lists ->
-                val allCards = lists.flatMap { list ->
-                    repository.getElements(list.id)
-                }
-                value = allCards
-            }
-        }
+        repository.observeAllElements().collectAsState(initial = emptyList())
     } else {
         repository.observeElements(listId).collectAsState(initial = emptyList())
     }

@@ -2,10 +2,13 @@ package com.example.myapp
 
 import android.app.Application
 import androidx.work.Configuration
+import com.example.myapp.flashcards.FlashcardRepository
 import com.example.myapp.flashcards.createNotificationChannel
 import java.util.concurrent.Executors
 
 class MyApplication : Application(), Configuration.Provider {
+    val flashcardRepository: FlashcardRepository by lazy { FlashcardRepository(this) }
+
     override fun onCreate() {
         super.onCreate()
 
