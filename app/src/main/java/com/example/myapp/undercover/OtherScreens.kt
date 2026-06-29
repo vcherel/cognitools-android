@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
@@ -22,6 +23,9 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -65,8 +69,10 @@ fun PlayScreen(
     onContinue: () -> Unit
 ) {
     val activePlayers = players.filter { !it.isEliminated }
-    val startingPlayer = activePlayers.getOrNull(currentPlayerIndex)
     val isDarkMode = LocalIsDarkMode.current
+
+    var displayPlayers by remember(activePlayers) { mutableStateOf(activePlayers) }
+    val startingPlayer = displayPlayers.firstOrNull()
 
     var selectedPlayer by remember { mutableStateOf<Player?>(null) }
     var showConfirmDialog by remember { mutableStateOf(false) }
@@ -157,20 +163,34 @@ fun PlayScreen(
         Spacer(modifier = Modifier.height(10.dp))
 
         if (startingPlayer != null) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(
-                    text = "Premier joueur :",
-                    fontSize = 26.sp,
-                    textAlign = TextAlign.Center
-                )
-                Spacer(modifier = Modifier.height(5.dp))
-                Text(
-                    text = startingPlayer.name,
-                    fontSize = 26.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF1565C0),
-                    textAlign = TextAlign.Center
-                )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = "Premier joueur :",
+                        fontSize = 26.sp,
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.height(5.dp))
+                    Text(
+                        text = startingPlayer.name,
+                        fontSize = 26.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF1565C0),
+                        textAlign = TextAlign.Center
+                    )
+                }
+                Spacer(modifier = Modifier.width(12.dp))
+                IconButton(onClick = { displayPlayers = activePlayers.shuffled() }) {
+                    Icon(
+                        Icons.Default.Refresh,
+                        contentDescription = "Mélanger l'ordre",
+                        modifier = Modifier.size(32.dp)
+                    )
+                }
             }
         }
 
@@ -180,7 +200,7 @@ fun PlayScreen(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             contentPadding = PaddingValues(horizontal = 16.dp)
         ) {
-            items(activePlayers) { player ->
+            items(displayPlayers) { player ->
                 PlayerCard(
                     player = player,
                     onClick = {
@@ -255,21 +275,19 @@ fun PlayScreen(
                 )
             },
             text = {
-                Column {
+                val word = selectedPlayer?.word
+                if (!word.isNullOrEmpty()) {
                     Text(
-                        text = "Rôle: ${selectedPlayer?.role?.displayName() ?: ""}",
+                        text = "Mot: $word",
                         fontSize = 18.sp,
                         fontWeight = FontWeight.SemiBold
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    selectedPlayer?.word?.takeIf { it.isNotEmpty() }?.let { word ->
-                        Text(
-                            text = "Mot: $word",
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
+                } else {
+                    Text(
+                        text = "Pas de mot",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
                 }
             },
             confirmButton = {
@@ -445,6 +463,7 @@ fun GameOverScreen(
     lastEliminated: Player,
     players: List<Player>,
     gameWord: String,
+    impostorWord: String?,
     mrWhiteGuesses: Map<String, String>,
     onContinue: () -> Unit
 ) {
@@ -500,13 +519,24 @@ fun GameOverScreen(
         }
 
         Text(
-            "Le mot était $gameWord",
+            "Mot civil : $gameWord",
             fontSize = 20.sp,
             fontWeight = FontWeight.Medium,
             textAlign = TextAlign.Center
         )
 
-        if (mrWhiteGuesses.isNotEmpty()) {
+        if (!impostorWord.isNullOrEmpty()) {
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                "Mot undercover : $impostorWord",
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Medium,
+                textAlign = TextAlign.Center
+            )
+        }
+
+        val mrWhiteWon = !civiliansWon && lastEliminated.role == PlayerRole.MR_WHITE
+        if (mrWhiteGuesses.isNotEmpty() && !mrWhiteWon) {
             Spacer(modifier = Modifier.height(16.dp))
 
             val message = when (mrWhiteGuesses.size) {

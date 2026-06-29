@@ -168,6 +168,7 @@ fun UndercoverScreen(onBack: () -> Unit) {
                     lastEliminated = gameState.lastEliminated,
                     players = state.players,
                     gameWord = state.players.getCivilianWord(),
+                    impostorWord = state.players.getImpostorWord(),
                     mrWhiteGuesses = state.mrWhiteGuesses,
                     onContinue = {
                         state = state.copy(gameState = GameState.Leaderboard)

@@ -36,6 +36,9 @@ fun List<Player>.activePlayers() = filter { !it.isEliminated }
 fun List<Player>.getCivilianWord(): String =
     first { it.role == PlayerRole.CIVILIAN }.word
 
+fun List<Player>.getImpostorWord(): String? =
+    firstOrNull { it.role == PlayerRole.IMPOSTOR }?.word
+
 // Game logic helpers
 
 fun List<Player>.shouldMrWhiteGuess(): Boolean {
