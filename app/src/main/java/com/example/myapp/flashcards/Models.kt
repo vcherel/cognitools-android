@@ -106,3 +106,24 @@ fun isDue(card: FlashcardElement, now: Long = System.currentTimeMillis()): Boole
     val intervalMs = card.interval * 60 * 1000L // interval is in minutes
     return (now - card.lastReview) >= intervalMs
 }
+
+fun FlashcardList.toJson(): JSONObject = JSONObject().also {
+    it.put("id", id)
+    it.put("name", name)
+    it.put("order", order)
+}
+
+fun FlashcardElement.toJson(): JSONObject = JSONObject().also {
+    it.put("id", id)
+    it.put("listId", listId)
+    it.put("name", name)
+    it.put("definition", definition)
+    it.put("easeFactor", easeFactor)
+    it.put("interval", interval)
+    it.put("repetitions", repetitions)
+    it.put("lastReview", lastReview)
+    it.put("totalWins", totalWins)
+    it.put("totalLosses", totalLosses)
+    it.put("score", score)
+    it.put("randomSide", randomSide)
+}

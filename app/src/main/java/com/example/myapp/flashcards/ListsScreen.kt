@@ -4,6 +4,8 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -28,6 +30,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
@@ -72,7 +75,7 @@ import kotlinx.coroutines.withContext
 fun FlashcardListsScreen(onBack: () -> Unit, navController: NavController) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val repository = remember { FlashcardRepository(context) }
+    val repository = (context.applicationContext as com.example.myapp.MyApplication).flashcardRepository
     val isDarkMode = LocalIsDarkMode.current
 
     var showDialog by remember { mutableStateOf(false) }
@@ -82,6 +85,41 @@ fun FlashcardListsScreen(onBack: () -> Unit, navController: NavController) {
     var showBulkImportDialog by remember { mutableStateOf(false) }
     var bulkImportText by remember { mutableStateOf("") }
     var selectedListId by remember { mutableStateOf("") }
+
+    val backupLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/json")
+    ) { uri ->
+        if (uri != null) {
+            scope.launch(Dispatchers.IO) {
+                val json = repository.createBackupJson()
+                context.contentResolver.openOutputStream(uri)?.use { it.write(json.toByteArray()) }
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(context, "Sauvegarde créée", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
+    val restoreLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.GetContent()
+    ) { uri ->
+        if (uri != null) {
+            scope.launch(Dispatchers.IO) {
+                try {
+                    val json = context.contentResolver.openInputStream(uri)
+                        ?.use { it.bufferedReader().readText() } ?: return@launch
+                    repository.importFromJson(json)
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(context, "Importation réussie", Toast.LENGTH_SHORT).show()
+                    }
+                } catch (e: Exception) {
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(context, "Erreur d'importation", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+        }
+    }
     var listsWithCountsState by remember { mutableStateOf(Pair(emptyList<FlashcardList>(), emptyMap<String, Pair<Int, Int>>())) }
 
     LaunchedEffect(Unit) {
@@ -137,7 +175,7 @@ fun FlashcardListsScreen(onBack: () -> Unit, navController: NavController) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Retour")
                     }
                     Text(
-                        "Mes listes",
+                        "Listes",
                         style = MaterialTheme.typography.headlineSmall,
                         modifier = Modifier
                             .padding(start = 8.dp, end = 15.dp)
@@ -170,15 +208,15 @@ fun FlashcardListsScreen(onBack: () -> Unit, navController: NavController) {
                     }
 
                     IconButton(onClick = {
-                        scope.launch(Dispatchers.IO) {
-                            val exportData = repository.getExportData()
-                            exportFlashcards(exportData.first, exportData.second)
-                            withContext(Dispatchers.Main) {
-                                Toast.makeText(context, "Exported to Downloads", Toast.LENGTH_SHORT).show()
-                            }
-                        }
+                        backupLauncher.launch("cognitools_backup.json")
                     }) {
-                        Icon(Icons.Default.Upload, contentDescription = "Exporter")
+                        Icon(Icons.Default.Upload, contentDescription = "Sauvegarder")
+                    }
+
+                    IconButton(onClick = {
+                        restoreLauncher.launch("application/json")
+                    }) {
+                        Icon(Icons.Default.Download, contentDescription = "Restaurer")
                     }
                 }
             }
