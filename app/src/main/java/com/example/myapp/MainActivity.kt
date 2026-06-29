@@ -35,9 +35,15 @@ import com.example.myapp.flashcards.FlashcardGameScreen
 import com.example.myapp.flashcards.FlashcardListsScreen
 import com.example.myapp.undercover.UndercoverScreen
 import android.content.Context
+import android.widget.Toast
+import androidx.compose.material.icons.filled.Casino
+import androidx.compose.ui.platform.LocalContext
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import java.text.NumberFormat
+import java.util.Locale
 
 val Context.themeDataStore by preferencesDataStore("theme_preferences")
 
@@ -225,6 +231,7 @@ fun MenuScreen(
 ) {
     val spaceHeight = 32.dp
     val coroutineScope = rememberCoroutineScope()
+    val context = LocalContext.current
 
     Box(
         modifier = Modifier
@@ -251,7 +258,21 @@ fun MenuScreen(
                 textAlign = TextAlign.Center
             )
             Spacer(modifier = Modifier.height(30.dp))
-            MyButton(text = "Générateur aléatoire") { onNavigate("randomGenerator") }
+            SplitMyButton(
+                text = "Générateur aléatoire",
+                rightIcon = Icons.Default.Casino,
+                onMainClick = { onNavigate("randomGenerator") },
+                onRightClick = {
+                    coroutineScope.launch {
+                        val (min, max) = context.readMinMax().first()
+                        if (min <= max) {
+                            val result = (min..max).random()
+                            val formatted = NumberFormat.getNumberInstance(Locale.FRANCE).format(result)
+                            Toast.makeText(context, formatted, Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+            )
             Spacer(modifier = Modifier.height(spaceHeight))
             MyButton(text = "Volume booster") { onNavigate("volumeBooster") }
             Spacer(modifier = Modifier.height(spaceHeight))

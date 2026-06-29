@@ -148,6 +148,95 @@ fun MyButton(
 }
 
 @Composable
+fun SplitMyButton(
+    text: String,
+    rightIcon: ImageVector,
+    modifier: Modifier = Modifier,
+    onMainClick: () -> Unit,
+    onRightClick: () -> Unit
+) {
+    val isDarkMode = LocalIsDarkMode.current
+    val mainInteraction = remember { MutableInteractionSource() }
+    val isMainPressed by mainInteraction.collectIsPressedAsState()
+    val rightInteraction = remember { MutableInteractionSource() }
+    val isRightPressed by rightInteraction.collectIsPressedAsState()
+
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        SplitButtonHalf(
+            modifier = Modifier.weight(1f),
+            isPressed = isMainPressed,
+            interactionSource = mainInteraction,
+            onClick = onMainClick
+        ) {
+            Text(
+                text,
+                color = if (isMainPressed) Color.White else if (isDarkMode) Color.White else Color.Black,
+                fontSize = 24.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+        }
+
+        SplitButtonHalf(
+            modifier = Modifier.width(80.dp),
+            isPressed = isRightPressed,
+            interactionSource = rightInteraction,
+            onClick = onRightClick
+        ) {
+            Icon(
+                imageVector = rightIcon,
+                contentDescription = null,
+                tint = if (isRightPressed) Color.White else if (isDarkMode) Color.White else Color.Black,
+                modifier = Modifier.size(32.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun SplitButtonHalf(
+    modifier: Modifier = Modifier,
+    isPressed: Boolean,
+    interactionSource: MutableInteractionSource,
+    onClick: () -> Unit,
+    content: @Composable () -> Unit
+) {
+    val isDarkMode = LocalIsDarkMode.current
+    val shadowColor = remember(isPressed, isDarkMode) {
+        if (isPressed) Color(0xFF1565C0) else if (isDarkMode) Color(0xFF37474F) else Color(0xFFB0BEC5)
+    }
+    val gradient = remember(isPressed, isDarkMode) {
+        if (isPressed) Brush.horizontalGradient(listOf(Color(0xFF2196F3), Color(0xFF1976D2)))
+        else if (isDarkMode) Brush.horizontalGradient(listOf(Color(0xFF455A64), Color(0xFF37474F)))
+        else Brush.horizontalGradient(listOf(Color(0xFFECEFF1), Color(0xFFCFD8DC)))
+    }
+
+    Box(
+        modifier = modifier
+            .height(90.dp)
+            .scale(if (isPressed) 0.98f else 1f)
+            .clickable(interactionSource = interactionSource, indication = null, onClick = onClick)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .offset(y = 6.dp)
+                .background(shadowColor, RoundedCornerShape(35))
+        )
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(gradient, RoundedCornerShape(35)),
+            contentAlignment = Alignment.Center
+        ) {
+            content()
+        }
+    }
+}
+
+@Composable
 fun MySwitch(
     isEnabled: Boolean,
     onToggle: (Boolean) -> Unit,
