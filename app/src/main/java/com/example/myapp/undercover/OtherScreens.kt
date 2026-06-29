@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
@@ -23,9 +22,6 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -163,12 +159,19 @@ fun PlayScreen(
         Spacer(modifier = Modifier.height(10.dp))
 
         if (startingPlayer != null) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center,
-                modifier = Modifier.fillMaxWidth()
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { displayPlayers = activePlayers.shuffled() },
+                shape = RoundedCornerShape(16.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 12.dp, horizontal = 16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
                     Text(
                         text = "Premier joueur :",
                         fontSize = 26.sp,
@@ -182,13 +185,12 @@ fun PlayScreen(
                         color = Color(0xFF1565C0),
                         textAlign = TextAlign.Center
                     )
-                }
-                Spacer(modifier = Modifier.width(12.dp))
-                IconButton(onClick = { displayPlayers = activePlayers.shuffled() }) {
-                    Icon(
-                        Icons.Default.Refresh,
-                        contentDescription = "Mélanger l'ordre",
-                        modifier = Modifier.size(32.dp)
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = "Appuie pour changer",
+                        fontSize = 13.sp,
+                        color = Color.Gray,
+                        textAlign = TextAlign.Center
                     )
                 }
             }
