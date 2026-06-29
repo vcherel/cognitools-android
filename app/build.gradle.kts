@@ -5,6 +5,7 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
+    alias(libs.plugins.baselineprofile)
 }
 
 android {
@@ -119,4 +120,11 @@ dependencies {
 
     // Unit testing
     testImplementation(libs.junit)
+
+    // Baseline profile
+    implementation(libs.androidx.profileinstaller)
+}
+
+baselineProfile {
+    from(project(":baselineprofile"))
 }
