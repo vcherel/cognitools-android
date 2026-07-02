@@ -16,6 +16,7 @@ startupRuntime = "1.2.0"
 uiText = "1.9.3"
 uiUnit = "1.9.3"
 workRuntime = "2.10.5"
+reorderable = "2.4.3"
 junit = "4.13.2"
 macrobenchmark = "1.4.1"
 profileinstaller = "1.4.1"
@@ -49,6 +50,7 @@ androidx-work-runtime-ktx = { module = "androidx.work:work-runtime-ktx", version
 androidx-room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }
 androidx-room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
 androidx-room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
+reorderable = { group = "sh.calvin.reorderable", name = "reorderable", version.ref = "reorderable" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
