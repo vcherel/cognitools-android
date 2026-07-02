@@ -55,7 +55,6 @@ import java.net.URLEncoder
 @Composable
 fun WikipediaScreen(onBack: () -> Unit) {
     var isLoading by remember { mutableStateOf(false) }
-    var isLoadingMore by remember { mutableStateOf(false) }
     var wikiContent by remember { mutableStateOf<WikipediaContent?>(null) }
     var displayedParagraphs by remember { mutableIntStateOf(1) }
     var error by remember { mutableStateOf<String?>(null) }
@@ -66,19 +65,20 @@ fun WikipediaScreen(onBack: () -> Unit) {
 
     val scope = rememberCoroutineScope()
 
-    val loadArticle: (String, String, Boolean) -> Unit = { title, language, addToHistory ->
+    // Shared loading choreography. Followed links stack onto the history,
+    // a fresh random article clears it.
+    fun load(addToHistory: Boolean, fetch: suspend () -> WikipediaContent) {
         scope.launch {
             isLoading = true
             error = null
             displayedParagraphs = 1
             try {
-                val newContent = fetchWikipediaByTitle(title, language)
-
-                // Add current content to history before loading new one
-                if (addToHistory && wikiContent != null) {
-                    navigationHistory = (navigationHistory + wikiContent!!).takeLast(5)
+                val newContent = fetch()
+                navigationHistory = if (addToHistory) {
+                    (navigationHistory + listOfNotNull(wikiContent)).takeLast(5)
+                } else {
+                    emptyList()
                 }
-
                 wikiContent = newContent
             } catch (e: Exception) {
                 error = "Erreur de chargement: ${e.message}"
@@ -146,23 +146,7 @@ fun WikipediaScreen(onBack: () -> Unit) {
                 MyButton(
                     text = "Je veux me perdre",
                     onClick = {
-                        scope.launch {
-                            isLoading = true
-                            error = null
-                            displayedParagraphs = 1
-                            try {
-                                val newContent = fetchCompleteWikipedia(selectedLanguage)
-
-                                // Clear history before loading random article
-                                navigationHistory = emptyList()
-
-                                wikiContent = newContent
-                            } catch (e: Exception) {
-                                error = "Erreur de chargement: ${e.message}"
-                            } finally {
-                                isLoading = false
-                            }
-                        }
+                        load(addToHistory = false) { fetchCompleteWikipedia(selectedLanguage) }
                     },
                     enabled = !isLoading,
                     modifier = Modifier.weight(0.8f).height(75.dp)
@@ -243,39 +227,29 @@ fun WikipediaScreen(onBack: () -> Unit) {
 
                         HtmlTextWithLinks(
                             html = paragraphsToShow.joinToString("\n\n") { it.outerHtml().trim() },
+                            language = content.language,
                             onLinkClick = { url ->
                                 // Extract title from Wikipedia URL
                                 val wikiPattern = """https?://(\w+)\.wikipedia\.org/wiki/(.+)""".toRegex()
                                 wikiPattern.find(url)?.let { matchResult ->
                                     val lang = matchResult.groupValues[1]
                                     val title = URLDecoder.decode(matchResult.groupValues[2], "UTF-8")
-                                    loadArticle(title, lang, true) // true = add to history
+                                    load(addToHistory = true) { fetchWikipediaByTitle(title, lang) }
                                 }
                             }
                         )
 
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        // Lire plus button - only show if there are more paragraphs
                         if (displayedParagraphs < paragraphs.size) {
-                            if (!isLoadingMore) {
-                                Text(
-                                    text = "Lire plus",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.clickable {
-                                        isLoadingMore = true
-                                        displayedParagraphs = paragraphs.size
-                                        isLoadingMore = false
-                                    }
-                                )
-                            } else {
-                                CircularProgressIndicator(
-                                    modifier = Modifier
-                                        .align(Alignment.CenterHorizontally)
-                                        .padding(16.dp)
-                                )
-                            }
+                            Text(
+                                text = "Lire plus",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.clickable {
+                                    displayedParagraphs = paragraphs.size
+                                }
+                            )
                         }
                     }
                 }
@@ -287,7 +261,8 @@ fun WikipediaScreen(onBack: () -> Unit) {
 data class WikipediaContent(
     val title: String,
     val fullContentHtml: String,
-    val url: String
+    // Wikipedia language code ("fr", "en", ...), needed to resolve relative /wiki/ links
+    val language: String
 )
 
 // Wikimedia's User-Agent policy requires a descriptive agent with contact info,
@@ -311,7 +286,7 @@ private fun httpGet(url: String): String {
     }
 }
 
-suspend fun fetchRandomTitle(language: String): String = withContext(Dispatchers.IO) {
+private suspend fun fetchRandomTitle(language: String): String = withContext(Dispatchers.IO) {
     // Use the MediaWiki action API: it returns the title directly, with no HTTP
     // redirect to follow, unlike the deprecated rest_v1 random/summary endpoint.
     val url = "https://$language.wikipedia.org/w/api.php?action=query&format=json&list=random&rnnamespace=0&rnlimit=1"
@@ -322,7 +297,7 @@ suspend fun fetchRandomTitle(language: String): String = withContext(Dispatchers
         .getString("title")
 }
 
-suspend fun fetchPageViews(language: String, title: String): Int = withContext(Dispatchers.IO) {
+private suspend fun fetchPageViews(language: String, title: String): Int = withContext(Dispatchers.IO) {
     val encodedTitle = URLEncoder.encode(title, "UTF-8")
     // Pageview data lags a day or two, so query the 30 days ending two days ago.
     val fmt = java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd")
@@ -338,7 +313,7 @@ suspend fun fetchPageViews(language: String, title: String): Int = withContext(D
     }
 }
 
-suspend fun fetchCompleteWikipedia(language: String = "fr"): WikipediaContent = withContext(Dispatchers.IO) {
+private suspend fun fetchCompleteWikipedia(language: String): WikipediaContent = withContext(Dispatchers.IO) {
     // Fetch several random titles, and for each title, fetch pageviews (last 30 days)
     val viewCounts = coroutineScope {
         (1..5).map {
@@ -357,7 +332,7 @@ suspend fun fetchCompleteWikipedia(language: String = "fr"): WikipediaContent = 
     fetchWikipediaByTitle(bestTitle, language)
 }
 
-suspend fun fetchWikipediaByTitle(title: String, language: String = "fr"): WikipediaContent = withContext(Dispatchers.IO) {
+private suspend fun fetchWikipediaByTitle(title: String, language: String): WikipediaContent = withContext(Dispatchers.IO) {
     val encodedTitle = URLEncoder.encode(title, "UTF-8")
     val contentUrl = "https://$language.wikipedia.org/w/api.php?action=parse&format=json&page=$encodedTitle&prop=text&redirects=1"
     val json = JSONObject(httpGet(contentUrl))
@@ -368,22 +343,20 @@ suspend fun fetchWikipediaByTitle(title: String, language: String = "fr"): Wikip
     }
 
     val parseObject = json.getJSONObject("parse")
-    val actualTitle = parseObject.getString("title")
-    val htmlContent = parseObject.getJSONObject("text").getString("*")
 
     WikipediaContent(
-        title = actualTitle,
-        fullContentHtml = htmlContent,
-        url = "https://$language.wikipedia.org/wiki/${URLEncoder.encode(actualTitle, "UTF-8")}"
+        title = parseObject.getString("title"),
+        fullContentHtml = parseObject.getJSONObject("text").getString("*"),
+        language = language
     )
 }
 
 @Composable
-fun HtmlTextWithLinks(html: String, onLinkClick: (String) -> Unit) {
+private fun HtmlTextWithLinks(html: String, language: String, onLinkClick: (String) -> Unit) {
     val doc = remember(html) { Jsoup.parse(html) }
     val annotatedString = buildAnnotatedString {
         doc.body().children().forEach { element ->
-            appendElementRecursively(element, this, onLinkClick)
+            appendElementRecursively(element, this, language, onLinkClick)
             append("\n\n")
         }
     }
@@ -394,9 +367,10 @@ fun HtmlTextWithLinks(html: String, onLinkClick: (String) -> Unit) {
     )
 }
 
-fun appendElementRecursively(
+private fun appendElementRecursively(
     element: org.jsoup.nodes.Element,
     builder: AnnotatedString.Builder,
+    language: String,
     onLinkClick: (String) -> Unit
 ) {
     // Skip reference links
@@ -408,14 +382,14 @@ fun appendElementRecursively(
     when (element.tagName()) {
         "a" -> {
             val url = element.attr("href")
-            val text = element.text().replace("""\\displaystyle""", "")
+            val text = element.text().replace("""\displaystyle""", "")
 
             // Skip red links (non-existing pages)
             val isRedLink = element.hasClass("new")
 
             if (!isRedLink && text.isNotBlank() && !text.matches(Regex("""^\d+$"""))) {
                 val absoluteUrl = if (url.startsWith("/wiki/")) {
-                    "https://fr.wikipedia.org$url"
+                    "https://$language.wikipedia.org$url"
                 } else url
 
                 val linkAnnotation = LinkAnnotation.Clickable(
@@ -438,7 +412,7 @@ fun appendElementRecursively(
             element.childNodes().forEach { node ->
                 when (node) {
                     is org.jsoup.nodes.TextNode -> builder.append(node.text())
-                    is org.jsoup.nodes.Element -> appendElementRecursively(node, builder, onLinkClick)
+                    is org.jsoup.nodes.Element -> appendElementRecursively(node, builder, language, onLinkClick)
                 }
             }
         }
