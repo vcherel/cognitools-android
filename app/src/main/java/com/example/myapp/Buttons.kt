@@ -35,6 +35,34 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+private class ButtonStyle(val shadow: Color, val gradient: Brush, val text: Color)
+
+private fun buttonStyle(isPressed: Boolean, enabled: Boolean, isDarkMode: Boolean): ButtonStyle = when {
+    !enabled -> ButtonStyle(
+        shadow = if (isDarkMode) Color(0xFF424242) else Color(0xFF9E9E9E),
+        gradient = if (isDarkMode) {
+            Brush.horizontalGradient(listOf(Color(0xFF424242), Color(0xFF303030)))
+        } else {
+            Brush.horizontalGradient(listOf(Color(0xFFBDBDBD), Color(0xFF9E9E9E)))
+        },
+        text = if (isDarkMode) Color(0xFF9E9E9E) else Color(0xFF757575)
+    )
+    isPressed -> ButtonStyle(
+        shadow = Color(0xFF1565C0),
+        gradient = Brush.horizontalGradient(listOf(Color(0xFF2196F3), Color(0xFF1976D2))),
+        text = Color.White
+    )
+    else -> ButtonStyle(
+        shadow = if (isDarkMode) Color(0xFF37474F) else Color(0xFFB0BEC5),
+        gradient = if (isDarkMode) {
+            Brush.horizontalGradient(listOf(Color(0xFF455A64), Color(0xFF37474F)))
+        } else {
+            Brush.horizontalGradient(listOf(Color(0xFFECEFF1), Color(0xFFCFD8DC)))
+        },
+        text = if (isDarkMode) Color.White else Color.Black
+    )
+}
+
 @Composable
 fun MyButton(
     text: String,
@@ -48,50 +76,8 @@ fun MyButton(
     val isPressed by interactionSource.collectIsPressedAsState()
     val isDarkMode = LocalIsDarkMode.current
 
-    // Adjust visual state based on dark mode, pressed state, and enabled state
-    val shadowColor = remember(isPressed, enabled, isDarkMode) {
-        when {
-            !enabled -> if (isDarkMode) Color(0xFF424242) else Color(0xFF9E9E9E)
-            isPressed -> Color(0xFF1565C0)
-            else -> if (isDarkMode) Color(0xFF37474F) else Color(0xFFB0BEC5)
-        }
-    }
-
-    val gradient = remember(isPressed, enabled, isDarkMode) {
-        when {
-            !enabled -> {
-                if (isDarkMode) {
-                    Brush.horizontalGradient(listOf(Color(0xFF424242), Color(0xFF303030)))
-                } else {
-                    Brush.horizontalGradient(listOf(Color(0xFFBDBDBD), Color(0xFF9E9E9E)))
-                }
-            }
-            isPressed -> {
-                // Blue gradient when pressed (same for both modes)
-                Brush.horizontalGradient(
-                    listOf(Color(0xFF2196F3), Color(0xFF1976D2))
-                )
-            }
-            else -> {
-                if (isDarkMode) {
-                    Brush.horizontalGradient(
-                        listOf(Color(0xFF455A64), Color(0xFF37474F))
-                    )
-                } else {
-                    Brush.horizontalGradient(
-                        listOf(Color(0xFFECEFF1), Color(0xFFCFD8DC))
-                    )
-                }
-            }
-        }
-    }
-
-    val textColor = remember(isPressed, enabled, isDarkMode) {
-        when {
-            !enabled -> if (isDarkMode) Color(0xFF9E9E9E) else Color(0xFF757575)
-            isPressed -> Color.White
-            else -> if (isDarkMode) Color.White else Color.Black
-        }
+    val style = remember(isPressed, enabled, isDarkMode) {
+        buttonStyle(isPressed, enabled, isDarkMode)
     }
 
     Box(
@@ -113,7 +99,7 @@ fun MyButton(
                 .fillMaxSize()
                 .offset(y = 6.dp)
                 .background(
-                    color = shadowColor,
+                    color = style.shadow,
                     shape = RoundedCornerShape(35)
                 )
         )
@@ -123,7 +109,7 @@ fun MyButton(
             modifier = Modifier
                 .fillMaxSize()
                 .background(
-                    brush = gradient,
+                    brush = style.gradient,
                     shape = RoundedCornerShape(35)
                 ),
             contentAlignment = Alignment.Center
@@ -132,13 +118,13 @@ fun MyButton(
                 Icon(
                     imageVector = icon,
                     contentDescription = text,
-                    tint = textColor,
+                    tint = style.text,
                     modifier = Modifier.size(32.dp)
                 )
             } else {
                 Text(
                     text,
-                    color = textColor,
+                    color = style.text,
                     fontSize = fontSize,
                     fontWeight = FontWeight.SemiBold
                 )
@@ -155,25 +141,17 @@ fun SplitMyButton(
     onMainClick: () -> Unit,
     onRightClick: () -> Unit
 ) {
-    val isDarkMode = LocalIsDarkMode.current
-    val mainInteraction = remember { MutableInteractionSource() }
-    val isMainPressed by mainInteraction.collectIsPressedAsState()
-    val rightInteraction = remember { MutableInteractionSource() }
-    val isRightPressed by rightInteraction.collectIsPressedAsState()
-
     Row(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         SplitButtonHalf(
             modifier = Modifier.weight(1f),
-            isPressed = isMainPressed,
-            interactionSource = mainInteraction,
             onClick = onMainClick
-        ) {
+        ) { textColor ->
             Text(
                 text,
-                color = if (isMainPressed) Color.White else if (isDarkMode) Color.White else Color.Black,
+                color = textColor,
                 fontSize = 24.sp,
                 fontWeight = FontWeight.SemiBold
             )
@@ -181,14 +159,12 @@ fun SplitMyButton(
 
         SplitButtonHalf(
             modifier = Modifier.width(80.dp),
-            isPressed = isRightPressed,
-            interactionSource = rightInteraction,
             onClick = onRightClick
-        ) {
+        ) { textColor ->
             Icon(
                 imageVector = rightIcon,
                 contentDescription = null,
-                tint = if (isRightPressed) Color.White else if (isDarkMode) Color.White else Color.Black,
+                tint = textColor,
                 modifier = Modifier.size(32.dp)
             )
         }
@@ -198,19 +174,14 @@ fun SplitMyButton(
 @Composable
 private fun SplitButtonHalf(
     modifier: Modifier = Modifier,
-    isPressed: Boolean,
-    interactionSource: MutableInteractionSource,
     onClick: () -> Unit,
-    content: @Composable () -> Unit
+    content: @Composable (textColor: Color) -> Unit
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
     val isDarkMode = LocalIsDarkMode.current
-    val shadowColor = remember(isPressed, isDarkMode) {
-        if (isPressed) Color(0xFF1565C0) else if (isDarkMode) Color(0xFF37474F) else Color(0xFFB0BEC5)
-    }
-    val gradient = remember(isPressed, isDarkMode) {
-        if (isPressed) Brush.horizontalGradient(listOf(Color(0xFF2196F3), Color(0xFF1976D2)))
-        else if (isDarkMode) Brush.horizontalGradient(listOf(Color(0xFF455A64), Color(0xFF37474F)))
-        else Brush.horizontalGradient(listOf(Color(0xFFECEFF1), Color(0xFFCFD8DC)))
+    val style = remember(isPressed, isDarkMode) {
+        buttonStyle(isPressed, enabled = true, isDarkMode = isDarkMode)
     }
 
     Box(
@@ -223,15 +194,15 @@ private fun SplitButtonHalf(
             modifier = Modifier
                 .fillMaxSize()
                 .offset(y = 6.dp)
-                .background(shadowColor, RoundedCornerShape(35))
+                .background(style.shadow, RoundedCornerShape(35))
         )
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(gradient, RoundedCornerShape(35)),
+                .background(style.gradient, RoundedCornerShape(35)),
             contentAlignment = Alignment.Center
         ) {
-            content()
+            content(style.text)
         }
     }
 }
@@ -250,38 +221,9 @@ fun MySwitch(
     val boxWidth = if (text != null) 200.dp else 85.dp
     val boxHeight = if (text != null) 100.dp else 55.dp
 
-    val shadowColor = remember(isEnabled, isDarkMode) {
-        if (isEnabled) {
-            Color(0xFF1565C0)
-        } else {
-            if (isDarkMode) Color(0xFF424242) else Color(0xFFB0BEC5)
-        }
-    }
-
-    val gradient = remember(isEnabled, isDarkMode) {
-        if (isEnabled) {
-            Brush.horizontalGradient(
-                listOf(Color(0xFF2196F3), Color(0xFF1976D2))
-            )
-        } else {
-            if (isDarkMode) {
-                Brush.horizontalGradient(
-                    listOf(Color(0xFF455A64), Color(0xFF37474F))
-                )
-            } else {
-                Brush.horizontalGradient(
-                    listOf(Color(0xFFECEFF1), Color(0xFFCFD8DC))
-                )
-            }
-        }
-    }
-
-    val textColor = remember(isEnabled, isDarkMode) {
-        if (isEnabled) {
-            Color.White
-        } else {
-            if (isDarkMode) Color.White else Color.Black
-        }
+    // The "pressed" style doubles as the "switch on" look.
+    val style = remember(isEnabled, isDarkMode) {
+        buttonStyle(isPressed = isEnabled, enabled = true, isDarkMode = isDarkMode)
     }
 
     Box(
@@ -295,7 +237,7 @@ fun MySwitch(
                 .fillMaxSize()
                 .offset(y = 5.dp)
                 .background(
-                    color = shadowColor,
+                    color = style.shadow,
                     shape = RoundedCornerShape(40)
                 )
         )
@@ -304,14 +246,13 @@ fun MySwitch(
             modifier = Modifier
                 .fillMaxSize()
                 .background(
-                    brush = gradient,
+                    brush = style.gradient,
                     shape = RoundedCornerShape(40)
                 )
                 .clickable(
                     interactionSource = interactionSource,
                     indication = null
-                ) { onToggle(!isEnabled) }
-                .padding(horizontal = 16.dp),
+                ) { onToggle(!isEnabled) },
             contentAlignment = Alignment.Center
         ) {
             Row(
@@ -324,7 +265,7 @@ fun MySwitch(
                 if (text != null) {
                     Text(
                         text = text,
-                        color = textColor,
+                        color = style.text,
                         fontSize = 24.sp,
                         fontWeight = FontWeight.Bold,
                         maxLines = 1,
@@ -332,16 +273,17 @@ fun MySwitch(
                     )
                 }
 
+                // Display only: the whole surface handles the toggle.
                 Switch(
                     checked = isEnabled,
-                    onCheckedChange = onToggle,
+                    onCheckedChange = null,
                     colors = SwitchDefaults.colors(
                         checkedThumbColor = Color.White,
                         checkedTrackColor = Color(0xFF0D47A1),
                         uncheckedThumbColor = Color.White,
                         uncheckedTrackColor = if (isDarkMode) Color(0xFF37474F) else Color(0xFFB0BEC5)
                     ),
-                    modifier = Modifier.scale(1.2f) // slightly bigger
+                    modifier = Modifier.scale(1.2f)
                 )
             }
         }

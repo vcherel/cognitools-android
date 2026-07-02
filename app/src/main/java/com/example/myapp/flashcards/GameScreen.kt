@@ -402,19 +402,7 @@ fun FlashcardGameScreen(listId: String, navController: NavController) {
                             },
                         elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
                     ) {
-                        val scoreColor = when (currentCard?.score?.toInt() ?: 0) {
-                            0 -> Color(0xFFFF0000)
-                            1 -> Color(0xFFFF3300)
-                            2 -> Color(0xFFFF6600)
-                            3 -> Color(0xFFFF9900)
-                            4 -> Color(0xFFFFCC00)
-                            5 -> Color(0xFFFFFF00)
-                            6 -> Color(0xFFCCFF00)
-                            7 -> Color(0xFF99FF00)
-                            8 -> Color(0xFF66FF00)
-                            9 -> Color(0xFF33FF00)
-                            else -> Color(0xFF00CC00)
-                        }
+                        val scoreColor = scoreColor(currentCard?.score?.toInt() ?: 0)
 
                         Box(modifier = Modifier.fillMaxSize()) {
                             // Text on the card
