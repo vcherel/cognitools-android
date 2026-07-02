@@ -3,7 +3,6 @@ package com.example.myapp.flashcards
 import android.content.Context
 import androidx.room.Dao
 import androidx.room.Database
-import androidx.room.Delete
 import androidx.room.Query
 import androidx.room.Room
 import androidx.room.RoomDatabase
@@ -19,6 +18,9 @@ interface FlashcardDao {
 
     @Query("SELECT * FROM lists ORDER BY `order`")
     suspend fun getLists(): List<FlashcardList>
+
+    @Query("SELECT * FROM lists WHERE id = :id")
+    suspend fun getList(id: String): FlashcardList?
 
     @Query("SELECT * FROM cards WHERE listId = :listId")
     fun observeElements(listId: String): Flow<List<FlashcardElement>>
@@ -54,7 +56,8 @@ interface FlashcardDao {
     @Upsert suspend fun upsertLists(lists: List<FlashcardList>)
     @Upsert suspend fun upsertElement(el: FlashcardElement)
     @Upsert suspend fun upsertElements(els: List<FlashcardElement>)
-    @Delete suspend fun deleteList(list: FlashcardList)
+    // Cards are removed by the ON DELETE CASCADE foreign key.
+    @Query("DELETE FROM lists WHERE id = :id") suspend fun deleteList(id: String)
     @Query("DELETE FROM cards WHERE id = :id") suspend fun deleteElement(id: String)
 }
 

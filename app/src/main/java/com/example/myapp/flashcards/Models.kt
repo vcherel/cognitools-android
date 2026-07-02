@@ -59,14 +59,14 @@ data class FlashcardElement(
     val definition: String,
     val normalizedName: String = name.normalizeForSearch(),
     val normalizedDefinition: String = definition.normalizeForSearch(),
-    var easeFactor: Double = 2.5,
-    var interval: Int = 0,
-    var repetitions: Int = 0,
-    var lastReview: Long = System.currentTimeMillis(),
-    var totalWins: Int = 0,
-    var totalLosses: Int = 0,
-    var score: Double = 0.0,
-    var randomSide: Boolean = true
+    val easeFactor: Double = 2.5,
+    val interval: Int = 0,
+    val repetitions: Int = 0,
+    val lastReview: Long = System.currentTimeMillis(),
+    val totalWins: Int = 0,
+    val totalLosses: Int = 0,
+    val score: Double = 0.0,
+    val randomSide: Boolean = true
 ) {
     companion object {
         fun fromJson(json: JSONObject): FlashcardElement {
