@@ -37,6 +37,7 @@ import com.example.myapp.undercover.UndercoverScreen
 import android.content.Context
 import android.widget.Toast
 import androidx.compose.material.icons.filled.Casino
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.ui.platform.LocalContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -171,6 +172,15 @@ fun MainScreen(themeManager: ThemeManager, isDarkMode: Boolean) {
                         }
                     }
 
+                    "flashcardsPlay" -> {
+                        key("flashcardsPlay") {
+                            FlashcardsNavGraph(
+                                onBack = { currentScreen = "menu" },
+                                startInGameAllMode = true
+                            )
+                        }
+                    }
+
                     "undercover" -> {
                         key("undercover") {
                             UndercoverScreen(onBack = { currentScreen = "menu" })
@@ -189,8 +199,14 @@ fun MainScreen(themeManager: ThemeManager, isDarkMode: Boolean) {
 }
 
 @Composable
-fun FlashcardsNavGraph(onBack: () -> Unit) {
+fun FlashcardsNavGraph(onBack: () -> Unit, startInGameAllMode: Boolean = false) {
     val navController = rememberNavController()
+
+    LaunchedEffect(Unit) {
+        if (startInGameAllMode) {
+            navController.navigate("game/all")
+        }
+    }
 
     NavHost(navController = navController, startDestination = "lists") {
         composable("lists") {
