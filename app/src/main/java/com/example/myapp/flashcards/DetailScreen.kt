@@ -299,43 +299,14 @@ fun FlashcardDetailScreen(
                         textAlign = TextAlign.End,
                         modifier = Modifier.clickable {
                             if (visibleElements.isNotEmpty()) {
-                                // Calculate average remaining interval in milliseconds
                                 val avgMillis = visibleElements.map {
                                     val nextReviewTime = it.lastReview + it.interval * 60_000L
                                     maxOf(0L, nextReviewTime - System.currentTimeMillis())
                                 }.average().toLong()
 
-                                // Convert average milliseconds to human-readable format
-                                val avgTimeFormatted = when {
-                                    avgMillis <= 0 -> "Maintenant"
-                                    avgMillis < 60 * 1000 -> "${(avgMillis / 1000).toInt()}s"
-                                    avgMillis < 60 * 60 * 1000 -> {
-                                        val mins = (avgMillis / (60 * 1000)).toInt()
-                                        "${mins}min"
-                                    }
-                                    avgMillis < 24 * 60 * 60 * 1000 -> {
-                                        val hours = (avgMillis / (60 * 60 * 1000)).toInt()
-                                        val mins = ((avgMillis % (60 * 60 * 1000)) / (60 * 1000)).toInt()
-                                        "${hours}h ${mins}min"
-                                    }
-                                    avgMillis < 30 * 24 * 60 * 60 * 1000L -> {
-                                        val days = (avgMillis / (24 * 60 * 60 * 1000)).toInt()
-                                        val hours = ((avgMillis % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000)).toInt()
-                                        val mins = ((avgMillis % (60 * 60 * 1000)) / (60 * 1000)).toInt()
-                                        "${days}j ${hours}h ${mins}min"
-                                    }
-                                    else -> {
-                                        val months = (avgMillis / (30 * 24 * 60 * 60 * 1000L)).toInt()
-                                        val days = ((avgMillis % (30 * 24 * 60 * 60 * 1000L)) / (24 * 60 * 60 * 1000)).toInt()
-                                        val hours = ((avgMillis % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000)).toInt()
-                                        val mins = ((avgMillis % (60 * 60 * 1000)) / (60 * 1000)).toInt()
-                                        "${months}mois ${days}j ${hours}h ${mins}min"
-                                    }
-                                }
-
                                 Toast.makeText(
                                     context,
-                                    "Temps moyen : $avgTimeFormatted",
+                                    "Temps moyen : ${formatDuration(avgMillis, detailed = true)}",
                                     Toast.LENGTH_SHORT
                                 ).show()
                             } else {
@@ -449,17 +420,9 @@ fun FlashcardDetailScreen(
                                         ) {
                                             val timeUntilReview =
                                                 remember(element.lastReview, element.interval) {
-                                                    val now = System.currentTimeMillis()
                                                     val nextReviewTime =
                                                         element.lastReview + (element.interval * 60_000L)
-                                                    val diffMs = nextReviewTime - now
-                                                    when {
-                                                        diffMs <= 0 -> "Maintenant"
-                                                        diffMs < 60 * 60 * 1000 -> "${(diffMs / (60 * 1000)).toInt()}min"
-                                                        diffMs < 24 * 60 * 60 * 1000 -> "${(diffMs / (60 * 60 * 1000)).toInt()}h"
-                                                        diffMs < 30 * 24 * 60 * 60 * 1000L -> "${(diffMs / (24 * 60 * 60 * 1000)).toInt()}j"
-                                                        else -> "${(diffMs / (30 * 24 * 60 * 60 * 1000L)).toInt()}mois"
-                                                    }
+                                                    formatDuration(nextReviewTime - System.currentTimeMillis())
                                                 }
 
                                             Text(
@@ -468,19 +431,7 @@ fun FlashcardDetailScreen(
                                                 color = if (isDue(element)) Color(0xFF009900) else MaterialTheme.colorScheme.onSurfaceVariant
                                             )
 
-                                            val scoreColor = when (element.score.toInt()) {
-                                                0 -> Color(0xFFFF0000)
-                                                1 -> Color(0xFFFF3300)
-                                                2 -> Color(0xFFFF6600)
-                                                3 -> Color(0xFFFF9900)
-                                                4 -> Color(0xFFFFCC00)
-                                                5 -> Color(0xFFFFFF00)
-                                                6 -> Color(0xFFCCFF00)
-                                                7 -> Color(0xFF99FF00)
-                                                8 -> Color(0xFF66FF00)
-                                                9 -> Color(0xFF33FF00)
-                                                else -> Color(0xFF00CC00)
-                                            }
+                                            val scoreColor = scoreColor(element.score.toInt())
 
                                             Spacer(modifier = Modifier.height(2.dp))
                                             Row(verticalAlignment = Alignment.CenterVertically) {
