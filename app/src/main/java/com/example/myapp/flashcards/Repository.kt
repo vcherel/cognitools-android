@@ -3,6 +3,7 @@ package com.example.myapp.flashcards
 import android.content.Context
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
@@ -110,6 +111,21 @@ class FlashcardRepository(private val context: Context) {
         return dao.getAllElements()
     }
 
+    suspend fun getStats(listId: String? = null): FlashcardStats {
+        ensureMigrated()
+        val elements = if (listId != null) dao.getElements(listId) else dao.getAllElements()
+        val now = System.currentTimeMillis()
+        return FlashcardStats(
+            totalCards = elements.size,
+            dueCards = elements.count { isDue(it, now) },
+            totalWins = elements.sumOf { it.totalWins },
+            totalLosses = elements.sumOf { it.totalLosses },
+            scoreBuckets = (0..10).map { score ->
+                score to elements.count { it.score.toInt().coerceIn(0, 10) == score }
+            }
+        )
+    }
+
     suspend fun createBackupJson(): String {
         ensureMigrated()
         val lists = dao.getLists()
@@ -184,18 +200,50 @@ class FlashcardRepository(private val context: Context) {
                 }
             }
             context.flashcardDataStore.edit { it[migratedKey] = true }
-            seedBuiltinListsIfNeeded()
-            seedBuiltinListsV2IfNeeded()
-            renameBuiltinListsV3IfNeeded()
+            applyBuiltinSeedMigrations()
             migrated = true
         }
     }
 
-    private suspend fun seedBuiltinListsIfNeeded() {
+    private suspend fun applyBuiltinSeedMigrations() {
         val prefs = context.flashcardDataStore.data.first()
-        if (prefs[seededKey] == true) return
+
+        // Infer version from legacy boolean flags on first upgrade, then persist it
+        val currentVersion = prefs[seedVersionKey] ?: run {
+            val inferred = when {
+                prefs[legacyRenamedV3Key] == true -> 3
+                prefs[legacySeededV2Key] == true -> 2
+                prefs[legacySeededKey] == true -> 1
+                else -> 0
+            }
+            context.flashcardDataStore.edit { it[seedVersionKey] = inferred }
+            inferred
+        }
+
+        if (currentVersion >= SEED_VERSION) return
+
+        if (currentVersion < 1) seedAssets("seed_capitals.json")
+        if (currentVersion < 2) {
+            seedAssets("seed_prefectures.json")
+            seedAssets("seed_dept_numbers.json")
+        }
+        if (currentVersion < 3) {
+            val renames = mapOf(
+                "builtin-prefectures-v1" to "Préfectures",
+                "builtin-dept-numbers-v1" to "Départements",
+                "builtin-capitals-v1" to "Capitales"
+            )
+            val lists = dao.getLists()
+            val toUpdate = lists.filter { it.id in renames }.map { it.copy(name = renames[it.id]!!) }
+            if (toUpdate.isNotEmpty()) dao.upsertLists(toUpdate)
+        }
+
+        context.flashcardDataStore.edit { it[seedVersionKey] = SEED_VERSION }
+    }
+
+    private suspend fun seedAssets(filename: String) {
         try {
-            val json = context.assets.open("seed_capitals.json").bufferedReader().readText()
+            val json = context.assets.open(filename).bufferedReader().readText()
             val obj = JSONObject(json)
             val lists = FlashcardList.listFromJsonString(obj.getJSONArray("lists").toString())
             val cards = FlashcardElement.listFromJsonString(obj.getJSONArray("cards").toString())
@@ -205,48 +253,17 @@ class FlashcardRepository(private val context: Context) {
             if (validCards.isNotEmpty()) dao.upsertElements(validCards)
         } catch (_: Exception) {
         }
-        context.flashcardDataStore.edit { it[seededKey] = true }
-    }
-
-    private suspend fun seedBuiltinListsV2IfNeeded() {
-        val prefs = context.flashcardDataStore.data.first()
-        if (prefs[seededV2Key] == true) return
-        for (filename in listOf("seed_prefectures.json", "seed_dept_numbers.json")) {
-            try {
-                val json = context.assets.open(filename).bufferedReader().readText()
-                val obj = JSONObject(json)
-                val lists = FlashcardList.listFromJsonString(obj.getJSONArray("lists").toString())
-                val cards = FlashcardElement.listFromJsonString(obj.getJSONArray("cards").toString())
-                val validListIds = lists.map { it.id }.toSet()
-                if (lists.isNotEmpty()) dao.upsertLists(lists)
-                val validCards = cards.filter { it.listId in validListIds }
-                if (validCards.isNotEmpty()) dao.upsertElements(validCards)
-            } catch (_: Exception) {
-            }
-        }
-        context.flashcardDataStore.edit { it[seededV2Key] = true }
-    }
-
-    private suspend fun renameBuiltinListsV3IfNeeded() {
-        val prefs = context.flashcardDataStore.data.first()
-        if (prefs[renamedV3Key] == true) return
-        val renames = mapOf(
-            "builtin-prefectures-v1" to "Préfectures",
-            "builtin-dept-numbers-v1" to "Départements",
-            "builtin-capitals-v1" to "Capitales"
-        )
-        val lists = dao.getLists()
-        val toUpdate = lists.filter { renames.containsKey(it.id) }.map { it.copy(name = renames[it.id]!!) }
-        if (toUpdate.isNotEmpty()) dao.upsertLists(toUpdate)
-        context.flashcardDataStore.edit { it[renamedV3Key] = true }
     }
 
     companion object {
         private val listsKey = stringPreferencesKey("lists")
         private val migratedKey = booleanPreferencesKey("migrated_to_room")
-        private val seededKey = booleanPreferencesKey("seeded_builtin_v1")
-        private val seededV2Key = booleanPreferencesKey("seeded_builtin_v2")
-        private val renamedV3Key = booleanPreferencesKey("renamed_builtin_v3")
+        private val seedVersionKey = intPreferencesKey("seed_version")
+        // Legacy keys — read-only, used only to infer the seed version on first upgrade
+        private val legacySeededKey = booleanPreferencesKey("seeded_builtin_v1")
+        private val legacySeededV2Key = booleanPreferencesKey("seeded_builtin_v2")
+        private val legacyRenamedV3Key = booleanPreferencesKey("renamed_builtin_v3")
+        private const val SEED_VERSION = 3
         private val migrationLock = Mutex()
         @Volatile private var migrated = false
     }
