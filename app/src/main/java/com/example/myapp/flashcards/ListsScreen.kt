@@ -2,6 +2,7 @@ package com.example.myapp.flashcards
 
 import android.content.ClipboardManager
 import android.content.Context
+import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -100,22 +101,27 @@ fun FlashcardListsScreen(navController: NavController) {
         }
     }
 
+    // Imports are confirmed by dialog first: the picked file waits here until then.
+    var pendingImportUri by remember { mutableStateOf<Uri?>(null) }
+
     val restoreLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.GetContent()
     ) { uri ->
-        if (uri != null) {
-            scope.launch(Dispatchers.IO) {
-                try {
-                    val json = context.contentResolver.openInputStream(uri)
-                        ?.use { it.bufferedReader().readText() } ?: return@launch
-                    repository.importFromJson(json)
-                    withContext(Dispatchers.Main) {
-                        Toast.makeText(context, "Importation réussie", Toast.LENGTH_SHORT).show()
-                    }
-                } catch (e: Exception) {
-                    withContext(Dispatchers.Main) {
-                        Toast.makeText(context, "Erreur d'importation", Toast.LENGTH_SHORT).show()
-                    }
+        if (uri != null) pendingImportUri = uri
+    }
+
+    fun importBackup(uri: Uri) {
+        scope.launch(Dispatchers.IO) {
+            try {
+                val json = context.contentResolver.openInputStream(uri)
+                    ?.use { it.bufferedReader().readText() } ?: return@launch
+                repository.importFromJson(json)
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(context, "Importation réussie", Toast.LENGTH_SHORT).show()
+                }
+            } catch (_: Exception) {
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(context, "Erreur d'importation", Toast.LENGTH_SHORT).show()
                 }
             }
         }
@@ -408,6 +414,27 @@ fun FlashcardListsScreen(navController: NavController) {
             }
         }
     )
+
+    // Confirmation before importing a backup over the current data
+    pendingImportUri?.let { uri ->
+        ShowAlertDialog(
+            onDismiss = { pendingImportUri = null },
+            title = "Importer la sauvegarde ?",
+            textContent = {
+                Text(
+                    "Les listes et cartes du fichier seront ajoutées. " +
+                            "Celles qui existent déjà seront remplacées par la version du fichier."
+                )
+            },
+            confirmText = "Importer",
+            cancelText = "Annuler",
+            onConfirm = {
+                importBackup(uri)
+                pendingImportUri = null
+            },
+            onCancel = { pendingImportUri = null }
+        )
+    }
 
     if (showGlobalStats) {
         StatsSheet(
