@@ -127,3 +127,14 @@ fun FlashcardElement.toJson(): JSONObject = JSONObject().also {
     it.put("score", score)
     it.put("randomSide", randomSide)
 }
+
+data class FlashcardStats(
+    val totalCards: Int,
+    val dueCards: Int,
+    val totalWins: Int,
+    val totalLosses: Int,
+    val scoreBuckets: List<Pair<Int, Int>>
+) {
+    val winRate: Float get() =
+        if (totalWins + totalLosses > 0) totalWins.toFloat() / (totalWins + totalLosses) else -1f
+}
