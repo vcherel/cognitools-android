@@ -19,12 +19,12 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
@@ -32,8 +32,6 @@ import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Upload
@@ -56,9 +54,9 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -70,6 +68,8 @@ import com.example.myapp.ShowAlertDialog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import sh.calvin.reorderable.ReorderableItem
+import sh.calvin.reorderable.rememberReorderableLazyListState
 
 @Composable
 fun FlashcardListsScreen(onBack: () -> Unit, navController: NavController) {
@@ -85,6 +85,7 @@ fun FlashcardListsScreen(onBack: () -> Unit, navController: NavController) {
     var showBulkImportDialog by remember { mutableStateOf(false) }
     var bulkImportText by remember { mutableStateOf("") }
     var selectedListId by remember { mutableStateOf("") }
+    var showGlobalStats by remember { mutableStateOf(false) }
 
     val backupLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/json")
@@ -121,6 +122,7 @@ fun FlashcardListsScreen(onBack: () -> Unit, navController: NavController) {
         }
     }
     var listsWithCountsState by remember { mutableStateOf(Pair(emptyList<FlashcardList>(), emptyMap<String, Pair<Int, Int>>())) }
+    var hasLoaded by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         scheduleFlashcardReminders(context)
@@ -129,19 +131,30 @@ fun FlashcardListsScreen(onBack: () -> Unit, navController: NavController) {
     LaunchedEffect(repository) {
         repository.observeListsWithCounts().collect { pair ->
             listsWithCountsState = pair
+            hasLoaded = true
         }
     }
     val lists = listsWithCountsState.first
     val countsMap = listsWithCountsState.second
+    val isLoading = !hasLoaded
 
-    var isLoading by remember { mutableStateOf(true) }
-    LaunchedEffect(listsWithCountsState) {
-        if (listsWithCountsState.first.isNotEmpty() || listsWithCountsState.second.isNotEmpty()) {
-            isLoading = false
-        } else {
-            kotlinx.coroutines.delay(300)
-            isLoading = false
+    // Local mirror of the list order so drag feels instant. Synced from the DB flow
+    // while not dragging, and written back to the DB when a drag ends.
+    var localLists by remember { mutableStateOf(lists) }
+    val lazyListState = rememberLazyListState()
+    val reorderableState = rememberReorderableLazyListState(lazyListState) { from, to ->
+        localLists = localLists.toMutableList().apply { add(to.index, removeAt(from.index)) }
+    }
+    LaunchedEffect(lists) {
+        if (!reorderableState.isAnyItemDragging) localLists = lists
+    }
+    var wasDragging by remember { mutableStateOf(false) }
+    LaunchedEffect(reorderableState.isAnyItemDragging) {
+        val dragging = reorderableState.isAnyItemDragging
+        if (wasDragging && !dragging) {
+            repository.reorderLists(localLists)
         }
+        wasDragging = dragging
     }
 
     BackHandler {
@@ -179,10 +192,7 @@ fun FlashcardListsScreen(onBack: () -> Unit, navController: NavController) {
                         style = MaterialTheme.typography.headlineSmall,
                         modifier = Modifier
                             .padding(start = 8.dp, end = 15.dp)
-                            .clickable {
-                                val total = countsMap.values.sumOf { it.first }
-                                Toast.makeText(context, "$total éléments au total", Toast.LENGTH_SHORT).show()
-                            }
+                            .clickable { showGlobalStats = true }
                     )
                     Box(
                         modifier = Modifier
@@ -238,59 +248,44 @@ fun FlashcardListsScreen(onBack: () -> Unit, navController: NavController) {
                     }
                     else -> {
                         Box(modifier = Modifier.fillMaxSize()) {
-                            LazyColumn(contentPadding = PaddingValues(bottom = 116.dp)) {
-                                itemsIndexed(items = lists, key = { _, item -> item.id }) { index, flashcardList ->
-                                    FlashcardListItem(
-                                        flashcardList = flashcardList,
-                                        totalCount = countsMap[flashcardList.id]?.first ?: 0,
-                                        dueCount = countsMap[flashcardList.id]?.second ?: 0,
-                                        onNavigate = {
-                                            navController.navigate("elements/${flashcardList.id}")
-                                        },
-                                        onBulkImport = {
-                                            selectedListId = flashcardList.id
-                                            showBulkImportDialog = true
-                                            bulkImportText = ""
-                                        },
-                                        onRename = {
-                                            dialogTitle = "Renommer la liste"
-                                            dialogValue = flashcardList.name
-                                            dialogAction = { newName ->
-                                                scope.launch {
-                                                    repository.updateList(flashcardList.id, newName)
+                            LazyColumn(
+                                state = lazyListState,
+                                contentPadding = PaddingValues(bottom = 116.dp)
+                            ) {
+                                items(items = localLists, key = { it.id }) { flashcardList ->
+                                    ReorderableItem(reorderableState, key = flashcardList.id) { isDragging ->
+                                        FlashcardListItem(
+                                            flashcardList = flashcardList,
+                                            totalCount = countsMap[flashcardList.id]?.first ?: 0,
+                                            dueCount = countsMap[flashcardList.id]?.second ?: 0,
+                                            isDragging = isDragging,
+                                            dragModifier = Modifier.longPressDraggableHandle(),
+                                            onNavigate = {
+                                                navController.navigate("elements/${flashcardList.id}")
+                                            },
+                                            onBulkImport = {
+                                                selectedListId = flashcardList.id
+                                                showBulkImportDialog = true
+                                                bulkImportText = ""
+                                            },
+                                            onRename = {
+                                                dialogTitle = "Renommer la liste"
+                                                dialogValue = flashcardList.name
+                                                dialogAction = { newName ->
+                                                    scope.launch {
+                                                        repository.updateList(flashcardList.id, newName)
+                                                    }
                                                 }
-                                            }
-                                            showDialog = true
-                                        },
-                                        onDelete = {
-                                            scope.launch {
-                                                repository.deleteList(flashcardList.id)
-                                            }
-                                        },
-                                        onMoveUp = {
-                                            if (index > 0) {
-                                                val mutableLists = lists.toMutableList()
-                                                val temp = mutableLists[index - 1]
-                                                mutableLists[index - 1] = mutableLists[index]
-                                                mutableLists[index] = temp
+                                                showDialog = true
+                                            },
+                                            onDelete = {
                                                 scope.launch {
-                                                    repository.reorderLists(mutableLists)
+                                                    repository.deleteList(flashcardList.id)
                                                 }
-                                            }
-                                        },
-                                        onMoveDown = {
-                                            if (index < lists.size - 1) {
-                                                val mutableLists = lists.toMutableList()
-                                                val temp = mutableLists[index + 1]
-                                                mutableLists[index + 1] = mutableLists[index]
-                                                mutableLists[index] = temp
-                                                scope.launch {
-                                                    repository.reorderLists(mutableLists)
-                                                }
-                                            }
-                                        },
-                                        onPlay = { navController.navigate("game/${flashcardList.id}") }
-                                    )
+                                            },
+                                            onPlay = { navController.navigate("game/${flashcardList.id}") }
+                                        )
+                                    }
                                 }
                             }
 
@@ -425,6 +420,14 @@ fun FlashcardListsScreen(onBack: () -> Unit, navController: NavController) {
             }
         }
     )
+
+    if (showGlobalStats) {
+        StatsSheet(
+            title = "Toutes les listes",
+            onDismiss = { showGlobalStats = false },
+            loadStats = { repository.getStats() }
+        )
+    }
 }
 
 @Composable
@@ -436,24 +439,30 @@ fun FlashcardListItem(
     onBulkImport: () -> Unit,
     onRename: (String) -> Unit,
     onDelete: () -> Unit,
-    onMoveUp: () -> Unit,
-    onMoveDown: () -> Unit,
-    onPlay: () -> Unit
+    onPlay: () -> Unit,
+    isDragging: Boolean = false,
+    dragModifier: Modifier = Modifier
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     var showDeleteDialog by remember { mutableStateOf(false) }
 
+    val scale = if (isDragging) 1.03f else if (isPressed) 0.90f else 1f
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 8.dp)
-            .scale(if (isPressed) 0.90f else 1f)
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }
+            .then(dragModifier)
             .clickable(
                 interactionSource = interactionSource,
                 indication = ripple()
             ) { onNavigate() },
-        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = if (isDragging) 12.dp else 6.dp)
     ) {
         Box(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
 
@@ -479,8 +488,7 @@ fun FlashcardListItem(
                 // Buttons on the right in 2 rows
                 Column(
                     verticalArrangement = Arrangement.spacedBy(4.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.padding(end = 35.dp)
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Row(
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -517,32 +525,6 @@ fun FlashcardListItem(
                         }
                     }
                 }
-            }
-
-            // Up arrow
-            IconButton(
-                onClick = onMoveUp,
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .offset(x = 12.dp, y = (-12).dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.KeyboardArrowUp,
-                    contentDescription = "Monter"
-                )
-            }
-
-            // Down arrow
-            IconButton(
-                onClick = onMoveDown,
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .offset(x = 12.dp, y = 12.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.KeyboardArrowDown,
-                    contentDescription = "Descendre"
-                )
             }
         }
     }

@@ -115,6 +115,9 @@ dependencies {
     implementation(libs.androidx.compose.ui.text)
     implementation(libs.androidx.compose.ui.unit)
 
+    // Drag-to-reorder
+    implementation(libs.reorderable)
+
     // Scraping
     implementation(libs.jsoup)
 

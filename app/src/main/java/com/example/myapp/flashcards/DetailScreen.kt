@@ -94,6 +94,7 @@ fun FlashcardDetailScreen(
     var searchQuery by remember { mutableStateOf("") }
     var elementToDelete by remember { mutableStateOf<FlashcardElement?>(null) }
     var selectedElement by remember { mutableStateOf<FlashcardElement?>(null) }
+    var showStats by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(true) }
     var sortState by remember { mutableIntStateOf(0) }
     var showSortMenu by remember { mutableStateOf(false) }
@@ -230,9 +231,7 @@ fun FlashcardDetailScreen(
                     Text(
                         listName,
                         style = MaterialTheme.typography.headlineSmall,
-                        modifier = Modifier.clickable {
-                            scope.launch { listState.scrollToItem(0) }
-                        }
+                        modifier = Modifier.clickable { showStats = true }
                     )
                 }
 
@@ -759,6 +758,14 @@ fun FlashcardDetailScreen(
             },
             onCancel = { showDialog = false },
             onConfirm = { saveElement() }
+        )
+    }
+
+    if (showStats) {
+        StatsSheet(
+            title = listName,
+            onDismiss = { showStats = false },
+            loadStats = { repository.getStats(if (isAllLists) null else listId) }
         )
     }
 }
