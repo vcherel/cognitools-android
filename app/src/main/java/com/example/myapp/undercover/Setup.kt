@@ -42,10 +42,10 @@ import kotlin.random.Random
 const val MAX_NAME_LENGTH = 30
 
 fun generateAndAssignPlayers(context: Context, state: UndercoverGameState): Pair<List<Player>, Int> {
-    val players = (0 until state.players.size).map { i -> Player() }.toMutableList()
+    val players = MutableList(state.players.size) { Player() }
 
     val wordPair = pickRandomPair(context)
-        ?: throw IllegalStateException("No word pair found in words.txt")
+        ?: throw IllegalStateException("No word pair found in pairs.json")
 
     val (civilianWord, impostorWord) = if (Random.nextBoolean()) {
         wordPair.first to wordPair.second

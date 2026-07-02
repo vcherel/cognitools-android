@@ -384,8 +384,7 @@ fun FlashcardListsScreen(navController: NavController) {
                     }
                     showBulkImportDialog = false
                 }
-            },
-            context = context
+            }
         )
     }
 
@@ -426,7 +425,7 @@ fun FlashcardListItem(
     dueCount: Int,
     onNavigate: () -> Unit,
     onBulkImport: () -> Unit,
-    onRename: (String) -> Unit,
+    onRename: () -> Unit,
     onDelete: () -> Unit,
     onPlay: () -> Unit,
     isDragging: Boolean = false,
@@ -484,7 +483,7 @@ fun FlashcardListItem(
                         modifier = Modifier.width(80.dp)
                     ) {
                         IconButton(
-                            onClick = { onRename(flashcardList.name) },
+                            onClick = onRename,
                             modifier = Modifier.size(36.dp)
                         ) {
                             Icon(Icons.Default.Edit, contentDescription = "Éditer")
@@ -537,9 +536,9 @@ fun BulkImportDialog(
     bulkImportText: String,
     onTextChange: (String) -> Unit,
     onDismiss: () -> Unit,
-    onConfirm: () -> Unit,
-    context: Context
+    onConfirm: () -> Unit
 ) {
+    val context = LocalContext.current
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Importer des cartes") },

@@ -41,22 +41,14 @@ fun List<Player>.getImpostorWord(): String? =
 
 // Game logic helpers
 
+// A Mr White still in play guesses once at most two players remain.
 fun List<Player>.shouldMrWhiteGuess(): Boolean {
-    // Check if Mr. White should guess (other case than Mr White eliminated)
     val active = activePlayers()
-    val mrWhites = active.count { it.role == PlayerRole.MR_WHITE }
-
-    // If no Mr White is active, he shouldn't guess
-    if (mrWhites == 0) return false
-
-    // If there is only one or two active player, he should guess
-    if (active.size <= 2) return true
-
-    return false
+    return active.size <= 2 && active.any { it.role == PlayerRole.MR_WHITE }
 }
 
+// Checks civilian and impostor wins; a Mr White win is handled separately via his guess.
 fun List<Player>.checkWinCondition(): WinCondition {
-    // We check win condition but not Mr White win
     val active = activePlayers()
     val civilians = active.count { it.role == PlayerRole.CIVILIAN }
     val impostors = active.count { it.role == PlayerRole.IMPOSTOR }
@@ -76,20 +68,12 @@ fun Map<String, Int>.updateScore(playerName: String, points: Int): Map<String, I
     }
 }
 
-fun List<Player>.awardCivilianPoints(scores: Map<String, Int>): Map<String, Int> {
-    var updatedScores = scores
-    filter { it.role == PlayerRole.CIVILIAN }.forEach { player ->
-        updatedScores = updatedScores.updateScore(player.name, ScoreValues.CIVILIAN_WIN)
-    }
-    return updatedScores
-}
-
-fun List<Player>.awardImpostorPoints(scores: Map<String, Int>): Map<String, Int> {
-    var updatedScores = scores
-    filter { it.role != PlayerRole.CIVILIAN }.forEach { player ->
-        updatedScores = updatedScores.updateScore(player.name, ScoreValues.IMPOSTOR_WIN)
-    }
-    return updatedScores
+private fun List<Player>.awardPoints(
+    scores: Map<String, Int>,
+    points: Int,
+    winners: (Player) -> Boolean
+): Map<String, Int> = filter(winners).fold(scores) { acc, player ->
+    acc.updateScore(player.name, points)
 }
 
 // Game state handler
@@ -271,7 +255,9 @@ fun handleWinCondition(
 ): Triple<List<Player>, Map<String, Int>, GameState> {
     return when (condition) {
         WinCondition.CiviliansWin -> {
-            val updatedScores = players.awardCivilianPoints(scores)
+            val updatedScores = players.awardPoints(scores, ScoreValues.CIVILIAN_WIN) {
+                it.role == PlayerRole.CIVILIAN
+            }
             Triple(
                 players,
                 updatedScores,
@@ -280,7 +266,9 @@ fun handleWinCondition(
         }
 
         WinCondition.ImpostorsWin -> {
-            val updatedScores = players.awardImpostorPoints(scores)
+            val updatedScores = players.awardPoints(scores, ScoreValues.IMPOSTOR_WIN) {
+                it.role != PlayerRole.CIVILIAN
+            }
             Triple(
                 players,
                 updatedScores,

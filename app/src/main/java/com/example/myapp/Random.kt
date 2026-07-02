@@ -24,6 +24,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -34,8 +35,8 @@ import androidx.compose.ui.unit.sp
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import java.text.NumberFormat
@@ -43,21 +44,19 @@ import java.util.Locale
 
 val Context.randomDataStore by preferencesDataStore("random_generator_prefs")
 
-object RandomPrefs {
-    val MIN_KEY = intPreferencesKey("min_value")
-    val MAX_KEY = intPreferencesKey("max_value")
-}
+private val MIN_KEY = intPreferencesKey("min_value")
+private val MAX_KEY = intPreferencesKey("max_value")
 
 suspend fun Context.saveMinMax(min: Int, max: Int) {
     randomDataStore.edit { prefs ->
-        prefs[RandomPrefs.MIN_KEY] = min
-        prefs[RandomPrefs.MAX_KEY] = max
+        prefs[MIN_KEY] = min
+        prefs[MAX_KEY] = max
     }
 }
 
 fun Context.readMinMax() = randomDataStore.data.map { prefs ->
-    val min = prefs[RandomPrefs.MIN_KEY] ?: 1
-    val max = prefs[RandomPrefs.MAX_KEY] ?: 100
+    val min = prefs[MIN_KEY] ?: 1
+    val max = prefs[MAX_KEY] ?: 100
     min to max
 }
 
@@ -74,12 +73,13 @@ fun RandomGeneratorScreen(onBack: () -> Unit, context: Context = LocalContext.cu
     var isLoading by remember { mutableStateOf(true) }
     var wordResult by remember { mutableStateOf<String?>(null) }
 
-    // Load min/max from DataStore
+    val scope = rememberCoroutineScope()
+
+    // Load the saved min/max once as initial values
     LaunchedEffect(Unit) {
-        context.readMinMax().collect { (savedMin, savedMax) ->
-            min = savedMin.toString()
-            max = savedMax.toString()
-        }
+        val (savedMin, savedMax) = context.readMinMax().first()
+        min = savedMin.toString()
+        max = savedMax.toString()
     }
 
     // Load words
@@ -134,8 +134,7 @@ fun RandomGeneratorScreen(onBack: () -> Unit, context: Context = LocalContext.cu
                 val maxInt = max.toIntOrNull() ?: 100
                 if (minInt <= maxInt) {
                     intResult = (minInt..maxInt).random()
-                    // Save values persistently
-                    CoroutineScope(Dispatchers.IO).launch {
+                    scope.launch {
                         context.saveMinMax(minInt, maxInt)
                     }
                 }

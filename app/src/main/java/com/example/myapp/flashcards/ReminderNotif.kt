@@ -94,16 +94,14 @@ fun sendReviewNotification(context: Context, dueCount: Int) {
         .setAutoCancel(true)
         .build()
 
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-        // For Android 13+, check permission
-        if (ContextCompat.checkSelfPermission(
+    // The POST_NOTIFICATIONS runtime permission only exists on Android 13+
+    val canNotify = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+            ContextCompat.checkSelfPermission(
                 context,
                 Manifest.permission.POST_NOTIFICATIONS
             ) == PackageManager.PERMISSION_GRANTED
-        ) {
-            NotificationManagerCompat.from(context).notify(NOTIFICATION_ID, notification)
-        }
-    } else {
+
+    if (canNotify) {
         NotificationManagerCompat.from(context).notify(NOTIFICATION_ID, notification)
     }
 }

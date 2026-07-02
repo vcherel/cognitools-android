@@ -11,15 +11,12 @@ class MyApplication : Application(), Configuration.Provider {
 
     override fun onCreate() {
         super.onCreate()
-
-        // Create notification channel synchronously (lightweight)
         createNotificationChannel(this)
     }
 
-    // Provide custom WorkManager configuration for on-demand initialization
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder()
             .setMinimumLoggingLevel(android.util.Log.ERROR)
-            .setExecutor(Executors.newFixedThreadPool(1)) // Limit threads
+            .setExecutor(Executors.newFixedThreadPool(1))
             .build()
 }
