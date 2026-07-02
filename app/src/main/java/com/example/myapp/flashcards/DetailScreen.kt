@@ -1,15 +1,12 @@
 package com.example.myapp.flashcards
 
-import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -17,22 +14,15 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SwapVert
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -46,7 +36,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -56,10 +45,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -74,6 +61,20 @@ import com.example.myapp.ShowAlertDialog
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
+private enum class SortMode(val menuLabel: String) {
+    INTERVAL_DESC("Intervalle révision"),
+    INTERVAL_ASC("Intervalle révision"),
+    VIEWS_DESC("Nombre vues totales"),
+    VIEWS_ASC("Nombre vues totales"),
+    SCORE_ASC("Score"),
+    SCORE_DESC("Score"),
+    FIXED_SIDE_ONLY("Toujours le même sens"),
+    RANDOM_SIDE_ONLY("Toujours le même sens")
+}
+
+private val FlashcardElement.nextReviewAt: Long
+    get() = lastReview + interval * 60_000L
+
 @Composable
 fun FlashcardDetailScreen(
     listId: String,
@@ -86,22 +87,18 @@ fun FlashcardDetailScreen(
     val repository = (context.applicationContext as com.example.myapp.MyApplication).flashcardRepository
     val isDarkMode = LocalIsDarkMode.current
 
-    var showDialog by remember { mutableStateOf(false) }
-    var dialogName by remember { mutableStateOf("") }
-    var dialogDefinition by remember { mutableStateOf("") }
-    var dialogRandomSide by remember { mutableStateOf(true) }
+    var showEditDialog by remember { mutableStateOf(false) }
     var editingElement by remember { mutableStateOf<FlashcardElement?>(null) }
     var searchQuery by remember { mutableStateOf("") }
     var elementToDelete by remember { mutableStateOf<FlashcardElement?>(null) }
     var selectedElement by remember { mutableStateOf<FlashcardElement?>(null) }
     var showStats by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(true) }
-    var sortState by remember { mutableIntStateOf(0) }
+    var sortMode by remember { mutableStateOf(SortMode.INTERVAL_DESC) }
     var showSortMenu by remember { mutableStateOf(false) }
 
     val isAllLists = listId == "all"
 
-    // Observe lists
     val lists by repository.observeLists().collectAsState(initial = emptyList())
     val listName = remember(lists, listId) {
         if (isAllLists) "Tout"
@@ -112,91 +109,79 @@ fun FlashcardDetailScreen(
     val elementsState = remember { mutableStateListOf<FlashcardElement>() }
 
     // Sync repository elements into local state
-    LaunchedEffect(listId, lists) {
+    LaunchedEffect(listId) {
         isLoading = true
+        val flow = if (isAllLists) repository.observeAllElements()
+        else repository.observeElements(listId)
 
-        if (isAllLists) {
-            val allElements = lists.flatMap { list -> repository.getElements(list.id) }
-            val chunkSize = 20
-            allElements.chunked(chunkSize).forEach { chunk ->
-                elementsState.addAll(chunk)
-                delay(16)
-            }
-            isLoading = false
-            scope.launch { listState.scrollToItem(0) }
-        } else {
-            var firstEmission = true
-            repository.observeElements(listId).collect { list ->
-                if (firstEmission) {
-                    // Initial load: paint in chunks to keep a big list smooth, then jump to top.
-                    elementsState.clear()
-                    list.chunked(20).forEach { chunk ->
-                        elementsState.addAll(chunk)
-                        delay(16)
-                    }
-                    isLoading = false
-                    firstEmission = false
-                    scope.launch { listState.scrollToItem(0) }
-                } else {
-                    // Later DB updates (reset, edit, ...): patch only what changed so just the
-                    // affected cards recompose and the scroll stays where it is.
-                    elementsState.patchTo(list)
+        var firstEmission = true
+        flow.collect { list ->
+            if (firstEmission) {
+                // Initial load: paint in chunks to keep a big list smooth, then jump to top.
+                elementsState.clear()
+                list.chunked(20).forEach { chunk ->
+                    elementsState.addAll(chunk)
+                    delay(16)
                 }
+                isLoading = false
+                firstEmission = false
+                scope.launch { listState.scrollToItem(0) }
+            } else {
+                // Later DB updates (reset, edit, ...): patch only what changed so just the
+                // affected cards recompose and the scroll stays where it is.
+                elementsState.patchTo(list)
             }
         }
     }
 
-    // Computed filtered & sorted list in-place to avoid repeated list allocations
+    // The filtered and sorted list actually rendered, rebuilt when data, query, or sort change.
     val visibleElements = remember { mutableStateListOf<FlashcardElement>() }
 
     // Detect whether this effect fired from a filter/sort change (jump to top) or from a data
     // update like reset/edit (keep the viewport where it is).
     val prevQuery = remember { mutableStateOf(searchQuery) }
-    val prevSort = remember { mutableIntStateOf(sortState) }
+    val prevSort = remember { mutableStateOf(sortMode) }
 
-    LaunchedEffect(elementsState.toList(), searchQuery, sortState) {
+    LaunchedEffect(elementsState.toList(), searchQuery, sortMode) {
         // Capture the current scroll position before the visible list is rebuilt.
         val savedIndex = listState.firstVisibleItemIndex
         val savedOffset = listState.firstVisibleItemScrollOffset
-        val filterOrSortChanged = searchQuery != prevQuery.value || sortState != prevSort.value
+        val filterOrSortChanged = searchQuery != prevQuery.value || sortMode != prevSort.value
         prevQuery.value = searchQuery
-        prevSort.value = sortState
+        prevSort.value = sortMode
 
         val normalizedQuery = searchQuery.normalizeForSearch()
         val filtered = elementsState.filter {
             (normalizedQuery.isEmpty() ||
                     it.normalizedName.contains(normalizedQuery) ||
                     it.normalizedDefinition.contains(normalizedQuery)) &&
-                    (sortState != 6 || !it.randomSide) && (sortState != 7 || it.randomSide)
+                    (sortMode != SortMode.FIXED_SIDE_ONLY || !it.randomSide) &&
+                    (sortMode != SortMode.RANDOM_SIDE_ONLY || it.randomSide)
         }
 
-        val sorted = when (sortState) {
-            0 -> filtered.sortedByDescending { it.lastReview + it.interval * 60_000L }
-            1 -> filtered.sortedBy { it.lastReview + it.interval * 60_000L }
-            2 -> filtered.sortedByDescending { it.totalWins + it.totalLosses }
-            3 -> filtered.sortedBy { it.totalWins + it.totalLosses }
-            4 -> filtered.sortedWith(
+        val sorted = when (sortMode) {
+            SortMode.INTERVAL_DESC,
+            SortMode.FIXED_SIDE_ONLY,
+            SortMode.RANDOM_SIDE_ONLY -> filtered.sortedByDescending { it.nextReviewAt }
+            SortMode.INTERVAL_ASC -> filtered.sortedBy { it.nextReviewAt }
+            SortMode.VIEWS_DESC -> filtered.sortedByDescending { it.totalWins + it.totalLosses }
+            SortMode.VIEWS_ASC -> filtered.sortedBy { it.totalWins + it.totalLosses }
+            SortMode.SCORE_ASC -> filtered.sortedWith(
                 compareBy<FlashcardElement> { it.score }
                     .thenByDescending { it.totalWins }
                     .thenBy { it.totalLosses }
-                    .thenBy { it.lastReview + it.interval * 60_000L }
+                    .thenBy { it.nextReviewAt }
             )
-            5 -> filtered.sortedWith(
+            SortMode.SCORE_DESC -> filtered.sortedWith(
                 compareByDescending<FlashcardElement> { it.score }
                     .thenByDescending { it.totalWins }
                     .thenBy { it.totalLosses }
-                    .thenByDescending { it.lastReview + it.interval * 60_000L }
+                    .thenByDescending { it.nextReviewAt }
             )
-            6 -> filtered.sortedByDescending { it.lastReview + it.interval * 60_000L }
-            7 -> filtered.sortedByDescending { it.lastReview + it.interval * 60_000L }
-            else -> filtered
         }
 
-        // Deduplicate by composite key (listId + id)
-        val unique = sorted.distinctBy { "${it.listId}_${it.id}" }
-
         visibleElements.clear()
-        visibleElements.addAll(unique)
+        visibleElements.addAll(sorted)
 
         // A new search or sort jumps to the top; a data update (reset, edit, ...) keeps the
         // viewport anchored to the same scroll offset so the touched card just moves underneath.
@@ -249,34 +234,21 @@ fun FlashcardDetailScreen(
                             expanded = showSortMenu,
                             onDismissRequest = { showSortMenu = false }
                         ) {
-                            DropdownMenuItem(
-                                text = { Text("Intervalle révision") },
-                                onClick = {
-                                    sortState = if (sortState == 0) 1 else 0
-                                    showSortMenu = false
-                                }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Nombre vues totales") },
-                                onClick = {
-                                    sortState = if (sortState == 2) 3 else 2
-                                    showSortMenu = false
-                                }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Score") },
-                                onClick = {
-                                    sortState = if (sortState == 4) 5 else 4
-                                    showSortMenu = false
-                                }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Toujours le même sens") },
-                                onClick = {
-                                    sortState = if (sortState == 6) 7 else 6
-                                    showSortMenu = false
-                                }
-                            )
+                            // Each entry toggles between its two directions on repeat clicks
+                            listOf(
+                                SortMode.INTERVAL_DESC to SortMode.INTERVAL_ASC,
+                                SortMode.VIEWS_DESC to SortMode.VIEWS_ASC,
+                                SortMode.SCORE_ASC to SortMode.SCORE_DESC,
+                                SortMode.FIXED_SIDE_ONLY to SortMode.RANDOM_SIDE_ONLY
+                            ).forEach { (first, second) ->
+                                DropdownMenuItem(
+                                    text = { Text(first.menuLabel) },
+                                    onClick = {
+                                        sortMode = if (sortMode == first) second else first
+                                        showSortMenu = false
+                                    }
+                                )
+                            }
                         }
                     }
 
@@ -300,8 +272,7 @@ fun FlashcardDetailScreen(
                         modifier = Modifier.clickable {
                             if (visibleElements.isNotEmpty()) {
                                 val avgMillis = visibleElements.map {
-                                    val nextReviewTime = it.lastReview + it.interval * 60_000L
-                                    maxOf(0L, nextReviewTime - System.currentTimeMillis())
+                                    maxOf(0L, it.nextReviewAt - System.currentTimeMillis())
                                 }.average().toLong()
 
                                 Toast.makeText(
@@ -350,186 +321,46 @@ fun FlashcardDetailScreen(
                         contentPadding = PaddingValues(bottom = if (isAllLists) 20.dp else 110.dp),
                         state = listState
                     ) {
-                        val duplicates = elementsState.groupingBy { "${it.listId}_${it.id}" }
-                            .eachCount().filter { it.value > 1 }
-
-                        if (duplicates.isNotEmpty()) {
-                            Log.w("FlashcardDetail", "Duplicate keys found: $duplicates")
-                        }
-
                         items(
                             count = visibleElements.size,
-                            key = { index ->
-                                val e = visibleElements[index]
-                                if (isAllLists) "${e.listId}_${e.id}" else e.id
-                            }
-
+                            key = { index -> visibleElements[index].id }
                         ) { index ->
                             val element = visibleElements[index]
-                            val elementListName = lists.find { it.id == element.listId }?.name ?: ""
-
-                            Card(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 4.dp)
-                                    .clickable { selectedElement = element },
-                                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-                            ) {
-                                Column(modifier = Modifier.padding(10.dp)) {
-                                    // Show list name if viewing all lists
-                                    if (isAllLists && elementListName.isNotBlank()) {
-                                        Text(
-                                            text = elementListName,
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.primary,
-                                            modifier = Modifier.padding(bottom = 4.dp)
-                                        )
-                                    }
-
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.Top
-                                    ) {
-                                        Column(modifier = Modifier.weight(1f)) {
-                                            var expandedName by remember { mutableStateOf(false) }
-                                            Text(
-                                                text = element.name,
-                                                style = MaterialTheme.typography.titleMedium,
-                                                maxLines = if (expandedName) Int.MAX_VALUE else 1,
-                                                overflow = if (expandedName) TextOverflow.Visible else TextOverflow.Ellipsis,
-                                                modifier = Modifier
-                                                    .clickable { expandedName = !expandedName }
-                                            )
-
-                                            var expandedDefinition by remember { mutableStateOf(false) }
-                                            Text(
-                                                text = element.definition,
-                                                style = MaterialTheme.typography.bodyLarge,
-                                                maxLines = if (expandedDefinition) Int.MAX_VALUE else 1,
-                                                overflow = if (expandedDefinition) TextOverflow.Visible else TextOverflow.Ellipsis,
-                                                modifier = Modifier
-                                                    .clickable { expandedDefinition = !expandedDefinition }
+                            FlashcardElementCard(
+                                element = element,
+                                listName = if (isAllLists) {
+                                    lists.find { it.id == element.listId }?.name
+                                } else null,
+                                onClick = { selectedElement = element },
+                                onEdit = {
+                                    editingElement = element
+                                    showEditDialog = true
+                                },
+                                onDelete = { elementToDelete = element },
+                                onReset = {
+                                    scope.launch {
+                                        // Update local state immediately for UI stability
+                                        val idx = elementsState.indexOfFirst { it.id == element.id }
+                                        if (idx != -1) {
+                                            elementsState[idx] = element.copy(
+                                                easeFactor = 2.5,
+                                                interval = 0,
+                                                repetitions = 0,
+                                                lastReview = System.currentTimeMillis(),
+                                                totalWins = 0,
+                                                totalLosses = 0,
+                                                score = 0.0
                                             )
                                         }
-
-                                        Column(
-                                            horizontalAlignment = Alignment.End,
-                                            verticalArrangement = Arrangement.Top,
-                                            modifier = Modifier.width(IntrinsicSize.Min)
-                                        ) {
-                                            val timeUntilReview =
-                                                remember(element.lastReview, element.interval) {
-                                                    val nextReviewTime =
-                                                        element.lastReview + (element.interval * 60_000L)
-                                                    formatDuration(nextReviewTime - System.currentTimeMillis())
-                                                }
-
-                                            Text(
-                                                timeUntilReview,
-                                                style = MaterialTheme.typography.bodySmall,
-                                                color = if (isDue(element)) Color(0xFF009900) else MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
-
-                                            val scoreColor = scoreColor(element.score.toInt())
-
-                                            Spacer(modifier = Modifier.height(2.dp))
-                                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                                Box(
-                                                    contentAlignment = Alignment.Center,
-                                                    modifier = Modifier
-                                                        .size(24.dp)
-                                                        .border(
-                                                            width = 2.dp,
-                                                            color = scoreColor,
-                                                            shape = CircleShape
-                                                        )
-                                                ) {
-                                                    Text(
-                                                        "${element.score.toInt()}",
-                                                        style = MaterialTheme.typography.bodySmall.copy(
-                                                            shadow = if ((element.score.toInt()) <= 3 || element.score.toInt() == 10) null else Shadow(
-                                                                offset = Offset(0f, 0f),
-                                                                blurRadius = 1f
-                                                            )
-                                                        ),
-                                                        color = scoreColor,
-                                                        fontWeight = FontWeight.Bold
-                                                    )
-                                                }
-
-                                                Spacer(modifier = Modifier.width(4.dp))
-
-                                                IconButton(
-                                                    onClick = {
-                                                        editingElement = element
-                                                        dialogName = element.name
-                                                        dialogDefinition = element.definition
-                                                        dialogRandomSide = element.randomSide
-                                                        showDialog = true
-                                                    },
-                                                    modifier = Modifier.size(24.dp)
-                                                ) {
-                                                    Icon(
-                                                        Icons.Default.Edit,
-                                                        contentDescription = "Éditer",
-                                                        modifier = Modifier.size(20.dp)
-                                                    )
-                                                }
-
-                                                IconButton(
-                                                    onClick = { elementToDelete = element },
-                                                    modifier = Modifier.size(24.dp)
-                                                ) {
-                                                    Icon(
-                                                        Icons.Default.Delete,
-                                                        contentDescription = "Supprimer",
-                                                        modifier = Modifier.size(20.dp)
-                                                    )
-                                                }
-
-                                                IconButton(
-                                                    onClick = {
-                                                        scope.launch {
-                                                            // Update local state immediately for UI stability
-                                                            val idx = elementsState.indexOfFirst { it.id == element.id }
-                                                            if (idx != -1) {
-                                                                elementsState[idx] = element.copy(
-                                                                    easeFactor = 2.5,
-                                                                    interval = 0,
-                                                                    repetitions = 0,
-                                                                    lastReview = System.currentTimeMillis(),
-                                                                    totalWins = 0,
-                                                                    totalLosses = 0,
-                                                                    score = 0.0
-                                                                )
-                                                            }
-                                                            repository.resetElement(element.id)
-                                                        }
-                                                    },
-                                                    modifier = Modifier.size(24.dp)
-                                                ) {
-                                                    Icon(
-                                                        Icons.Default.Refresh,
-                                                        contentDescription = "Réinitialiser",
-                                                        modifier = Modifier.size(20.dp)
-                                                    )
-                                                }
-                                            }
-                                        }
+                                        repository.resetElement(element.id)
                                     }
                                 }
-                            }
+                            )
                         }
                     }
 
                     // Gradient overlay at the bottom
-                    val color = if (isDarkMode) {
-                        Color(0xFF000000)
-                    }
-                    else {
-                        Color(0xFFFEF7FF)
-                    }
+                    val color = if (isDarkMode) Color(0xFF000000) else Color(0xFFFEF7FF)
                     Box(
                         modifier = Modifier
                             .align(Alignment.BottomCenter)
@@ -537,10 +368,7 @@ fun FlashcardDetailScreen(
                             .height(150.dp)
                             .background(
                                 brush = Brush.verticalGradient(
-                                    colors = listOf(
-                                        Color.Transparent,
-                                        color
-                                    ),
+                                    colors = listOf(Color.Transparent, color),
                                     startY = 0f,
                                     endY = Float.POSITIVE_INFINITY
                                 )
@@ -575,11 +403,8 @@ fun FlashcardDetailScreen(
                         text = "Ajouter",
                         modifier = Modifier.weight(1f).height(100.dp)
                     ) {
-                        dialogName = ""
-                        dialogDefinition = ""
-                        dialogRandomSide = true
                         editingElement = null
-                        showDialog = true
+                        showEditDialog = true
                     }
                 }
             }
@@ -633,7 +458,7 @@ fun FlashcardDetailScreen(
                 scope.launch {
                     repository.deleteElement(element.id)
                     // Update UI immediately
-                    elementsState.removeIf { it.id == element.id && it.listId == element.listId }
+                    elementsState.removeIf { it.id == element.id }
                 }
                 elementToDelete = null
             },
@@ -642,73 +467,39 @@ fun FlashcardDetailScreen(
         )
     }
 
-    val focusRequester2 = remember { FocusRequester() }
-
-    if (showDialog) {
-        fun saveElement() {
-            if (dialogName.isNotBlank() && dialogDefinition.isNotBlank()) {
+    if (showEditDialog) {
+        ElementEditDialog(
+            element = editingElement,
+            onDismiss = { showEditDialog = false },
+            onSave = { name, definition, randomSide ->
                 scope.launch {
-                    if (editingElement == null) {
+                    val editing = editingElement
+                    if (editing == null) {
                         val newElement = FlashcardElement(
                             listId = listId,
-                            name = dialogName,
-                            definition = dialogDefinition,
-                            randomSide = dialogRandomSide
+                            name = name,
+                            definition = definition,
+                            randomSide = randomSide
                         )
                         elementsState.add(newElement)
                         repository.addElement(listId, newElement)
                     } else {
-                        val updatedElement = editingElement!!.copy(
-                            name = dialogName,
-                            definition = dialogDefinition,
-                            randomSide = dialogRandomSide
+                        val updatedElement = editing.copy(
+                            name = name,
+                            definition = definition,
+                            normalizedName = name.normalizeForSearch(),
+                            normalizedDefinition = definition.normalizeForSearch(),
+                            randomSide = randomSide
                         )
-                        val idx = elementsState.indexOfFirst { it.id == editingElement!!.id }
+                        val idx = elementsState.indexOfFirst { it.id == editing.id }
                         if (idx != -1) {
                             elementsState[idx] = updatedElement
                         }
                         repository.updateElement(updatedElement)
                     }
                 }
-                showDialog = false
+                showEditDialog = false
             }
-        }
-
-        ShowAlertDialog(
-            onDismiss = { showDialog = false },
-            title = if (editingElement == null) "Nouvel élément" else "Modifier élément",
-            textContent = {
-                Column {
-                    TextField(
-                        value = dialogName,
-                        onValueChange = { dialogName = it },
-                        label = { Text("Nom") },
-                        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Next),
-                        keyboardActions = KeyboardActions(onNext = { focusRequester2.requestFocus() })
-                    )
-                    TextField(
-                        value = dialogDefinition,
-                        onValueChange = { dialogDefinition = it },
-                        label = { Text("Définition") },
-                        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Done),
-                        keyboardActions = KeyboardActions(onDone = { saveElement() }),
-                        modifier = Modifier.focusRequester(focusRequester2)
-                    )
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(top = 8.dp)
-                    ) {
-                        Text("Montrer côté aléatoire")
-                        Spacer(Modifier.weight(1f))
-                        Switch(
-                            checked = dialogRandomSide,
-                            onCheckedChange = { dialogRandomSide = it }
-                        )
-                    }
-                }
-            },
-            onCancel = { showDialog = false },
-            onConfirm = { saveElement() }
         )
     }
 
@@ -721,10 +512,65 @@ fun FlashcardDetailScreen(
     }
 }
 
+@Composable
+private fun ElementEditDialog(
+    element: FlashcardElement?,
+    onDismiss: () -> Unit,
+    onSave: (name: String, definition: String, randomSide: Boolean) -> Unit
+) {
+    var name by remember { mutableStateOf(element?.name ?: "") }
+    var definition by remember { mutableStateOf(element?.definition ?: "") }
+    var randomSide by remember { mutableStateOf(element?.randomSide ?: true) }
+    val definitionFocusRequester = remember { FocusRequester() }
+
+    fun save() {
+        if (name.isNotBlank() && definition.isNotBlank()) {
+            onSave(name, definition, randomSide)
+        }
+    }
+
+    ShowAlertDialog(
+        onDismiss = onDismiss,
+        title = if (element == null) "Nouvel élément" else "Modifier élément",
+        textContent = {
+            Column {
+                TextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("Nom") },
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Next),
+                    keyboardActions = KeyboardActions(onNext = { definitionFocusRequester.requestFocus() })
+                )
+                TextField(
+                    value = definition,
+                    onValueChange = { definition = it },
+                    label = { Text("Définition") },
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = { save() }),
+                    modifier = Modifier.focusRequester(definitionFocusRequester)
+                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(top = 8.dp)
+                ) {
+                    Text("Montrer côté aléatoire")
+                    Spacer(Modifier.weight(1f))
+                    Switch(
+                        checked = randomSide,
+                        onCheckedChange = { randomSide = it }
+                    )
+                }
+            }
+        },
+        onCancel = onDismiss,
+        onConfirm = { save() }
+    )
+}
+
 /**
  * Reconciles this list (the live UI state) with a fresh list from the database, mutating only the
  * entries that actually changed. Removes deleted cards, replaces changed cards in place, and appends
- * new ones. Cards are matched by id (unique within a single list). Display order is unaffected since
+ * new ones. Cards are matched by id (a UUID, unique across lists). Display order is unaffected since
  * the visible list is sorted separately. Touching only changed entries keeps recomposition and the
  * scroll position stable, unlike a full clear-and-rebuild.
  */
