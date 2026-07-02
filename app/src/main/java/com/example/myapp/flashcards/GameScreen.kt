@@ -1,6 +1,5 @@
 package com.example.myapp.flashcards
 
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -74,7 +73,7 @@ import kotlin.random.Random
 const val MAX_DIFFICULT_CARDS = 5
 
 @Composable
-fun FlashcardGameScreen(listId: String, navController: NavController, onBack: () -> Unit) {
+fun FlashcardGameScreen(listId: String, navController: NavController) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
@@ -148,10 +147,6 @@ fun FlashcardGameScreen(listId: String, navController: NavController, onBack: ()
             }
             updated.count { isDue(it) }
         }
-    }
-
-    BackHandler {
-        onBack()
     }
 
     // Load and filter due cards

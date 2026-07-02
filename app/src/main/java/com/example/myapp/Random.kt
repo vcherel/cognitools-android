@@ -1,7 +1,6 @@
 package com.example.myapp
 
 import android.content.Context
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -65,8 +64,6 @@ fun Context.readMinMax() = randomDataStore.data.map { prefs ->
 
 @Composable
 fun RandomGeneratorScreen(onBack: () -> Unit, context: Context = LocalContext.current) {
-    BackHandler { onBack() }
-
     // Integer state
     var min by remember { mutableStateOf("1") }
     var max by remember { mutableStateOf("100") }

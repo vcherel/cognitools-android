@@ -12,7 +12,6 @@ import android.content.ServiceConnection
 import android.media.audiofx.LoudnessEnhancer
 import android.os.Binder
 import android.os.IBinder
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.material.icons.Icons
@@ -235,10 +234,6 @@ fun VolumeBoosterScreen(onBack: () -> Unit) {
                 context.unbindService(serviceConnection)
             }
         }
-    }
-
-    BackHandler {
-        onBack()
     }
 
     // Top bar
