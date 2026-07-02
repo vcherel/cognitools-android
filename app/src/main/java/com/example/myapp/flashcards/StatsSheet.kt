@@ -133,7 +133,7 @@ fun scoreColor(score: Int): Color = when (score) {
     2 -> Color(0xFFFF6600)
     3 -> Color(0xFFFF9900)
     4 -> Color(0xFFFFCC00)
-    5 -> Color(0xFFCCCC00)
+    5 -> Color(0xFFFFFF00)
     6 -> Color(0xFFCCFF00)
     7 -> Color(0xFF99FF00)
     8 -> Color(0xFF66FF00)
