@@ -290,11 +290,16 @@ fun MenuScreen(
                 }
             )
             Spacer(modifier = Modifier.height(spaceHeight))
-            MyButton(text = "Volume booster") { onNavigate("volumeBooster") }
-            Spacer(modifier = Modifier.height(spaceHeight))
-            MyButton(text = "Flashcards") { onNavigate("flashcards") }
+            SplitMyButton(
+                text = "Flashcards",
+                rightIcon = Icons.Default.PlayArrow,
+                onMainClick = { onNavigate("flashcards") },
+                onRightClick = { onNavigate("flashcardsPlay") }
+            )
             Spacer(modifier = Modifier.height(spaceHeight))
             MyButton(text = "Undercover") { onNavigate("undercover") }
+            Spacer(modifier = Modifier.height(spaceHeight))
+            MyButton(text = "Volume booster") { onNavigate("volumeBooster") }
             Spacer(modifier = Modifier.height(spaceHeight))
             MyButton(text = "Wikipedia") { onNavigate("wikipedia") }
         }
