@@ -86,7 +86,6 @@ fun FlashcardGameScreen(listId: String, navController: NavController) {
     // Check if we're in "all lists" mode
     val isAllListsMode = listId == "all"
 
-    // Generate a session seed once at the start
     val sessionSeed by remember { mutableIntStateOf(System.currentTimeMillis().toInt()) }
     val sessionRandom = remember(sessionSeed) { Random(sessionSeed) }
 
@@ -107,9 +106,8 @@ fun FlashcardGameScreen(listId: String, navController: NavController) {
     var localUpdates by remember { mutableStateOf<Map<String, FlashcardElement>>(emptyMap()) }
     var listName by remember { mutableStateOf("") }
 
-    // Undo state
+    // Undo state: the card as it was before the last answer, and which side was shown
     var lastCard by remember { mutableStateOf<FlashcardElement?>(null) }
-    var lastCardBeforeUpdate by remember { mutableStateOf<FlashcardElement?>(null) }
     var lastShowFront by remember { mutableStateOf(true) }
     var canUndo by remember { mutableStateOf(false) }
 
@@ -123,7 +121,7 @@ fun FlashcardGameScreen(listId: String, navController: NavController) {
         }
     }
 
-    val dueCards by remember(allElements, localUpdates, sessionSeed) {
+    val dueCards by remember {
         derivedStateOf {
             val updated = allElements.map { element ->
                 localUpdates[element.id] ?: element
@@ -140,7 +138,7 @@ fun FlashcardGameScreen(listId: String, navController: NavController) {
         }
     }
 
-    val totalDueCount by remember(allElements, localUpdates) {
+    val totalDueCount by remember {
         derivedStateOf {
             val updated = allElements.map { element ->
                 localUpdates[element.id] ?: element
@@ -182,21 +180,17 @@ fun FlashcardGameScreen(listId: String, navController: NavController) {
         }
     }
 
-    fun updateCards(card: FlashcardElement, quality: Int): FlashcardElement =
-        reviewCard(card, quality, sawAnswer = !showDefinition)
-
     fun handleAnswer(wasCorrect: Boolean) {
         if (isProcessingSwipe) return
         isProcessingSwipe = true
 
         currentCard?.let { card ->
             // Save state for undo
-            lastCard = card.copy()
-            lastCardBeforeUpdate = card.copy()
+            lastCard = card
             lastShowFront = showFront
 
             val quality = if (wasCorrect) 4 else 2
-            val updatedCard = updateCards(card, quality)
+            val updatedCard = reviewCard(card, quality, sawAnswer = !showDefinition)
 
             localUpdates = localUpdates + (card.id to updatedCard)
 
@@ -238,24 +232,21 @@ fun FlashcardGameScreen(listId: String, navController: NavController) {
 
     fun handleUndo() {
         lastCard?.let { card ->
-            lastCardBeforeUpdate?.let { originalCard ->
-                // Restore the card to its previous state
-                localUpdates = localUpdates + (card.id to originalCard)
+            // Restore the card to its previous state
+            localUpdates = localUpdates + (card.id to card)
 
-                scope.launch {
-                    repository.updateElement(originalCard)
-                }
-
-                // Restore the current card and state
-                currentCard = card
-                showFront = lastShowFront
-                showDefinition = false
-
-                // Clear undo state
-                canUndo = false
-                lastCard = null
-                lastCardBeforeUpdate = null
+            scope.launch {
+                repository.updateElement(card)
             }
+
+            // Restore the current card and state
+            currentCard = card
+            showFront = lastShowFront
+            showDefinition = false
+
+            // Clear undo state
+            canUndo = false
+            lastCard = null
         }
     }
 
