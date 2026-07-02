@@ -3,7 +3,6 @@ package com.example.myapp.flashcards
 import android.content.ClipboardManager
 import android.content.Context
 import android.widget.Toast
-import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -72,7 +71,7 @@ import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 
 @Composable
-fun FlashcardListsScreen(onBack: () -> Unit, navController: NavController) {
+fun FlashcardListsScreen(navController: NavController) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val repository = (context.applicationContext as com.example.myapp.MyApplication).flashcardRepository
@@ -157,12 +156,6 @@ fun FlashcardListsScreen(onBack: () -> Unit, navController: NavController) {
         wasDragging = dragging
     }
 
-    BackHandler {
-        if (!navController.popBackStack()) {
-            onBack()
-        }
-    }
-
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
@@ -180,11 +173,7 @@ fun FlashcardListsScreen(onBack: () -> Unit, navController: NavController) {
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.weight(1f)
                 ) {
-                    IconButton(onClick = {
-                            if (!navController.popBackStack()) {
-                                onBack()
-                            }
-                        }) {
+                    IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Retour")
                     }
                     Text(

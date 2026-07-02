@@ -26,6 +26,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
@@ -143,98 +144,59 @@ val LocalIsDarkMode = compositionLocalOf { false }
 @Composable
 fun MainScreen(themeManager: ThemeManager, isDarkMode: Boolean) {
     CompositionLocalProvider(LocalIsDarkMode provides isDarkMode) {
-        var currentScreen by remember { mutableStateOf("menu") }
+        val navController = rememberNavController()
 
         Scaffold { innerPadding ->
             Box(modifier = Modifier.padding(innerPadding)) {
-                when (currentScreen) {
-                    "menu" -> MenuScreen(
-                        onNavigate = { screen -> currentScreen = screen },
-                        themeManager = themeManager,
-                        isDarkMode = isDarkMode
-                    )
-
-                    "randomGenerator" -> {
-                        key("randomGenerator") {
-                            RandomGeneratorScreen(onBack = { currentScreen = "menu" })
-                        }
+                NavHost(navController = navController, startDestination = "menu") {
+                    composable("menu") {
+                        MenuScreen(
+                            onNavigate = { route ->
+                                if (route == "flashcardsPlay") {
+                                    navController.navigate("lists")
+                                    navController.navigate("game/all")
+                                } else {
+                                    navController.navigate(route)
+                                }
+                            },
+                            themeManager = themeManager,
+                            isDarkMode = isDarkMode
+                        )
                     }
-
-                    "volumeBooster" -> {
-                        key("volumeBooster") {
-                            VolumeBoosterScreen(onBack = { currentScreen = "menu" })
-                        }
+                    composable("randomGenerator") {
+                        RandomGeneratorScreen(onBack = { navController.popBackStack() })
                     }
-
-                    "flashcards" -> {
-                        key("flashcards") {
-                            FlashcardsNavGraph(onBack = { currentScreen = "menu" })
-                        }
+                    composable("volumeBooster") {
+                        VolumeBoosterScreen(onBack = { navController.popBackStack() })
                     }
-
-                    "flashcardsPlay" -> {
-                        key("flashcardsPlay") {
-                            FlashcardsNavGraph(
-                                onBack = { currentScreen = "menu" },
-                                startInGameAllMode = true
+                    composable("undercover") {
+                        UndercoverScreen(onBack = { navController.popBackStack() })
+                    }
+                    composable("wikipedia") {
+                        WikipediaScreen(onBack = { navController.popBackStack() })
+                    }
+                    navigation(startDestination = "lists", route = "flashcards") {
+                        composable("lists") {
+                            FlashcardListsScreen(navController = navController)
+                        }
+                        composable("elements/{listId}") { backStackEntry ->
+                            val listId = backStackEntry.arguments?.getString("listId") ?: ""
+                            FlashcardDetailScreen(
+                                listId = listId,
+                                navController = navController,
+                                onBack = { navController.popBackStack() }
                             )
                         }
-                    }
-
-                    "undercover" -> {
-                        key("undercover") {
-                            UndercoverScreen(onBack = { currentScreen = "menu" })
-                        }
-                    }
-
-                    "wikipedia" -> {
-                        key("wikipedia") {
-                            WikipediaScreen(onBack = { currentScreen = "menu" })
+                        composable("game/{listId}") { backStackEntry ->
+                            val listId = backStackEntry.arguments?.getString("listId") ?: ""
+                            FlashcardGameScreen(
+                                listId = listId,
+                                navController = navController
+                            )
                         }
                     }
                 }
             }
-        }
-    }
-}
-
-@Composable
-fun FlashcardsNavGraph(onBack: () -> Unit, startInGameAllMode: Boolean = false) {
-    val navController = rememberNavController()
-
-    LaunchedEffect(Unit) {
-        if (startInGameAllMode) {
-            navController.navigate("game/all")
-        }
-    }
-
-    NavHost(navController = navController, startDestination = "lists") {
-        composable("lists") {
-            FlashcardListsScreen(
-                onBack = {
-                    val popped = navController.popBackStack()
-                    if (!popped) {
-                        onBack()
-                    }
-                },
-                navController = navController
-            )
-        }
-        composable("elements/{listId}") { backStackEntry ->
-            val listId = backStackEntry.arguments?.getString("listId") ?: ""
-            FlashcardDetailScreen(
-                listId = listId,
-                navController = navController,
-                onBack = { navController.popBackStack() }
-            )
-        }
-        composable("game/{listId}") { backStackEntry ->
-            val listId = backStackEntry.arguments?.getString("listId") ?: ""
-            FlashcardGameScreen(
-                listId = listId,
-                navController = navController,
-                onBack = { navController.popBackStack() }
-            )
         }
     }
 }
