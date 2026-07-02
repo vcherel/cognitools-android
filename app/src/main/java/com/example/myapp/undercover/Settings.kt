@@ -123,14 +123,13 @@ fun SettingsScreen(
     var showDeleteDialog by remember { mutableStateOf(false) }
 
     val maxImpostors = (state.players.size - 1) / 2
-    val (_, _, maxMrWhiteFromSwap) = validateGameSettings(
+    val (_, _, maxMrWhite) = validateGameSettings(
         playerCount = state.players.size,
         impostorCount = state.settings.impostorCount,
         mrWhiteCount = state.settings.mrWhiteCount + 1,
         allowSwap = true,
         swapDirection = SwapDirection.INCREASE_MR_WHITE
     )
-    val maxMrWhite = maxMrWhiteFromSwap
 
     Column(
         modifier = Modifier.fillMaxSize().padding(16.dp),

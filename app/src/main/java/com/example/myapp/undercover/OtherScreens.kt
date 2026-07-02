@@ -476,7 +476,7 @@ fun GameOverScreen(
         civiliansWon -> "Les civils ont gagné !"
         lastEliminated.role == PlayerRole.MR_WHITE -> "M. White (${lastEliminated.name}) a gagné !"
         activeRoles.contains(PlayerRole.MR_WHITE) -> "M. White a gagné !"
-        else -> if (activeRoles.count { it == PlayerRole.IMPOSTOR } > 1) "Les Undercover ont gagné !" else "L'Undercover a gagné !"
+        else -> if (activePlayers.count { it.role == PlayerRole.IMPOSTOR } > 1) "Les Undercover ont gagné !" else "L'Undercover a gagné !"
     }
 
     Column(
@@ -484,11 +484,8 @@ fun GameOverScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        val isWin = civiliansWon || lastEliminated.role == PlayerRole.MR_WHITE ||
-                activeRoles.contains(PlayerRole.MR_WHITE) ||
-                activeRoles.count { it == PlayerRole.IMPOSTOR } > 0
-
-        val winnerColor = if (isWin) Color(0xFF4CAF50) else Color(0xFFF44336)
+        // Green when the civilians take it, red when the impostors or Mr White do
+        val winnerColor = if (civiliansWon) Color(0xFF4CAF50) else Color(0xFFF44336)
 
         Text(
             winnerText,
