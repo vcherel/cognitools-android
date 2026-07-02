@@ -201,8 +201,7 @@ fun FlashcardGameScreen(listId: String, navController: NavController) {
             localUpdates = localUpdates + (card.id to updatedCard)
 
             scope.launch {
-                // Update in the correct list
-                repository.updateElement(card.listId, updatedCard)
+                repository.updateElement(updatedCard)
                 canUndo = true
             }
 
@@ -244,7 +243,7 @@ fun FlashcardGameScreen(listId: String, navController: NavController) {
                 localUpdates = localUpdates + (card.id to originalCard)
 
                 scope.launch {
-                    repository.updateElement(card.listId, originalCard)
+                    repository.updateElement(originalCard)
                 }
 
                 // Restore the current card and state

@@ -61,14 +61,13 @@ class FlashcardRepository(private val context: Context) {
     }
 
     suspend fun updateList(listId: String, newName: String) {
-        val current = getLists()
-        current.find { it.id == listId }?.let { dao.upsertList(it.copy(name = newName)) }
+        ensureMigrated()
+        dao.getList(listId)?.let { dao.upsertList(it.copy(name = newName)) }
     }
 
     suspend fun deleteList(listId: String) {
-        val current = getLists()
-        // Cards are removed by the ON DELETE CASCADE foreign key.
-        current.find { it.id == listId }?.let { dao.deleteList(it) }
+        ensureMigrated()
+        dao.deleteList(listId)
     }
 
     fun observeElements(listId: String): Flow<List<FlashcardElement>> = flow {
@@ -91,12 +90,12 @@ class FlashcardRepository(private val context: Context) {
         dao.upsertElements(elements.map { it.copy(listId = listId) })
     }
 
-    suspend fun updateElement(listId: String, element: FlashcardElement) {
+    suspend fun updateElement(element: FlashcardElement) {
         ensureMigrated()
         dao.upsertElement(element)
     }
 
-    suspend fun deleteElement(listId: String, elementId: String) {
+    suspend fun deleteElement(elementId: String) {
         ensureMigrated()
         dao.deleteElement(elementId)
     }
@@ -150,7 +149,7 @@ class FlashcardRepository(private val context: Context) {
         if (validCards.isNotEmpty()) dao.upsertElements(validCards)
     }
 
-    suspend fun resetElement(listId: String, elementId: String) {
+    suspend fun resetElement(elementId: String) {
         ensureMigrated()
         dao.getElement(elementId)?.let { element ->
             dao.upsertElement(
@@ -169,12 +168,7 @@ class FlashcardRepository(private val context: Context) {
 
     suspend fun getListNameById(listId: String): String {
         ensureMigrated()
-        return dao.getLists().find { it.id == listId }?.name ?: ""
-    }
-
-    suspend fun updateRandomSide(listId: String, elementId: String, randomSide: Boolean) {
-        ensureMigrated()
-        dao.getElement(elementId)?.let { dao.upsertElement(it.copy(randomSide = randomSide)) }
+        return dao.getList(listId)?.name ?: ""
     }
 
     /**

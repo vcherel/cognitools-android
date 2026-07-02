@@ -504,7 +504,7 @@ fun FlashcardDetailScreen(
                                                                     score = 0.0
                                                                 )
                                                             }
-                                                            repository.resetElement(element.listId, element.id)
+                                                            repository.resetElement(element.id)
                                                         }
                                                     },
                                                     modifier = Modifier.size(24.dp)
@@ -631,7 +631,7 @@ fun FlashcardDetailScreen(
             onCancel = { elementToDelete = null },
             onConfirm = {
                 scope.launch {
-                    repository.deleteElement(element.listId, element.id)
+                    repository.deleteElement(element.id)
                     // Update UI immediately
                     elementsState.removeIf { it.id == element.id && it.listId == element.listId }
                 }
@@ -667,7 +667,7 @@ fun FlashcardDetailScreen(
                         if (idx != -1) {
                             elementsState[idx] = updatedElement
                         }
-                        repository.updateElement(editingElement!!.listId, updatedElement)
+                        repository.updateElement(updatedElement)
                     }
                 }
                 showDialog = false
