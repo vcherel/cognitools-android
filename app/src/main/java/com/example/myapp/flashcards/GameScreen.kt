@@ -265,13 +265,6 @@ fun FlashcardGameScreen(listId: String, navController: NavController, onBack: ()
         }
     }
 
-    // Clear localUpdates when allElements updates to avoid memory buildup
-    LaunchedEffect(allElements) {
-        if (localUpdates.isNotEmpty()) {
-            localUpdates = emptyMap()
-        }
-    }
-
     // Box that display gradients when swiping
     Box(
         modifier = Modifier
@@ -412,7 +405,7 @@ fun FlashcardGameScreen(listId: String, navController: NavController, onBack: ()
                             ) {
                                 if (!showDefinition) showDefinition = true
                             },
-                        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+                        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
                     ) {
                         val scoreColor = when (currentCard?.score?.toInt() ?: 0) {
                             0 -> Color(0xFFFF0000)
