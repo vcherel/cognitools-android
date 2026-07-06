@@ -22,8 +22,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.staggeredgrid.LazyVerticalStaggeredGrid
+import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
+import androidx.compose.foundation.lazy.staggeredgrid.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
@@ -34,10 +35,7 @@ import androidx.compose.material.icons.filled.CheckBox
 import androidx.compose.material.icons.filled.CheckBoxOutlineBlank
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Done
 import androidx.compose.material.icons.filled.Download
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.HorizontalRule
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material3.Card
@@ -230,7 +228,12 @@ fun NotesListScreen(navController: NavController) {
                         style = MaterialTheme.typography.bodyMedium
                     )
                     else -> Box(modifier = Modifier.fillMaxSize()) {
-                        LazyColumn(contentPadding = PaddingValues(bottom = 116.dp)) {
+                        LazyVerticalStaggeredGrid(
+                            columns = StaggeredGridCells.Fixed(2),
+                            contentPadding = PaddingValues(bottom = 116.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalItemSpacing = 12.dp
+                        ) {
                             items(items = currentNotes, key = { it.id }) { note ->
                                 NoteItem(
                                     note = note,
@@ -318,7 +321,6 @@ private fun NoteItem(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 8.dp)
             .clickable(
                 interactionSource = interactionSource,
                 indication = ripple()
@@ -333,55 +335,55 @@ private fun NoteItem(
         },
         elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    title,
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                if (preview.isNotEmpty()) {
-                    Spacer(Modifier.height(4.dp))
-                    Text(
-                        preview,
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = Color.Gray,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
+        Column(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
+            Text(
+                title,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            if (preview.isNotEmpty()) {
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    formatNoteDate(note.updatedAt),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = Color.Gray
+                    preview,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color.Gray,
+                    maxLines = 3,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
-            IconButton(
-                onClick = onRecolor,
-                modifier = Modifier.size(36.dp)
+            Spacer(Modifier.height(4.dp))
+            Text(
+                formatNoteDate(note.updatedAt),
+                style = MaterialTheme.typography.bodySmall,
+                color = Color.Gray
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End
             ) {
-                Icon(Icons.Default.Palette, contentDescription = "Couleur aléatoire")
-            }
-            Spacer(Modifier.size(4.dp))
-            val clipboard = LocalClipboardManager.current
-            IconButton(
-                onClick = { clipboard.setText(AnnotatedString(note.content)) },
-                modifier = Modifier.size(36.dp)
-            ) {
-                Icon(Icons.Default.ContentCopy, contentDescription = "Copier le contenu")
-            }
-            Spacer(Modifier.size(4.dp))
-            IconButton(
-                onClick = { showDeleteDialog = true },
-                modifier = Modifier.size(36.dp)
-            ) {
-                Icon(Icons.Default.Delete, contentDescription = "Supprimer")
+                IconButton(
+                    onClick = onRecolor,
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(Icons.Default.Palette, contentDescription = "Couleur aléatoire")
+                }
+                Spacer(Modifier.size(4.dp))
+                val clipboard = LocalClipboardManager.current
+                IconButton(
+                    onClick = { clipboard.setText(AnnotatedString(note.content)) },
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(Icons.Default.ContentCopy, contentDescription = "Copier le contenu")
+                }
+                Spacer(Modifier.size(4.dp))
+                IconButton(
+                    onClick = { showDeleteDialog = true },
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(Icons.Default.Delete, contentDescription = "Supprimer")
+                }
             }
         }
     }
@@ -398,45 +400,6 @@ private fun NoteItem(
         cancelText = "Oula non merci",
         confirmText = "Oui t'inquiète"
     )
-}
-
-/**
- * Adds or removes the checkbox prefix on the line the cursor is on.
- */
-private fun toggleCheckboxPrefix(value: TextFieldValue): TextFieldValue {
-    val text = value.text
-    val cursor = value.selection.start.coerceIn(0, text.length)
-    val lineStart = if (cursor == 0) 0 else text.lastIndexOf('\n', cursor - 1) + 1
-    val rest = text.substring(lineStart)
-    return if (rest.isCheckboxLine()) {
-        val newText = text.substring(0, lineStart) + text.substring(lineStart + UNCHECKED_PREFIX.length)
-        val newCursor = (cursor - UNCHECKED_PREFIX.length).coerceAtLeast(lineStart)
-        value.copy(text = newText, selection = TextRange(newCursor.coerceAtMost(newText.length)))
-    } else {
-        val newText = text.substring(0, lineStart) + UNCHECKED_PREFIX + text.substring(lineStart)
-        value.copy(text = newText, selection = TextRange(cursor + UNCHECKED_PREFIX.length))
-    }
-}
-
-/**
- * Adds or removes the separator prefix on the line the cursor is on.
- */
-private fun toggleSeparatorPrefix(value: TextFieldValue): TextFieldValue {
-    val text = value.text
-    val cursor = value.selection.start.coerceIn(0, text.length)
-    val lineStart = if (cursor == 0) 0 else text.lastIndexOf('\n', cursor - 1) + 1
-    val lineEnd = text.indexOf('\n', lineStart).let { if (it == -1) text.length else it }
-    val line = text.substring(lineStart, lineEnd)
-    return if (line.isSeparatorLine()) {
-        // A bare "---" has no trailing space: remove the whole line in that case
-        val removed = if (line.startsWith(SEPARATOR_PREFIX)) SEPARATOR_PREFIX.length else line.length
-        val newText = text.substring(0, lineStart) + text.substring(lineStart + removed)
-        val newCursor = (cursor - removed).coerceIn(lineStart, newText.length)
-        value.copy(text = newText, selection = TextRange(newCursor))
-    } else {
-        val newText = text.substring(0, lineStart) + SEPARATOR_PREFIX + text.substring(lineStart)
-        value.copy(text = newText, selection = TextRange(cursor + SEPARATOR_PREFIX.length))
-    }
 }
 
 /**
@@ -640,30 +603,12 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
                     }
                 }
             )
-            if (isEditing) {
-                IconButton(onClick = { textValue = toggleCheckboxPrefix(textValue) }) {
-                    Icon(Icons.Default.CheckBox, contentDescription = "Case à cocher")
+            if (!isEditing && textValue.text.hasCheckboxLine()) {
+                IconButton(onClick = { saveContent(setAllCheckboxes(textValue.text, true)) }) {
+                    Icon(Icons.Default.CheckBox, contentDescription = "Tout cocher")
                 }
-                IconButton(onClick = { textValue = toggleSeparatorPrefix(textValue) }) {
-                    Icon(Icons.Default.HorizontalRule, contentDescription = "Séparateur")
-                }
-                IconButton(onClick = {
-                    saveNow()
-                    isEditing = false
-                }) {
-                    Icon(Icons.Default.Done, contentDescription = "Terminé")
-                }
-            } else {
-                if (textValue.text.hasCheckboxLine()) {
-                    IconButton(onClick = { saveContent(setAllCheckboxes(textValue.text, true)) }) {
-                        Icon(Icons.Default.CheckBox, contentDescription = "Tout cocher")
-                    }
-                    IconButton(onClick = { saveContent(setAllCheckboxes(textValue.text, false)) }) {
-                        Icon(Icons.Default.CheckBoxOutlineBlank, contentDescription = "Tout décocher")
-                    }
-                }
-                IconButton(onClick = { isEditing = true }) {
-                    Icon(Icons.Default.Edit, contentDescription = "Éditer")
+                IconButton(onClick = { saveContent(setAllCheckboxes(textValue.text, false)) }) {
+                    Icon(Icons.Default.CheckBoxOutlineBlank, contentDescription = "Tout décocher")
                 }
             }
         }
