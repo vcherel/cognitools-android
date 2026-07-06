@@ -35,11 +35,13 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Done
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.HorizontalRule
 import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -370,6 +372,27 @@ private fun toggleCheckboxPrefix(value: TextFieldValue): TextFieldValue {
 }
 
 /**
+ * Adds or removes the separator prefix on the line the cursor is on.
+ */
+private fun toggleSeparatorPrefix(value: TextFieldValue): TextFieldValue {
+    val text = value.text
+    val cursor = value.selection.start.coerceIn(0, text.length)
+    val lineStart = if (cursor == 0) 0 else text.lastIndexOf('\n', cursor - 1) + 1
+    val lineEnd = text.indexOf('\n', lineStart).let { if (it == -1) text.length else it }
+    val line = text.substring(lineStart, lineEnd)
+    return if (line.isSeparatorLine()) {
+        // A bare "---" has no trailing space: remove the whole line in that case
+        val removed = if (line.startsWith(SEPARATOR_PREFIX)) SEPARATOR_PREFIX.length else line.length
+        val newText = text.substring(0, lineStart) + text.substring(lineStart + removed)
+        val newCursor = (cursor - removed).coerceIn(lineStart, newText.length)
+        value.copy(text = newText, selection = TextRange(newCursor))
+    } else {
+        val newText = text.substring(0, lineStart) + SEPARATOR_PREFIX + text.substring(lineStart)
+        value.copy(text = newText, selection = TextRange(cursor + SEPARATOR_PREFIX.length))
+    }
+}
+
+/**
  * Pressing Enter at the end of a checkbox line continues the list with a fresh
  * checkbox; on an empty checkbox line it removes the checkbox instead.
  */
@@ -523,6 +546,9 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
                 IconButton(onClick = { textValue = toggleCheckboxPrefix(textValue) }) {
                     Icon(Icons.Default.CheckBox, contentDescription = "Case à cocher")
                 }
+                IconButton(onClick = { textValue = toggleSeparatorPrefix(textValue) }) {
+                    Icon(Icons.Default.HorizontalRule, contentDescription = "Séparateur")
+                }
                 IconButton(onClick = { isEditing = false }) {
                     Icon(Icons.Default.Done, contentDescription = "Terminé")
                 }
@@ -650,7 +676,34 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
                                     )
                                 }
                         ) {
-                            if (line.isCheckboxLine()) {
+                            if (line.isSeparatorLine()) {
+                                val name = line.separatorName()
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+                                ) {
+                                    HorizontalDivider(modifier = Modifier.weight(1f))
+                                    if (name.isNotEmpty()) {
+                                        Text(
+                                            name.uppercase(),
+                                            style = MaterialTheme.typography.labelMedium,
+                                            color = Color.Gray,
+                                            modifier = Modifier.padding(horizontal = 12.dp)
+                                        )
+                                        HorizontalDivider(modifier = Modifier.weight(1f))
+                                    }
+                                    IconButton(
+                                        onClick = { deleteLine(lineIndex) },
+                                        modifier = Modifier.size(36.dp)
+                                    ) {
+                                        Icon(
+                                            Icons.Default.Delete,
+                                            contentDescription = "Supprimer la ligne",
+                                            tint = Color.Gray
+                                        )
+                                    }
+                                }
+                            } else if (line.isCheckboxLine()) {
                                 val checked = line.isCheckedLine()
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
