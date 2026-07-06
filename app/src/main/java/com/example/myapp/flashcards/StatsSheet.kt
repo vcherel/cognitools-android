@@ -72,6 +72,11 @@ fun StatsSheet(
                         "Taux",
                         if (s.winRate < 0) "–" else "${(s.winRate * 100).toInt()}%"
                     )
+                    StatSummaryItem(
+                        "Délai moyen",
+                        if (s.meanTimeUntilNextReviewMs < 0) "–"
+                        else formatDuration(s.meanTimeUntilNextReviewMs)
+                    )
                 }
 
                 Spacer(Modifier.height(24.dp))
