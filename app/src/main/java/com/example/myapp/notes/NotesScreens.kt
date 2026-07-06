@@ -470,6 +470,12 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
         saveContent(lines.joinToString("\n"))
     }
 
+    fun deleteLine(index: Int) {
+        val lines = textValue.text.split("\n").toMutableList()
+        lines.removeAt(index)
+        saveContent(lines.joinToString("\n"))
+    }
+
     BackHandler { finish() }
 
     val focusRequester = remember { FocusRequester() }
@@ -657,8 +663,19 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
                                         line.checkboxText(),
                                         style = MaterialTheme.typography.bodyLarge,
                                         textDecoration = if (checked) TextDecoration.LineThrough else TextDecoration.None,
-                                        color = if (checked) Color.Gray else MaterialTheme.colorScheme.onBackground
+                                        color = if (checked) Color.Gray else MaterialTheme.colorScheme.onBackground,
+                                        modifier = Modifier.weight(1f)
                                     )
+                                    IconButton(
+                                        onClick = { deleteLine(lineIndex) },
+                                        modifier = Modifier.size(36.dp)
+                                    ) {
+                                        Icon(
+                                            Icons.Default.Delete,
+                                            contentDescription = "Supprimer la ligne",
+                                            tint = Color.Gray
+                                        )
+                                    }
                                 }
                             } else {
                                 Text(
