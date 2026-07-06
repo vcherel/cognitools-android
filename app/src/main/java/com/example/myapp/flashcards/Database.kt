@@ -68,7 +68,7 @@ interface FlashcardDao {
     suspend fun purgeMasteredCards(maxInterval: Int, keepListIds: List<String>)
 }
 
-@Database(entities = [FlashcardList::class, FlashcardElement::class, Note::class], version = 2)
+@Database(entities = [FlashcardList::class, FlashcardElement::class, Note::class], version = 3)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun flashcardDao(): FlashcardDao
     abstract fun noteDao(): NoteDao
@@ -88,13 +88,19 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `notes` ADD COLUMN `title` TEXT NOT NULL DEFAULT ''")
+            }
+        }
+
         fun get(context: Context): AppDatabase =
             instance ?: synchronized(this) {
                 instance ?: Room.databaseBuilder(
                     context.applicationContext,
                     AppDatabase::class.java,
                     "flashcards.db"
-                ).addMigrations(MIGRATION_1_2).build().also { instance = it }
+                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3).build().also { instance = it }
             }
     }
 }
