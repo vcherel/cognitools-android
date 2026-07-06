@@ -160,7 +160,9 @@ data class FlashcardStats(
     val dueCards: Int,
     val totalWins: Int,
     val totalLosses: Int,
-    val scoreBuckets: List<Pair<Int, Int>>
+    val scoreBuckets: List<Pair<Int, Int>>,
+    /** Mean of the time remaining before each card is due again (due cards count as 0), -1 if no cards. */
+    val meanTimeUntilNextReviewMs: Long
 ) {
     val winRate: Float get() =
         if (totalWins + totalLosses > 0) totalWins.toFloat() / (totalWins + totalLosses) else -1f

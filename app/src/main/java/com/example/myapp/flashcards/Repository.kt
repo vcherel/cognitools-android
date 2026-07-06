@@ -121,7 +121,10 @@ class FlashcardRepository(private val context: Context) {
             totalLosses = elements.sumOf { it.totalLosses },
             scoreBuckets = (0..10).map { score ->
                 score to elements.count { it.score.toInt().coerceIn(0, 10) == score }
-            }
+            },
+            meanTimeUntilNextReviewMs = if (elements.isEmpty()) -1L else elements
+                .map { maxOf(0L, it.lastReview + it.interval * 60_000L - now) }
+                .average().toLong()
         )
     }
 
