@@ -195,6 +195,8 @@ class FlashcardRepository(private val context: Context) {
             }
             context.flashcardDataStore.edit { it[migratedKey] = true }
             applyBuiltinSeedMigrations()
+            // Cards outside the builtin lists are dropped once mastered (interval above 6 months)
+            dao.purgeMasteredCards(SIX_MONTHS_MINUTES, builtinListIds)
             migrated = true
         }
     }
@@ -258,6 +260,10 @@ class FlashcardRepository(private val context: Context) {
         private val legacySeededV2Key = booleanPreferencesKey("seeded_builtin_v2")
         private val legacyRenamedV3Key = booleanPreferencesKey("renamed_builtin_v3")
         private const val SEED_VERSION = 3
+        private const val SIX_MONTHS_MINUTES = 6 * 30 * 24 * 60
+        private val builtinListIds = listOf(
+            "builtin-capitals-v1", "builtin-prefectures-v1", "builtin-dept-numbers-v1"
+        )
         private val migrationLock = Mutex()
         @Volatile private var migrated = false
     }
