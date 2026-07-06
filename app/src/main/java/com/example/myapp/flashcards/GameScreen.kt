@@ -185,10 +185,10 @@ fun FlashcardGameScreen(listId: String, navController: NavController) {
             val updatedCard = reviewCard(card, quality, sawAnswer = !showDefinition)
 
             localUpdates = localUpdates + (card.id to updatedCard)
+            canUndo = true
 
             scope.launch {
                 repository.updateElement(updatedCard)
-                canUndo = true
             }
 
             // Graduation: the card leaves the working set and a new difficult card enters
@@ -534,7 +534,7 @@ fun FlashcardGameScreen(listId: String, navController: NavController) {
                         Spacer(Modifier.height(32.dp))
                         MyButton(
                             text = "Retour",
-                            onClick = { navController.navigate("elements/${listId}") },
+                            onClick = { navController.popBackStack() },
                             modifier = Modifier.fillMaxWidth().height(56.dp)
                         )
                     }

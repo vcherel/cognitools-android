@@ -2,10 +2,7 @@ package com.example.myapp.flashcards
 
 import android.content.ClipboardManager
 import android.content.Context
-import android.net.Uri
 import android.widget.Toast
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -30,11 +27,9 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -61,12 +56,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.example.myapp.BackupRestoreActions
 import com.example.myapp.BottomFadeOverlay
 import com.example.myapp.MyButton
 import com.example.myapp.ShowAlertDialog
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 
@@ -85,45 +79,6 @@ fun FlashcardListsScreen(navController: NavController) {
     var selectedListId by remember { mutableStateOf("") }
     var showGlobalStats by remember { mutableStateOf(false) }
 
-    val backupLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.CreateDocument("application/json")
-    ) { uri ->
-        if (uri != null) {
-            scope.launch(Dispatchers.IO) {
-                val json = repository.createBackupJson()
-                context.contentResolver.openOutputStream(uri)?.use { it.write(json.toByteArray()) }
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(context, "Sauvegarde créée", Toast.LENGTH_SHORT).show()
-                }
-            }
-        }
-    }
-
-    // Imports are confirmed by dialog first: the picked file waits here until then.
-    var pendingImportUri by remember { mutableStateOf<Uri?>(null) }
-
-    val restoreLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.GetContent()
-    ) { uri ->
-        if (uri != null) pendingImportUri = uri
-    }
-
-    fun importBackup(uri: Uri) {
-        scope.launch(Dispatchers.IO) {
-            try {
-                val json = context.contentResolver.openInputStream(uri)
-                    ?.use { it.bufferedReader().readText() } ?: return@launch
-                repository.importFromJson(json)
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(context, "Importation réussie", Toast.LENGTH_SHORT).show()
-                }
-            } catch (_: Exception) {
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(context, "Erreur d'importation", Toast.LENGTH_SHORT).show()
-                }
-            }
-        }
-    }
     var listsWithCountsState by remember { mutableStateOf(Pair(emptyList<FlashcardList>(), emptyMap<String, Pair<Int, Int>>())) }
     var hasLoaded by remember { mutableStateOf(false) }
 
@@ -210,17 +165,13 @@ fun FlashcardListsScreen(navController: NavController) {
                         Icon(Icons.Default.PlayArrow, contentDescription = "Jouer tout")
                     }
 
-                    IconButton(onClick = {
-                        backupLauncher.launch("cognitools_flashcards.json")
-                    }) {
-                        Icon(Icons.Default.Upload, contentDescription = "Sauvegarder")
-                    }
-
-                    IconButton(onClick = {
-                        restoreLauncher.launch("application/json")
-                    }) {
-                        Icon(Icons.Default.Download, contentDescription = "Restaurer")
-                    }
+                    BackupRestoreActions(
+                        backupFileName = "cognitools_flashcards.json",
+                        importDialogText = "Les listes et cartes du fichier seront ajoutées. " +
+                                "Celles qui existent déjà seront remplacées par la version du fichier.",
+                        createBackupJson = { repository.createBackupJson() },
+                        importFromJson = { repository.importFromJson(it) }
+                    )
                 }
             }
 
@@ -388,27 +339,6 @@ fun FlashcardListsScreen(navController: NavController) {
             }
         }
     )
-
-    // Confirmation before importing a backup over the current data
-    pendingImportUri?.let { uri ->
-        ShowAlertDialog(
-            onDismiss = { pendingImportUri = null },
-            title = "Importer la sauvegarde ?",
-            textContent = {
-                Text(
-                    "Les listes et cartes du fichier seront ajoutées. " +
-                            "Celles qui existent déjà seront remplacées par la version du fichier."
-                )
-            },
-            confirmText = "Importer",
-            cancelText = "Annuler",
-            onConfirm = {
-                importBackup(uri)
-                pendingImportUri = null
-            },
-            onCancel = { pendingImportUri = null }
-        )
-    }
 
     if (showGlobalStats) {
         StatsSheet(
