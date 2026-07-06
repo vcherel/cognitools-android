@@ -54,7 +54,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
@@ -62,7 +61,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import com.example.myapp.LocalIsDarkMode
+import com.example.myapp.BottomFadeOverlay
 import com.example.myapp.MyButton
 import com.example.myapp.ShowAlertDialog
 import kotlinx.coroutines.Dispatchers
@@ -76,7 +75,6 @@ fun FlashcardListsScreen(navController: NavController) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val repository = (context.applicationContext as com.example.myapp.MyApplication).flashcardRepository
-    val isDarkMode = LocalIsDarkMode.current
 
     var showDialog by remember { mutableStateOf(false) }
     var dialogTitle by remember { mutableStateOf("") }
@@ -284,29 +282,7 @@ fun FlashcardListsScreen(navController: NavController) {
                                 }
                             }
 
-                            // Gradient overlay at the bottom
-                            val color = if (isDarkMode) {
-                                Color(0xFF000000)
-                            }
-                            else {
-                                Color(0xFFFEF7FF)
-                            }
-                            Box(
-                                modifier = Modifier
-                                    .align(Alignment.BottomCenter)
-                                    .fillMaxWidth()
-                                    .height(150.dp)
-                                    .background(
-                                        brush = Brush.verticalGradient(
-                                            colors = listOf(
-                                                Color.Transparent,
-                                                color
-                                            ),
-                                            startY = 0f,
-                                            endY = Float.POSITIVE_INFINITY
-                                        )
-                                    )
-                            )
+                            BottomFadeOverlay()
                         }
                     }
                 }

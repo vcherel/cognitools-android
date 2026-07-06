@@ -4,7 +4,6 @@ import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -43,7 +42,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
@@ -52,6 +50,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.example.myapp.BottomFadeOverlay
 import com.example.myapp.LocalIsDarkMode
 import com.example.myapp.MyButton
 import com.example.myapp.ShowAlertDialog
@@ -90,7 +89,6 @@ fun NotesListScreen(navController: NavController) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val dao = remember { AppDatabase.get(context).noteDao() }
-    val isDarkMode = LocalIsDarkMode.current
 
     var notes by remember { mutableStateOf<List<Note>?>(null) }
     LaunchedEffect(dao) {
@@ -215,21 +213,7 @@ fun NotesListScreen(navController: NavController) {
                             }
                         }
 
-                        // Gradient overlay at the bottom, same as the flashcards lists
-                        val color = if (isDarkMode) Color(0xFF000000) else Color(0xFFFEF7FF)
-                        Box(
-                            modifier = Modifier
-                                .align(Alignment.BottomCenter)
-                                .fillMaxWidth()
-                                .height(150.dp)
-                                .background(
-                                    brush = Brush.verticalGradient(
-                                        colors = listOf(Color.Transparent, color),
-                                        startY = 0f,
-                                        endY = Float.POSITIVE_INFINITY
-                                    )
-                                )
-                        )
+                        BottomFadeOverlay()
                     }
                 }
             }

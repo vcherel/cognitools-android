@@ -194,28 +194,12 @@ fun WikipediaScreen(onBack: () -> Unit) {
                         val doc = remember(content.fullContentHtml) {
                             Jsoup.parse(content.fullContentHtml)
                         }
-                        val excludeStarts = listOf(
-                            "Vous lisez un",
-                            "Cet article est une",
-                            "Pour les articles",
-                            "modifier",
-                            "Cet article ne",
-                            "Si vous disposez",
-                            "Pour des articles plus généraux",
-                            "Pour un article plus général",
-                            "Cet article est orphelin",
-                            "Ne pas confondre avec",
-                            "Ne doit pas être confondu avec",
-                            "Cet article concerne",
-                            "N.B."
-                        )
-
                         val paragraphs = remember(doc) {
                             doc.body()
                                 .select("p")
                                 .filter { p ->
                                     val text = p.text().trim()
-                                    val wordCount = text.split("\\s+".toRegex()).size
+                                    val wordCount = text.split(whitespaceRegex).size
                                     wordCount >= 10 &&
                                             p.parents().none { it.tagName() == "table" && it.hasClass("infobox") } &&
                                             excludeStarts.none { start -> text.startsWith(start, ignoreCase = true) } &&
@@ -257,6 +241,28 @@ fun WikipediaScreen(onBack: () -> Unit) {
         }
     }
 }
+
+// Boilerplate and hatnote paragraphs to skip when picking readable content
+private val excludeStarts = listOf(
+    "Vous lisez un",
+    "Cet article est une",
+    "Pour les articles",
+    "modifier",
+    "Cet article ne",
+    "Si vous disposez",
+    "Pour des articles plus généraux",
+    "Pour un article plus général",
+    "Cet article est orphelin",
+    "Ne pas confondre avec",
+    "Ne doit pas être confondu avec",
+    "Cet article concerne",
+    "N.B."
+)
+
+private val whitespaceRegex = "\\s+".toRegex()
+
+// Purely numeric link text means a footnote marker, not worth linking
+private val digitsOnlyRegex = Regex("""^\d+$""")
 
 data class WikipediaContent(
     val title: String,
@@ -354,10 +360,12 @@ private suspend fun fetchWikipediaByTitle(title: String, language: String): Wiki
 @Composable
 private fun HtmlTextWithLinks(html: String, language: String, onLinkClick: (String) -> Unit) {
     val doc = remember(html) { Jsoup.parse(html) }
-    val annotatedString = buildAnnotatedString {
-        doc.body().children().forEach { element ->
-            appendElementRecursively(element, this, language, onLinkClick)
-            append("\n\n")
+    val annotatedString = remember(doc, language) {
+        buildAnnotatedString {
+            doc.body().children().forEach { element ->
+                appendElementRecursively(element, this, language, onLinkClick)
+                append("\n\n")
+            }
         }
     }
 
@@ -387,7 +395,7 @@ private fun appendElementRecursively(
             // Skip red links (non-existing pages)
             val isRedLink = element.hasClass("new")
 
-            if (!isRedLink && text.isNotBlank() && !text.matches(Regex("""^\d+$"""))) {
+            if (!isRedLink && text.isNotBlank() && !text.matches(digitsOnlyRegex)) {
                 val absoluteUrl = if (url.startsWith("/wiki/")) {
                     "https://$language.wikipedia.org$url"
                 } else url
