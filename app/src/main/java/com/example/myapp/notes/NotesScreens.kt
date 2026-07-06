@@ -8,6 +8,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -25,6 +26,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -36,6 +38,7 @@ import androidx.compose.material.icons.filled.Done
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.HorizontalRule
+import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -45,6 +48,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.Text
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
@@ -68,8 +72,10 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
@@ -93,6 +99,25 @@ private fun formatNoteDate(updatedAt: Long): String {
     val diff = System.currentTimeMillis() - updatedAt
     return if (diff < 60_000L) "à l'instant" else "il y a ${formatDuration(diff)}"
 }
+
+// Note card colors, one light and one dark variant per palette index (Note.color).
+private val NOTE_COLORS_LIGHT = listOf(
+    Color(0xFFF28B82), Color(0xFFFBBC04), Color(0xFFFFF475), Color(0xFFCCFF90),
+    Color(0xFFA7FFEB), Color(0xFFCBF0F8), Color(0xFFD7AEFB), Color(0xFFFDCFE8)
+)
+private val NOTE_COLORS_DARK = listOf(
+    Color(0xFF5C2B29), Color(0xFF614A19), Color(0xFF635D19), Color(0xFF345920),
+    Color(0xFF16504B), Color(0xFF2D555E), Color(0xFF42275E), Color(0xFF5B2245)
+)
+
+private fun noteCardColor(index: Int, dark: Boolean): Color? =
+    if (index in 1..NOTE_COLORS_LIGHT.size) {
+        if (dark) NOTE_COLORS_DARK[index - 1] else NOTE_COLORS_LIGHT[index - 1]
+    } else null
+
+/** A random palette index, always different from the current one. */
+private fun randomNoteColor(current: Int): Int =
+    (1..NOTE_COLORS_LIGHT.size).filter { it != current }.random()
 
 @Composable
 fun NotesListScreen(navController: NavController) {
@@ -210,6 +235,10 @@ fun NotesListScreen(navController: NavController) {
                                 NoteItem(
                                     note = note,
                                     onNavigate = { navController.navigate("note/${note.id}") },
+                                    onRecolor = {
+                                        // Keep updatedAt so recoloring does not reorder the list
+                                        scope.launch { dao.upsertNote(note.copy(color = randomNoteColor(note.color))) }
+                                    },
                                     onDelete = { scope.launch { dao.deleteNote(note.id) } }
                                 )
                             }
@@ -277,11 +306,14 @@ fun NotesListScreen(navController: NavController) {
 private fun NoteItem(
     note: Note,
     onNavigate: () -> Unit,
+    onRecolor: () -> Unit,
     onDelete: () -> Unit
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     var showDeleteDialog by remember { mutableStateOf(false) }
     val (title, preview) = remember(note) { noteTitleAndPreview(note) }
+    val isDarkMode = LocalIsDarkMode.current
+    val cardColor = noteCardColor(note.color, isDarkMode)
 
     Card(
         modifier = Modifier
@@ -291,6 +323,14 @@ private fun NoteItem(
                 interactionSource = interactionSource,
                 indication = ripple()
             ) { onNavigate() },
+        colors = if (cardColor != null) {
+            CardDefaults.cardColors(
+                containerColor = cardColor,
+                contentColor = if (isDarkMode) Color(0xFFE8EAED) else Color(0xFF1F1F1F)
+            )
+        } else {
+            CardDefaults.cardColors()
+        },
         elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
     ) {
         Row(
@@ -322,6 +362,13 @@ private fun NoteItem(
                     color = Color.Gray
                 )
             }
+            IconButton(
+                onClick = onRecolor,
+                modifier = Modifier.size(36.dp)
+            ) {
+                Icon(Icons.Default.Palette, contentDescription = "Couleur aléatoire")
+            }
+            Spacer(Modifier.size(4.dp))
             val clipboard = LocalClipboardManager.current
             IconButton(
                 onClick = { clipboard.setText(AnnotatedString(note.content)) },
@@ -420,6 +467,29 @@ private fun autoContinueCheckbox(old: TextFieldValue, new: TextFieldValue): Text
     }
 }
 
+private class SlashCommand(val label: String, val keywords: List<String>, val prefix: String)
+
+private val SLASH_COMMANDS = listOf(
+    SlashCommand("Case à cocher", listOf("case", "checkbox", "todo"), UNCHECKED_PREFIX),
+    SlashCommand("Séparateur", listOf("separateur", "séparateur", "ligne"), SEPARATOR_PREFIX)
+)
+
+/**
+ * If the cursor sits in a "/commande" token at the start of its line, returns
+ * the token start index and the text typed after the slash.
+ */
+private fun slashQuery(value: TextFieldValue): Pair<Int, String>? {
+    if (!value.selection.collapsed) return null
+    val cursor = value.selection.start
+    val text = value.text
+    if (cursor > text.length) return null
+    val lineStart = if (cursor == 0) 0 else text.lastIndexOf('\n', cursor - 1) + 1
+    if (cursor <= lineStart || text.getOrNull(lineStart) != '/') return null
+    val token = text.substring(lineStart + 1, cursor)
+    if (' ' in token) return null
+    return lineStart to token
+}
+
 @Composable
 fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
     val context = LocalContext.current
@@ -431,6 +501,7 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
     var isEditing by remember { mutableStateOf(isNew) }
     var titleValue by remember { mutableStateOf("") }
     var textValue by remember { mutableStateOf(TextFieldValue("")) }
+    var noteColor by remember { mutableStateOf(0) }
     // null until the note is loaded; guards the autosave against saving too early
     var lastSaved by remember { mutableStateOf<Pair<String, String>?>(if (isNew) "" to "" else null) }
 
@@ -439,6 +510,7 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
             val note = dao.getNote(noteId)
             val content = note?.content ?: ""
             titleValue = note?.title ?: ""
+            noteColor = note?.color ?: 0
             textValue = TextFieldValue(content, TextRange(content.length))
             lastSaved = titleValue to content
         }
@@ -451,9 +523,24 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
         delay(600)
         if (current.first.isNotBlank() || current.second.isNotBlank()) {
             dao.upsertNote(
-                Note(id = id, title = current.first, content = current.second, updatedAt = System.currentTimeMillis())
+                Note(id = id, title = current.first, content = current.second, updatedAt = System.currentTimeMillis(), color = noteColor)
             )
             lastSaved = current
+        }
+    }
+
+    // Saves pending changes right away, e.g. when leaving the edit mode
+    fun saveNow() {
+        if (lastSaved == null) return
+        val current = titleValue to textValue.text
+        if (current == lastSaved) return
+        if (current.first.isNotBlank() || current.second.isNotBlank()) {
+            lastSaved = current
+            scope.launch {
+                dao.upsertNote(
+                    Note(id = id, title = current.first, content = current.second, updatedAt = System.currentTimeMillis(), color = noteColor)
+                )
+            }
         }
     }
 
@@ -465,7 +552,7 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
                     dao.deleteNote(id)
                 } else if (current != lastSaved) {
                     dao.upsertNote(
-                        Note(id = id, title = current.first, content = current.second, updatedAt = System.currentTimeMillis())
+                        Note(id = id, title = current.first, content = current.second, updatedAt = System.currentTimeMillis(), color = noteColor)
                     )
                 }
             }
@@ -478,7 +565,7 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
         textValue = textValue.copy(text = newText)
         lastSaved = titleValue to newText
         scope.launch {
-            dao.upsertNote(Note(id = id, title = titleValue, content = newText, updatedAt = System.currentTimeMillis()))
+            dao.upsertNote(Note(id = id, title = titleValue, content = newText, updatedAt = System.currentTimeMillis(), color = noteColor))
         }
     }
 
@@ -499,7 +586,17 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
         saveContent(lines.joinToString("\n"))
     }
 
-    BackHandler { finish() }
+    // While editing, back validates the note and shows the view instead of leaving
+    fun goBack() {
+        if (isEditing) {
+            saveNow()
+            isEditing = false
+        } else {
+            finish()
+        }
+    }
+
+    BackHandler { goBack() }
 
     val focusRequester = remember { FocusRequester() }
     LaunchedEffect(isEditing) {
@@ -517,13 +614,14 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(onClick = { finish() }) {
+            IconButton(onClick = { goBack() }) {
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Retour")
             }
             BasicTextField(
                 value = titleValue,
                 onValueChange = { titleValue = it.replace("\n", "") },
                 singleLine = true,
+                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
                 modifier = Modifier.padding(start = 8.dp).weight(1f),
                 textStyle = MaterialTheme.typography.headlineSmall.copy(
                     color = MaterialTheme.colorScheme.onBackground
@@ -549,7 +647,10 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
                 IconButton(onClick = { textValue = toggleSeparatorPrefix(textValue) }) {
                     Icon(Icons.Default.HorizontalRule, contentDescription = "Séparateur")
                 }
-                IconButton(onClick = { isEditing = false }) {
+                IconButton(onClick = {
+                    saveNow()
+                    isEditing = false
+                }) {
                     Icon(Icons.Default.Done, contentDescription = "Terminé")
                 }
             } else {
@@ -570,6 +671,31 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
         Spacer(Modifier.height(16.dp))
 
         if (isEditing) {
+            // Typing "/" at the start of a line proposes commands as chips
+            val slash = slashQuery(textValue)
+            val slashMatches = if (slash == null) emptyList() else SLASH_COMMANDS.filter { cmd ->
+                cmd.keywords.any { it.startsWith(slash.second, ignoreCase = true) }
+            }
+            if (slashMatches.isNotEmpty()) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    slashMatches.forEach { cmd ->
+                        SuggestionChip(
+                            onClick = {
+                                val lineStart = slash!!.first
+                                val text = textValue.text
+                                val cursor = textValue.selection.start
+                                textValue = TextFieldValue(
+                                    text = text.substring(0, lineStart) + cmd.prefix + text.substring(cursor),
+                                    selection = TextRange(lineStart + cmd.prefix.length)
+                                )
+                            },
+                            label = { Text(cmd.label) }
+                        )
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
+            }
+
             BasicTextField(
                 value = textValue,
                 onValueChange = { new -> textValue = autoContinueCheckbox(textValue, new) },
@@ -579,11 +705,29 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
                 textStyle = MaterialTheme.typography.bodyLarge.copy(
                     color = MaterialTheme.colorScheme.onBackground
                 ),
+                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
                 cursorBrush = SolidColor(MaterialTheme.colorScheme.onBackground)
             )
         } else {
-            val interactionSource = remember { MutableInteractionSource() }
             val lines = textValue.text.split("\n")
+
+            // Character offset of the start of each line, for double tap to edit
+            val lineStarts = remember(textValue.text) {
+                val starts = IntArray(lines.size)
+                var acc = 0
+                lines.forEachIndexed { i, l ->
+                    starts[i] = acc
+                    acc += l.length + 1
+                }
+                starts
+            }
+
+            fun enterEditAt(offset: Int) {
+                textValue = textValue.copy(
+                    selection = TextRange(offset.coerceIn(0, textValue.text.length))
+                )
+                isEditing = true
+            }
 
             // Long press drag to reorder lines. While a drag is in progress,
             // displayOrder holds the permuted line indices; otherwise it is null.
@@ -641,15 +785,16 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
                 modifier = Modifier
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
-                    .clickable(
-                        interactionSource = interactionSource,
-                        indication = null
-                    ) { isEditing = true }
+                    .pointerInput(textValue.text) {
+                        detectTapGestures(onDoubleTap = { enterEditAt(textValue.text.length) })
+                    }
             ) {
                 (displayOrder ?: lines.indices.toList()).forEach { lineIndex ->
                     key(lineIndex) {
                         val line = lines[lineIndex]
                         val isDragged = lineIndex == draggedLine
+                        // Text layout of the line, to map a double tap to a cursor position
+                        val textLayout = remember { arrayOfNulls<TextLayoutResult>(1) }
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -680,7 +825,14 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
                                 val name = line.separatorName()
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 4.dp)
+                                        .pointerInput(textValue.text) {
+                                            detectTapGestures(onDoubleTap = {
+                                                enterEditAt(lineStarts[lineIndex] + line.length)
+                                            })
+                                        }
                                 ) {
                                     HorizontalDivider(modifier = Modifier.weight(1f))
                                     if (name.isNotEmpty()) {
@@ -717,7 +869,22 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
                                         style = MaterialTheme.typography.bodyLarge,
                                         textDecoration = if (checked) TextDecoration.LineThrough else TextDecoration.None,
                                         color = if (checked) Color.Gray else MaterialTheme.colorScheme.onBackground,
-                                        modifier = Modifier.weight(1f)
+                                        onTextLayout = { textLayout[0] = it },
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .pointerInput(textValue.text) {
+                                                detectTapGestures(
+                                                    onTap = { toggleLine(lineIndex) },
+                                                    onDoubleTap = { pos ->
+                                                        val inLine = textLayout[0]?.getOffsetForPosition(pos)
+                                                            ?: line.checkboxText().length
+                                                        enterEditAt(
+                                                            lineStarts[lineIndex] + UNCHECKED_PREFIX.length +
+                                                                inLine.coerceIn(0, line.checkboxText().length)
+                                                        )
+                                                    }
+                                                )
+                                            }
                                     )
                                     IconButton(
                                         onClick = { deleteLine(lineIndex) },
@@ -734,7 +901,16 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
                                 Text(
                                     if (line.isEmpty()) " " else line,
                                     style = MaterialTheme.typography.bodyLarge,
-                                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+                                    onTextLayout = { textLayout[0] = it },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 4.dp)
+                                        .pointerInput(textValue.text) {
+                                            detectTapGestures(onDoubleTap = { pos ->
+                                                val inLine = textLayout[0]?.getOffsetForPosition(pos) ?: line.length
+                                                enterEditAt(lineStarts[lineIndex] + inLine.coerceIn(0, line.length))
+                                            })
+                                        }
                                 )
                             }
                         }

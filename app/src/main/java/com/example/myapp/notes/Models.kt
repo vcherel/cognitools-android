@@ -15,7 +15,9 @@ data class Note(
     @PrimaryKey val id: String = UUID.randomUUID().toString(),
     val title: String = "",
     val content: String = "",
-    val updatedAt: Long = System.currentTimeMillis()
+    val updatedAt: Long = System.currentTimeMillis(),
+    // Index into the note color palette; 0 means no color.
+    val color: Int = 0
 ) {
     companion object {
         fun fromJson(json: JSONObject): Note {
@@ -23,7 +25,8 @@ data class Note(
                 id = json.optString("id", UUID.randomUUID().toString()),
                 title = json.optString("title", ""),
                 content = json.optString("content", ""),
-                updatedAt = json.optLong("updatedAt", System.currentTimeMillis())
+                updatedAt = json.optLong("updatedAt", System.currentTimeMillis()),
+                color = json.optInt("color", 0)
             )
         }
 
@@ -43,6 +46,7 @@ fun Note.toJson(): JSONObject = JSONObject().also {
     it.put("title", title)
     it.put("content", content)
     it.put("updatedAt", updatedAt)
+    it.put("color", color)
 }
 
 fun notesToJsonString(notes: List<Note>): String {
