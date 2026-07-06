@@ -75,11 +75,6 @@ class FlashcardRepository(private val context: Context) {
         emitAll(dao.observeElements(listId))
     }
 
-    suspend fun getElements(listId: String): List<FlashcardElement> {
-        ensureMigrated()
-        return dao.getElements(listId)
-    }
-
     suspend fun addElement(listId: String, element: FlashcardElement) {
         ensureMigrated()
         dao.upsertElement(element.copy(listId = listId))
@@ -123,7 +118,7 @@ class FlashcardRepository(private val context: Context) {
                 score to elements.count { it.score.toInt().coerceIn(0, 10) == score }
             },
             meanTimeUntilNextReviewMs = if (elements.isEmpty()) -1L else elements
-                .map { maxOf(0L, it.lastReview + it.interval * 60_000L - now) }
+                .map { maxOf(0L, it.nextReviewAt - now) }
                 .average().toLong()
         )
     }
@@ -154,19 +149,7 @@ class FlashcardRepository(private val context: Context) {
 
     suspend fun resetElement(elementId: String) {
         ensureMigrated()
-        dao.getElement(elementId)?.let { element ->
-            dao.upsertElement(
-                element.copy(
-                    easeFactor = 2.5,
-                    interval = 0,
-                    repetitions = 0,
-                    lastReview = System.currentTimeMillis(),
-                    totalWins = 0,
-                    totalLosses = 0,
-                    score = 0.0
-                )
-            )
-        }
+        dao.getElement(elementId)?.let { dao.upsertElement(it.resetProgress()) }
     }
 
     suspend fun getListNameById(listId: String): String {
