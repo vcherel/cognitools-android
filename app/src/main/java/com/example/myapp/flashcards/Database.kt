@@ -63,6 +63,9 @@ interface FlashcardDao {
     // Cards are removed by the ON DELETE CASCADE foreign key.
     @Query("DELETE FROM lists WHERE id = :id") suspend fun deleteList(id: String)
     @Query("DELETE FROM cards WHERE id = :id") suspend fun deleteElement(id: String)
+
+    @Query("DELETE FROM cards WHERE interval > :maxInterval AND listId NOT IN (:keepListIds)")
+    suspend fun purgeMasteredCards(maxInterval: Int, keepListIds: List<String>)
 }
 
 @Database(entities = [FlashcardList::class, FlashcardElement::class, Note::class], version = 2)
