@@ -1,6 +1,10 @@
 package com.example.myapp.notes
 
+import android.net.Uri
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
@@ -29,7 +33,9 @@ import androidx.compose.material.icons.filled.CheckBoxOutlineBlank
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Done
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
@@ -76,8 +82,10 @@ import com.example.myapp.flashcards.AppDatabase
 import com.example.myapp.flashcards.formatDuration
 import java.util.UUID
 import kotlin.math.roundToInt
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 private fun formatNoteDate(updatedAt: Long): String {
     val diff = System.currentTimeMillis() - updatedAt
@@ -96,6 +104,48 @@ fun NotesListScreen(navController: NavController) {
         dao.observeNotes().collect { notes = it }
     }
 
+    val backupLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/json")
+    ) { uri ->
+        if (uri != null) {
+            scope.launch(Dispatchers.IO) {
+                val json = notesToJsonString(dao.getNotes())
+                context.contentResolver.openOutputStream(uri)?.use { it.write(json.toByteArray()) }
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(context, "Sauvegarde créée", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
+    // Imports are confirmed by dialog first: the picked file waits here until then.
+    var pendingImportUri by remember { mutableStateOf<Uri?>(null) }
+
+    val restoreLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.GetContent()
+    ) { uri ->
+        if (uri != null) pendingImportUri = uri
+    }
+
+    fun importBackup(uri: Uri) {
+        scope.launch(Dispatchers.IO) {
+            try {
+                val json = context.contentResolver.openInputStream(uri)
+                    ?.use { it.bufferedReader().readText() } ?: return@launch
+                val imported = Note.listFromJsonString(json)
+                if (imported.isEmpty()) throw IllegalArgumentException("Aucune note dans le fichier")
+                dao.upsertNotes(imported)
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(context, "Importation réussie", Toast.LENGTH_SHORT).show()
+                }
+            } catch (_: Exception) {
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(context, "Erreur d'importation", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
@@ -108,14 +158,33 @@ fun NotesListScreen(navController: NavController) {
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(onClick = { navController.popBackStack() }) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Retour")
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    IconButton(onClick = { navController.popBackStack() }) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Retour")
+                    }
+                    Text(
+                        "Notes",
+                        style = MaterialTheme.typography.headlineSmall,
+                        modifier = Modifier.padding(start = 8.dp)
+                    )
                 }
-                Text(
-                    "Notes",
-                    style = MaterialTheme.typography.headlineSmall,
-                    modifier = Modifier.padding(start = 8.dp)
-                )
+
+                Row {
+                    IconButton(onClick = {
+                        backupLauncher.launch("cognitools_notes.json")
+                    }) {
+                        Icon(Icons.Default.Upload, contentDescription = "Sauvegarder")
+                    }
+
+                    IconButton(onClick = {
+                        restoreLauncher.launch("application/json")
+                    }) {
+                        Icon(Icons.Default.Download, contentDescription = "Restaurer")
+                    }
+                }
             }
 
             Spacer(Modifier.height(16.dp))
@@ -178,6 +247,27 @@ fun NotesListScreen(navController: NavController) {
                 onClick = { navController.navigate("note/new") }
             )
         }
+    }
+
+    // Confirmation before importing a backup over the current data
+    pendingImportUri?.let { uri ->
+        ShowAlertDialog(
+            onDismiss = { pendingImportUri = null },
+            title = "Importer la sauvegarde ?",
+            textContent = {
+                Text(
+                    "Les notes du fichier seront ajoutées. " +
+                            "Celles qui existent déjà seront remplacées par la version du fichier."
+                )
+            },
+            confirmText = "Importer",
+            cancelText = "Annuler",
+            onConfirm = {
+                importBackup(uri)
+                pendingImportUri = null
+            },
+            onCancel = { pendingImportUri = null }
+        )
     }
 }
 
