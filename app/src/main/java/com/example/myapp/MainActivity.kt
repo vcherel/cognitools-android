@@ -34,6 +34,8 @@ import androidx.datastore.preferences.preferencesDataStore
 import com.example.myapp.flashcards.FlashcardDetailScreen
 import com.example.myapp.flashcards.FlashcardGameScreen
 import com.example.myapp.flashcards.FlashcardListsScreen
+import com.example.myapp.notes.NoteEditorScreen
+import com.example.myapp.notes.NotesListScreen
 import com.example.myapp.undercover.UndercoverScreen
 import android.content.Context
 import android.widget.Toast
@@ -175,6 +177,16 @@ fun MainScreen(themeManager: ThemeManager, isDarkMode: Boolean) {
                     composable("wikipedia") {
                         WikipediaScreen(onBack = { navController.popBackStack() })
                     }
+                    composable("notes") {
+                        NotesListScreen(navController = navController)
+                    }
+                    composable("note/{noteId}") { backStackEntry ->
+                        val noteId = backStackEntry.arguments?.getString("noteId") ?: "new"
+                        NoteEditorScreen(
+                            noteId = noteId,
+                            onBack = { navController.popBackStack() }
+                        )
+                    }
                     navigation(startDestination = "lists", route = "flashcards") {
                         composable("lists") {
                             FlashcardListsScreen(navController = navController)
@@ -259,11 +271,14 @@ fun MenuScreen(
                 onRightClick = { onNavigate("flashcardsPlay") }
             )
             Spacer(modifier = Modifier.height(spaceHeight))
+            MyButton(text = "Notes") { onNavigate("notes") }
+            Spacer(modifier = Modifier.height(spaceHeight))
             MyButton(text = "Undercover") { onNavigate("undercover") }
             Spacer(modifier = Modifier.height(spaceHeight))
-            MyButton(text = "Volume booster") { onNavigate("volumeBooster") }
-            Spacer(modifier = Modifier.height(spaceHeight))
-            MyButton(text = "Wikipedia") { onNavigate("wikipedia") }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                MyButton(text = "Volume", modifier = Modifier.weight(1f)) { onNavigate("volumeBooster") }
+                MyButton(text = "Wikipedia", modifier = Modifier.weight(1f)) { onNavigate("wikipedia") }
+            }
         }
 
         // Floating theme toggle button (top right)
