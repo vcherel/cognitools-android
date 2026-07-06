@@ -7,6 +7,10 @@ import androidx.room.Query
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.Upsert
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
+import com.example.myapp.notes.Note
+import com.example.myapp.notes.NoteDao
 import kotlinx.coroutines.flow.Flow
 
 data class CountRow(val listId: String, val c: Int)
@@ -61,12 +65,25 @@ interface FlashcardDao {
     @Query("DELETE FROM cards WHERE id = :id") suspend fun deleteElement(id: String)
 }
 
-@Database(entities = [FlashcardList::class, FlashcardElement::class], version = 1)
+@Database(entities = [FlashcardList::class, FlashcardElement::class, Note::class], version = 2)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun flashcardDao(): FlashcardDao
+    abstract fun noteDao(): NoteDao
 
     companion object {
         @Volatile private var instance: AppDatabase? = null
+
+        private val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `notes` (" +
+                        "`id` TEXT NOT NULL, " +
+                        "`content` TEXT NOT NULL, " +
+                        "`updatedAt` INTEGER NOT NULL, " +
+                        "PRIMARY KEY(`id`))"
+                )
+            }
+        }
 
         fun get(context: Context): AppDatabase =
             instance ?: synchronized(this) {
@@ -74,7 +91,7 @@ abstract class AppDatabase : RoomDatabase() {
                     context.applicationContext,
                     AppDatabase::class.java,
                     "flashcards.db"
-                ).build().also { instance = it }
+                ).addMigrations(MIGRATION_1_2).build().also { instance = it }
             }
     }
 }
