@@ -213,7 +213,7 @@ fun FlashcardListsScreen(navController: NavController) {
                     }
 
                     IconButton(onClick = {
-                        backupLauncher.launch("cognitools_backup.json")
+                        backupLauncher.launch("cognitools_flashcards.json")
                     }) {
                         Icon(Icons.Default.Upload, contentDescription = "Sauvegarder")
                     }
