@@ -8,10 +8,10 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -48,12 +48,14 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontStyle
@@ -70,6 +72,8 @@ import kotlin.math.min
 import kotlin.random.Random
 
 const val MAX_DIFFICULT_CARDS = 5
+
+private data class DueState(val cards: List<FlashcardElement>, val totalCount: Int)
 
 @Composable
 fun FlashcardGameScreen(listId: String, navController: NavController) {
@@ -121,7 +125,7 @@ fun FlashcardGameScreen(listId: String, navController: NavController) {
         }
     }
 
-    val dueCards by remember {
+    val dueState by remember {
         derivedStateOf {
             val updated = allElements.map { element ->
                 localUpdates[element.id] ?: element
@@ -131,16 +135,7 @@ fun FlashcardGameScreen(listId: String, navController: NavController) {
             // Difficult cards only enter play through the working set
             val difficult = due.filter { it.score < 2 && it.id in activeDifficultCards }
             val easy = due.filter { it.score >= 2 }
-            difficult + easy
-        }
-    }
-
-    val totalDueCount by remember {
-        derivedStateOf {
-            val updated = allElements.map { element ->
-                localUpdates[element.id] ?: element
-            }
-            updated.count { isDue(it) }
+            DueState(cards = difficult + easy, totalCount = due.size)
         }
     }
 
@@ -167,8 +162,8 @@ fun FlashcardGameScreen(listId: String, navController: NavController) {
         }
 
         // Pick a random current card if none is selected yet
-        if (currentCard == null && dueCards.isNotEmpty()) {
-            currentCard = dueCards.random(sessionRandom)
+        if (currentCard == null && dueState.cards.isNotEmpty()) {
+            currentCard = dueState.cards.random(sessionRandom)
             showFront = if (currentCard!!.randomSide) {
                 sessionRandom.nextBoolean()
             } else {
@@ -208,7 +203,7 @@ fun FlashcardGameScreen(listId: String, navController: NavController) {
             }
 
             showDefinition = false
-            val availableCards = dueCards.filter { it.id != card.id }
+            val availableCards = dueState.cards.filter { it.id != card.id }
 
             currentCard = if (availableCards.isNotEmpty()) {
                 val card = availableCards.random(sessionRandom)
@@ -247,52 +242,47 @@ fun FlashcardGameScreen(listId: String, navController: NavController) {
         }
     }
 
-    // Box that display gradients when swiping
+    // Box that display gradients when swiping. cardOffset is read in drawBehind,
+    // not in composition, so dragging only invalidates the draw phase.
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-    ) {
-        if (cardOffset != 0f) {
-            val swipeProgress = (abs(cardOffset) / 200f).coerceIn(0f, 1f)
-            val shadowColor = if (cardOffset < 0) greenColor else redColor
+            .drawBehind {
+                val offset = cardOffset
+                if (offset == 0f) return@drawBehind
 
-            BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-                val containerWidth = constraints.maxWidth.toFloat()
+                val swipeProgress = (abs(offset) / 200f).coerceIn(0f, 1f)
+                val shadowColor = if (offset < 0) greenColor else redColor
+                val containerWidth = size.width
 
                 // Gradient width grows with swipe, max half the screen
-                val gradientWidth = min(abs(cardOffset) * 2f, containerWidth / 2f)
+                val gradientWidth = min(abs(offset) * 2f, containerWidth / 2f)
 
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(
-                            brush = if (cardOffset < 0) {
-                                // Left swipe (green)
-                                Brush.horizontalGradient(
-                                    colors = listOf(
-                                        shadowColor.copy(alpha = swipeProgress * 0.6f),
-                                        Color.Transparent
-                                    ),
-                                    startX = 0f,
-                                    endX = gradientWidth
-                                )
-                            } else {
-                                // Right swipe (red)
-                                Brush.horizontalGradient(
-                                    colors = listOf(
-                                        Color.Transparent,
-                                        shadowColor.copy(alpha = swipeProgress * 0.6f)
-                                    ),
-                                    startX = containerWidth - gradientWidth,
-                                    endX = containerWidth
-                                )
-                            }
-                        )
-                )
+                val brush = if (offset < 0) {
+                    // Left swipe (green)
+                    Brush.horizontalGradient(
+                        colors = listOf(
+                            shadowColor.copy(alpha = swipeProgress * 0.6f),
+                            Color.Transparent
+                        ),
+                        startX = 0f,
+                        endX = gradientWidth
+                    )
+                } else {
+                    // Right swipe (red)
+                    Brush.horizontalGradient(
+                        colors = listOf(
+                            Color.Transparent,
+                            shadowColor.copy(alpha = swipeProgress * 0.6f)
+                        ),
+                        startX = containerWidth - gradientWidth,
+                        endX = containerWidth
+                    )
+                }
+                drawRect(brush)
             }
-        }
-
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -321,7 +311,7 @@ fun FlashcardGameScreen(listId: String, navController: NavController) {
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Cartes à réviser: $totalDueCount",
+                        text = "Cartes à réviser: ${dueState.totalCount}",
                         style = MaterialTheme.typography.titleMedium
                     )
 
@@ -465,97 +455,21 @@ fun FlashcardGameScreen(listId: String, navController: NavController) {
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(20.dp)
                     ) {
-                        val yesInteractionSource = remember { MutableInteractionSource() }
-                        val yesPressed by yesInteractionSource.collectIsPressedAsState()
+                        AnswerButton(
+                            label = "YES",
+                            icon = Icons.Default.Check,
+                            color = greenColor,
+                            shadowColor = Color(0xFF2E7D32),
+                            onClick = { handleAnswer(true) }
+                        )
 
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(140.dp)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .offset(y = 6.dp)
-                                    .background(Color(0xFF2E7D32), RoundedCornerShape(16.dp))
-                            )
-
-                            Button(
-                                onClick = { handleAnswer(true) },
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .scale(if (yesPressed) 0.95f else 1f),
-                                colors = ButtonDefaults.buttonColors(containerColor = greenColor),
-                                shape = RoundedCornerShape(16.dp),
-                                contentPadding = PaddingValues(0.dp),
-                                interactionSource = yesInteractionSource
-                            ) {
-                                Column(
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    verticalArrangement = Arrangement.Center
-                                ) {
-                                    Icon(
-                                        Icons.Default.Check,
-                                        contentDescription = null,
-                                        tint = Color.White,
-                                        modifier = Modifier.size(56.dp)
-                                    )
-                                    Spacer(Modifier.height(8.dp))
-                                    Text(
-                                        "YES",
-                                        fontSize = 22.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color.White
-                                    )
-                                }
-                            }
-                        }
-
-                        val noInteractionSource = remember { MutableInteractionSource() }
-                        val noPressed by noInteractionSource.collectIsPressedAsState()
-
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(140.dp)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .offset(y = 6.dp)
-                                    .background(Color(0xFF7A0707), RoundedCornerShape(16.dp))
-                            )
-
-                            Button(
-                                onClick = { handleAnswer(false) },
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .scale(if (noPressed) 0.95f else 1f),
-                                colors = ButtonDefaults.buttonColors(containerColor = redColor),
-                                shape = RoundedCornerShape(16.dp),
-                                contentPadding = PaddingValues(0.dp),
-                                interactionSource = noInteractionSource
-                            ) {
-                                Column(
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    verticalArrangement = Arrangement.Center
-                                ) {
-                                    Icon(
-                                        Icons.Default.Close,
-                                        contentDescription = null,
-                                        tint = Color.White,
-                                        modifier = Modifier.size(56.dp)
-                                    )
-                                    Spacer(Modifier.height(8.dp))
-                                    Text(
-                                        "NO",
-                                        fontSize = 22.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color.White
-                                    )
-                                }
-                            }
-                        }
+                        AnswerButton(
+                            label = "NO",
+                            icon = Icons.Default.Close,
+                            color = redColor,
+                            shadowColor = Color(0xFF7A0707),
+                            onClick = { handleAnswer(false) }
+                        )
                     }
                 }
             } else {
@@ -625,6 +539,61 @@ fun FlashcardGameScreen(listId: String, navController: NavController) {
                         )
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun RowScope.AnswerButton(
+    label: String,
+    icon: ImageVector,
+    color: Color,
+    shadowColor: Color,
+    onClick: () -> Unit
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val pressed by interactionSource.collectIsPressedAsState()
+
+    Box(
+        modifier = Modifier
+            .weight(1f)
+            .height(140.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .offset(y = 6.dp)
+                .background(shadowColor, RoundedCornerShape(16.dp))
+        )
+
+        Button(
+            onClick = onClick,
+            modifier = Modifier
+                .fillMaxSize()
+                .scale(if (pressed) 0.95f else 1f),
+            colors = ButtonDefaults.buttonColors(containerColor = color),
+            shape = RoundedCornerShape(16.dp),
+            contentPadding = PaddingValues(0.dp),
+            interactionSource = interactionSource
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Icon(
+                    icon,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(56.dp)
+                )
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    label,
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
             }
         }
     }
