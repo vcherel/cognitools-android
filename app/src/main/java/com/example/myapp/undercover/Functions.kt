@@ -289,7 +289,7 @@ fun handleWinCondition(
                 Triple(
                     players,
                     scores,
-                    GameState.EliminationResult(player = lastEliminated, gameOver = false)
+                    GameState.EliminationResult(player = lastEliminated)
                 )
             }
         }

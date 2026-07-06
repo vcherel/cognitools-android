@@ -24,7 +24,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.example.myapp.ShowAlertDialog
-import kotlin.random.Random
 
 @Composable
 fun UndercoverScreen(onBack: () -> Unit) {
@@ -90,10 +89,8 @@ fun UndercoverScreen(onBack: () -> Unit) {
                     },
                     onStart = {
                         if (!gameState.playAgain) {
-                            val (assignedPlayers, firstIndex) = generateAndAssignPlayers(context, state)
                             state = state.copy(
-                                players = assignedPlayers,
-                                currentPlayerIndex = firstIndex,
+                                players = generateAndAssignPlayers(context, state),
                                 currentRound = 1,
                                 mrWhiteGuesses = emptyMap(),
                                 gameState = GameState.PlayerSetup()
@@ -120,7 +117,6 @@ fun UndercoverScreen(onBack: () -> Unit) {
                 PlayScreen(
                     round = state.currentRound,
                     players = state.players,
-                    currentPlayerIndex = state.currentPlayerIndex,
                     onContinue = {
                         state = state.copy(gameState = GameState.Voting)
                     }
@@ -140,12 +136,8 @@ fun UndercoverScreen(onBack: () -> Unit) {
                 EliminationResultScreen(
                     player = gameState.player,
                     onNextRound = {
-                        val activePlayers = state.players.activePlayers()
-                        val nextPlayerIndex = if (activePlayers.isNotEmpty())
-                            Random.nextInt(activePlayers.size) else 0
                         state = state.copy(
                             currentRound = state.currentRound + 1,
-                            currentPlayerIndex = nextPlayerIndex,
                             gameState = GameState.PlayMenu
                         )
                     }
@@ -183,10 +175,8 @@ fun UndercoverScreen(onBack: () -> Unit) {
                         state = UndercoverGameState(gameState = GameState.Settings())
                     },
                     onNewGame = {
-                        val (reassignedPlayers, firstIndex) = reassignRolesAndWords(context, state)
                         state = state.copy(
-                            players = reassignedPlayers,
-                            currentPlayerIndex = firstIndex,
+                            players = reassignRolesAndWords(context, state),
                             currentRound = 1,
                             mrWhiteGuesses = emptyMap(),
                             gameState = GameState.PlayerSetup()
