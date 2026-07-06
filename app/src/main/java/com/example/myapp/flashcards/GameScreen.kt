@@ -42,7 +42,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -86,8 +85,7 @@ fun FlashcardGameScreen(listId: String, navController: NavController) {
     // Check if we're in "all lists" mode
     val isAllListsMode = listId == "all"
 
-    val sessionSeed by remember { mutableIntStateOf(System.currentTimeMillis().toInt()) }
-    val sessionRandom = remember(sessionSeed) { Random(sessionSeed) }
+    val sessionRandom = remember { Random(System.currentTimeMillis()) }
 
     // Observe elements from repository
     val allElements by if (isAllListsMode) {
@@ -102,6 +100,8 @@ fun FlashcardGameScreen(listId: String, navController: NavController) {
     var cardOffset by remember { mutableFloatStateOf(0f) }
     var isProcessingSwipe by remember { mutableStateOf(false) }
     var showFront by remember { mutableStateOf(true) }
+    // Rolling working set: at most MAX_DIFFICULT_CARDS difficult cards (score < 2) are in
+    // play at once; a new one only enters when a member graduates to score >= 2.
     var activeDifficultCards by remember { mutableStateOf<Set<String>>(emptySet()) }
     var localUpdates by remember { mutableStateOf<Map<String, FlashcardElement>>(emptyMap()) }
     var listName by remember { mutableStateOf("") }
@@ -128,11 +128,8 @@ fun FlashcardGameScreen(listId: String, navController: NavController) {
             }
 
             val due = updated.filter { isDue(it) }
-            // Shuffle difficult cards with session seed before taking MAX_DIFFICULT_CARDS
-            val difficult = due.filter { it.score < 2 }
-                .sortedBy { it.id } // Sort first for consistency
-                .shuffled(Random(sessionSeed)) // Then shuffle with seed
-                .take(MAX_DIFFICULT_CARDS)
+            // Difficult cards only enter play through the working set
+            val difficult = due.filter { it.score < 2 && it.id in activeDifficultCards }
             val easy = due.filter { it.score >= 2 }
             difficult + easy
         }
@@ -158,11 +155,11 @@ fun FlashcardGameScreen(listId: String, navController: NavController) {
             it.id in activeDifficultCards && it.score < 2
         }
 
-        // Calculate how many more difficult cards we need to reach MAX_DIFFICULT_CARDS
+        // Top up the working set to MAX_DIFFICULT_CARDS with due difficult cards
         val needed = (MAX_DIFFICULT_CARDS - currentActiveDifficultCards.size).coerceAtLeast(0)
         val availableToAdd = allElements.filter {
-            it.score < 2 && it.id !in activeDifficultCards
-        }.shuffled(sessionRandom) // Use session-seeded random
+            it.score < 2 && isDue(it) && it.id !in activeDifficultCards
+        }.shuffled(sessionRandom)
 
         if (needed > 0 && availableToAdd.isNotEmpty()) {
             activeDifficultCards = (currentActiveDifficultCards.map { it.id } +
@@ -199,18 +196,15 @@ fun FlashcardGameScreen(listId: String, navController: NavController) {
                 canUndo = true
             }
 
-            if (wasCorrect && card.score >= 2) {
-                activeDifficultCards = activeDifficultCards - card.id
-
-                val remainingDifficult = allElements.filter {
-                    it.score < 2 && it.id !in activeDifficultCards
-                }.shuffled(sessionRandom) // Use session-seeded random
-                val needed = MAX_DIFFICULT_CARDS - activeDifficultCards.size
-
-                if (needed > 0) {
-                    val newIds = remainingDifficult.take(needed).map { it.id }.toSet()
-                    activeDifficultCards = activeDifficultCards + newIds
-                }
+            // Graduation: the card leaves the working set and a new difficult card enters
+            if (wasCorrect && updatedCard.score >= 2 && card.id in activeDifficultCards) {
+                val remaining = activeDifficultCards - card.id
+                val replacements = allElements
+                    .map { localUpdates[it.id] ?: it }
+                    .filter { it.score < 2 && isDue(it) && it.id !in remaining }
+                    .shuffled(sessionRandom)
+                    .take((MAX_DIFFICULT_CARDS - remaining.size).coerceAtLeast(0))
+                activeDifficultCards = remaining + replacements.map { it.id }
             }
 
             showDefinition = false
@@ -243,6 +237,9 @@ fun FlashcardGameScreen(listId: String, navController: NavController) {
             currentCard = card
             showFront = lastShowFront
             showDefinition = false
+
+            // If the answer had graduated the card, put it back in the working set
+            if (card.score < 2) activeDifficultCards = activeDifficultCards + card.id
 
             // Clear undo state
             canUndo = false
