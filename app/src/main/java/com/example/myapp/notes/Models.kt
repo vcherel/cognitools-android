@@ -86,6 +86,7 @@ fun String.checkboxText(): String =
  */
 fun noteTitleAndPreview(note: Note): Pair<String, String> {
     val lines = note.content.lineSequence()
+        .filterNot { it.isSeparatorLine() }
         .map { it.checkboxText().trim() }
         .filter { it.isNotEmpty() }
         .take(2)
@@ -96,6 +97,16 @@ fun noteTitleAndPreview(note: Note): Pair<String, String> {
         lines.getOrElse(0) { "Note vide" } to lines.getOrElse(1) { "" }
     }
 }
+
+// A line with this prefix renders as a horizontal separator named by the rest
+// of the line; a bare "---" is an unnamed separator.
+const val SEPARATOR_PREFIX = "--- "
+
+fun String.isSeparatorLine(): Boolean = startsWith(SEPARATOR_PREFIX) || this == "---"
+
+/** The separator name, empty for an unnamed separator. */
+fun String.separatorName(): String =
+    if (startsWith(SEPARATOR_PREFIX)) substring(SEPARATOR_PREFIX.length).trim() else ""
 
 /** True if any line of the content is a checkbox line. */
 fun String.hasCheckboxLine(): Boolean = lineSequence().any { it.isCheckboxLine() }
