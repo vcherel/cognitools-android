@@ -45,6 +45,12 @@ fun Note.toJson(): JSONObject = JSONObject().also {
     it.put("updatedAt", updatedAt)
 }
 
+fun notesToJsonString(notes: List<Note>): String {
+    val array = JSONArray()
+    notes.forEach { array.put(it.toJson()) }
+    return array.toString()
+}
+
 @Dao
 interface NoteDao {
     @Query("SELECT * FROM notes ORDER BY updatedAt DESC")
