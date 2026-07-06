@@ -61,7 +61,6 @@ import com.example.myapp.ShowAlertDialog
 fun PlayScreen(
     round: Int,
     players: List<Player>,
-    currentPlayerIndex: Int,
     onContinue: () -> Unit
 ) {
     val activePlayers = players.filter { !it.isEliminated }

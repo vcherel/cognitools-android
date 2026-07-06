@@ -41,7 +41,7 @@ import kotlin.random.Random
 
 const val MAX_NAME_LENGTH = 30
 
-fun generateAndAssignPlayers(context: Context, state: UndercoverGameState): Pair<List<Player>, Int> {
+fun generateAndAssignPlayers(context: Context, state: UndercoverGameState): List<Player> {
     val players = MutableList(state.players.size) { Player() }
 
     val wordPair = pickRandomPair(context)
@@ -91,34 +91,14 @@ fun generateAndAssignPlayers(context: Context, state: UndercoverGameState): Pair
         players[idx] = players[idx].copy(role = PlayerRole.CIVILIAN, word = civilianWord)
     }
 
-    // Determine first player with weighted probability
-    val firstPlayerIndex = selectFirstPlayer(players)
-
-    return players to firstPlayerIndex
+    return players
 }
 
-private fun selectFirstPlayer(players: List<Player>): Int {
-    // Create a weighted list where Mr. White has weight 1, others have weight 10
-    val weightedIndices = mutableListOf<Int>()
-
-    players.forEachIndexed { index, player ->
-        val weight = if (player.role == PlayerRole.MR_WHITE) 1 else 10
-        repeat(weight) {
-            weightedIndices.add(index)
-        }
-    }
-
-    return weightedIndices.random()
-}
-
-fun reassignRolesAndWords(context: Context, state: UndercoverGameState): Pair<List<Player>, Int> {
-    // When replaying game
-    val (newPlayers, firstIndex) = generateAndAssignPlayers(context, state)
-    // Keep the original names
-
-    return newPlayers.mapIndexed { index, p ->
+// When replaying, roles and words are redrawn but the names stay.
+fun reassignRolesAndWords(context: Context, state: UndercoverGameState): List<Player> {
+    return generateAndAssignPlayers(context, state).mapIndexed { index, p ->
         p.copy(name = state.players.getOrNull(index)?.name ?: p.name)
-    } to firstIndex
+    }
 }
 
 @Composable
@@ -208,14 +188,7 @@ fun HandlePlayerSetup(
                         )
                     } else {
                         // All players setup, start game
-                        val activeCount = state.players.activePlayers().size
-                        onStateUpdate(
-                            state.copy(
-                                currentPlayerIndex = if (activeCount > 0)
-                                    Random.nextInt(activeCount) else 0,
-                                gameState = GameState.PlayMenu
-                            )
-                        )
+                        onStateUpdate(state.copy(gameState = GameState.PlayMenu))
                     }
                 }
             )

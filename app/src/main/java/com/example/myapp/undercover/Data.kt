@@ -5,8 +5,7 @@ data class Player(
     val name: String = "",
     val role: PlayerRole = PlayerRole.CIVILIAN,
     val word: String = "",
-    val isEliminated: Boolean = false,
-    val points: Int = 0
+    val isEliminated: Boolean = false
 )
 
 enum class PlayerRole {
@@ -30,7 +29,7 @@ sealed class GameState {
     ) : GameState()
     object PlayMenu : GameState()
     object Voting : GameState()
-    data class EliminationResult(val player: Player, val gameOver: Boolean) : GameState()
+    data class EliminationResult(val player: Player) : GameState()
     data class MrWhiteGuess(val player: Player, val correctWord: String, val lastEliminated: Player, val scenario: MrWhiteScenario) : GameState()
     data class GameOver(val civiliansWon: Boolean, val lastEliminated: Player) : GameState()
     object Leaderboard : GameState()
@@ -46,7 +45,6 @@ data class UndercoverGameState(
     val gameState: GameState = GameState.Settings(), // Game starts at settings page
     val settings: GameSettings = GameSettings(),
     val players: List<Player> = List(3) { Player() },
-    val currentPlayerIndex: Int = 0,
     val currentRound: Int = 1,
     val mrWhiteGuesses: Map<String, String> = emptyMap(),
     val allPlayersScores: Map<String, Int> = emptyMap()
