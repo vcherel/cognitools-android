@@ -102,10 +102,24 @@ data class FlashcardElement(
     }
 }
 
+/** Moment where the card becomes due again. [FlashcardElement.interval] is in minutes. */
+val FlashcardElement.nextReviewAt: Long
+    get() = lastReview + interval * 60_000L
+
 fun isDue(card: FlashcardElement, now: Long = System.currentTimeMillis()): Boolean {
-    val intervalMs = card.interval * 60 * 1000L // interval is in minutes
-    return (now - card.lastReview) >= intervalMs
+    return now >= card.nextReviewAt
 }
+
+/** Copy with all learning progress cleared, as if the card had just been created. */
+fun FlashcardElement.resetProgress(now: Long = System.currentTimeMillis()): FlashcardElement = copy(
+    easeFactor = 2.5,
+    interval = 0,
+    repetitions = 0,
+    lastReview = now,
+    totalWins = 0,
+    totalLosses = 0,
+    score = 0.0
+)
 
 private const val MINUTE_MS = 60_000L
 private const val HOUR_MS = 60 * MINUTE_MS

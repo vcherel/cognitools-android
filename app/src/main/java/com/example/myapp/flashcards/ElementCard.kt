@@ -96,8 +96,7 @@ fun FlashcardElementCard(
                     modifier = Modifier.width(IntrinsicSize.Min)
                 ) {
                     val timeUntilReview = remember(element.lastReview, element.interval) {
-                        val nextReviewTime = element.lastReview + (element.interval * 60_000L)
-                        formatDuration(nextReviewTime - System.currentTimeMillis())
+                        formatDuration(element.nextReviewAt - System.currentTimeMillis())
                     }
 
                     Text(

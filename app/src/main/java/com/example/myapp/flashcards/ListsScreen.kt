@@ -355,13 +355,11 @@ fun FlashcardListsScreen(navController: NavController) {
                     if (newElements.isNotEmpty()) {
                         scope.launch {
                             repository.addElements(selectedListId, newElements)
-                            withContext(Dispatchers.Main) {
-                                Toast.makeText(
-                                    context,
-                                    "${newElements.size} carte(s) ajoutée(s)",
-                                    Toast.LENGTH_SHORT
-                                ).show()
-                            }
+                            Toast.makeText(
+                                context,
+                                "${newElements.size} carte(s) ajoutée(s)",
+                                Toast.LENGTH_SHORT
+                            ).show()
                         }
                     }
                     showBulkImportDialog = false

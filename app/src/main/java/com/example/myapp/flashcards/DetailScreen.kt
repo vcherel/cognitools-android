@@ -71,9 +71,6 @@ private enum class SortMode(val menuLabel: String) {
     RANDOM_SIDE_ONLY("Toujours le même sens")
 }
 
-private val FlashcardElement.nextReviewAt: Long
-    get() = lastReview + interval * 60_000L
-
 @Composable
 fun FlashcardDetailScreen(
     listId: String,
@@ -261,8 +258,11 @@ fun FlashcardDetailScreen(
 
                     Spacer(Modifier.width(8.dp))
 
+                    val dueCount = remember(elementsState.toList()) {
+                        elementsState.count { isDue(it) }
+                    }
                     Text(
-                        "${elementsState.count { isDue(it) }} à réviser",
+                        "$dueCount à réviser",
                         style = MaterialTheme.typography.bodyMedium,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
@@ -340,15 +340,7 @@ fun FlashcardDetailScreen(
                                         // Update local state immediately for UI stability
                                         val idx = elementsState.indexOfFirst { it.id == element.id }
                                         if (idx != -1) {
-                                            elementsState[idx] = element.copy(
-                                                easeFactor = 2.5,
-                                                interval = 0,
-                                                repetitions = 0,
-                                                lastReview = System.currentTimeMillis(),
-                                                totalWins = 0,
-                                                totalLosses = 0,
-                                                score = 0.0
-                                            )
+                                            elementsState[idx] = element.resetProgress()
                                         }
                                         repository.resetElement(element.id)
                                     }
