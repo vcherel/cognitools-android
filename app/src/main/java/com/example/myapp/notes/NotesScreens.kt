@@ -3,6 +3,7 @@ package com.example.myapp.notes
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -13,6 +14,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -23,6 +25,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckBox
+import androidx.compose.material.icons.filled.CheckBoxOutlineBlank
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Done
 import androidx.compose.material.icons.filled.Edit
@@ -38,6 +42,8 @@ import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -49,13 +55,19 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
 import androidx.navigation.NavController
 import com.example.myapp.LocalIsDarkMode
 import com.example.myapp.MyButton
@@ -63,6 +75,7 @@ import com.example.myapp.ShowAlertDialog
 import com.example.myapp.flashcards.AppDatabase
 import com.example.myapp.flashcards.formatDuration
 import java.util.UUID
+import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -176,7 +189,7 @@ private fun NoteItem(
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     var showDeleteDialog by remember { mutableStateOf(false) }
-    val (title, preview) = remember(note.content) { noteTitleAndPreview(note.content) }
+    val (title, preview) = remember(note) { noteTitleAndPreview(note) }
 
     Card(
         modifier = Modifier
@@ -217,6 +230,14 @@ private fun NoteItem(
                     color = Color.Gray
                 )
             }
+            val clipboard = LocalClipboardManager.current
+            IconButton(
+                onClick = { clipboard.setText(AnnotatedString(note.content)) },
+                modifier = Modifier.size(36.dp)
+            ) {
+                Icon(Icons.Default.ContentCopy, contentDescription = "Copier le contenu")
+            }
+            Spacer(Modifier.size(4.dp))
             IconButton(
                 onClick = { showDeleteDialog = true },
                 modifier = Modifier.size(36.dp)
@@ -295,41 +316,56 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
     val id = remember { if (isNew) UUID.randomUUID().toString() else noteId }
 
     var isEditing by remember { mutableStateOf(isNew) }
+    var titleValue by remember { mutableStateOf("") }
     var textValue by remember { mutableStateOf(TextFieldValue("")) }
     // null until the note is loaded; guards the autosave against saving too early
-    var lastSavedText by remember { mutableStateOf(if (isNew) "" else null) }
+    var lastSaved by remember { mutableStateOf<Pair<String, String>?>(if (isNew) "" to "" else null) }
 
     LaunchedEffect(Unit) {
         if (!isNew) {
             val note = dao.getNote(noteId)
             val content = note?.content ?: ""
+            titleValue = note?.title ?: ""
             textValue = TextFieldValue(content, TextRange(content.length))
-            lastSavedText = content
+            lastSaved = titleValue to content
         }
     }
 
     // Debounced autosave while typing
-    LaunchedEffect(textValue.text) {
-        val text = textValue.text
-        if (lastSavedText == null || text == lastSavedText) return@LaunchedEffect
+    LaunchedEffect(titleValue, textValue.text) {
+        val current = titleValue to textValue.text
+        if (lastSaved == null || current == lastSaved) return@LaunchedEffect
         delay(600)
-        if (text.isNotBlank()) {
-            dao.upsertNote(Note(id = id, content = text, updatedAt = System.currentTimeMillis()))
-            lastSavedText = text
+        if (current.first.isNotBlank() || current.second.isNotBlank()) {
+            dao.upsertNote(
+                Note(id = id, title = current.first, content = current.second, updatedAt = System.currentTimeMillis())
+            )
+            lastSaved = current
         }
     }
 
     fun finish() {
         scope.launch {
-            val text = textValue.text
-            if (lastSavedText != null) {
-                if (text.isBlank()) {
+            if (lastSaved != null) {
+                val current = titleValue to textValue.text
+                if (current.first.isBlank() && current.second.isBlank()) {
                     dao.deleteNote(id)
-                } else if (text != lastSavedText) {
-                    dao.upsertNote(Note(id = id, content = text, updatedAt = System.currentTimeMillis()))
+                } else if (current != lastSaved) {
+                    dao.upsertNote(
+                        Note(id = id, title = current.first, content = current.second, updatedAt = System.currentTimeMillis())
+                    )
                 }
             }
             onBack()
+        }
+    }
+
+    // Immediate save for changes made from the view mode (checkbox toggles, reorders)
+    fun saveContent(newText: String) {
+        textValue = textValue.copy(text = newText)
+        lastSaved = titleValue to newText
+        scope.launch {
+            dao.upsertNote(Note(id = id, title = titleValue, content = newText, updatedAt = System.currentTimeMillis()))
         }
     }
 
@@ -341,12 +377,7 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
         } else {
             CHECKED_PREFIX + line.checkboxText()
         }
-        val newText = lines.joinToString("\n")
-        textValue = textValue.copy(text = newText)
-        lastSavedText = newText
-        scope.launch {
-            dao.upsertNote(Note(id = id, content = newText, updatedAt = System.currentTimeMillis()))
-        }
+        saveContent(lines.joinToString("\n"))
     }
 
     BackHandler { finish() }
@@ -370,10 +401,27 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
             IconButton(onClick = { finish() }) {
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Retour")
             }
-            Text(
-                "Note",
-                style = MaterialTheme.typography.headlineSmall,
-                modifier = Modifier.padding(start = 8.dp).weight(1f)
+            BasicTextField(
+                value = titleValue,
+                onValueChange = { titleValue = it.replace("\n", "") },
+                singleLine = true,
+                modifier = Modifier.padding(start = 8.dp).weight(1f),
+                textStyle = MaterialTheme.typography.headlineSmall.copy(
+                    color = MaterialTheme.colorScheme.onBackground
+                ),
+                cursorBrush = SolidColor(MaterialTheme.colorScheme.onBackground),
+                decorationBox = { innerTextField ->
+                    Box {
+                        if (titleValue.isEmpty()) {
+                            Text(
+                                "Note",
+                                style = MaterialTheme.typography.headlineSmall,
+                                color = Color.Gray
+                            )
+                        }
+                        innerTextField()
+                    }
+                }
             )
             if (isEditing) {
                 IconButton(onClick = { textValue = toggleCheckboxPrefix(textValue) }) {
@@ -383,6 +431,14 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
                     Icon(Icons.Default.Done, contentDescription = "Terminé")
                 }
             } else {
+                if (textValue.text.hasCheckboxLine()) {
+                    IconButton(onClick = { saveContent(setAllCheckboxes(textValue.text, true)) }) {
+                        Icon(Icons.Default.CheckBox, contentDescription = "Tout cocher")
+                    }
+                    IconButton(onClick = { saveContent(setAllCheckboxes(textValue.text, false)) }) {
+                        Icon(Icons.Default.CheckBoxOutlineBlank, contentDescription = "Tout décocher")
+                    }
+                }
                 IconButton(onClick = { isEditing = true }) {
                     Icon(Icons.Default.Edit, contentDescription = "Éditer")
                 }
@@ -405,6 +461,60 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
             )
         } else {
             val interactionSource = remember { MutableInteractionSource() }
+            val lines = textValue.text.split("\n")
+
+            // Long press drag to reorder lines. While a drag is in progress,
+            // displayOrder holds the permuted line indices; otherwise it is null.
+            var displayOrder by remember { mutableStateOf<List<Int>?>(null) }
+            var draggedLine by remember { mutableStateOf(-1) }
+            var dragOffset by remember { mutableStateOf(0f) }
+            val lineHeights = remember { mutableStateMapOf<Int, Int>() }
+
+            fun endDrag(commit: Boolean) {
+                val order = displayOrder
+                if (commit && order != null) {
+                    val current = textValue.text.split("\n")
+                    if (order.size == current.size) {
+                        val newText = order.joinToString("\n") { current[it] }
+                        if (newText != textValue.text) saveContent(newText)
+                    }
+                }
+                displayOrder = null
+                draggedLine = -1
+                dragOffset = 0f
+            }
+
+            // Swaps the dragged line with its neighbours as the finger crosses them
+            fun onDragMove(deltaY: Float) {
+                val order = (displayOrder ?: return).toMutableList()
+                var pos = order.indexOf(draggedLine)
+                if (pos < 0) return
+                var offset = dragOffset + deltaY
+                var moved = false
+                while (true) {
+                    if (offset > 0) {
+                        val next = order.getOrNull(pos + 1) ?: break
+                        val h = lineHeights[next] ?: break
+                        if (h <= 0 || offset <= h / 2f) break
+                        order[pos] = next
+                        order[pos + 1] = draggedLine
+                        pos++
+                        offset -= h
+                    } else {
+                        val prev = order.getOrNull(pos - 1) ?: break
+                        val h = lineHeights[prev] ?: break
+                        if (h <= 0 || -offset <= h / 2f) break
+                        order[pos] = prev
+                        order[pos - 1] = draggedLine
+                        pos--
+                        offset += h
+                    }
+                    moved = true
+                }
+                if (moved) displayOrder = order
+                dragOffset = offset
+            }
+
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -414,29 +524,60 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
                         indication = null
                     ) { isEditing = true }
             ) {
-                textValue.text.split("\n").forEachIndexed { index, line ->
-                    if (line.isCheckboxLine()) {
-                        val checked = line.isCheckedLine()
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
+                (displayOrder ?: lines.indices.toList()).forEach { lineIndex ->
+                    key(lineIndex) {
+                        val line = lines[lineIndex]
+                        val isDragged = lineIndex == draggedLine
+                        Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable { toggleLine(index) }
+                                .zIndex(if (isDragged) 1f else 0f)
+                                .offset { IntOffset(0, if (isDragged) dragOffset.roundToInt() else 0) }
+                                .onSizeChanged { lineHeights[lineIndex] = it.height }
+                                .background(
+                                    if (isDragged) MaterialTheme.colorScheme.surfaceVariant
+                                    else Color.Transparent
+                                )
+                                .pointerInput(Unit) {
+                                    detectDragGesturesAfterLongPress(
+                                        onDragStart = {
+                                            draggedLine = lineIndex
+                                            dragOffset = 0f
+                                            displayOrder = textValue.text.split("\n").indices.toList()
+                                        },
+                                        onDrag = { change, amount ->
+                                            change.consume()
+                                            onDragMove(amount.y)
+                                        },
+                                        onDragEnd = { endDrag(commit = true) },
+                                        onDragCancel = { endDrag(commit = false) }
+                                    )
+                                }
                         ) {
-                            Checkbox(checked = checked, onCheckedChange = { toggleLine(index) })
-                            Text(
-                                line.checkboxText(),
-                                style = MaterialTheme.typography.bodyLarge,
-                                textDecoration = if (checked) TextDecoration.LineThrough else TextDecoration.None,
-                                color = if (checked) Color.Gray else MaterialTheme.colorScheme.onBackground
-                            )
+                            if (line.isCheckboxLine()) {
+                                val checked = line.isCheckedLine()
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { toggleLine(lineIndex) }
+                                ) {
+                                    Checkbox(checked = checked, onCheckedChange = { toggleLine(lineIndex) })
+                                    Text(
+                                        line.checkboxText(),
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        textDecoration = if (checked) TextDecoration.LineThrough else TextDecoration.None,
+                                        color = if (checked) Color.Gray else MaterialTheme.colorScheme.onBackground
+                                    )
+                                }
+                            } else {
+                                Text(
+                                    if (line.isEmpty()) " " else line,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+                                )
+                            }
                         }
-                    } else {
-                        Text(
-                            if (line.isEmpty()) " " else line,
-                            style = MaterialTheme.typography.bodyLarge,
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
-                        )
                     }
                 }
             }
