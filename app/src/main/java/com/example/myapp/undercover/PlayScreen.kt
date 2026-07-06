@@ -217,7 +217,7 @@ fun PlayScreen(
             },
             title = {
                 Text(
-                    text = "Voir le rôle et le mot ?",
+                    text = "Voir le mot ?",
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold
                 )
