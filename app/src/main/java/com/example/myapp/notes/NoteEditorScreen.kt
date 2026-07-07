@@ -66,13 +66,30 @@ import kotlinx.coroutines.launch
 
 /**
  * Pressing Enter at the end of a checkbox line continues the list with a fresh
- * checkbox; on an empty checkbox line it removes the checkbox instead.
+ * checkbox; on an empty checkbox line it removes the checkbox instead. Enter
+ * within the prefix of a non empty checkbox line inserts an empty checkbox
+ * above the item.
  */
 private fun autoContinueCheckbox(old: TextFieldValue, new: TextFieldValue): TextFieldValue {
     val cursor = new.selection.start
     val typedNewline = new.text.length == old.text.length + 1 &&
         cursor > 0 && cursor <= new.text.length && new.text[cursor - 1] == '\n'
     if (!typedNewline) return new
+
+    val oldCursor = cursor - 1
+    val oldLineStart = if (oldCursor == 0) 0 else old.text.lastIndexOf('\n', oldCursor - 1) + 1
+    val oldLineEnd = old.text.indexOf('\n', oldCursor).let { if (it == -1) old.text.length else it }
+    val oldLine = old.text.substring(oldLineStart, oldLineEnd)
+    if (oldLine.isCheckboxLine() &&
+        oldCursor - oldLineStart <= UNCHECKED_PREFIX.length &&
+        oldLine.checkboxText().isNotBlank()
+    ) {
+        return TextFieldValue(
+            text = old.text.substring(0, oldLineStart) + UNCHECKED_PREFIX + "\n" +
+                old.text.substring(oldLineStart),
+            selection = TextRange(oldLineStart + UNCHECKED_PREFIX.length)
+        )
+    }
 
     val prevLineStart = if (cursor == 1) 0 else new.text.lastIndexOf('\n', cursor - 2) + 1
     val prevLine = new.text.substring(prevLineStart, cursor - 1)
