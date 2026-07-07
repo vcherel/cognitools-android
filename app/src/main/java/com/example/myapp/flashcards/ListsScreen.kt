@@ -55,6 +55,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.activity.compose.BackHandler
 import androidx.navigation.NavController
 import com.example.myapp.BackupRestoreActions
 import com.example.myapp.BottomFadeOverlay
@@ -115,6 +116,10 @@ fun FlashcardListsScreen(navController: NavController) {
         wasDragging = dragging
     }
 
+    // Back from the lists screen always lands on the app menu, whatever the stack contains
+    val backToMenu: () -> Unit = { navController.popBackStack("menu", inclusive = false) }
+    BackHandler { backToMenu() }
+
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
@@ -132,7 +137,7 @@ fun FlashcardListsScreen(navController: NavController) {
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.weight(1f)
                 ) {
-                    IconButton(onClick = { navController.popBackStack() }) {
+                    IconButton(onClick = { backToMenu() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Retour")
                     }
                     Text(
