@@ -40,7 +40,10 @@ import com.example.myapp.undercover.UndercoverScreen
 import android.content.Context
 import android.widget.Toast
 import androidx.compose.material.icons.filled.Casino
+import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.PlayArrow
+import com.example.myapp.flashcards.AppDatabase
+import com.example.myapp.notes.noteTitleAndPreview
 import androidx.compose.ui.platform.LocalContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -147,6 +150,8 @@ val LocalIsDarkMode = compositionLocalOf { false }
 fun MainScreen(themeManager: ThemeManager, isDarkMode: Boolean) {
     CompositionLocalProvider(LocalIsDarkMode provides isDarkMode) {
         val navController = rememberNavController()
+        val context = LocalContext.current
+        val coroutineScope = rememberCoroutineScope()
 
         Scaffold { innerPadding ->
             Box(modifier = Modifier.padding(innerPadding)) {
@@ -154,11 +159,23 @@ fun MainScreen(themeManager: ThemeManager, isDarkMode: Boolean) {
                     composable("menu") {
                         MenuScreen(
                             onNavigate = { route ->
-                                if (route == "flashcardsPlay") {
-                                    navController.navigate("lists")
-                                    navController.navigate("game/all")
-                                } else {
-                                    navController.navigate(route)
+                                when (route) {
+                                    "flashcardsPlay" -> {
+                                        navController.navigate("lists")
+                                        navController.navigate("game/all")
+                                    }
+                                    "todoNote" -> coroutineScope.launch {
+                                        val todo = AppDatabase.get(context).noteDao().getNotes()
+                                            .firstOrNull {
+                                                noteTitleAndPreview(it).first
+                                                    .equals("Todo list", ignoreCase = true)
+                                            }
+                                        navController.navigate("notes")
+                                        if (todo != null) {
+                                            navController.navigate("note/${todo.id}")
+                                        }
+                                    }
+                                    else -> navController.navigate(route)
                                 }
                             },
                             themeManager = themeManager,
@@ -271,7 +288,12 @@ fun MenuScreen(
                 onRightClick = { onNavigate("flashcardsPlay") }
             )
             Spacer(modifier = Modifier.height(spaceHeight))
-            MyButton(text = "Notes") { onNavigate("notes") }
+            SplitMyButton(
+                text = "Notes",
+                rightIcon = Icons.Default.Checklist,
+                onMainClick = { onNavigate("notes") },
+                onRightClick = { onNavigate("todoNote") }
+            )
             Spacer(modifier = Modifier.height(spaceHeight))
             MyButton(text = "Undercover") { onNavigate("undercover") }
             Spacer(modifier = Modifier.height(spaceHeight))
