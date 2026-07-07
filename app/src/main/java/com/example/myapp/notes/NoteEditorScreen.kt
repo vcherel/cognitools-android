@@ -30,6 +30,10 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -223,10 +227,26 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
         saveContent(lines.joinToString("\n"))
     }
 
+    val snackbarHostState = remember { SnackbarHostState() }
+
     fun deleteLine(index: Int) {
         val lines = textValue.text.split("\n").toMutableList()
-        lines.removeAt(index)
+        val removed = lines.removeAt(index)
         saveContent(lines.joinToString("\n"))
+        scope.launch {
+            // Replace any snackbar from a previous delete instead of queueing
+            snackbarHostState.currentSnackbarData?.dismiss()
+            val result = snackbarHostState.showSnackbar(
+                message = "Élément supprimé",
+                actionLabel = "Annuler",
+                duration = SnackbarDuration.Short
+            )
+            if (result == SnackbarResult.ActionPerformed) {
+                val current = textValue.text.split("\n").toMutableList()
+                current.add(index.coerceAtMost(current.size), removed)
+                saveContent(current.joinToString("\n"))
+            }
+        }
     }
 
     // While editing, back validates the note and shows the view instead of leaving
@@ -246,302 +266,309 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
         if (isEditing) focusRequester.requestFocus()
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp)
-    ) {
-        Spacer(Modifier.height(16.dp))
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp)
         ) {
-            IconButton(onClick = { goBack() }) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Retour")
+            Spacer(Modifier.height(16.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = { goBack() }) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Retour")
+                }
+                BasicTextField(
+                    value = titleValue,
+                    onValueChange = { titleValue = it.replace("\n", "") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+                    modifier = Modifier.padding(start = 8.dp).weight(1f),
+                    textStyle = MaterialTheme.typography.headlineSmall.copy(
+                        color = MaterialTheme.colorScheme.onBackground
+                    ),
+                    cursorBrush = SolidColor(MaterialTheme.colorScheme.onBackground),
+                    decorationBox = { innerTextField ->
+                        Box {
+                            if (titleValue.isEmpty()) {
+                                Text(
+                                    "Note",
+                                    style = MaterialTheme.typography.headlineSmall,
+                                    color = Color.Gray
+                                )
+                            }
+                            innerTextField()
+                        }
+                    }
+                )
+                if (!isEditing && textValue.text.hasCheckboxLine()) {
+                    IconButton(onClick = { saveContent(setAllCheckboxes(textValue.text, true)) }) {
+                        Icon(Icons.Default.CheckBox, contentDescription = "Tout cocher")
+                    }
+                    IconButton(onClick = { saveContent(setAllCheckboxes(textValue.text, false)) }) {
+                        Icon(Icons.Default.CheckBoxOutlineBlank, contentDescription = "Tout décocher")
+                    }
+                }
             }
-            BasicTextField(
-                value = titleValue,
-                onValueChange = { titleValue = it.replace("\n", "") },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
-                modifier = Modifier.padding(start = 8.dp).weight(1f),
-                textStyle = MaterialTheme.typography.headlineSmall.copy(
-                    color = MaterialTheme.colorScheme.onBackground
-                ),
-                cursorBrush = SolidColor(MaterialTheme.colorScheme.onBackground),
-                decorationBox = { innerTextField ->
-                    Box {
-                        if (titleValue.isEmpty()) {
-                            Text(
-                                "Note",
-                                style = MaterialTheme.typography.headlineSmall,
-                                color = Color.Gray
+
+            Spacer(Modifier.height(16.dp))
+
+            if (isEditing) {
+                // Typing "/" at the start of a line proposes commands as chips
+                val slash = slashQuery(textValue)
+                val slashMatches = if (slash == null) emptyList() else SLASH_COMMANDS.filter { cmd ->
+                    cmd.keywords.any { it.startsWith(slash.second, ignoreCase = true) }
+                }
+                if (slashMatches.isNotEmpty()) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        slashMatches.forEach { cmd ->
+                            SuggestionChip(
+                                onClick = {
+                                    val lineStart = slash!!.first
+                                    val text = textValue.text
+                                    val cursor = textValue.selection.start
+                                    textValue = TextFieldValue(
+                                        text = text.substring(0, lineStart) + cmd.prefix + text.substring(cursor),
+                                        selection = TextRange(lineStart + cmd.prefix.length)
+                                    )
+                                },
+                                label = { Text(cmd.label) }
                             )
                         }
-                        innerTextField()
                     }
+                    Spacer(Modifier.height(8.dp))
                 }
-            )
-            if (!isEditing && textValue.text.hasCheckboxLine()) {
-                IconButton(onClick = { saveContent(setAllCheckboxes(textValue.text, true)) }) {
-                    Icon(Icons.Default.CheckBox, contentDescription = "Tout cocher")
-                }
-                IconButton(onClick = { saveContent(setAllCheckboxes(textValue.text, false)) }) {
-                    Icon(Icons.Default.CheckBoxOutlineBlank, contentDescription = "Tout décocher")
-                }
-            }
-        }
 
-        Spacer(Modifier.height(16.dp))
-
-        if (isEditing) {
-            // Typing "/" at the start of a line proposes commands as chips
-            val slash = slashQuery(textValue)
-            val slashMatches = if (slash == null) emptyList() else SLASH_COMMANDS.filter { cmd ->
-                cmd.keywords.any { it.startsWith(slash.second, ignoreCase = true) }
-            }
-            if (slashMatches.isNotEmpty()) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    slashMatches.forEach { cmd ->
-                        SuggestionChip(
-                            onClick = {
-                                val lineStart = slash!!.first
-                                val text = textValue.text
-                                val cursor = textValue.selection.start
-                                textValue = TextFieldValue(
-                                    text = text.substring(0, lineStart) + cmd.prefix + text.substring(cursor),
-                                    selection = TextRange(lineStart + cmd.prefix.length)
-                                )
-                            },
-                            label = { Text(cmd.label) }
-                        )
-                    }
-                }
-                Spacer(Modifier.height(8.dp))
-            }
-
-            BasicTextField(
-                value = textValue,
-                onValueChange = { new -> textValue = autoContinueCheckbox(textValue, new) },
-                modifier = Modifier
-                    .fillMaxSize()
-                    .focusRequester(focusRequester),
-                textStyle = MaterialTheme.typography.bodyLarge.copy(
-                    color = MaterialTheme.colorScheme.onBackground
-                ),
-                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
-                cursorBrush = SolidColor(MaterialTheme.colorScheme.onBackground)
-            )
-        } else {
-            val lines = textValue.text.split("\n")
-
-            // Character offset of the start of each line, for double tap to edit
-            val lineStarts = remember(textValue.text) {
-                val starts = IntArray(lines.size)
-                var acc = 0
-                lines.forEachIndexed { i, l ->
-                    starts[i] = acc
-                    acc += l.length + 1
-                }
-                starts
-            }
-
-            fun enterEditAt(offset: Int) {
-                textValue = textValue.copy(
-                    selection = TextRange(offset.coerceIn(0, textValue.text.length))
+                BasicTextField(
+                    value = textValue,
+                    onValueChange = { new -> textValue = autoContinueCheckbox(textValue, new) },
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .focusRequester(focusRequester),
+                    textStyle = MaterialTheme.typography.bodyLarge.copy(
+                        color = MaterialTheme.colorScheme.onBackground
+                    ),
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+                    cursorBrush = SolidColor(MaterialTheme.colorScheme.onBackground)
                 )
-                isEditing = true
-            }
+            } else {
+                val lines = textValue.text.split("\n")
 
-            // Long press drag to reorder lines. While a drag is in progress,
-            // displayOrder holds the permuted line indices; otherwise it is null.
-            var displayOrder by remember { mutableStateOf<List<Int>?>(null) }
-            var draggedLine by remember { mutableStateOf(-1) }
-            var dragOffset by remember { mutableStateOf(0f) }
-            val lineHeights = remember { mutableStateMapOf<Int, Int>() }
-
-            fun endDrag(commit: Boolean) {
-                val order = displayOrder
-                if (commit && order != null) {
-                    val current = textValue.text.split("\n")
-                    if (order.size == current.size) {
-                        val newText = order.joinToString("\n") { current[it] }
-                        if (newText != textValue.text) saveContent(newText)
+                // Character offset of the start of each line, for double tap to edit
+                val lineStarts = remember(textValue.text) {
+                    val starts = IntArray(lines.size)
+                    var acc = 0
+                    lines.forEachIndexed { i, l ->
+                        starts[i] = acc
+                        acc += l.length + 1
                     }
+                    starts
                 }
-                displayOrder = null
-                draggedLine = -1
-                dragOffset = 0f
-            }
 
-            // Swaps the dragged line with its neighbours as the finger crosses them
-            fun onDragMove(deltaY: Float) {
-                val order = (displayOrder ?: return).toMutableList()
-                var pos = order.indexOf(draggedLine)
-                if (pos < 0) return
-                var offset = dragOffset + deltaY
-                var moved = false
-                while (true) {
-                    if (offset > 0) {
-                        val next = order.getOrNull(pos + 1) ?: break
-                        val h = lineHeights[next] ?: break
-                        if (h <= 0 || offset <= h / 2f) break
-                        order[pos] = next
-                        order[pos + 1] = draggedLine
-                        pos++
-                        offset -= h
-                    } else {
-                        val prev = order.getOrNull(pos - 1) ?: break
-                        val h = lineHeights[prev] ?: break
-                        if (h <= 0 || -offset <= h / 2f) break
-                        order[pos] = prev
-                        order[pos - 1] = draggedLine
-                        pos--
-                        offset += h
-                    }
-                    moved = true
+                fun enterEditAt(offset: Int) {
+                    textValue = textValue.copy(
+                        selection = TextRange(offset.coerceIn(0, textValue.text.length))
+                    )
+                    isEditing = true
                 }
-                if (moved) displayOrder = order
-                dragOffset = offset
-            }
 
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
-                    .pointerInput(textValue.text) {
-                        detectTapGestures(onDoubleTap = { enterEditAt(textValue.text.length) })
+                // Long press drag to reorder lines. While a drag is in progress,
+                // displayOrder holds the permuted line indices; otherwise it is null.
+                var displayOrder by remember { mutableStateOf<List<Int>?>(null) }
+                var draggedLine by remember { mutableStateOf(-1) }
+                var dragOffset by remember { mutableStateOf(0f) }
+                val lineHeights = remember { mutableStateMapOf<Int, Int>() }
+
+                fun endDrag(commit: Boolean) {
+                    val order = displayOrder
+                    if (commit && order != null) {
+                        val current = textValue.text.split("\n")
+                        if (order.size == current.size) {
+                            val newText = order.joinToString("\n") { current[it] }
+                            if (newText != textValue.text) saveContent(newText)
+                        }
                     }
-            ) {
-                (displayOrder ?: lines.indices.toList()).forEach { lineIndex ->
-                    key(lineIndex) {
-                        val line = lines[lineIndex]
-                        val isDragged = lineIndex == draggedLine
-                        // Text layout of the line, to map a double tap to a cursor position
-                        val textLayout = remember { arrayOfNulls<TextLayoutResult>(1) }
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .zIndex(if (isDragged) 1f else 0f)
-                                .offset { IntOffset(0, if (isDragged) dragOffset.roundToInt() else 0) }
-                                .onSizeChanged { lineHeights[lineIndex] = it.height }
-                                .background(
-                                    if (isDragged) MaterialTheme.colorScheme.surfaceVariant
-                                    else Color.Transparent
-                                )
-                                .pointerInput(Unit) {
-                                    detectDragGesturesAfterLongPress(
-                                        onDragStart = {
-                                            draggedLine = lineIndex
-                                            dragOffset = 0f
-                                            displayOrder = textValue.text.split("\n").indices.toList()
-                                        },
-                                        onDrag = { change, amount ->
-                                            change.consume()
-                                            onDragMove(amount.y)
-                                        },
-                                        onDragEnd = { endDrag(commit = true) },
-                                        onDragCancel = { endDrag(commit = false) }
+                    displayOrder = null
+                    draggedLine = -1
+                    dragOffset = 0f
+                }
+
+                // Swaps the dragged line with its neighbours as the finger crosses them
+                fun onDragMove(deltaY: Float) {
+                    val order = (displayOrder ?: return).toMutableList()
+                    var pos = order.indexOf(draggedLine)
+                    if (pos < 0) return
+                    var offset = dragOffset + deltaY
+                    var moved = false
+                    while (true) {
+                        if (offset > 0) {
+                            val next = order.getOrNull(pos + 1) ?: break
+                            val h = lineHeights[next] ?: break
+                            if (h <= 0 || offset <= h / 2f) break
+                            order[pos] = next
+                            order[pos + 1] = draggedLine
+                            pos++
+                            offset -= h
+                        } else {
+                            val prev = order.getOrNull(pos - 1) ?: break
+                            val h = lineHeights[prev] ?: break
+                            if (h <= 0 || -offset <= h / 2f) break
+                            order[pos] = prev
+                            order[pos - 1] = draggedLine
+                            pos--
+                            offset += h
+                        }
+                        moved = true
+                    }
+                    if (moved) displayOrder = order
+                    dragOffset = offset
+                }
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
+                        .pointerInput(textValue.text) {
+                            detectTapGestures(onDoubleTap = { enterEditAt(textValue.text.length) })
+                        }
+                ) {
+                    (displayOrder ?: lines.indices.toList()).forEach { lineIndex ->
+                        key(lineIndex) {
+                            val line = lines[lineIndex]
+                            val isDragged = lineIndex == draggedLine
+                            // Text layout of the line, to map a double tap to a cursor position
+                            val textLayout = remember { arrayOfNulls<TextLayoutResult>(1) }
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .zIndex(if (isDragged) 1f else 0f)
+                                    .offset { IntOffset(0, if (isDragged) dragOffset.roundToInt() else 0) }
+                                    .onSizeChanged { lineHeights[lineIndex] = it.height }
+                                    .background(
+                                        if (isDragged) MaterialTheme.colorScheme.surfaceVariant
+                                        else Color.Transparent
                                     )
-                                }
-                        ) {
-                            if (line.isSeparatorLine()) {
-                                val name = line.separatorName()
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(vertical = 4.dp)
-                                        .pointerInput(textValue.text) {
-                                            detectTapGestures(onDoubleTap = {
-                                                enterEditAt(lineStarts[lineIndex] + line.length)
-                                            })
-                                        }
-                                ) {
-                                    HorizontalDivider(modifier = Modifier.weight(1f))
-                                    if (name.isNotEmpty()) {
-                                        Text(
-                                            name.uppercase(),
-                                            style = MaterialTheme.typography.labelMedium,
-                                            color = Color.Gray,
-                                            modifier = Modifier.padding(horizontal = 12.dp)
+                                    .pointerInput(Unit) {
+                                        detectDragGesturesAfterLongPress(
+                                            onDragStart = {
+                                                draggedLine = lineIndex
+                                                dragOffset = 0f
+                                                displayOrder = textValue.text.split("\n").indices.toList()
+                                            },
+                                            onDrag = { change, amount ->
+                                                change.consume()
+                                                onDragMove(amount.y)
+                                            },
+                                            onDragEnd = { endDrag(commit = true) },
+                                            onDragCancel = { endDrag(commit = false) }
                                         )
-                                        HorizontalDivider(modifier = Modifier.weight(1f))
                                     }
-                                    IconButton(
-                                        onClick = { deleteLine(lineIndex) },
-                                        modifier = Modifier.size(36.dp)
+                            ) {
+                                if (line.isSeparatorLine()) {
+                                    val name = line.separatorName()
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 4.dp)
+                                            .pointerInput(textValue.text) {
+                                                detectTapGestures(onDoubleTap = {
+                                                    enterEditAt(lineStarts[lineIndex] + line.length)
+                                                })
+                                            }
                                     ) {
-                                        Icon(
-                                            Icons.Default.Delete,
-                                            contentDescription = "Supprimer la ligne",
-                                            tint = Color.Gray
-                                        )
+                                        HorizontalDivider(modifier = Modifier.weight(1f))
+                                        if (name.isNotEmpty()) {
+                                            Text(
+                                                name.uppercase(),
+                                                style = MaterialTheme.typography.labelMedium,
+                                                color = Color.Gray,
+                                                modifier = Modifier.padding(horizontal = 12.dp)
+                                            )
+                                            HorizontalDivider(modifier = Modifier.weight(1f))
+                                        }
+                                        IconButton(
+                                            onClick = { deleteLine(lineIndex) },
+                                            modifier = Modifier.size(36.dp)
+                                        ) {
+                                            Icon(
+                                                Icons.Default.Delete,
+                                                contentDescription = "Supprimer la ligne",
+                                                tint = Color.Gray
+                                            )
+                                        }
                                     }
-                                }
-                            } else if (line.isCheckboxLine()) {
-                                val checked = line.isCheckedLine()
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clickable { toggleLine(lineIndex) }
-                                ) {
-                                    Checkbox(checked = checked, onCheckedChange = { toggleLine(lineIndex) })
+                                } else if (line.isCheckboxLine()) {
+                                    val checked = line.isCheckedLine()
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clickable { toggleLine(lineIndex) }
+                                    ) {
+                                        Checkbox(checked = checked, onCheckedChange = { toggleLine(lineIndex) })
+                                        Text(
+                                            line.checkboxText(),
+                                            style = MaterialTheme.typography.bodyLarge,
+                                            textDecoration = if (checked) TextDecoration.LineThrough else TextDecoration.None,
+                                            color = if (checked) Color.Gray else MaterialTheme.colorScheme.onBackground,
+                                            onTextLayout = { textLayout[0] = it },
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .pointerInput(textValue.text) {
+                                                    detectTapGestures(
+                                                        onTap = { toggleLine(lineIndex) },
+                                                        onDoubleTap = { pos ->
+                                                            val inLine = textLayout[0]?.getOffsetForPosition(pos)
+                                                                ?: line.checkboxText().length
+                                                            enterEditAt(
+                                                                lineStarts[lineIndex] + UNCHECKED_PREFIX.length +
+                                                                    inLine.coerceIn(0, line.checkboxText().length)
+                                                            )
+                                                        }
+                                                    )
+                                                }
+                                        )
+                                        IconButton(
+                                            onClick = { deleteLine(lineIndex) },
+                                            modifier = Modifier.size(36.dp)
+                                        ) {
+                                            Icon(
+                                                Icons.Default.Delete,
+                                                contentDescription = "Supprimer la ligne",
+                                                tint = Color.Gray
+                                            )
+                                        }
+                                    }
+                                } else {
                                     Text(
-                                        line.checkboxText(),
+                                        if (line.isEmpty()) " " else line,
                                         style = MaterialTheme.typography.bodyLarge,
-                                        textDecoration = if (checked) TextDecoration.LineThrough else TextDecoration.None,
-                                        color = if (checked) Color.Gray else MaterialTheme.colorScheme.onBackground,
                                         onTextLayout = { textLayout[0] = it },
                                         modifier = Modifier
-                                            .weight(1f)
+                                            .fillMaxWidth()
+                                            .padding(vertical = 4.dp)
                                             .pointerInput(textValue.text) {
-                                                detectTapGestures(
-                                                    onTap = { toggleLine(lineIndex) },
-                                                    onDoubleTap = { pos ->
-                                                        val inLine = textLayout[0]?.getOffsetForPosition(pos)
-                                                            ?: line.checkboxText().length
-                                                        enterEditAt(
-                                                            lineStarts[lineIndex] + UNCHECKED_PREFIX.length +
-                                                                inLine.coerceIn(0, line.checkboxText().length)
-                                                        )
-                                                    }
-                                                )
+                                                detectTapGestures(onDoubleTap = { pos ->
+                                                    val inLine = textLayout[0]?.getOffsetForPosition(pos) ?: line.length
+                                                    enterEditAt(lineStarts[lineIndex] + inLine.coerceIn(0, line.length))
+                                                })
                                             }
                                     )
-                                    IconButton(
-                                        onClick = { deleteLine(lineIndex) },
-                                        modifier = Modifier.size(36.dp)
-                                    ) {
-                                        Icon(
-                                            Icons.Default.Delete,
-                                            contentDescription = "Supprimer la ligne",
-                                            tint = Color.Gray
-                                        )
-                                    }
                                 }
-                            } else {
-                                Text(
-                                    if (line.isEmpty()) " " else line,
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    onTextLayout = { textLayout[0] = it },
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(vertical = 4.dp)
-                                        .pointerInput(textValue.text) {
-                                            detectTapGestures(onDoubleTap = { pos ->
-                                                val inLine = textLayout[0]?.getOffsetForPosition(pos) ?: line.length
-                                                enterEditAt(lineStarts[lineIndex] + inLine.coerceIn(0, line.length))
-                                            })
-                                        }
-                                )
                             }
                         }
                     }
                 }
             }
         }
+
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier.align(Alignment.BottomCenter)
+        )
     }
 }
