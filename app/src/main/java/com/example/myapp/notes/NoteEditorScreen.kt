@@ -25,6 +25,8 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckBox
 import androidx.compose.material.icons.filled.CheckBoxOutlineBlank
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.FormatBold
+import androidx.compose.material.icons.filled.FormatItalic
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -249,6 +251,33 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
         }
     }
 
+    // Wraps the selection in the marker (or removes it when already wrapped);
+    // with no selection, inserts a marker pair and puts the cursor inside
+    fun toggleInlineMarker(marker: String) {
+        val text = textValue.text
+        val start = textValue.selection.min
+        val end = textValue.selection.max
+        val m = marker.length
+        textValue = if (start >= m && end + m <= text.length &&
+            text.startsWith(marker, start - m) && text.startsWith(marker, end)
+        ) {
+            TextFieldValue(
+                text = text.substring(0, start - m) + text.substring(start, end) + text.substring(end + m),
+                selection = TextRange(start - m, end - m)
+            )
+        } else if (start == end) {
+            TextFieldValue(
+                text = text.substring(0, start) + marker + marker + text.substring(start),
+                selection = TextRange(start + m)
+            )
+        } else {
+            TextFieldValue(
+                text = text.substring(0, start) + marker + text.substring(start, end) + marker + text.substring(end),
+                selection = TextRange(start + m, end + m)
+            )
+        }
+    }
+
     // While editing, back validates the note and shows the view instead of leaving
     fun goBack() {
         if (isEditing) {
@@ -304,6 +333,14 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
                         }
                     }
                 )
+                if (isEditing) {
+                    IconButton(onClick = { toggleInlineMarker("**") }) {
+                        Icon(Icons.Default.FormatBold, contentDescription = "Gras")
+                    }
+                    IconButton(onClick = { toggleInlineMarker("*") }) {
+                        Icon(Icons.Default.FormatItalic, contentDescription = "Italique")
+                    }
+                }
                 if (!isEditing && textValue.text.hasCheckboxLine()) {
                     IconButton(onClick = { saveContent(setAllCheckboxes(textValue.text, true)) }) {
                         Icon(Icons.Default.CheckBox, contentDescription = "Tout cocher")
@@ -511,7 +548,7 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
                                     ) {
                                         Checkbox(checked = checked, onCheckedChange = { toggleLine(lineIndex) })
                                         Text(
-                                            line.checkboxText(),
+                                            line.checkboxText().formatInline(),
                                             style = MaterialTheme.typography.bodyLarge,
                                             textDecoration = if (checked) TextDecoration.LineThrough else TextDecoration.None,
                                             color = if (checked) Color.Gray else MaterialTheme.colorScheme.onBackground,
@@ -545,7 +582,7 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
                                     }
                                 } else {
                                     Text(
-                                        if (line.isEmpty()) " " else line,
+                                        (if (line.isEmpty()) " " else line).formatInline(),
                                         style = MaterialTheme.typography.bodyLarge,
                                         onTextLayout = { textLayout[0] = it },
                                         modifier = Modifier

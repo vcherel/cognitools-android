@@ -1,5 +1,11 @@
 package com.example.myapp.notes
 
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import androidx.room.Dao
 import androidx.room.Entity
 import androidx.room.PrimaryKey
@@ -84,6 +90,35 @@ fun String.isCheckedLine(): Boolean = startsWith(CHECKED_PREFIX)
 fun String.checkboxText(): String =
     if (isCheckboxLine()) substring(UNCHECKED_PREFIX.length) else this
 
+// Inline markers within a line: **gras**, *italique*, ***les deux***. The
+// markers stay in the stored text and are hidden when rendering.
+fun String.formatInline(): AnnotatedString {
+    val s = this
+    return buildAnnotatedString {
+        var i = 0
+        while (i < s.length) {
+            if (s[i] == '*') {
+                var stars = 1
+                while (stars < 3 && i + stars < s.length && s[i + stars] == '*') stars++
+                val marker = "*".repeat(stars)
+                val close = s.indexOf(marker, i + stars)
+                if (close > i + stars) {
+                    val style = when (stars) {
+                        3 -> SpanStyle(fontWeight = FontWeight.Bold, fontStyle = FontStyle.Italic)
+                        2 -> SpanStyle(fontWeight = FontWeight.Bold)
+                        else -> SpanStyle(fontStyle = FontStyle.Italic)
+                    }
+                    withStyle(style) { append(s.substring(i + stars, close)) }
+                    i = close + stars
+                    continue
+                }
+            }
+            append(s[i])
+            i++
+        }
+    }
+}
+
 /**
  * Display title and preview line. The title field wins when set; otherwise
  * the first non empty content line is the title, as before the field existed.
@@ -91,7 +126,7 @@ fun String.checkboxText(): String =
 fun noteTitleAndPreview(note: Note): Pair<String, String> {
     val lines = note.content.lineSequence()
         .filterNot { it.isSeparatorLine() }
-        .map { it.checkboxText().trim() }
+        .map { it.checkboxText().formatInline().text.trim() }
         .filter { it.isNotEmpty() }
         .take(2)
         .toList()
