@@ -59,6 +59,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.pointer.pointerInput
@@ -165,6 +166,7 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
     // A locked note stays gated until the PIN is entered (or it is a new note)
     var unlocked by remember { mutableStateOf(isNew) }
     var showCreatePin by remember { mutableStateOf(false) }
+    var titleFocused by remember { mutableStateOf(false) }
     // null until the note is loaded; guards the autosave against saving too early
     var lastSaved by remember { mutableStateOf<Pair<String, String>?>(if (isNew) "" to "" else null) }
 
@@ -371,15 +373,20 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(onClick = { goBack() }) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Retour")
+                if (!titleFocused) {
+                    IconButton(onClick = { goBack() }) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Retour")
+                    }
                 }
                 BasicTextField(
                     state = titleFieldState,
                     inputTransformation = stripNewlinesTransformation,
                     lineLimits = TextFieldLineLimits.SingleLine,
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
-                    modifier = Modifier.padding(start = 8.dp).weight(1f),
+                    modifier = Modifier
+                        .padding(start = 8.dp)
+                        .weight(1f)
+                        .onFocusChanged { titleFocused = it.isFocused },
                     textStyle = MaterialTheme.typography.headlineSmall.copy(
                         color = MaterialTheme.colorScheme.onBackground
                     ),
@@ -397,34 +404,36 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
                         }
                     }
                 )
-                IconButton(onClick = {
-                    if (locked) persistLock(false)
-                    else scope.launch {
-                        if (NoteLock.hasPin(context)) persistLock(true) else showCreatePin = true
+                if (!titleFocused) {
+                    IconButton(onClick = {
+                        if (locked) persistLock(false)
+                        else scope.launch {
+                            if (NoteLock.hasPin(context)) persistLock(true) else showCreatePin = true
+                        }
+                    }) {
+                        Icon(
+                            if (locked) Icons.Default.Lock else Icons.Default.LockOpen,
+                            contentDescription = if (locked) "Déverrouiller" else "Verrouiller"
+                        )
                     }
-                }) {
-                    Icon(
-                        if (locked) Icons.Default.Lock else Icons.Default.LockOpen,
-                        contentDescription = if (locked) "Déverrouiller" else "Verrouiller"
-                    )
-                }
-                if (isEditing) {
-                    IconButton(onClick = { toggleInlineMarker("**") }) {
-                        Icon(Icons.Default.FormatBold, contentDescription = "Gras")
+                    if (isEditing) {
+                        IconButton(onClick = { toggleInlineMarker("**") }) {
+                            Icon(Icons.Default.FormatBold, contentDescription = "Gras")
+                        }
+                        IconButton(onClick = { toggleInlineMarker("*") }) {
+                            Icon(Icons.Default.FormatItalic, contentDescription = "Italique")
+                        }
+                        IconButton(onClick = { toggleInlineMarker("__") }) {
+                            Icon(Icons.Default.FormatUnderlined, contentDescription = "Souligné")
+                        }
                     }
-                    IconButton(onClick = { toggleInlineMarker("*") }) {
-                        Icon(Icons.Default.FormatItalic, contentDescription = "Italique")
-                    }
-                    IconButton(onClick = { toggleInlineMarker("__") }) {
-                        Icon(Icons.Default.FormatUnderlined, contentDescription = "Souligné")
-                    }
-                }
-                if (!isEditing && textFieldState.text.toString().hasCheckboxLine()) {
-                    IconButton(onClick = { saveContent(setAllCheckboxes(textFieldState.text.toString(), true)) }) {
-                        Icon(Icons.Default.CheckBox, contentDescription = "Tout cocher")
-                    }
-                    IconButton(onClick = { saveContent(setAllCheckboxes(textFieldState.text.toString(), false)) }) {
-                        Icon(Icons.Default.CheckBoxOutlineBlank, contentDescription = "Tout décocher")
+                    if (!isEditing && textFieldState.text.toString().hasCheckboxLine()) {
+                        IconButton(onClick = { saveContent(setAllCheckboxes(textFieldState.text.toString(), true)) }) {
+                            Icon(Icons.Default.CheckBox, contentDescription = "Tout cocher")
+                        }
+                        IconButton(onClick = { saveContent(setAllCheckboxes(textFieldState.text.toString(), false)) }) {
+                            Icon(Icons.Default.CheckBoxOutlineBlank, contentDescription = "Tout décocher")
+                        }
                     }
                 }
             }
