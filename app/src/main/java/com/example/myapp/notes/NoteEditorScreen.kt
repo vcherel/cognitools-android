@@ -29,6 +29,8 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FormatBold
 import androidx.compose.material.icons.filled.FormatItalic
 import androidx.compose.material.icons.filled.FormatUnderlined
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -152,6 +154,10 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
     var titleValue by remember { mutableStateOf("") }
     var textValue by remember { mutableStateOf(TextFieldValue("")) }
     var noteColor by remember { mutableStateOf(0) }
+    var locked by remember { mutableStateOf(false) }
+    // A locked note stays gated until the PIN is entered (or it is a new note)
+    var unlocked by remember { mutableStateOf(isNew) }
+    var showCreatePin by remember { mutableStateOf(false) }
     // null until the note is loaded; guards the autosave against saving too early
     var lastSaved by remember { mutableStateOf<Pair<String, String>?>(if (isNew) "" to "" else null) }
 
@@ -161,7 +167,8 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
         title = titleValue,
         content = textValue.text,
         updatedAt = System.currentTimeMillis(),
-        color = noteColor
+        color = noteColor,
+        locked = locked
     )
 
     LaunchedEffect(Unit) {
@@ -170,6 +177,8 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
             val content = note?.content ?: ""
             titleValue = note?.title ?: ""
             noteColor = note?.color ?: 0
+            locked = note?.locked ?: false
+            unlocked = !(note?.locked ?: false)
             textValue = TextFieldValue(content, TextRange(content.length))
             lastSaved = titleValue to content
         }
@@ -218,6 +227,17 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
         lastSaved = titleValue to newText
         val note = currentNote()
         scope.launch { dao.upsertNote(note) }
+    }
+
+    // Persists a lock/unlock toggle right away. An empty new note has nothing to
+    // save yet; the flag rides along on the next autosave once it has content.
+    fun persistLock(newLocked: Boolean) {
+        locked = newLocked
+        if (lastSaved != null && (titleValue.isNotBlank() || textValue.text.isNotBlank())) {
+            lastSaved = titleValue to textValue.text
+            val note = currentNote()
+            scope.launch { dao.upsertNote(note) }
+        }
     }
 
     fun toggleLine(index: Int) {
@@ -298,6 +318,29 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
+        if (locked && !unlocked) {
+            Column(
+                modifier = Modifier.fillMaxSize().padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Spacer(Modifier.height(16.dp))
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    IconButton(onClick = { onBack() }) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Retour")
+                    }
+                }
+                Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(Icons.Default.Lock, contentDescription = null, modifier = Modifier.size(48.dp))
+                        Spacer(Modifier.height(12.dp))
+                        Text(
+                            titleValue.ifBlank { "Note verrouillée" },
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                    }
+                }
+            }
+        } else {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -336,6 +379,17 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
                         }
                     }
                 )
+                IconButton(onClick = {
+                    if (locked) persistLock(false)
+                    else scope.launch {
+                        if (NoteLock.hasPin(context)) persistLock(true) else showCreatePin = true
+                    }
+                }) {
+                    Icon(
+                        if (locked) Icons.Default.Lock else Icons.Default.LockOpen,
+                        contentDescription = if (locked) "Déverrouiller" else "Verrouiller"
+                    )
+                }
                 if (isEditing) {
                     IconButton(onClick = { toggleInlineMarker("**") }) {
                         Icon(Icons.Default.FormatBold, contentDescription = "Gras")
@@ -608,10 +662,29 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
                 }
             }
         }
+        }
 
         SnackbarHost(
             hostState = snackbarHostState,
             modifier = Modifier.align(Alignment.BottomCenter)
         )
+
+        if (locked && !unlocked) {
+            PinDialog(
+                purpose = PinPurpose.Enter,
+                onDismiss = { onBack() },
+                onSuccess = { unlocked = true }
+            )
+        }
+        if (showCreatePin) {
+            PinDialog(
+                purpose = PinPurpose.Create,
+                onDismiss = { showCreatePin = false },
+                onSuccess = {
+                    showCreatePin = false
+                    persistLock(true)
+                }
+            )
+        }
     }
 }

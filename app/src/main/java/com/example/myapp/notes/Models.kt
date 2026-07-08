@@ -24,7 +24,9 @@ data class Note(
     val content: String = "",
     val updatedAt: Long = System.currentTimeMillis(),
     // Index into the note color palette; 0 means no color.
-    val color: Int = 0
+    val color: Int = 0,
+    // When true, the note is gated behind the app PIN (see NoteLock).
+    val locked: Boolean = false
 ) {
     companion object {
         fun fromJson(json: JSONObject): Note {
@@ -33,7 +35,8 @@ data class Note(
                 title = json.optString("title", ""),
                 content = json.optString("content", ""),
                 updatedAt = json.optLong("updatedAt", System.currentTimeMillis()),
-                color = json.optInt("color", 0)
+                color = json.optInt("color", 0),
+                locked = json.optBoolean("locked", false)
             )
         }
 
@@ -54,6 +57,7 @@ fun Note.toJson(): JSONObject = JSONObject().also {
     it.put("content", content)
     it.put("updatedAt", updatedAt)
     it.put("color", color)
+    it.put("locked", locked)
 }
 
 fun notesToJsonString(notes: List<Note>): String {
@@ -76,6 +80,7 @@ interface NoteDao {
     @Upsert suspend fun upsertNote(note: Note)
     @Upsert suspend fun upsertNotes(notes: List<Note>)
     @Query("DELETE FROM notes WHERE id = :id") suspend fun deleteNote(id: String)
+    @Query("UPDATE notes SET locked = 0") suspend fun unlockAll()
 }
 
 // A note is plain text; a line starting with one of these prefixes renders as a checkbox.

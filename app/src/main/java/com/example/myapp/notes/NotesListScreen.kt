@@ -19,6 +19,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -84,6 +85,10 @@ fun NotesListScreen(navController: NavController) {
     val dao = remember { AppDatabase.get(context).noteDao() }
 
     var notes by remember { mutableStateOf<List<Note>?>(null) }
+    LaunchedEffect(dao) {
+        // CLI escape hatch: unlock everything if the reset sentinel file is present
+        NoteLock.applyResetSentinelIfPresent(context, dao)
+    }
     LaunchedEffect(dao) {
         dao.observeNotes().collect { notes = it }
     }
@@ -214,22 +219,40 @@ private fun NoteItem(
         elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
     ) {
         Column(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
-            Text(
-                title,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            if (preview.isNotEmpty()) {
-                Spacer(Modifier.height(4.dp))
+            if (note.locked) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Default.Lock,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(Modifier.size(8.dp))
+                    Text(
+                        note.title.ifBlank { "Note verrouillée" },
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            } else {
                 Text(
-                    preview,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Color.Gray,
-                    maxLines = 3,
+                    title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
+                if (preview.isNotEmpty()) {
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        preview,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color.Gray,
+                        maxLines = 3,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
             }
             Spacer(Modifier.height(4.dp))
             Text(
@@ -247,13 +270,15 @@ private fun NoteItem(
                 ) {
                     Icon(Icons.Default.Palette, contentDescription = "Couleur aléatoire")
                 }
-                Spacer(Modifier.size(4.dp))
-                val clipboard = LocalClipboardManager.current
-                IconButton(
-                    onClick = { clipboard.setText(AnnotatedString(note.content)) },
-                    modifier = Modifier.size(36.dp)
-                ) {
-                    Icon(Icons.Default.ContentCopy, contentDescription = "Copier le contenu")
+                if (!note.locked) {
+                    Spacer(Modifier.size(4.dp))
+                    val clipboard = LocalClipboardManager.current
+                    IconButton(
+                        onClick = { clipboard.setText(AnnotatedString(note.content)) },
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(Icons.Default.ContentCopy, contentDescription = "Copier le contenu")
+                    }
                 }
                 Spacer(Modifier.size(4.dp))
                 IconButton(
