@@ -8,6 +8,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.text.Normalizer
 import java.util.UUID
+import kotlin.math.roundToLong
 
 
 @Entity(tableName = "lists")
@@ -148,6 +149,34 @@ fun formatDuration(ms: Long, detailed: Boolean = false): String {
     }
 }
 
+/** One bar of the wait time histogram: a contiguous range of remaining time and how many cards fall in it. */
+data class WaitTimeBucket(val label: String, val count: Int)
+
+/**
+ * Splits [waitTimesMs] into up to [maxBuckets] equal-width ranges spanning the actual min to max of the
+ * data, so bin width adapts to whatever time scale the deck is currently at (all cards a few hours apart,
+ * or spread over months) instead of assuming one fixed scale.
+ */
+fun computeWaitTimeBuckets(waitTimesMs: List<Long>, maxBuckets: Int = 6): List<WaitTimeBucket> {
+    if (waitTimesMs.isEmpty()) return emptyList()
+    val min = waitTimesMs.min()
+    val max = waitTimesMs.max()
+    if (min == max) return listOf(WaitTimeBucket(formatDuration(min), waitTimesMs.size))
+
+    val width = (max - min).toDouble() / maxBuckets
+    val edges = (0..maxBuckets).map { i -> min + (width * i).roundToLong() }.distinct()
+    val bucketCount = edges.size - 1
+    if (bucketCount <= 0) return listOf(WaitTimeBucket(formatDuration(min), waitTimesMs.size))
+
+    return (0 until bucketCount).map { i ->
+        val low = edges[i]
+        val high = edges[i + 1]
+        val isLast = i == bucketCount - 1
+        val count = waitTimesMs.count { if (isLast) it in low..high else it in low until high }
+        WaitTimeBucket(formatDuration(low), count)
+    }
+}
+
 fun FlashcardList.toJson(): JSONObject = JSONObject().also {
     it.put("id", id)
     it.put("name", name)
@@ -176,7 +205,8 @@ data class FlashcardStats(
     val totalLosses: Int,
     val scoreBuckets: List<Pair<Int, Int>>,
     /** Mean of the time remaining before each card is due again (due cards count as 0), -1 if no cards. */
-    val meanTimeUntilNextReviewMs: Long
+    val meanTimeUntilNextReviewMs: Long,
+    val waitTimeBuckets: List<WaitTimeBucket>
 ) {
     val winRate: Float get() =
         if (totalWins + totalLosses > 0) totalWins.toFloat() / (totalWins + totalLosses) else -1f
