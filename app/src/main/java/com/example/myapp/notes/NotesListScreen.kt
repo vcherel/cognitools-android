@@ -80,9 +80,9 @@ private fun noteCardColor(index: Int, dark: Boolean): Color? =
         if (dark) NOTE_COLORS_DARK[index - 1] else NOTE_COLORS_LIGHT[index - 1]
     } else null
 
-/** A random palette index, always different from the current one. */
-private fun randomNoteColor(current: Int): Int =
-    (1..NOTE_COLORS_LIGHT.size).filter { it != current }.random()
+/** The next palette index in a fixed cycle, wrapping back to the first after the last. */
+private fun nextNoteColor(current: Int): Int =
+    if (current in 1 until NOTE_COLORS_LIGHT.size) current + 1 else 1
 
 @Composable
 fun NotesListScreen(navController: NavController) {
@@ -219,7 +219,7 @@ fun NotesListScreen(navController: NavController) {
                                     onNavigate = { navController.navigate("note/${note.id}") },
                                     onRecolor = {
                                         // Keep updatedAt so recoloring does not reorder the list
-                                        scope.launch { dao.upsertNote(note.copy(color = randomNoteColor(note.color))) }
+                                        scope.launch { dao.upsertNote(note.copy(color = nextNoteColor(note.color))) }
                                     },
                                     onDelete = { scope.launch { dao.deleteNote(note.id) } }
                                 )
