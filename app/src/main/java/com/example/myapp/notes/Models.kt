@@ -5,6 +5,7 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withStyle
 import androidx.room.Dao
 import androidx.room.Entity
@@ -90,27 +91,33 @@ fun String.isCheckedLine(): Boolean = startsWith(CHECKED_PREFIX)
 fun String.checkboxText(): String =
     if (isCheckboxLine()) substring(UNCHECKED_PREFIX.length) else this
 
-// Inline markers within a line: **gras**, *italique*, ***les deux***. The
-// markers stay in the stored text and are hidden when rendering.
+// Inline markers within a line: **gras**, *italique*, ***les deux***,
+// __souligné__. The markers stay in the stored text and are hidden when
+// rendering. Content inside a marker pair is parsed again, so markers combine.
 fun String.formatInline(): AnnotatedString {
     val s = this
     return buildAnnotatedString {
         var i = 0
         while (i < s.length) {
-            if (s[i] == '*') {
-                var stars = 1
-                while (stars < 3 && i + stars < s.length && s[i + stars] == '*') stars++
-                val marker = "*".repeat(stars)
-                val close = s.indexOf(marker, i + stars)
-                if (close > i + stars) {
-                    val style = when (stars) {
-                        3 -> SpanStyle(fontWeight = FontWeight.Bold, fontStyle = FontStyle.Italic)
-                        2 -> SpanStyle(fontWeight = FontWeight.Bold)
-                        else -> SpanStyle(fontStyle = FontStyle.Italic)
+            val c = s[i]
+            if (c == '*' || c == '_') {
+                var run = 1
+                val maxRun = if (c == '*') 3 else 2
+                while (run < maxRun && i + run < s.length && s[i + run] == c) run++
+                if (c == '*' || run == 2) {
+                    val marker = c.toString().repeat(run)
+                    val close = s.indexOf(marker, i + run)
+                    if (close > i + run) {
+                        val style = when {
+                            c == '_' -> SpanStyle(textDecoration = TextDecoration.Underline)
+                            run == 3 -> SpanStyle(fontWeight = FontWeight.Bold, fontStyle = FontStyle.Italic)
+                            run == 2 -> SpanStyle(fontWeight = FontWeight.Bold)
+                            else -> SpanStyle(fontStyle = FontStyle.Italic)
+                        }
+                        withStyle(style) { append(s.substring(i + run, close).formatInline()) }
+                        i = close + run
+                        continue
                     }
-                    withStyle(style) { append(s.substring(i + stars, close)) }
-                    i = close + stars
-                    continue
                 }
             }
             append(s[i])

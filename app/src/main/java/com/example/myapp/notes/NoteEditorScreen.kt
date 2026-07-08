@@ -27,6 +27,7 @@ import androidx.compose.material.icons.filled.CheckBoxOutlineBlank
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FormatBold
 import androidx.compose.material.icons.filled.FormatItalic
+import androidx.compose.material.icons.filled.FormatUnderlined
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -339,6 +340,9 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
                     }
                     IconButton(onClick = { toggleInlineMarker("*") }) {
                         Icon(Icons.Default.FormatItalic, contentDescription = "Italique")
+                    }
+                    IconButton(onClick = { toggleInlineMarker("__") }) {
+                        Icon(Icons.Default.FormatUnderlined, contentDescription = "Souligné")
                     }
                 }
                 if (!isEditing && textValue.text.hasCheckboxLine()) {
