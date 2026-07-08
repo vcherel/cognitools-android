@@ -20,6 +20,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.input.InputTransformation
+import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.foundation.text.input.TextFieldState
+import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -63,7 +67,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.KeyboardCapitalization
-import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -80,42 +83,46 @@ import kotlinx.coroutines.launch
  * within the prefix of a non empty checkbox line inserts an empty checkbox
  * above the item.
  */
-private fun autoContinueCheckbox(old: TextFieldValue, new: TextFieldValue): TextFieldValue {
-    val cursor = new.selection.start
-    val typedNewline = new.text.length == old.text.length + 1 &&
-        cursor > 0 && cursor <= new.text.length && new.text[cursor - 1] == '\n'
-    if (!typedNewline) return new
+private val autoContinueCheckboxTransformation = InputTransformation {
+    val cursor = selection.start
+    val oldText = originalText.toString()
+    val typedNewline = length == oldText.length + 1 &&
+        cursor > 0 && cursor <= length && charAt(cursor - 1) == '\n'
+    if (!typedNewline) return@InputTransformation
 
     val oldCursor = cursor - 1
-    val oldLineStart = if (oldCursor == 0) 0 else old.text.lastIndexOf('\n', oldCursor - 1) + 1
-    val oldLineEnd = old.text.indexOf('\n', oldCursor).let { if (it == -1) old.text.length else it }
-    val oldLine = old.text.substring(oldLineStart, oldLineEnd)
+    val oldLineStart = if (oldCursor == 0) 0 else oldText.lastIndexOf('\n', oldCursor - 1) + 1
+    val oldLineEnd = oldText.indexOf('\n', oldCursor).let { if (it == -1) oldText.length else it }
+    val oldLine = oldText.substring(oldLineStart, oldLineEnd)
     if (oldLine.isCheckboxLine() &&
         oldCursor - oldLineStart <= UNCHECKED_PREFIX.length &&
         oldLine.checkboxText().isNotBlank()
     ) {
-        return TextFieldValue(
-            text = old.text.substring(0, oldLineStart) + UNCHECKED_PREFIX + "\n" +
-                old.text.substring(oldLineStart),
-            selection = TextRange(oldLineStart + UNCHECKED_PREFIX.length)
-        )
+        replace(oldLineStart, oldLineStart, UNCHECKED_PREFIX + "\n")
+        selection = TextRange(oldLineStart + UNCHECKED_PREFIX.length)
+        return@InputTransformation
     }
 
-    val prevLineStart = if (cursor == 1) 0 else new.text.lastIndexOf('\n', cursor - 2) + 1
-    val prevLine = new.text.substring(prevLineStart, cursor - 1)
-    if (!prevLine.isCheckboxLine()) return new
+    val newText = asCharSequence().toString()
+    val prevLineStart = if (cursor == 1) 0 else newText.lastIndexOf('\n', cursor - 2) + 1
+    val prevLine = newText.substring(prevLineStart, cursor - 1)
+    if (!prevLine.isCheckboxLine()) return@InputTransformation
 
-    return if (prevLine.checkboxText().isBlank()) {
+    if (prevLine.checkboxText().isBlank()) {
         // Empty checkbox line: Enter exits the list, dropping the empty item
-        TextFieldValue(
-            text = new.text.substring(0, prevLineStart) + new.text.substring(cursor),
-            selection = TextRange(prevLineStart)
-        )
+        replace(prevLineStart, cursor, "")
+        selection = TextRange(prevLineStart)
     } else {
-        TextFieldValue(
-            text = new.text.substring(0, cursor) + UNCHECKED_PREFIX + new.text.substring(cursor),
-            selection = TextRange(cursor + UNCHECKED_PREFIX.length)
-        )
+        replace(cursor, cursor, UNCHECKED_PREFIX)
+        selection = TextRange(cursor + UNCHECKED_PREFIX.length)
+    }
+}
+
+// The title field is single line; strips any newline that sneaks in (e.g. from pasted text).
+private val stripNewlinesTransformation = InputTransformation {
+    var i = 0
+    while (i < length) {
+        if (charAt(i) == '\n') replace(i, i + 1, "") else i++
     }
 }
 
@@ -130,10 +137,10 @@ private val SLASH_COMMANDS = listOf(
  * If the cursor sits in a "/commande" token at the start of its line, returns
  * the token start index and the text typed after the slash.
  */
-private fun slashQuery(value: TextFieldValue): Pair<Int, String>? {
-    if (!value.selection.collapsed) return null
-    val cursor = value.selection.start
-    val text = value.text
+private fun slashQuery(state: TextFieldState): Pair<Int, String>? {
+    if (!state.selection.collapsed) return null
+    val cursor = state.selection.start
+    val text = state.text.toString()
     if (cursor > text.length) return null
     val lineStart = if (cursor == 0) 0 else text.lastIndexOf('\n', cursor - 1) + 1
     if (cursor <= lineStart || text.getOrNull(lineStart) != '/') return null
@@ -151,8 +158,8 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
     val id = remember { if (isNew) UUID.randomUUID().toString() else noteId }
 
     var isEditing by remember { mutableStateOf(isNew) }
-    var titleValue by remember { mutableStateOf("") }
-    var textValue by remember { mutableStateOf(TextFieldValue("")) }
+    val titleFieldState = remember { TextFieldState() }
+    val textFieldState = remember { TextFieldState() }
     var noteColor by remember { mutableStateOf(0) }
     var locked by remember { mutableStateOf(false) }
     // A locked note stays gated until the PIN is entered (or it is a new note)
@@ -164,8 +171,8 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
     // Snapshot of the note as currently edited
     fun currentNote() = Note(
         id = id,
-        title = titleValue,
-        content = textValue.text,
+        title = titleFieldState.text.toString(),
+        content = textFieldState.text.toString(),
         updatedAt = System.currentTimeMillis(),
         color = noteColor,
         locked = locked
@@ -175,18 +182,18 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
         if (!isNew) {
             val note = dao.getNote(noteId)
             val content = note?.content ?: ""
-            titleValue = note?.title ?: ""
+            titleFieldState.setTextAndPlaceCursorAtEnd(note?.title ?: "")
             noteColor = note?.color ?: 0
             locked = note?.locked ?: false
             unlocked = !(note?.locked ?: false)
-            textValue = TextFieldValue(content, TextRange(content.length))
-            lastSaved = titleValue to content
+            textFieldState.setTextAndPlaceCursorAtEnd(content)
+            lastSaved = titleFieldState.text.toString() to content
         }
     }
 
     // Debounced autosave while typing
-    LaunchedEffect(titleValue, textValue.text) {
-        val current = titleValue to textValue.text
+    LaunchedEffect(titleFieldState.text.toString(), textFieldState.text.toString()) {
+        val current = titleFieldState.text.toString() to textFieldState.text.toString()
         if (lastSaved == null || current == lastSaved) return@LaunchedEffect
         delay(600)
         if (current.first.isNotBlank() || current.second.isNotBlank()) {
@@ -198,7 +205,7 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
     // Saves pending changes right away, e.g. when leaving the edit mode
     fun saveNow() {
         if (lastSaved == null) return
-        val current = titleValue to textValue.text
+        val current = titleFieldState.text.toString() to textFieldState.text.toString()
         if (current == lastSaved) return
         if (current.first.isNotBlank() || current.second.isNotBlank()) {
             lastSaved = current
@@ -210,7 +217,7 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
     fun finish() {
         scope.launch {
             if (lastSaved != null) {
-                val current = titleValue to textValue.text
+                val current = titleFieldState.text.toString() to textFieldState.text.toString()
                 if (current.first.isBlank() && current.second.isBlank()) {
                     dao.deleteNote(id)
                 } else if (current != lastSaved) {
@@ -223,8 +230,8 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
 
     // Immediate save for changes made from the view mode (checkbox toggles, reorders)
     fun saveContent(newText: String) {
-        textValue = textValue.copy(text = newText)
-        lastSaved = titleValue to newText
+        textFieldState.edit { replace(0, length, newText) }
+        lastSaved = titleFieldState.text.toString() to newText
         val note = currentNote()
         scope.launch { dao.upsertNote(note) }
     }
@@ -233,15 +240,15 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
     // save yet; the flag rides along on the next autosave once it has content.
     fun persistLock(newLocked: Boolean) {
         locked = newLocked
-        if (lastSaved != null && (titleValue.isNotBlank() || textValue.text.isNotBlank())) {
-            lastSaved = titleValue to textValue.text
+        if (lastSaved != null && (titleFieldState.text.isNotBlank() || textFieldState.text.isNotBlank())) {
+            lastSaved = titleFieldState.text.toString() to textFieldState.text.toString()
             val note = currentNote()
             scope.launch { dao.upsertNote(note) }
         }
     }
 
     fun toggleLine(index: Int) {
-        val lines = textValue.text.split("\n").toMutableList()
+        val lines = textFieldState.text.toString().split("\n").toMutableList()
         val line = lines[index]
         lines[index] = if (line.isCheckedLine()) {
             UNCHECKED_PREFIX + line.checkboxText()
@@ -254,7 +261,7 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
     val snackbarHostState = remember { SnackbarHostState() }
 
     fun deleteLine(index: Int) {
-        val lines = textValue.text.split("\n").toMutableList()
+        val lines = textFieldState.text.toString().split("\n").toMutableList()
         val removed = lines.removeAt(index)
         saveContent(lines.joinToString("\n"))
         scope.launch {
@@ -266,7 +273,7 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
                 duration = SnackbarDuration.Short
             )
             if (result == SnackbarResult.ActionPerformed) {
-                val current = textValue.text.split("\n").toMutableList()
+                val current = textFieldState.text.toString().split("\n").toMutableList()
                 current.add(index.coerceAtMost(current.size), removed)
                 saveContent(current.joinToString("\n"))
             }
@@ -276,27 +283,25 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
     // Wraps the selection in the marker (or removes it when already wrapped);
     // with no selection, inserts a marker pair and puts the cursor inside
     fun toggleInlineMarker(marker: String) {
-        val text = textValue.text
-        val start = textValue.selection.min
-        val end = textValue.selection.max
+        val text = textFieldState.text.toString()
+        val start = textFieldState.selection.min
+        val end = textFieldState.selection.max
         val m = marker.length
-        textValue = if (start >= m && end + m <= text.length &&
-            text.startsWith(marker, start - m) && text.startsWith(marker, end)
-        ) {
-            TextFieldValue(
-                text = text.substring(0, start - m) + text.substring(start, end) + text.substring(end + m),
+        textFieldState.edit {
+            if (start >= m && end + m <= text.length &&
+                text.startsWith(marker, start - m) && text.startsWith(marker, end)
+            ) {
+                replace(end, end + m, "")
+                replace(start - m, start, "")
                 selection = TextRange(start - m, end - m)
-            )
-        } else if (start == end) {
-            TextFieldValue(
-                text = text.substring(0, start) + marker + marker + text.substring(start),
+            } else if (start == end) {
+                replace(start, start, marker + marker)
                 selection = TextRange(start + m)
-            )
-        } else {
-            TextFieldValue(
-                text = text.substring(0, start) + marker + text.substring(start, end) + marker + text.substring(end),
+            } else {
+                replace(end, end, marker)
+                replace(start, start, marker)
                 selection = TextRange(start + m, end + m)
-            )
+            }
         }
     }
 
@@ -334,7 +339,7 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
                         Icon(Icons.Default.Lock, contentDescription = null, modifier = Modifier.size(48.dp))
                         Spacer(Modifier.height(12.dp))
                         Text(
-                            titleValue.ifBlank { "Note verrouillée" },
+                            titleFieldState.text.toString().ifBlank { "Note verrouillée" },
                             style = MaterialTheme.typography.titleMedium
                         )
                     }
@@ -357,18 +362,18 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Retour")
                 }
                 BasicTextField(
-                    value = titleValue,
-                    onValueChange = { titleValue = it.replace("\n", "") },
-                    singleLine = true,
+                    state = titleFieldState,
+                    inputTransformation = stripNewlinesTransformation,
+                    lineLimits = TextFieldLineLimits.SingleLine,
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
                     modifier = Modifier.padding(start = 8.dp).weight(1f),
                     textStyle = MaterialTheme.typography.headlineSmall.copy(
                         color = MaterialTheme.colorScheme.onBackground
                     ),
                     cursorBrush = SolidColor(MaterialTheme.colorScheme.onBackground),
-                    decorationBox = { innerTextField ->
+                    decorator = { innerTextField ->
                         Box {
-                            if (titleValue.isEmpty()) {
+                            if (titleFieldState.text.isEmpty()) {
                                 Text(
                                     "Note",
                                     style = MaterialTheme.typography.headlineSmall,
@@ -401,11 +406,11 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
                         Icon(Icons.Default.FormatUnderlined, contentDescription = "Souligné")
                     }
                 }
-                if (!isEditing && textValue.text.hasCheckboxLine()) {
-                    IconButton(onClick = { saveContent(setAllCheckboxes(textValue.text, true)) }) {
+                if (!isEditing && textFieldState.text.toString().hasCheckboxLine()) {
+                    IconButton(onClick = { saveContent(setAllCheckboxes(textFieldState.text.toString(), true)) }) {
                         Icon(Icons.Default.CheckBox, contentDescription = "Tout cocher")
                     }
-                    IconButton(onClick = { saveContent(setAllCheckboxes(textValue.text, false)) }) {
+                    IconButton(onClick = { saveContent(setAllCheckboxes(textFieldState.text.toString(), false)) }) {
                         Icon(Icons.Default.CheckBoxOutlineBlank, contentDescription = "Tout décocher")
                     }
                 }
@@ -415,7 +420,7 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
 
             if (isEditing) {
                 // Typing "/" at the start of a line proposes commands as chips
-                val slash = slashQuery(textValue)
+                val slash = slashQuery(textFieldState)
                 val slashMatches = if (slash == null) emptyList() else SLASH_COMMANDS.filter { cmd ->
                     cmd.keywords.any { it.startsWith(slash.second, ignoreCase = true) }
                 }
@@ -425,12 +430,11 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
                             SuggestionChip(
                                 onClick = {
                                     val lineStart = slash!!.first
-                                    val text = textValue.text
-                                    val cursor = textValue.selection.start
-                                    textValue = TextFieldValue(
-                                        text = text.substring(0, lineStart) + cmd.prefix + text.substring(cursor),
+                                    val cursor = textFieldState.selection.start
+                                    textFieldState.edit {
+                                        replace(lineStart, cursor, cmd.prefix)
                                         selection = TextRange(lineStart + cmd.prefix.length)
-                                    )
+                                    }
                                 },
                                 label = { Text(cmd.label) }
                             )
@@ -440,8 +444,8 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
                 }
 
                 BasicTextField(
-                    value = textValue,
-                    onValueChange = { new -> textValue = autoContinueCheckbox(textValue, new) },
+                    state = textFieldState,
+                    inputTransformation = autoContinueCheckboxTransformation,
                     modifier = Modifier
                         .fillMaxSize()
                         .focusRequester(focusRequester),
@@ -452,10 +456,10 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
                     cursorBrush = SolidColor(MaterialTheme.colorScheme.onBackground)
                 )
             } else {
-                val lines = textValue.text.split("\n")
+                val lines = textFieldState.text.toString().split("\n")
 
                 // Character offset of the start of each line, for double tap to edit
-                val lineStarts = remember(textValue.text) {
+                val lineStarts = remember(textFieldState.text.toString()) {
                     val starts = IntArray(lines.size)
                     var acc = 0
                     lines.forEachIndexed { i, l ->
@@ -466,9 +470,9 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
                 }
 
                 fun enterEditAt(offset: Int) {
-                    textValue = textValue.copy(
-                        selection = TextRange(offset.coerceIn(0, textValue.text.length))
-                    )
+                    textFieldState.edit {
+                        selection = TextRange(offset.coerceIn(0, length))
+                    }
                     isEditing = true
                 }
 
@@ -482,10 +486,10 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
                 fun endDrag(commit: Boolean) {
                     val order = displayOrder
                     if (commit && order != null) {
-                        val current = textValue.text.split("\n")
+                        val current = textFieldState.text.toString().split("\n")
                         if (order.size == current.size) {
                             val newText = order.joinToString("\n") { current[it] }
-                            if (newText != textValue.text) saveContent(newText)
+                            if (newText != textFieldState.text.toString()) saveContent(newText)
                         }
                     }
                     displayOrder = null
@@ -528,8 +532,8 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
                     modifier = Modifier
                         .fillMaxSize()
                         .verticalScroll(rememberScrollState())
-                        .pointerInput(textValue.text) {
-                            detectTapGestures(onDoubleTap = { enterEditAt(textValue.text.length) })
+                        .pointerInput(textFieldState.text.toString()) {
+                            detectTapGestures(onDoubleTap = { enterEditAt(textFieldState.text.length) })
                         }
                 ) {
                     (displayOrder ?: lines.indices.toList()).forEach { lineIndex ->
@@ -553,7 +557,7 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
                                             onDragStart = {
                                                 draggedLine = lineIndex
                                                 dragOffset = 0f
-                                                displayOrder = textValue.text.split("\n").indices.toList()
+                                                displayOrder = textFieldState.text.toString().split("\n").indices.toList()
                                             },
                                             onDrag = { change, amount ->
                                                 change.consume()
@@ -571,7 +575,7 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .padding(vertical = 4.dp)
-                                            .pointerInput(textValue.text) {
+                                            .pointerInput(textFieldState.text.toString()) {
                                                 detectTapGestures(onDoubleTap = {
                                                     enterEditAt(lineStarts[lineIndex] + line.length)
                                                 })
@@ -615,7 +619,7 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
                                             onTextLayout = { textLayout[0] = it },
                                             modifier = Modifier
                                                 .weight(1f)
-                                                .pointerInput(textValue.text) {
+                                                .pointerInput(textFieldState.text.toString()) {
                                                     detectTapGestures(
                                                         onTap = { toggleLine(lineIndex) },
                                                         onDoubleTap = { pos ->
@@ -648,7 +652,7 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .padding(vertical = 4.dp)
-                                            .pointerInput(textValue.text) {
+                                            .pointerInput(textFieldState.text.toString()) {
                                                 detectTapGestures(onDoubleTap = { pos ->
                                                     val inLine = textLayout[0]?.getOffsetForPosition(pos) ?: line.length
                                                     enterEditAt(lineStarts[lineIndex] + inLine.coerceIn(0, line.length))
