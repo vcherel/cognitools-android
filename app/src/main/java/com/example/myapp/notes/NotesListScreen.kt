@@ -1,5 +1,6 @@
 package com.example.myapp.notes
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -17,16 +18,19 @@ import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
 import androidx.compose.foundation.lazy.staggeredgrid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -37,6 +41,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
@@ -93,6 +99,17 @@ fun NotesListScreen(navController: NavController) {
         dao.observeNotes().collect { notes = it }
     }
 
+    var searchActive by remember { mutableStateOf(false) }
+    var searchQuery by remember { mutableStateOf("") }
+    val searchFocusRequester = remember { FocusRequester() }
+    LaunchedEffect(searchActive) {
+        if (searchActive) searchFocusRequester.requestFocus()
+    }
+    BackHandler(enabled = searchActive) {
+        searchActive = false
+        searchQuery = ""
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
@@ -109,28 +126,57 @@ fun NotesListScreen(navController: NavController) {
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.weight(1f)
                 ) {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Retour")
+                    if (searchActive) {
+                        OutlinedTextField(
+                            value = searchQuery,
+                            onValueChange = { searchQuery = it },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .focusRequester(searchFocusRequester),
+                            placeholder = { Text("Rechercher dans les notes") },
+                            singleLine = true,
+                            leadingIcon = {
+                                IconButton(onClick = { searchActive = false; searchQuery = "" }) {
+                                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Fermer la recherche")
+                                }
+                            },
+                            trailingIcon = {
+                                if (searchQuery.isNotEmpty()) {
+                                    IconButton(onClick = { searchQuery = "" }) {
+                                        Icon(Icons.Default.Close, contentDescription = "Effacer")
+                                    }
+                                }
+                            }
+                        )
+                    } else {
+                        IconButton(onClick = { navController.popBackStack() }) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Retour")
+                        }
+                        Text(
+                            "Notes",
+                            style = MaterialTheme.typography.headlineSmall,
+                            modifier = Modifier.padding(start = 8.dp)
+                        )
                     }
-                    Text(
-                        "Notes",
-                        style = MaterialTheme.typography.headlineSmall,
-                        modifier = Modifier.padding(start = 8.dp)
-                    )
                 }
 
-                Row {
-                    BackupRestoreActions(
-                        backupFileName = "cognitools_notes.json",
-                        importDialogText = "Les notes du fichier seront ajoutées. " +
-                                "Celles qui existent déjà seront remplacées par la version du fichier.",
-                        createBackupJson = { notesToJsonString(dao.getNotes()) },
-                        importFromJson = { json ->
-                            val imported = Note.listFromJsonString(json)
-                            if (imported.isEmpty()) throw IllegalArgumentException("Aucune note dans le fichier")
-                            dao.upsertNotes(imported)
+                if (!searchActive) {
+                    Row {
+                        IconButton(onClick = { searchActive = true }) {
+                            Icon(Icons.Default.Search, contentDescription = "Rechercher")
                         }
-                    )
+                        BackupRestoreActions(
+                            backupFileName = "cognitools_notes.json",
+                            importDialogText = "Les notes du fichier seront ajoutées. " +
+                                    "Celles qui existent déjà seront remplacées par la version du fichier.",
+                            createBackupJson = { notesToJsonString(dao.getNotes()) },
+                            importFromJson = { json ->
+                                val imported = Note.listFromJsonString(json)
+                                if (imported.isEmpty()) throw IllegalArgumentException("Aucune note dans le fichier")
+                                dao.upsertNotes(imported)
+                            }
+                        )
+                    }
                 }
             }
 
@@ -143,8 +189,19 @@ fun NotesListScreen(navController: NavController) {
                 contentAlignment = Alignment.Center
             ) {
                 val currentNotes = notes
+                val displayedNotes = currentNotes.orEmpty().let { list ->
+                    if (searchQuery.isBlank()) list
+                    else list.filter { note ->
+                        note.title.contains(searchQuery, ignoreCase = true) ||
+                                note.content.contains(searchQuery, ignoreCase = true)
+                    }
+                }
                 when {
                     currentNotes == null -> CircularProgressIndicator()
+                    displayedNotes.isEmpty() && searchQuery.isNotBlank() -> Text(
+                        "Aucun résultat",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
                     currentNotes.isEmpty() -> Text(
                         "Aucune note",
                         style = MaterialTheme.typography.bodyMedium
@@ -156,7 +213,7 @@ fun NotesListScreen(navController: NavController) {
                             horizontalArrangement = Arrangement.spacedBy(12.dp),
                             verticalItemSpacing = 12.dp
                         ) {
-                            items(items = currentNotes, key = { it.id }) { note ->
+                            items(items = displayedNotes, key = { it.id }) { note ->
                                 NoteItem(
                                     note = note,
                                     onNavigate = { navController.navigate("note/${note.id}") },
