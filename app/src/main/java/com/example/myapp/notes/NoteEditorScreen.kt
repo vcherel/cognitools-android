@@ -280,6 +280,19 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
         }
     }
 
+    // Wraps a whole line's text in the marker (or removes it when already wrapped)
+    fun toggleLineMarker(index: Int, marker: String) {
+        val lines = textFieldState.text.toString().split("\n").toMutableList()
+        val line = lines[index]
+        val m = marker.length
+        lines[index] = if (line.length >= 2 * m && line.startsWith(marker) && line.endsWith(marker)) {
+            line.substring(m, line.length - m)
+        } else {
+            marker + line + marker
+        }
+        saveContent(lines.joinToString("\n"))
+    }
+
     // Wraps the selection in the marker (or removes it when already wrapped);
     // with no selection, inserts a marker pair and puts the cursor inside
     fun toggleInlineMarker(marker: String) {
@@ -476,6 +489,9 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
                     isEditing = true
                 }
 
+                // Selected plain text line, showing the format/delete toolbar; -1 when none
+                var selectedLine by remember { mutableStateOf(-1) }
+
                 // Long press drag to reorder lines. While a drag is in progress,
                 // displayOrder holds the permuted line indices; otherwise it is null.
                 var displayOrder by remember { mutableStateOf<List<Int>?>(null) }
@@ -533,7 +549,10 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
                         .fillMaxSize()
                         .verticalScroll(rememberScrollState())
                         .pointerInput(textFieldState.text.toString()) {
-                            detectTapGestures(onDoubleTap = { enterEditAt(textFieldState.text.length) })
+                            detectTapGestures(
+                                onTap = { selectedLine = -1 },
+                                onDoubleTap = { enterEditAt(textFieldState.text.length) }
+                            )
                         }
                 ) {
                     (displayOrder ?: lines.indices.toList()).forEach { lineIndex ->
@@ -645,20 +664,61 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
                                         }
                                     }
                                 } else {
-                                    Text(
-                                        (if (line.isEmpty()) " " else line).formatInline(),
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        onTextLayout = { textLayout[0] = it },
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(vertical = 4.dp)
-                                            .pointerInput(textFieldState.text.toString()) {
-                                                detectTapGestures(onDoubleTap = { pos ->
-                                                    val inLine = textLayout[0]?.getOffsetForPosition(pos) ?: line.length
-                                                    enterEditAt(lineStarts[lineIndex] + inLine.coerceIn(0, line.length))
-                                                })
+                                    val selected = lineIndex == selectedLine
+                                    Column(modifier = Modifier.fillMaxWidth()) {
+                                        Text(
+                                            (if (line.isEmpty()) " " else line).formatInline(),
+                                            style = MaterialTheme.typography.bodyLarge,
+                                            onTextLayout = { textLayout[0] = it },
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .background(
+                                                    if (selected) MaterialTheme.colorScheme.surfaceVariant
+                                                    else Color.Transparent
+                                                )
+                                                .padding(vertical = 4.dp)
+                                                .pointerInput(textFieldState.text.toString()) {
+                                                    detectTapGestures(
+                                                        onTap = {
+                                                            selectedLine = if (selected) -1 else lineIndex
+                                                        },
+                                                        onDoubleTap = { pos ->
+                                                            selectedLine = -1
+                                                            val inLine = textLayout[0]?.getOffsetForPosition(pos) ?: line.length
+                                                            enterEditAt(lineStarts[lineIndex] + inLine.coerceIn(0, line.length))
+                                                        }
+                                                    )
+                                                }
+                                        )
+                                        if (selected) {
+                                            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                                IconButton(
+                                                    onClick = { toggleLineMarker(lineIndex, "**"); selectedLine = -1 },
+                                                    modifier = Modifier.size(36.dp)
+                                                ) {
+                                                    Icon(Icons.Default.FormatBold, contentDescription = "Gras", tint = Color.Gray)
+                                                }
+                                                IconButton(
+                                                    onClick = { toggleLineMarker(lineIndex, "*"); selectedLine = -1 },
+                                                    modifier = Modifier.size(36.dp)
+                                                ) {
+                                                    Icon(Icons.Default.FormatItalic, contentDescription = "Italique", tint = Color.Gray)
+                                                }
+                                                IconButton(
+                                                    onClick = { toggleLineMarker(lineIndex, "__"); selectedLine = -1 },
+                                                    modifier = Modifier.size(36.dp)
+                                                ) {
+                                                    Icon(Icons.Default.FormatUnderlined, contentDescription = "Souligné", tint = Color.Gray)
+                                                }
+                                                IconButton(
+                                                    onClick = { deleteLine(lineIndex); selectedLine = -1 },
+                                                    modifier = Modifier.size(36.dp)
+                                                ) {
+                                                    Icon(Icons.Default.Delete, contentDescription = "Supprimer la ligne", tint = Color.Gray)
+                                                }
                                             }
-                                    )
+                                        }
+                                    }
                                 }
                             }
                         }
