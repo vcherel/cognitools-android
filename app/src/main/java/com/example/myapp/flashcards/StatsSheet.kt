@@ -28,6 +28,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -117,6 +118,63 @@ fun StatsSheet(
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                    }
+                }
+
+                if (s.waitTimeBuckets.isNotEmpty()) {
+                    Spacer(Modifier.height(24.dp))
+                    Text("Répartition des délais", style = MaterialTheme.typography.titleSmall)
+                    Spacer(Modifier.height(8.dp))
+
+                    val maxWaitCount = s.waitTimeBuckets.maxOf { it.count }.coerceAtLeast(1)
+                    val waitColor = Color(0xFF2F86EB)
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(140.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        s.waitTimeBuckets.forEach { bucket ->
+                            Column(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxHeight(),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    "${bucket.count}",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1
+                                )
+                                Spacer(Modifier.height(4.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .fillMaxWidth(),
+                                    contentAlignment = Alignment.BottomCenter
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth(0.55f)
+                                            .fillMaxHeight(bucket.count.toFloat() / maxWaitCount)
+                                            .background(
+                                                waitColor.copy(alpha = 0.75f),
+                                                RoundedCornerShape(topStart = 6.dp, topEnd = 6.dp)
+                                            )
+                                    )
+                                }
+                                Spacer(Modifier.height(6.dp))
+                                Text(
+                                    bucket.label,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
                     }
                 }
             }

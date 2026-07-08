@@ -109,6 +109,7 @@ class FlashcardRepository(private val context: Context) {
         ensureMigrated()
         val elements = if (listId != null) dao.getElements(listId) else dao.getAllElements()
         val now = System.currentTimeMillis()
+        val waitTimes = elements.map { maxOf(0L, it.nextReviewAt - now) }
         return FlashcardStats(
             totalCards = elements.size,
             dueCards = elements.count { isDue(it, now) },
@@ -117,9 +118,8 @@ class FlashcardRepository(private val context: Context) {
             scoreBuckets = (0..10).map { score ->
                 score to elements.count { it.score.toInt().coerceIn(0, 10) == score }
             },
-            meanTimeUntilNextReviewMs = if (elements.isEmpty()) -1L else elements
-                .map { maxOf(0L, it.nextReviewAt - now) }
-                .average().toLong()
+            meanTimeUntilNextReviewMs = if (waitTimes.isEmpty()) -1L else waitTimes.average().toLong(),
+            waitTimeBuckets = computeWaitTimeBuckets(waitTimes)
         )
     }
 
