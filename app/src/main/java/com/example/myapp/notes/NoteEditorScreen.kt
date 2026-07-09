@@ -161,6 +161,10 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
     var isEditing by remember { mutableStateOf(isNew) }
     val titleFieldState = remember { TextFieldState() }
     val textFieldState = remember { TextFieldState() }
+    // Whether the current edit session inserted a fake blank line at the top/bottom
+    // of the content, to give room to type before the first line or after the last
+    var addedTopPad by remember { mutableStateOf(false) }
+    var addedBottomPad by remember { mutableStateOf(false) }
     var noteColor by remember { mutableStateOf(0) }
     var locked by remember { mutableStateOf(false) }
     // A locked note stays gated until the PIN is entered (or it is a new note)
@@ -236,6 +240,47 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
         lastSaved = titleFieldState.text.toString() to newText
         val note = currentNote()
         scope.launch { dao.upsertNote(note) }
+    }
+
+    // Inserts a blank line above/below the content if the first/last line isn't
+    // already blank, and shifts caretOffset to account for a line added above it
+    fun padForEditing(caretOffset: Int): Int {
+        val text = textFieldState.text.toString()
+        addedTopPad = false
+        addedBottomPad = false
+        if (text.isEmpty()) return caretOffset
+        val firstLineEnd = text.indexOf('\n').let { if (it == -1) text.length else it }
+        val lastLineStart = text.lastIndexOf('\n') + 1
+        val needsTopPad = firstLineEnd > 0
+        val needsBottomPad = lastLineStart < text.length
+        if (!needsTopPad && !needsBottomPad) return caretOffset
+        var offset = caretOffset
+        textFieldState.edit {
+            if (needsBottomPad) replace(text.length, text.length, "\n")
+            if (needsTopPad) {
+                replace(0, 0, "\n")
+                offset += 1
+            }
+        }
+        addedTopPad = needsTopPad
+        addedBottomPad = needsBottomPad
+        return offset
+    }
+
+    // Removes the fake padding lines added by padForEditing, but only the ones
+    // still empty; anything the user typed into them is kept
+    fun stripEditPadding() {
+        if (!addedTopPad && !addedBottomPad) return
+        textFieldState.edit {
+            if (addedBottomPad && length > 0 && asCharSequence()[length - 1] == '\n') {
+                replace(length - 1, length, "")
+            }
+            if (addedTopPad && length > 0 && asCharSequence()[0] == '\n') {
+                replace(0, 1, "")
+            }
+        }
+        addedTopPad = false
+        addedBottomPad = false
     }
 
     // Persists a lock/unlock toggle right away. An empty new note has nothing to
@@ -323,6 +368,7 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
     // While editing, back validates the note and shows the view instead of leaving
     fun goBack() {
         if (isEditing) {
+            stripEditPadding()
             saveNow()
             isEditing = false
         } else {
@@ -492,8 +538,9 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
                 }
 
                 fun enterEditAt(offset: Int) {
+                    val padded = padForEditing(offset)
                     textFieldState.edit {
-                        selection = TextRange(offset.coerceIn(0, length))
+                        selection = TextRange(padded.coerceIn(0, length))
                     }
                     isEditing = true
                 }
