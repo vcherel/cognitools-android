@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.staggeredgrid.LazyVerticalStaggeredGrid
 import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
+import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridItemSpan
 import androidx.compose.foundation.lazy.staggeredgrid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -26,6 +27,7 @@ import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -48,6 +50,7 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
@@ -196,14 +199,24 @@ fun NotesListScreen(navController: NavController) {
                                 note.content.contains(searchQuery, ignoreCase = true)
                     }
                 }
+                val todoNote = currentNotes?.firstOrNull {
+                    noteTitleAndPreview(it).first.equals("Todo list", ignoreCase = true)
+                }
+                // Pinned above the grid while browsing; excluded from the grid itself to
+                // avoid showing it twice. Hidden while searching so it doesn't get in the
+                // way of the results, at which point it behaves like a regular note again.
+                val pinnedTodo = if (searchQuery.isBlank()) todoNote else null
+                val gridNotes = if (pinnedTodo != null) {
+                    displayedNotes.filterNot { it.id == pinnedTodo.id }
+                } else displayedNotes
                 when {
                     currentNotes == null -> CircularProgressIndicator()
-                    displayedNotes.isEmpty() && searchQuery.isNotBlank() -> Text(
-                        "Aucun résultat",
-                        style = MaterialTheme.typography.bodyMedium
-                    )
                     currentNotes.isEmpty() -> Text(
                         "Aucune note",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    gridNotes.isEmpty() && pinnedTodo == null && searchQuery.isNotBlank() -> Text(
+                        "Aucun résultat",
                         style = MaterialTheme.typography.bodyMedium
                     )
                     else -> Box(modifier = Modifier.fillMaxSize()) {
@@ -213,7 +226,32 @@ fun NotesListScreen(navController: NavController) {
                             horizontalArrangement = Arrangement.spacedBy(12.dp),
                             verticalItemSpacing = 12.dp
                         ) {
-                            items(items = displayedNotes, key = { it.id }) { note ->
+                            if (pinnedTodo != null) {
+                                item(key = "todo-widget", span = StaggeredGridItemSpan.FullLine) {
+                                    TodoWidgetCard(
+                                        note = pinnedTodo,
+                                        onNavigate = { navController.navigate("note/${pinnedTodo.id}") },
+                                        onToggleLine = { index ->
+                                            val lines = pinnedTodo.content.split("\n").toMutableList()
+                                            val line = lines[index]
+                                            lines[index] = if (line.isCheckedLine()) {
+                                                UNCHECKED_PREFIX + line.checkboxText()
+                                            } else {
+                                                CHECKED_PREFIX + line.checkboxText()
+                                            }
+                                            scope.launch {
+                                                dao.upsertNote(
+                                                    pinnedTodo.copy(
+                                                        content = lines.joinToString("\n"),
+                                                        updatedAt = System.currentTimeMillis()
+                                                    )
+                                                )
+                                            }
+                                        }
+                                    )
+                                }
+                            }
+                            items(items = gridNotes, key = { it.id }) { note ->
                                 NoteItem(
                                     note = note,
                                     onNavigate = { navController.navigate("note/${note.id}") },
@@ -245,6 +283,95 @@ fun NotesListScreen(navController: NavController) {
                 modifier = Modifier.fillMaxWidth().height(100.dp),
                 onClick = { navController.navigate("note/new") }
             )
+        }
+    }
+}
+
+/** Pinned preview of the "Todo list" note: only the lines before its first separator, checkboxes toggle in place. */
+@Composable
+private fun TodoWidgetCard(
+    note: Note,
+    onNavigate: () -> Unit,
+    onToggleLine: (Int) -> Unit
+) {
+    val isDarkMode = LocalIsDarkMode.current
+    val cardColor = noteCardColor(note.color, isDarkMode)
+    val (title, _) = remember(note) { noteTitleAndPreview(note) }
+    val contentLines = remember(note.content) { note.content.split("\n") }
+    // When the title field is blank, noteTitleAndPreview falls back to the first
+    // content line; skip that line below so it isn't shown twice.
+    val titleLineIndex = remember(note, contentLines) {
+        if (note.title.isBlank()) contentLines.indexOfFirst { it.isNotBlank() && !it.isSeparatorLine() }
+        else -1
+    }
+    val bodyLines = remember(contentLines, titleLineIndex) {
+        contentLines.withIndex()
+            .takeWhile { !it.value.isSeparatorLine() }
+            .filter { it.index != titleLineIndex && it.value.isNotBlank() }
+    }
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onNavigate() },
+        colors = if (cardColor != null) {
+            CardDefaults.cardColors(
+                containerColor = cardColor,
+                contentColor = if (isDarkMode) Color(0xFFE8EAED) else Color(0xFF1F1F1F)
+            )
+        } else {
+            CardDefaults.cardColors()
+        },
+        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
+    ) {
+        Column(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
+            if (note.locked) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Default.Lock,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(Modifier.size(8.dp))
+                    Text(
+                        note.title.ifBlank { "Note verrouillée" },
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            } else {
+                Text(
+                    title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(Modifier.height(4.dp))
+                bodyLines.forEach { (index, line) ->
+                    if (line.isCheckboxLine()) {
+                        val checked = line.isCheckedLine()
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onToggleLine(index) }
+                        ) {
+                            Checkbox(checked = checked, onCheckedChange = { onToggleLine(index) })
+                            Text(
+                                line.checkboxText().formatInline(),
+                                style = MaterialTheme.typography.bodyMedium,
+                                textDecoration = if (checked) TextDecoration.LineThrough else TextDecoration.None,
+                                color = if (checked) Color.Gray else MaterialTheme.colorScheme.onBackground
+                            )
+                        }
+                    } else {
+                        Text(
+                            line.formatInline(),
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.padding(vertical = 8.dp)
+                        )
+                    }
+                }
+            }
         }
     }
 }
