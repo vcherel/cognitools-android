@@ -99,6 +99,7 @@ private val autoContinueCheckboxTransformation = InputTransformation {
         oldCursor - oldLineStart <= UNCHECKED_PREFIX.length &&
         oldLine.checkboxText().isNotBlank()
     ) {
+        replace(cursor - 1, cursor, "")
         replace(oldLineStart, oldLineStart, UNCHECKED_PREFIX + "\n")
         selection = TextRange(oldLineStart + UNCHECKED_PREFIX.length)
         return@InputTransformation
