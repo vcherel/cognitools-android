@@ -31,6 +31,7 @@ import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.CheckBox
 import androidx.compose.material.icons.filled.CheckBoxOutlineBlank
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.FormatBold
 import androidx.compose.material.icons.filled.FormatItalic
 import androidx.compose.material.icons.filled.FormatUnderlined
@@ -353,6 +354,27 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
             val note = currentNote()
             scope.launch { dao.upsertNote(note) }
         }
+    }
+
+    val frenchDays = listOf("lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche")
+
+    // Finds a "(jour)" day name on a "Muscu (jour)" checkbox line, regardless of note
+    fun muscuDayMatch(lineText: String) =
+        Regex("""^Muscu\s*\(([^)]+)\)""", RegexOption.IGNORE_CASE).find(lineText)
+            ?.takeIf { frenchDays.contains(it.groupValues[1].trim().lowercase()) }
+
+    // Bumps the day in a "Muscu (jour)" checkbox line two days forward, wrapping
+    // across the week, so a tap after a session sets it to the next planned one
+    fun advanceMuscuLineDay(index: Int) {
+        val lines = textFieldState.text.toString().split("\n").toMutableList()
+        val text = lines[index].checkboxText()
+        val match = muscuDayMatch(text) ?: return
+        val dayGroup = match.groups[1]!!
+        val dayIndex = frenchDays.indexOf(dayGroup.value.trim().lowercase())
+        val newDay = frenchDays[(dayIndex + 2) % 7]
+        val newText = text.substring(0, dayGroup.range.first) + newDay + text.substring(dayGroup.range.last + 1)
+        lines[index] = lines[index].substring(0, UNCHECKED_PREFIX.length) + newText
+        saveContent(lines.joinToString("\n"))
     }
 
     fun toggleLine(index: Int) {
@@ -713,6 +735,7 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
                 )
             } else {
                 val isIngredientsNote = titleFieldState.text.toString().equals("Ingrédients", ignoreCase = true)
+                val isTodoListNote = titleFieldState.text.toString().equals("Todo list", ignoreCase = true)
                 val lines = textFieldState.text.toString().split("\n")
 
                 // Character offset of the start of each line, for double tap to edit
@@ -905,6 +928,18 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
                                                 Icon(
                                                     Icons.Default.ShoppingCart,
                                                     contentDescription = "Déplacer vers Courses",
+                                                    tint = Color.Gray
+                                                )
+                                            }
+                                        }
+                                        if (isTodoListNote && muscuDayMatch(line.checkboxText()) != null) {
+                                            IconButton(
+                                                onClick = { advanceMuscuLineDay(lineIndex) },
+                                                modifier = Modifier.size(36.dp)
+                                            ) {
+                                                Icon(
+                                                    Icons.Default.FitnessCenter,
+                                                    contentDescription = "Jour suivant",
                                                     tint = Color.Gray
                                                 )
                                             }
