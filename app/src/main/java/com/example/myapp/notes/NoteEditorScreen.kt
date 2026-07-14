@@ -388,15 +388,32 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
         }
     }
 
+    // Bold ("**") and italic ("*") both use the asterisk, so a plain prefix check can't
+    // tell "already bold, adding italic" from "already italic": the asterisk run length
+    // (0..3) encodes the combination, matching formatInline (1 = italic, 2 = bold, 3 = both).
+    // Toggling a style flips its bit in that run length instead of blindly wrapping.
+    fun asteriskBit(marker: String) = if (marker == "*") 1 else 2
+
     // Wraps a whole line's text in the marker (or removes it when already wrapped)
     fun toggleLineMarker(index: Int, marker: String) {
         val lines = textFieldState.text.toString().split("\n").toMutableList()
         val line = lines[index]
-        val m = marker.length
-        lines[index] = if (line.length >= 2 * m && line.startsWith(marker) && line.endsWith(marker)) {
-            line.substring(m, line.length - m)
+        lines[index] = if (marker == "*" || marker == "**") {
+            var run = 0
+            while (run < 3 && run < line.length && line[run] == '*') run++
+            var runEnd = 0
+            while (runEnd < 3 && runEnd < line.length - run && line[line.length - 1 - runEnd] == '*') runEnd++
+            val oldRun = minOf(run, runEnd)
+            val inner = line.substring(oldRun, line.length - oldRun)
+            val newRun = oldRun xor asteriskBit(marker)
+            "*".repeat(newRun) + inner + "*".repeat(newRun)
         } else {
-            marker + line + marker
+            val m = marker.length
+            if (line.length >= 2 * m && line.startsWith(marker) && line.endsWith(marker)) {
+                line.substring(m, line.length - m)
+            } else {
+                marker + line + marker
+            }
         }
         saveContent(lines.joinToString("\n"))
     }
@@ -407,6 +424,31 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
         val text = textFieldState.text.toString()
         val start = textFieldState.selection.min
         val end = textFieldState.selection.max
+        if (marker == "*" || marker == "**") {
+            var run = 0
+            while (run < 3 && start - run - 1 >= 0 && text[start - run - 1] == '*') run++
+            var runEnd = 0
+            while (runEnd < 3 && end + runEnd < text.length && text[end + runEnd] == '*') runEnd++
+            val oldRun = minOf(run, runEnd)
+            val newRun = oldRun xor asteriskBit(marker)
+            textFieldState.edit {
+                if (oldRun > 0) {
+                    replace(end, end + oldRun, "")
+                    replace(start - oldRun, start, "")
+                }
+                val newStart = start - oldRun
+                val newEnd = end - oldRun
+                if (newRun > 0) {
+                    val stars = "*".repeat(newRun)
+                    replace(newEnd, newEnd, stars)
+                    replace(newStart, newStart, stars)
+                    selection = TextRange(newStart + newRun, newEnd + newRun)
+                } else {
+                    selection = TextRange(newStart, newEnd)
+                }
+            }
+            return
+        }
         val m = marker.length
         textFieldState.edit {
             if (start >= m && end + m <= text.length &&
@@ -535,17 +577,17 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
                                 DropdownMenuItem(
                                     text = { Text("Gras") },
                                     leadingIcon = { Icon(Icons.Default.FormatBold, contentDescription = null) },
-                                    onClick = { showFormatMenu = false; toggleInlineMarker("**") }
+                                    onClick = { toggleInlineMarker("**") }
                                 )
                                 DropdownMenuItem(
                                     text = { Text("Italique") },
                                     leadingIcon = { Icon(Icons.Default.FormatItalic, contentDescription = null) },
-                                    onClick = { showFormatMenu = false; toggleInlineMarker("*") }
+                                    onClick = { toggleInlineMarker("*") }
                                 )
                                 DropdownMenuItem(
                                     text = { Text("Souligné") },
                                     leadingIcon = { Icon(Icons.Default.FormatUnderlined, contentDescription = null) },
-                                    onClick = { showFormatMenu = false; toggleInlineMarker("__") }
+                                    onClick = { toggleInlineMarker("__") }
                                 )
                             }
                         }
@@ -838,19 +880,19 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
                                         if (selected) {
                                             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                                                 IconButton(
-                                                    onClick = { toggleLineMarker(lineIndex, "**"); selectedLine = -1 },
+                                                    onClick = { toggleLineMarker(lineIndex, "**") },
                                                     modifier = Modifier.size(36.dp)
                                                 ) {
                                                     Icon(Icons.Default.FormatBold, contentDescription = "Gras", tint = Color.Gray)
                                                 }
                                                 IconButton(
-                                                    onClick = { toggleLineMarker(lineIndex, "*"); selectedLine = -1 },
+                                                    onClick = { toggleLineMarker(lineIndex, "*") },
                                                     modifier = Modifier.size(36.dp)
                                                 ) {
                                                     Icon(Icons.Default.FormatItalic, contentDescription = "Italique", tint = Color.Gray)
                                                 }
                                                 IconButton(
-                                                    onClick = { toggleLineMarker(lineIndex, "__"); selectedLine = -1 },
+                                                    onClick = { toggleLineMarker(lineIndex, "__") },
                                                     modifier = Modifier.size(36.dp)
                                                 ) {
                                                     Icon(Icons.Default.FormatUnderlined, contentDescription = "Souligné", tint = Color.Gray)
