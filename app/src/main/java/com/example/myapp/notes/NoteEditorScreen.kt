@@ -27,6 +27,7 @@ import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.CheckBox
 import androidx.compose.material.icons.filled.CheckBoxOutlineBlank
 import androidx.compose.material.icons.filled.Delete
@@ -36,6 +37,8 @@ import androidx.compose.material.icons.filled.FormatUnderlined
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -50,6 +53,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -172,8 +176,11 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
     var unlocked by remember { mutableStateOf(isNew) }
     var showCreatePin by remember { mutableStateOf(false) }
     var titleFocused by remember { mutableStateOf(false) }
+    var showFormatMenu by remember { mutableStateOf(false) }
     // null until the note is loaded; guards the autosave against saving too early
     var lastSaved by remember { mutableStateOf<Pair<String, String>?>(if (isNew) "" to "" else null) }
+    // Snapshots of (title, content) to step back through with the undo button
+    val undoStack = remember { mutableStateListOf<Pair<String, String>>() }
 
     // Snapshot of the note as currently edited
     fun currentNote() = Note(
@@ -198,12 +205,20 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
         }
     }
 
+    // Pushes the last saved snapshot onto the undo stack before it gets replaced
+    fun pushUndo() {
+        val previous = lastSaved ?: return
+        undoStack.add(previous)
+        if (undoStack.size > 50) undoStack.removeAt(0)
+    }
+
     // Debounced autosave while typing
     LaunchedEffect(titleFieldState.text.toString(), textFieldState.text.toString()) {
         val current = titleFieldState.text.toString() to textFieldState.text.toString()
         if (lastSaved == null || current == lastSaved) return@LaunchedEffect
         delay(600)
         if (current.first.isNotBlank() || current.second.isNotBlank()) {
+            pushUndo()
             dao.upsertNote(currentNote())
             lastSaved = current
         }
@@ -215,10 +230,21 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
         val current = titleFieldState.text.toString() to textFieldState.text.toString()
         if (current == lastSaved) return
         if (current.first.isNotBlank() || current.second.isNotBlank()) {
+            pushUndo()
             lastSaved = current
             val note = currentNote()
             scope.launch { dao.upsertNote(note) }
         }
+    }
+
+    // Steps back to the previous snapshot on the undo stack, one step per call
+    fun performUndo() {
+        if (undoStack.isEmpty()) return
+        val previous = undoStack.removeAt(undoStack.size - 1)
+        titleFieldState.edit { replace(0, length, previous.first) }
+        textFieldState.edit { replace(0, length, previous.second) }
+        lastSaved = previous
+        scope.launch { dao.upsertNote(currentNote()) }
     }
 
     fun finish() {
@@ -238,6 +264,7 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
     // Immediate save for changes made from the view mode (checkbox toggles, reorders)
     fun saveContent(newText: String) {
         textFieldState.edit { replace(0, length, newText) }
+        pushUndo()
         lastSaved = titleFieldState.text.toString() to newText
         val note = currentNote()
         scope.launch { dao.upsertNote(note) }
@@ -265,6 +292,9 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
         }
         addedTopPad = needsTopPad
         addedBottomPad = needsBottomPad
+        // The padding isn't a real edit; keep lastSaved in sync so it doesn't
+        // get autosaved or land on the undo stack on its own
+        lastSaved?.let { lastSaved = it.first to textFieldState.text.toString() }
         return offset
     }
 
@@ -272,12 +302,26 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
     // still empty; anything the user typed into them is kept
     fun stripEditPadding() {
         if (!addedTopPad && !addedBottomPad) return
+        var strippedBottom = false
+        var strippedTop = false
         textFieldState.edit {
             if (addedBottomPad && length > 0 && asCharSequence()[length - 1] == '\n') {
                 replace(length - 1, length, "")
+                strippedBottom = true
             }
             if (addedTopPad && length > 0 && asCharSequence()[0] == '\n') {
                 replace(0, 1, "")
+                strippedTop = true
+            }
+        }
+        // Mirror the same removal on lastSaved so a padding-only round trip
+        // (enter edit mode, leave without typing) doesn't look like an edit
+        if (strippedBottom || strippedTop) {
+            lastSaved?.let { saved ->
+                var content = saved.second
+                if (strippedBottom && content.endsWith("\n")) content = content.dropLast(1)
+                if (strippedTop && content.startsWith("\n")) content = content.drop(1)
+                lastSaved = saved.first to content
             }
         }
         addedTopPad = false
@@ -464,14 +508,30 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
                         )
                     }
                     if (isEditing) {
-                        IconButton(onClick = { toggleInlineMarker("**") }) {
-                            Icon(Icons.Default.FormatBold, contentDescription = "Gras")
+                        IconButton(onClick = { performUndo() }, enabled = undoStack.isNotEmpty()) {
+                            Icon(Icons.AutoMirrored.Filled.Undo, contentDescription = "Annuler")
                         }
-                        IconButton(onClick = { toggleInlineMarker("*") }) {
-                            Icon(Icons.Default.FormatItalic, contentDescription = "Italique")
-                        }
-                        IconButton(onClick = { toggleInlineMarker("__") }) {
-                            Icon(Icons.Default.FormatUnderlined, contentDescription = "Souligné")
+                        Box {
+                            IconButton(onClick = { showFormatMenu = true }) {
+                                Icon(Icons.Default.FormatBold, contentDescription = "Mise en forme")
+                            }
+                            DropdownMenu(expanded = showFormatMenu, onDismissRequest = { showFormatMenu = false }) {
+                                DropdownMenuItem(
+                                    text = { Text("Gras") },
+                                    leadingIcon = { Icon(Icons.Default.FormatBold, contentDescription = null) },
+                                    onClick = { showFormatMenu = false; toggleInlineMarker("**") }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Italique") },
+                                    leadingIcon = { Icon(Icons.Default.FormatItalic, contentDescription = null) },
+                                    onClick = { showFormatMenu = false; toggleInlineMarker("*") }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Souligné") },
+                                    leadingIcon = { Icon(Icons.Default.FormatUnderlined, contentDescription = null) },
+                                    onClick = { showFormatMenu = false; toggleInlineMarker("__") }
+                                )
+                            }
                         }
                     }
                     if (!isEditing && textFieldState.text.toString().hasCheckboxLine()) {
