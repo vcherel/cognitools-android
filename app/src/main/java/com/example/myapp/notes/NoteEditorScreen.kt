@@ -362,6 +362,7 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
             val result = snackbarHostState.showSnackbar(
                 message = "Élément supprimé",
                 actionLabel = "Annuler",
+                withDismissAction = true,
                 duration = SnackbarDuration.Short
             )
             if (result == SnackbarResult.ActionPerformed) {
