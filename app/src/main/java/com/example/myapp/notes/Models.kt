@@ -180,3 +180,12 @@ fun setAllCheckboxes(content: String, checked: Boolean): String {
         if (line.isCheckboxLine()) prefix + line.checkboxText() else line
     }
 }
+
+/** Content with blank lines at the very top and bottom removed. */
+fun String.trimBlankEdgeLines(): String {
+    val lines = split("\n")
+    val start = lines.indexOfFirst { it.isNotBlank() }
+    if (start == -1) return ""
+    val end = lines.indexOfLast { it.isNotBlank() }
+    return lines.subList(start, end + 1).joinToString("\n")
+}

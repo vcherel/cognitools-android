@@ -39,6 +39,7 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.ShoppingCart
+import androidx.compose.material.icons.filled.VerticalAlignCenter
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -635,6 +636,11 @@ var showMoreMenu by remember { mutableStateOf(false) }
                     }
                 )
                 if (!titleFocused) {
+                    if (!isEditing && textFieldState.text.toString().let { it != it.trimBlankEdgeLines() }) {
+                        IconButton(onClick = { saveContent(textFieldState.text.toString().trimBlankEdgeLines()) }) {
+                            Icon(Icons.Default.VerticalAlignCenter, contentDescription = "Supprimer les lignes vides en haut/bas")
+                        }
+                    }
                     IconButton(onClick = { performUndo() }, enabled = undoStack.isNotEmpty()) {
                         Icon(Icons.AutoMirrored.Filled.Undo, contentDescription = "Annuler")
                     }
