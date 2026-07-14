@@ -104,10 +104,6 @@ dependencies {
     implementation(libs.androidx.room.ktx)
     ksp(libs.androidx.room.compiler)
 
-    // WorkManager with explicit startup config
-    implementation(libs.androidx.work.runtime.ktx)
-    implementation(libs.androidx.startup.runtime)
-
     // Splash screen
     implementation(libs.androidx.core.splashscreen)
 
