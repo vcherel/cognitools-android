@@ -83,10 +83,6 @@ fun FlashcardListsScreen(navController: NavController) {
     var listsWithCountsState by remember { mutableStateOf(Pair(emptyList<FlashcardList>(), emptyMap<String, Pair<Int, Int>>())) }
     var hasLoaded by remember { mutableStateOf(false) }
 
-    LaunchedEffect(Unit) {
-        scheduleFlashcardReminders(context)
-    }
-
     LaunchedEffect(repository) {
         repository.observeListsWithCounts().collect { pair ->
             listsWithCountsState = pair
