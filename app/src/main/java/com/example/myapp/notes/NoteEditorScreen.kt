@@ -36,6 +36,7 @@ import androidx.compose.material.icons.filled.FormatItalic
 import androidx.compose.material.icons.filled.FormatUnderlined
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
+import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -388,6 +389,62 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
         }
     }
 
+    // Removes a checkbox line from this note (the "Ingrédients" note) and appends it as a
+    // new unchecked item on the "Courses" note, so running out of an ingredient turns
+    // straight into a shopping list entry. Does nothing if "Courses" doesn't exist.
+    fun moveLineToCourses(index: Int) {
+        val removed = textFieldState.text.toString().split("\n")[index]
+        scope.launch {
+            val courses = dao.getNotes().firstOrNull { it.title.equals("Courses", ignoreCase = true) }
+            if (courses == null) {
+                snackbarHostState.currentSnackbarData?.dismiss()
+                snackbarHostState.showSnackbar(
+                    message = "Note \"Courses\" introuvable",
+                    withDismissAction = true,
+                    duration = SnackbarDuration.Short
+                )
+                return@launch
+            }
+
+            val lines = textFieldState.text.toString().split("\n").toMutableList()
+            lines.removeAt(index)
+            saveContent(lines.joinToString("\n"))
+
+            val addedLine = UNCHECKED_PREFIX + removed.checkboxText()
+            val newCoursesContent =
+                if (courses.content.isEmpty()) addedLine else courses.content + "\n" + addedLine
+            dao.upsertNote(courses.copy(content = newCoursesContent, updatedAt = System.currentTimeMillis()))
+
+            snackbarHostState.currentSnackbarData?.dismiss()
+            val result = snackbarHostState.showSnackbar(
+                message = "Déplacé vers Courses",
+                actionLabel = "Annuler",
+                withDismissAction = true,
+                duration = SnackbarDuration.Short
+            )
+            if (result == SnackbarResult.ActionPerformed) {
+                val current = textFieldState.text.toString().split("\n").toMutableList()
+                current.add(index.coerceAtMost(current.size), removed)
+                saveContent(current.joinToString("\n"))
+
+                val latestCourses = dao.getNote(courses.id)
+                if (latestCourses != null) {
+                    val coursesLines = latestCourses.content.split("\n").toMutableList()
+                    val addedIndex = coursesLines.lastIndexOf(addedLine)
+                    if (addedIndex >= 0) {
+                        coursesLines.removeAt(addedIndex)
+                        dao.upsertNote(
+                            latestCourses.copy(
+                                content = coursesLines.joinToString("\n"),
+                                updatedAt = System.currentTimeMillis()
+                            )
+                        )
+                    }
+                }
+            }
+        }
+    }
+
     // Bold ("**") and italic ("*") both use the asterisk, so a plain prefix check can't
     // tell "already bold, adding italic" from "already italic": the asterisk run length
     // (0..3) encodes the combination, matching formatInline (1 = italic, 2 = bold, 3 = both).
@@ -655,6 +712,7 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
                     cursorBrush = SolidColor(MaterialTheme.colorScheme.onBackground)
                 )
             } else {
+                val isIngredientsNote = titleFieldState.text.toString().equals("Ingrédients", ignoreCase = true)
                 val lines = textFieldState.text.toString().split("\n")
 
                 // Character offset of the start of each line, for double tap to edit
@@ -839,6 +897,18 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
                                                     )
                                                 }
                                         )
+                                        if (isIngredientsNote) {
+                                            IconButton(
+                                                onClick = { moveLineToCourses(lineIndex) },
+                                                modifier = Modifier.size(36.dp)
+                                            ) {
+                                                Icon(
+                                                    Icons.Default.ShoppingCart,
+                                                    contentDescription = "Déplacer vers Courses",
+                                                    tint = Color.Gray
+                                                )
+                                            }
+                                        }
                                         IconButton(
                                             onClick = { deleteLine(lineIndex) },
                                             modifier = Modifier.size(36.dp)
@@ -896,6 +966,18 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
                                                     modifier = Modifier.size(36.dp)
                                                 ) {
                                                     Icon(Icons.Default.FormatUnderlined, contentDescription = "Souligné", tint = Color.Gray)
+                                                }
+                                                if (isIngredientsNote) {
+                                                    IconButton(
+                                                        onClick = { moveLineToCourses(lineIndex); selectedLine = -1 },
+                                                        modifier = Modifier.size(36.dp)
+                                                    ) {
+                                                        Icon(
+                                                            Icons.Default.ShoppingCart,
+                                                            contentDescription = "Déplacer vers Courses",
+                                                            tint = Color.Gray
+                                                        )
+                                                    }
                                                 }
                                                 IconButton(
                                                     onClick = { deleteLine(lineIndex); selectedLine = -1 },
