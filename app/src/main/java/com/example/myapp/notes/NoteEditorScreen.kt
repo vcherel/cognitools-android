@@ -622,10 +622,10 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
                             contentDescription = if (locked) "Déverrouiller" else "Verrouiller"
                         )
                     }
+                    IconButton(onClick = { performUndo() }, enabled = undoStack.isNotEmpty()) {
+                        Icon(Icons.AutoMirrored.Filled.Undo, contentDescription = "Annuler")
+                    }
                     if (isEditing) {
-                        IconButton(onClick = { performUndo() }, enabled = undoStack.isNotEmpty()) {
-                            Icon(Icons.AutoMirrored.Filled.Undo, contentDescription = "Annuler")
-                        }
                         Box {
                             IconButton(onClick = { showFormatMenu = true }) {
                                 Icon(Icons.Default.FormatBold, contentDescription = "Mise en forme")
