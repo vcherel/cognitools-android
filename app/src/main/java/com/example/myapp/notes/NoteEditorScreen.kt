@@ -546,6 +546,18 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
                 }
             }
 
+            if (!titleFocused && titleFieldState.text.toString().equals("Courses", ignoreCase = true)) {
+                val itemCount = textFieldState.text.toString().uncheckedItemCount()
+                if (itemCount > 0) {
+                    Text(
+                        "$itemCount article${if (itemCount > 1) "s" else ""} à acheter",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
+                        modifier = Modifier.padding(start = 8.dp, top = 4.dp)
+                    )
+                }
+            }
+
             Spacer(Modifier.height(16.dp))
 
             if (isEditing) {

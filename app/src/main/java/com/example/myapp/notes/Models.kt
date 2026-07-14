@@ -162,6 +162,17 @@ fun String.separatorName(): String =
 /** True if any line of the content is a checkbox line. */
 fun String.hasCheckboxLine(): Boolean = lineSequence().any { it.isCheckboxLine() }
 
+// A checkbox line may end with "(N)" to mean the item counts N times, e.g. "Yaourts (4)".
+private val QUANTITY_SUFFIX = Regex("""\((\d+)\)\s*$""")
+
+/** The quantity from a trailing "(N)" suffix, or 1 if there is none. */
+fun String.itemQuantity(): Int = QUANTITY_SUFFIX.find(this)?.groupValues?.get(1)?.toIntOrNull() ?: 1
+
+/** Sum of quantities of unchecked checkbox lines, honoring the "(N)" suffix. */
+fun String.uncheckedItemCount(): Int = lineSequence()
+    .filter { it.isCheckboxLine() && !it.isCheckedLine() }
+    .sumOf { it.checkboxText().itemQuantity() }
+
 /** Content with every checkbox line set to the given state. */
 fun setAllCheckboxes(content: String, checked: Boolean): String {
     val prefix = if (checked) CHECKED_PREFIX else UNCHECKED_PREFIX
