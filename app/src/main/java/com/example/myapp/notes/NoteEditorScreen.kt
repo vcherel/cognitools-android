@@ -86,41 +86,56 @@ import kotlinx.coroutines.launch
  * Pressing Enter at the end of a checkbox line continues the list with a fresh
  * checkbox; on an empty checkbox line it removes the checkbox instead. Enter
  * within the prefix of a non empty checkbox line inserts an empty checkbox
- * above the item.
+ * above the item. Backspacing right after a checkbox prefix removes the whole
+ * prefix in one go instead of one character at a time.
  */
 private val autoContinueCheckboxTransformation = InputTransformation {
     val cursor = selection.start
     val oldText = originalText.toString()
+
     val typedNewline = length == oldText.length + 1 &&
         cursor > 0 && cursor <= length && charAt(cursor - 1) == '\n'
-    if (!typedNewline) return@InputTransformation
+    if (typedNewline) {
+        val oldCursor = cursor - 1
+        val oldLineStart = if (oldCursor == 0) 0 else oldText.lastIndexOf('\n', oldCursor - 1) + 1
+        val oldLineEnd = oldText.indexOf('\n', oldCursor).let { if (it == -1) oldText.length else it }
+        val oldLine = oldText.substring(oldLineStart, oldLineEnd)
+        if (oldLine.isCheckboxLine() &&
+            oldCursor - oldLineStart <= UNCHECKED_PREFIX.length &&
+            oldLine.checkboxText().isNotBlank()
+        ) {
+            replace(cursor - 1, cursor, "")
+            replace(oldLineStart, oldLineStart, UNCHECKED_PREFIX + "\n")
+            selection = TextRange(oldLineStart + UNCHECKED_PREFIX.length)
+            return@InputTransformation
+        }
 
-    val oldCursor = cursor - 1
-    val oldLineStart = if (oldCursor == 0) 0 else oldText.lastIndexOf('\n', oldCursor - 1) + 1
-    val oldLineEnd = oldText.indexOf('\n', oldCursor).let { if (it == -1) oldText.length else it }
-    val oldLine = oldText.substring(oldLineStart, oldLineEnd)
-    if (oldLine.isCheckboxLine() &&
-        oldCursor - oldLineStart <= UNCHECKED_PREFIX.length &&
-        oldLine.checkboxText().isNotBlank()
-    ) {
-        replace(cursor - 1, cursor, "")
-        replace(oldLineStart, oldLineStart, UNCHECKED_PREFIX + "\n")
-        selection = TextRange(oldLineStart + UNCHECKED_PREFIX.length)
+        val newText = asCharSequence().toString()
+        val prevLineStart = if (cursor == 1) 0 else newText.lastIndexOf('\n', cursor - 2) + 1
+        val prevLine = newText.substring(prevLineStart, cursor - 1)
+        if (!prevLine.isCheckboxLine()) return@InputTransformation
+
+        if (prevLine.checkboxText().isBlank()) {
+            // Empty checkbox line: Enter exits the list, dropping the empty item
+            replace(prevLineStart, cursor, "")
+            selection = TextRange(prevLineStart)
+        } else {
+            replace(cursor, cursor, UNCHECKED_PREFIX)
+            selection = TextRange(cursor + UNCHECKED_PREFIX.length)
+        }
         return@InputTransformation
     }
 
-    val newText = asCharSequence().toString()
-    val prevLineStart = if (cursor == 1) 0 else newText.lastIndexOf('\n', cursor - 2) + 1
-    val prevLine = newText.substring(prevLineStart, cursor - 1)
-    if (!prevLine.isCheckboxLine()) return@InputTransformation
-
-    if (prevLine.checkboxText().isBlank()) {
-        // Empty checkbox line: Enter exits the list, dropping the empty item
-        replace(prevLineStart, cursor, "")
-        selection = TextRange(prevLineStart)
-    } else {
-        replace(cursor, cursor, UNCHECKED_PREFIX)
-        selection = TextRange(cursor + UNCHECKED_PREFIX.length)
+    val deletedOneChar = selection.collapsed && length == oldText.length - 1
+    if (deletedOneChar) {
+        val newText = asCharSequence().toString()
+        val lineStart = if (cursor == 0) 0 else newText.lastIndexOf('\n', cursor - 1) + 1
+        val remainder = newText.substring(lineStart, cursor)
+        if (remainder == UNCHECKED_PREFIX.dropLast(1) || remainder == CHECKED_PREFIX.dropLast(1)) {
+            // The last character of a checkbox prefix was just erased; drop the rest in one go
+            replace(lineStart, cursor, "")
+            selection = TextRange(lineStart)
+        }
     }
 }
 
