@@ -37,6 +37,7 @@ import androidx.compose.material.icons.filled.FormatItalic
 import androidx.compose.material.icons.filled.FormatUnderlined
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
@@ -194,6 +195,7 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
     var showCreatePin by remember { mutableStateOf(false) }
     var titleFocused by remember { mutableStateOf(false) }
     var showFormatMenu by remember { mutableStateOf(false) }
+var showMoreMenu by remember { mutableStateOf(false) }
     // null until the note is loaded; guards the autosave against saving too early
     var lastSaved by remember { mutableStateOf<Pair<String, String>?>(if (isNew) "" to "" else null) }
     // Snapshots of (title, content) to step back through with the undo button
@@ -633,17 +635,6 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
                     }
                 )
                 if (!titleFocused) {
-                    IconButton(onClick = {
-                        if (locked) persistLock(false)
-                        else scope.launch {
-                            if (NoteLock.hasPin(context)) persistLock(true) else showCreatePin = true
-                        }
-                    }) {
-                        Icon(
-                            if (locked) Icons.Default.Lock else Icons.Default.LockOpen,
-                            contentDescription = if (locked) "Déverrouiller" else "Verrouiller"
-                        )
-                    }
                     IconButton(onClick = { performUndo() }, enabled = undoStack.isNotEmpty()) {
                         Icon(Icons.AutoMirrored.Filled.Undo, contentDescription = "Annuler")
                     }
@@ -671,12 +662,45 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
                             }
                         }
                     }
-                    if (!isEditing && textFieldState.text.toString().hasCheckboxLine()) {
-                        IconButton(onClick = { saveContent(setAllCheckboxes(textFieldState.text.toString(), true)) }) {
-                            Icon(Icons.Default.CheckBox, contentDescription = "Tout cocher")
+                    Box {
+                        IconButton(onClick = { showMoreMenu = true }) {
+                            Icon(Icons.Default.MoreVert, contentDescription = "Plus d'options")
                         }
-                        IconButton(onClick = { saveContent(setAllCheckboxes(textFieldState.text.toString(), false)) }) {
-                            Icon(Icons.Default.CheckBoxOutlineBlank, contentDescription = "Tout décocher")
+                        DropdownMenu(expanded = showMoreMenu, onDismissRequest = { showMoreMenu = false }) {
+                            DropdownMenuItem(
+                                text = { Text(if (locked) "Déverrouiller" else "Verrouiller") },
+                                leadingIcon = {
+                                    Icon(
+                                        if (locked) Icons.Default.Lock else Icons.Default.LockOpen,
+                                        contentDescription = null
+                                    )
+                                },
+                                onClick = {
+                                    showMoreMenu = false
+                                    if (locked) persistLock(false)
+                                    else scope.launch {
+                                        if (NoteLock.hasPin(context)) persistLock(true) else showCreatePin = true
+                                    }
+                                }
+                            )
+                            if (!isEditing && textFieldState.text.toString().hasCheckboxLine()) {
+                                DropdownMenuItem(
+                                    text = { Text("Tout cocher") },
+                                    leadingIcon = { Icon(Icons.Default.CheckBox, contentDescription = null) },
+                                    onClick = {
+                                        showMoreMenu = false
+                                        saveContent(setAllCheckboxes(textFieldState.text.toString(), true))
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Tout décocher") },
+                                    leadingIcon = { Icon(Icons.Default.CheckBoxOutlineBlank, contentDescription = null) },
+                                    onClick = {
+                                        showMoreMenu = false
+                                        saveContent(setAllCheckboxes(textFieldState.text.toString(), false))
+                                    }
+                                )
+                            }
                         }
                     }
                 }
