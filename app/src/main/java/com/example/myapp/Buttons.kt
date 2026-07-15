@@ -31,6 +31,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -68,6 +69,7 @@ fun MyButton(
     text: String,
     modifier: Modifier = Modifier,
     fontSize: TextUnit = 24.sp,
+    height: Dp = 90.dp,
     enabled: Boolean = true,
     icon: ImageVector? = null,
     onClick: () -> Unit
@@ -83,7 +85,7 @@ fun MyButton(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .height(90.dp)
+            .height(height)
             .scale(if (isPressed) 0.98f else 1f)
             .then(
                 if (enabled) Modifier.clickable(
@@ -138,6 +140,7 @@ fun SplitMyButton(
     text: String,
     rightIcon: ImageVector,
     modifier: Modifier = Modifier,
+    height: Dp = 90.dp,
     onMainClick: () -> Unit,
     onRightClick: () -> Unit
 ) {
@@ -147,6 +150,7 @@ fun SplitMyButton(
     ) {
         SplitButtonHalf(
             modifier = Modifier.weight(1f),
+            height = height,
             onClick = onMainClick
         ) { textColor ->
             Text(
@@ -159,6 +163,7 @@ fun SplitMyButton(
 
         SplitButtonHalf(
             modifier = Modifier.width(80.dp),
+            height = height,
             onClick = onRightClick
         ) { textColor ->
             Icon(
@@ -174,6 +179,7 @@ fun SplitMyButton(
 @Composable
 private fun SplitButtonHalf(
     modifier: Modifier = Modifier,
+    height: Dp = 90.dp,
     onClick: () -> Unit,
     content: @Composable (textColor: Color) -> Unit
 ) {
@@ -186,7 +192,7 @@ private fun SplitButtonHalf(
 
     Box(
         modifier = modifier
-            .height(90.dp)
+            .height(height)
             .scale(if (isPressed) 0.98f else 1f)
             .clickable(interactionSource = interactionSource, indication = null, onClick = onClick)
     ) {
