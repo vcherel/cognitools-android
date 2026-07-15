@@ -10,6 +10,8 @@ import android.location.LocationManager
 import android.os.Handler
 import android.os.Looper
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.ExitTransition
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -23,8 +25,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -38,11 +40,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -53,7 +53,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -125,112 +124,118 @@ fun WeatherScreen(onBack: () -> Unit) {
             )
         }
 
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp)
-                .verticalScroll(rememberScrollState())
-        ) {
-            when {
-                isLoading -> CircularProgressIndicator(modifier = Modifier.padding(32.dp))
-                !hasPermission -> Text(
-                    "L'accès à la position est nécessaire pour afficher la météo locale.",
-                    modifier = Modifier.padding(16.dp)
-                )
-                error != null -> Text(
-                    error!!,
-                    color = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.padding(16.dp)
-                )
-                forecast != null -> WeatherContent(forecast!!)
+        if (forecast != null) {
+            WeatherContent(
+                forecast = forecast!!,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp)
+            )
+        } else {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp)
+                    .verticalScroll(rememberScrollState())
+            ) {
+                when {
+                    isLoading -> CircularProgressIndicator(modifier = Modifier.padding(32.dp))
+                    !hasPermission -> Text(
+                        "L'accès à la position est nécessaire pour afficher la météo locale.",
+                        modifier = Modifier.padding(16.dp)
+                    )
+                    error != null -> Text(
+                        error!!,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.padding(16.dp)
+                    )
+                }
             }
         }
     }
 }
 
 @Composable
-private fun WeatherContent(forecast: WeatherForecast) {
+private fun WeatherContent(forecast: WeatherForecast, modifier: Modifier = Modifier) {
     val today = LocalDate.now()
     val now = LocalDateTime.now()
-    val scope = rememberCoroutineScope()
 
-    val hourItemWidth = 64.dp
-    val hourListState = rememberLazyListState()
+    // One expanded day at a time (accordion), so only its hour strip is ever rendered. Defaults
+    // to today; tapping the open day collapses it, and the summary card falls back to today.
+    var expandedDate by remember(forecast) { mutableStateOf<LocalDate?>(today) }
+    val summaryDate = expandedDate ?: today
 
-    // First index of each day within forecast.hourly, so tapping a day can jump the strip there.
-    val firstIndexByDate = remember(forecast) {
-        val map = LinkedHashMap<LocalDate, Int>()
-        forecast.hourly.forEachIndexed { i, point -> map.getOrPut(point.time.toLocalDate()) { i } }
-        map
+    // Hours grouped by day once, so expanding a day is a cheap lookup rather than a full filter.
+    val hoursByDate = remember(forecast) { forecast.hourly.groupBy { it.time.toLocalDate() } }
+
+    // A single scroll state shared by every day's strip, so opening a day lands on the same hour
+    // you last left off at (index == hour of day). Opening the current day is the exception: it
+    // snaps back to the current hour, one slot in from the left edge.
+    val currentHourTarget = remember(forecast) {
+        val currentIndex = hoursByDate[today].orEmpty().indexOfFirst { it.time.hour == now.hour }
+        (currentIndex - 1).coerceAtLeast(0)
+    }
+    val sharedHourState = remember(forecast) { LazyListState(firstVisibleItemIndex = currentHourTarget) }
+    LaunchedEffect(expandedDate) {
+        if (expandedDate == today) sharedHourState.scrollToItem(currentHourTarget)
     }
 
-    // The strip is one continuous scroll across the whole fetched forecast, so it naturally
-    // stops at today on one end and the last forecast day on the other. The visible day tracks
-    // scroll position, like a sticky header.
-    val selectedDate by remember(forecast) {
-        derivedStateOf {
-            forecast.hourly.getOrNull(hourListState.firstVisibleItemIndex)?.time?.toLocalDate() ?: today
-        }
-    }
-
-    // The full day, past hours included, so today's view still shows what already happened.
-    val fullDayHours = remember(forecast, selectedDate) {
-        forecast.hourly.filter { it.time.toLocalDate() == selectedDate }
-    }
+    val summaryHours = hoursByDate[summaryDate].orEmpty()
     // Only current/future hours, used to figure out when the next rain is.
-    val upcomingHours = remember(fullDayHours, selectedDate) {
-        if (selectedDate == today) fullDayHours.filter { it.time >= now.withMinute(0) } else fullDayHours
-    }
+    val upcomingHours = if (summaryDate == today) summaryHours.filter { it.time >= now.withMinute(0) } else summaryHours
 
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Text(
-            text = daySummary(upcomingHours, selectedDate),
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.padding(20.dp)
-        )
-    }
+    Column(modifier = modifier.verticalScroll(rememberScrollState())) {
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Text(
+                text = daySummary(upcomingHours, summaryDate),
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.padding(20.dp)
+            )
+        }
 
-    Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
-    Text(
-        "${fullDayLabel(selectedDate)}, heure par heure",
-        style = MaterialTheme.typography.titleMedium,
-        fontWeight = FontWeight.Bold
-    )
-    Spacer(modifier = Modifier.height(8.dp))
-
-    // Scroll so the current hour starts one slot in, rather than glued to the left edge.
-    LaunchedEffect(forecast) {
-        val currentIndex = forecast.hourly.indexOfFirst { it.time.toLocalDate() == today && it.time.hour == now.hour }
-        val targetIndex = (currentIndex - 1).coerceAtLeast(0)
-        if (currentIndex >= 0) {
-            hourListState.scrollToItem(targetIndex)
+        forecast.daily.forEach { day ->
+            val expanded = day.date == expandedDate
+            DayRow(
+                day = day,
+                selected = expanded,
+                onClick = { expandedDate = if (expanded) null else day.date }
+            )
+            // A closing strip leaves composition immediately (no exit animation) so two strips
+            // never share sharedHourState at once during a day switch.
+            AnimatedVisibility(visible = expanded, exit = ExitTransition.None) {
+                HourStrip(
+                    hours = hoursByDate[day.date].orEmpty(),
+                    state = sharedHourState,
+                    today = today,
+                    now = now
+                )
+            }
         }
     }
+}
 
-    LazyRow(state = hourListState) {
-        items(forecast.hourly, key = { it.time.toString() }) { point ->
-            val isCurrent = point.time.toLocalDate() == today && point.time.hour == now.hour
+@Composable
+private fun HourStrip(hours: List<HourlyPoint>, state: LazyListState, today: LocalDate, now: LocalDateTime) {
+    val hourItemWidth = 64.dp
+    val isToday = hours.firstOrNull()?.time?.toLocalDate() == today
+
+    LazyRow(state = state, modifier = Modifier.padding(bottom = 8.dp)) {
+        items(hours, key = { it.time.toString() }) { point ->
+            val isCurrent = isToday && point.time.hour == now.hour
             val textColor = if (isCurrent) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
 
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier
                     .width(hourItemWidth)
-                    .padding(horizontal = 2.dp, vertical = 8.dp)
+                    .padding(horizontal = 2.dp, vertical = 4.dp)
                     .clip(RoundedCornerShape(16.dp))
                     .then(if (isCurrent) Modifier.background(MaterialTheme.colorScheme.primary) else Modifier)
                     .padding(vertical = 6.dp)
             ) {
-                if (point.time.hour == 0) {
-                    Text(
-                        shortDayLabel(point.time.toLocalDate()),
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = if (isCurrent) textColor else MaterialTheme.colorScheme.primary
-                    )
-                }
                 Text("${point.time.hour}h", style = MaterialTheme.typography.bodySmall, color = textColor)
                 Text(weatherCodeToEmoji(point.weatherCode), fontSize = 20.sp)
                 Text("${point.temp.roundToInt()}°", fontWeight = FontWeight.Medium, color = textColor)
@@ -240,23 +245,6 @@ private fun WeatherContent(forecast: WeatherForecast) {
                     color = if (isCurrent) textColor else MaterialTheme.colorScheme.primary
                 )
             }
-        }
-    }
-
-    Spacer(modifier = Modifier.height(24.dp))
-
-    Text("Choisir un jour", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-    Spacer(modifier = Modifier.height(8.dp))
-    Column {
-        forecast.daily.forEach { day ->
-            DayRow(
-                day = day,
-                selected = day.date == selectedDate,
-                onClick = {
-                    val targetIndex = firstIndexByDate[day.date] ?: return@DayRow
-                    scope.launch { hourListState.animateScrollToItem(targetIndex) }
-                }
-            )
         }
     }
 }
@@ -289,19 +277,6 @@ private fun DayRow(day: DailyPoint, selected: Boolean, onClick: () -> Unit) {
             modifier = Modifier.weight(1f)
         )
         Text("${day.rainProb}% 🌧️", color = contentColor)
-    }
-}
-
-private fun fullDayLabel(date: LocalDate): String {
-    val today = LocalDate.now()
-    return when (date) {
-        today -> "Aujourd'hui"
-        today.plusDays(1) -> "Demain"
-        else -> {
-            val dayName = date.dayOfWeek.getDisplayName(TextStyle.FULL, Locale.FRANCE)
-                .replaceFirstChar { it.uppercase() }
-            "$dayName ${date.dayOfMonth}"
-        }
     }
 }
 
