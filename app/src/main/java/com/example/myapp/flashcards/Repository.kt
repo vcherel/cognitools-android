@@ -1,6 +1,7 @@
 package com.example.myapp.flashcards
 
 import android.content.Context
+import android.util.Log
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
@@ -138,7 +139,12 @@ class FlashcardRepository(private val context: Context) {
 
     suspend fun importFromJson(json: String) {
         ensureMigrated()
-        val obj = JSONObject(json)
+        upsertBundle(JSONObject(json))
+    }
+
+    // Parses a { "lists": [...], "cards": [...] } bundle into the DB, dropping any
+    // card whose list isn't part of the same bundle.
+    private suspend fun upsertBundle(obj: JSONObject) {
         val lists = FlashcardList.listFromJsonString(obj.getJSONArray("lists").toString())
         val cards = FlashcardElement.listFromJsonString(obj.getJSONArray("cards").toString())
         val validListIds = lists.map { it.id }.toSet()
@@ -226,14 +232,9 @@ class FlashcardRepository(private val context: Context) {
     private suspend fun seedAssets(filename: String) {
         try {
             val json = context.assets.open(filename).bufferedReader().readText()
-            val obj = JSONObject(json)
-            val lists = FlashcardList.listFromJsonString(obj.getJSONArray("lists").toString())
-            val cards = FlashcardElement.listFromJsonString(obj.getJSONArray("cards").toString())
-            val validListIds = lists.map { it.id }.toSet()
-            if (lists.isNotEmpty()) dao.upsertLists(lists)
-            val validCards = cards.filter { it.listId in validListIds }
-            if (validCards.isNotEmpty()) dao.upsertElements(validCards)
-        } catch (_: Exception) {
+            upsertBundle(JSONObject(json))
+        } catch (e: Exception) {
+            Log.w("FlashcardRepository", "Failed to seed from $filename", e)
         }
     }
 
