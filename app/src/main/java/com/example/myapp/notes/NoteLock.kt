@@ -30,8 +30,10 @@ import androidx.compose.ui.unit.dp
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.security.SecureRandom
 import javax.crypto.SecretKeyFactory
@@ -91,10 +93,10 @@ object NoteLock {
         file.delete()
     }
 
-    private fun hash(pin: String, salt: ByteArray): String {
+    private suspend fun hash(pin: String, salt: ByteArray): String = withContext(Dispatchers.Default) {
         val spec = PBEKeySpec(pin.toCharArray(), salt, 120_000, 256)
         val factory = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256")
-        return Base64.encodeToString(factory.generateSecret(spec).encoded, Base64.NO_WRAP)
+        Base64.encodeToString(factory.generateSecret(spec).encoded, Base64.NO_WRAP)
     }
 
     private fun constantTimeEquals(a: String, b: String): Boolean {

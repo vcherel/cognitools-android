@@ -199,8 +199,10 @@ fun NotesListScreen(navController: NavController) {
                                 note.content.contains(searchQuery, ignoreCase = true)
                     }
                 }
-                val todoNote = currentNotes?.firstOrNull {
-                    noteTitleAndPreview(it).first.equals("Todo list", ignoreCase = true)
+                val todoNote = remember(currentNotes) {
+                    currentNotes?.firstOrNull {
+                        noteTitleAndPreview(it).first.equals("Todo list", ignoreCase = true)
+                    }
                 }
                 // Pinned above the grid while browsing; excluded from the grid itself to
                 // avoid showing it twice. Hidden while searching so it doesn't get in the
