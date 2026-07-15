@@ -5,6 +5,8 @@ Personal Android app (Jetpack Compose), sideloaded on Valentin's phone.
 ## Workflow
 After implementing a change, deploy it on the phone (see below) so Valentin can try it, then end with a summary of what changed. Never commit or push at that point: git operations happen only through /wrap-up or an explicit request.
 
+For UI/layout changes with more than one reasonable arrangement (where to put a control, how a view is structured, an interaction model), sketch 2-3 concrete options up front with AskUserQuestion and let Valentin pick before writing any code. Don't implement your first interpretation and iterate from corrections.
+
 ## Deploy method
 Build the release APK and install it on the connected phone:
 
