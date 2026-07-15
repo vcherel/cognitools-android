@@ -194,6 +194,9 @@ fun MainScreen(themeManager: ThemeManager, isDarkMode: Boolean) {
                     composable("wikipedia") {
                         WikipediaScreen(onBack = { navController.popBackStack() })
                     }
+                    composable("weather") {
+                        WeatherScreen(onBack = { navController.popBackStack() })
+                    }
                     composable("notes") {
                         NotesListScreen(navController = navController)
                     }
@@ -236,7 +239,8 @@ fun MenuScreen(
     themeManager: ThemeManager,
     isDarkMode: Boolean
 ) {
-    val spaceHeight = 32.dp
+    val spaceHeight = 20.dp
+    val buttonHeight = 84.dp
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
 
@@ -264,10 +268,19 @@ fun MenuScreen(
                 fontStyle = FontStyle.Italic,
                 textAlign = TextAlign.Center
             )
-            Spacer(modifier = Modifier.height(30.dp))
+            Spacer(modifier = Modifier.height(20.dp))
+            SplitMyButton(
+                text = "Notes",
+                rightIcon = Icons.Default.Checklist,
+                height = buttonHeight,
+                onMainClick = { onNavigate("notes") },
+                onRightClick = { onNavigate("todoNote") }
+            )
+            Spacer(modifier = Modifier.height(spaceHeight))
             SplitMyButton(
                 text = "Générateur aléatoire",
                 rightIcon = Icons.Default.Casino,
+                height = buttonHeight,
                 onMainClick = { onNavigate("randomGenerator") },
                 onRightClick = {
                     coroutineScope.launch {
@@ -284,22 +297,19 @@ fun MenuScreen(
             SplitMyButton(
                 text = "Flashcards",
                 rightIcon = Icons.Default.PlayArrow,
+                height = buttonHeight,
                 onMainClick = { onNavigate("flashcards") },
                 onRightClick = { onNavigate("flashcardsPlay") }
             )
             Spacer(modifier = Modifier.height(spaceHeight))
-            SplitMyButton(
-                text = "Notes",
-                rightIcon = Icons.Default.Checklist,
-                onMainClick = { onNavigate("notes") },
-                onRightClick = { onNavigate("todoNote") }
-            )
-            Spacer(modifier = Modifier.height(spaceHeight))
-            MyButton(text = "Undercover") { onNavigate("undercover") }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                MyButton(text = "Météo", modifier = Modifier.weight(1f), height = buttonHeight) { onNavigate("weather") }
+                MyButton(text = "Undercover", modifier = Modifier.weight(1f), height = buttonHeight) { onNavigate("undercover") }
+            }
             Spacer(modifier = Modifier.height(spaceHeight))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                MyButton(text = "Volume", modifier = Modifier.weight(1f)) { onNavigate("volumeBooster") }
-                MyButton(text = "Wikipedia", modifier = Modifier.weight(1f)) { onNavigate("wikipedia") }
+                MyButton(text = "Volume", modifier = Modifier.weight(1f), height = buttonHeight) { onNavigate("volumeBooster") }
+                MyButton(text = "Wikipedia", modifier = Modifier.weight(1f), height = buttonHeight) { onNavigate("wikipedia") }
             }
         }
 

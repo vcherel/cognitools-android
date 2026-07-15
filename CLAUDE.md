@@ -20,20 +20,20 @@ Three independent tools live under `app/src/main/java/com/example/myapp/`. Use t
 
 Root package (shared/misc):
 - `MainActivity.kt`: app entry point, theme manager, main menu screen, nav host
-- `MyApplication.kt`: Application class, WorkManager Configuration.Provider
+- `MyApplication.kt`: Application class, holds the FlashcardRepository singleton
 - `Buttons.kt`: shared composables, MyButton, SplitMyButton, MySwitch, ShowAlertDialog
 - `BottomFadeOverlay.kt`: shared fade out gradient overlay composable
 - `BackupRestore.kt`: export/import actions for app data
 - `Random.kt`: random number generator tool screen
 - `Volume.kt`: volume booster foreground service and its screen
 - `Wikipedia.kt`: random Wikipedia article tool screen
+- `Weather.kt`: GPS-based weather forecast tool screen (Open-Meteo)
 
 `flashcards/` (spaced repetition flashcards tool):
 - `Models.kt`: FlashcardList/FlashcardElement data classes, JSON (de)serialization, stats helpers
 - `Database.kt`: Room FlashcardDao
 - `Repository.kt`: FlashcardRepository, mediates between DB and UI
 - `SpacedRepetition.kt`: reviewCard, the spaced repetition scheduling algorithm
-- `ReminderNotif.kt`: WorkManager worker + notification for due card reminders
 - `ListsScreen.kt`: list of flashcard lists, bulk import dialog
 - `DetailScreen.kt`: single list detail/edit screen
 - `GameScreen.kt`: the review/quiz screen
