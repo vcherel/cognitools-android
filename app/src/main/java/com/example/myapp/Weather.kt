@@ -14,7 +14,6 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -23,6 +22,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -36,20 +38,22 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -147,8 +151,27 @@ fun WeatherScreen(onBack: () -> Unit) {
 @Composable
 private fun WeatherContent(forecast: WeatherForecast) {
     val today = LocalDate.now()
-    var selectedDate by remember { mutableStateOf(today) }
     val now = LocalDateTime.now()
+    val scope = rememberCoroutineScope()
+
+    val hourItemWidth = 64.dp
+    val hourListState = rememberLazyListState()
+
+    // First index of each day within forecast.hourly, so tapping a day can jump the strip there.
+    val firstIndexByDate = remember(forecast) {
+        val map = LinkedHashMap<LocalDate, Int>()
+        forecast.hourly.forEachIndexed { i, point -> map.getOrPut(point.time.toLocalDate()) { i } }
+        map
+    }
+
+    // The strip is one continuous scroll across the whole fetched forecast, so it naturally
+    // stops at today on one end and the last forecast day on the other. The visible day tracks
+    // scroll position, like a sticky header.
+    val selectedDate by remember(forecast) {
+        derivedStateOf {
+            forecast.hourly.getOrNull(hourListState.firstVisibleItemIndex)?.time?.toLocalDate() ?: today
+        }
+    }
 
     // The full day, past hours included, so today's view still shows what already happened.
     val fullDayHours = remember(forecast, selectedDate) {
@@ -177,22 +200,18 @@ private fun WeatherContent(forecast: WeatherForecast) {
     )
     Spacer(modifier = Modifier.height(8.dp))
 
-    val hourItemWidth = 64.dp
-    val hourScrollState = rememberScrollState()
-    val density = LocalDensity.current
-
     // Scroll so the current hour starts one slot in, rather than glued to the left edge.
-    LaunchedEffect(selectedDate, fullDayHours) {
-        val currentIndex = fullDayHours.indexOfFirst { selectedDate == today && it.time.hour == now.hour }
+    LaunchedEffect(forecast) {
+        val currentIndex = forecast.hourly.indexOfFirst { it.time.toLocalDate() == today && it.time.hour == now.hour }
         val targetIndex = (currentIndex - 1).coerceAtLeast(0)
         if (currentIndex >= 0) {
-            hourScrollState.scrollTo(with(density) { (hourItemWidth * targetIndex).roundToPx() })
+            hourListState.scrollToItem(targetIndex)
         }
     }
 
-    Row(modifier = Modifier.horizontalScroll(hourScrollState)) {
-        fullDayHours.forEach { point ->
-            val isCurrent = selectedDate == today && point.time.hour == now.hour
+    LazyRow(state = hourListState) {
+        items(forecast.hourly, key = { it.time.toString() }) { point ->
+            val isCurrent = point.time.toLocalDate() == today && point.time.hour == now.hour
             val textColor = if (isCurrent) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
 
             Column(
@@ -204,6 +223,14 @@ private fun WeatherContent(forecast: WeatherForecast) {
                     .then(if (isCurrent) Modifier.background(MaterialTheme.colorScheme.primary) else Modifier)
                     .padding(vertical = 6.dp)
             ) {
+                if (point.time.hour == 0) {
+                    Text(
+                        shortDayLabel(point.time.toLocalDate()),
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = if (isCurrent) textColor else MaterialTheme.colorScheme.primary
+                    )
+                }
                 Text("${point.time.hour}h", style = MaterialTheme.typography.bodySmall, color = textColor)
                 Text(weatherCodeToEmoji(point.weatherCode), fontSize = 20.sp)
                 Text("${point.temp.roundToInt()}°", fontWeight = FontWeight.Medium, color = textColor)
@@ -225,7 +252,10 @@ private fun WeatherContent(forecast: WeatherForecast) {
             DayRow(
                 day = day,
                 selected = day.date == selectedDate,
-                onClick = { selectedDate = day.date }
+                onClick = {
+                    val targetIndex = firstIndexByDate[day.date] ?: return@DayRow
+                    scope.launch { hourListState.animateScrollToItem(targetIndex) }
+                }
             )
         }
     }
