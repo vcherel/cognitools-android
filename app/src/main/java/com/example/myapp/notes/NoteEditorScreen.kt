@@ -48,6 +48,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -62,6 +63,8 @@ import androidx.compose.ui.unit.dp
 import com.example.myapp.flashcards.AppDatabase
 import java.util.UUID
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 
 @Composable
@@ -122,16 +125,21 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
         if (undoStack.size > 50) undoStack.removeAt(0)
     }
 
-    // Debounced autosave while typing
-    LaunchedEffect(titleFieldState.text.toString(), textFieldState.text.toString()) {
-        val current = titleFieldState.text.toString() to textFieldState.text.toString()
-        if (lastSaved == null || current == lastSaved) return@LaunchedEffect
-        delay(600)
-        if (current.first.isNotBlank() || current.second.isNotBlank()) {
-            pushUndo()
-            dao.upsertNote(currentNote())
-            lastSaved = current
-        }
+    // Debounced autosave while typing. Tracked via snapshotFlow rather than a
+    // LaunchedEffect key so typing doesn't force this whole screen to recompose
+    // just to keep the key up to date.
+    LaunchedEffect(Unit) {
+        snapshotFlow { titleFieldState.text.toString() to textFieldState.text.toString() }
+            .distinctUntilChanged()
+            .collectLatest { current ->
+                if (lastSaved == null || current == lastSaved) return@collectLatest
+                delay(600)
+                if (current.first.isNotBlank() || current.second.isNotBlank()) {
+                    pushUndo()
+                    dao.upsertNote(currentNote())
+                    lastSaved = current
+                }
+            }
     }
 
     // Saves pending changes right away, e.g. when leaving the edit mode
@@ -531,7 +539,7 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
                 }
             }
 
-            if (!titleFocused && titleFieldState.text.toString().equals("Courses", ignoreCase = true)) {
+            if (!isEditing && !titleFocused && titleFieldState.text.toString().equals("Courses", ignoreCase = true)) {
                 val itemCount = textFieldState.text.toString().uncheckedItemCount()
                 if (itemCount > 0) {
                     Text(

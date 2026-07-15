@@ -65,10 +65,13 @@ fun NoteViewMode(
 ) {
     val isIngredientsNote = title.equals("Ingrédients", ignoreCase = true)
     val isTodoListNote = title.equals("Todo list", ignoreCase = true)
-    val lines = textFieldState.text.toString().split("\n")
+    // Computed once per recomposition and reused below, instead of re-converting
+    // the whole note's text to a String for every line.
+    val fullText = textFieldState.text.toString()
+    val lines = fullText.split("\n")
 
     // Character offset of the start of each line, for double tap to edit
-    val lineStarts = remember(textFieldState.text.toString()) {
+    val lineStarts = remember(fullText) {
         val starts = IntArray(lines.size)
         var acc = 0
         lines.forEachIndexed { i, l ->
@@ -137,7 +140,7 @@ fun NoteViewMode(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .pointerInput(textFieldState.text.toString()) {
+            .pointerInput(Unit) {
                 detectTapGestures(
                     onTap = { selectedLine = -1 },
                     onDoubleTap = { onEnterEditAt(textFieldState.text.length) }
@@ -146,212 +149,259 @@ fun NoteViewMode(
     ) {
         (displayOrder ?: lines.indices.toList()).forEach { lineIndex ->
             key(lineIndex) {
-                val line = lines[lineIndex]
-                val isDragged = lineIndex == draggedLine
-                // Text layout of the line, to map a double tap to a cursor position
-                val textLayout = remember { arrayOfNulls<TextLayoutResult>(1) }
-                Box(
+                NoteLine(
+                    lineIndex = lineIndex,
+                    line = lines[lineIndex],
+                    lineStart = lineStarts[lineIndex],
+                    isDragged = lineIndex == draggedLine,
+                    dragOffsetPx = if (lineIndex == draggedLine) dragOffset.roundToInt() else 0,
+                    selected = lineIndex == selectedLine,
+                    isIngredientsNote = isIngredientsNote,
+                    isTodoListNote = isTodoListNote,
+                    onSizeChanged = { lineHeights[lineIndex] = it },
+                    onDragStart = {
+                        draggedLine = lineIndex
+                        dragOffset = 0f
+                        displayOrder = textFieldState.text.toString().split("\n").indices.toList()
+                    },
+                    onDrag = { amountY -> onDragMove(amountY) },
+                    onDragEnd = { endDrag(commit = true) },
+                    onDragCancel = { endDrag(commit = false) },
+                    onToggleSelected = { selectedLine = if (lineIndex == selectedLine) -1 else lineIndex },
+                    onDeselect = { selectedLine = -1 },
+                    onToggleLine = { onToggleLine(lineIndex) },
+                    onDeleteLine = { onDeleteLine(lineIndex) },
+                    onMoveToCourses = { onMoveToCourses(lineIndex) },
+                    onAdvanceMuscu = { onAdvanceMuscu(lineIndex) },
+                    onToggleLineMarker = { marker -> onToggleLineMarker(lineIndex, marker) },
+                    onEnterEditAt = onEnterEditAt
+                )
+            }
+        }
+    }
+}
+
+// A single line of the note. Kept as its own composable (rather than inlined in the
+// forEach above) so Compose can skip re-rendering the other lines when only one line's
+// selection, drag position, or content actually changes.
+@Composable
+private fun NoteLine(
+    lineIndex: Int,
+    line: String,
+    lineStart: Int,
+    isDragged: Boolean,
+    dragOffsetPx: Int,
+    selected: Boolean,
+    isIngredientsNote: Boolean,
+    isTodoListNote: Boolean,
+    onSizeChanged: (Int) -> Unit,
+    onDragStart: () -> Unit,
+    onDrag: (Float) -> Unit,
+    onDragEnd: () -> Unit,
+    onDragCancel: () -> Unit,
+    onToggleSelected: () -> Unit,
+    onDeselect: () -> Unit,
+    onToggleLine: () -> Unit,
+    onDeleteLine: () -> Unit,
+    onMoveToCourses: () -> Unit,
+    onAdvanceMuscu: () -> Unit,
+    onToggleLineMarker: (String) -> Unit,
+    onEnterEditAt: (Int) -> Unit
+) {
+    // Text layout of the line, to map a double tap to a cursor position
+    val textLayout = remember { arrayOfNulls<TextLayoutResult>(1) }
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .zIndex(if (isDragged) 1f else 0f)
+            .offset { IntOffset(0, dragOffsetPx) }
+            .onSizeChanged { onSizeChanged(it.height) }
+            .background(
+                if (isDragged) MaterialTheme.colorScheme.surfaceVariant
+                else Color.Transparent
+            )
+            .pointerInput(Unit) {
+                detectDragGesturesAfterLongPress(
+                    onDragStart = { onDragStart() },
+                    onDrag = { change, amount ->
+                        change.consume()
+                        onDrag(amount.y)
+                    },
+                    onDragEnd = { onDragEnd() },
+                    onDragCancel = { onDragCancel() }
+                )
+            }
+    ) {
+        if (line.isSeparatorLine()) {
+            val name = line.separatorName()
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp)
+                    .pointerInput(lineStart, line) {
+                        detectTapGestures(onDoubleTap = {
+                            onEnterEditAt(lineStart + line.length)
+                        })
+                    }
+            ) {
+                HorizontalDivider(modifier = Modifier.weight(1f))
+                if (name.isNotEmpty()) {
+                    Text(
+                        name.uppercase(),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = Color.Gray,
+                        modifier = Modifier.padding(horizontal = 12.dp)
+                    )
+                    HorizontalDivider(modifier = Modifier.weight(1f))
+                }
+                IconButton(
+                    onClick = onDeleteLine,
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        Icons.Default.Delete,
+                        contentDescription = "Supprimer la ligne",
+                        tint = Color.Gray
+                    )
+                }
+            }
+        } else if (line.isCheckboxLine()) {
+            val checked = line.isCheckedLine()
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onToggleLine() }
+            ) {
+                Checkbox(checked = checked, onCheckedChange = { onToggleLine() })
+                Text(
+                    line.checkboxText().formatInline(),
+                    style = MaterialTheme.typography.bodyLarge,
+                    textDecoration = if (checked) TextDecoration.LineThrough else TextDecoration.None,
+                    color = if (checked) Color.Gray else MaterialTheme.colorScheme.onBackground,
+                    onTextLayout = { textLayout[0] = it },
+                    modifier = Modifier
+                        .weight(1f)
+                        .pointerInput(lineStart, line) {
+                            detectTapGestures(
+                                onTap = { onToggleLine() },
+                                onDoubleTap = { pos ->
+                                    val inLine = textLayout[0]?.getOffsetForPosition(pos)
+                                        ?: line.checkboxText().length
+                                    onEnterEditAt(
+                                        lineStart + UNCHECKED_PREFIX.length +
+                                            inLine.coerceIn(0, line.checkboxText().length)
+                                    )
+                                }
+                            )
+                        }
+                )
+                if (isIngredientsNote) {
+                    IconButton(
+                        onClick = onMoveToCourses,
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.ShoppingCart,
+                            contentDescription = "Déplacer vers Courses",
+                            tint = Color.Gray
+                        )
+                    }
+                }
+                if (isTodoListNote && muscuDayMatch(line.checkboxText()) != null) {
+                    IconButton(
+                        onClick = onAdvanceMuscu,
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.FitnessCenter,
+                            contentDescription = "Jour suivant",
+                            tint = Color.Gray
+                        )
+                    }
+                }
+                IconButton(
+                    onClick = onDeleteLine,
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        Icons.Default.Delete,
+                        contentDescription = "Supprimer la ligne",
+                        tint = Color.Gray
+                    )
+                }
+            }
+        } else {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    (if (line.isEmpty()) " " else line).formatInline(),
+                    style = MaterialTheme.typography.bodyLarge,
+                    onTextLayout = { textLayout[0] = it },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .zIndex(if (isDragged) 1f else 0f)
-                        .offset { IntOffset(0, if (isDragged) dragOffset.roundToInt() else 0) }
-                        .onSizeChanged { lineHeights[lineIndex] = it.height }
                         .background(
-                            if (isDragged) MaterialTheme.colorScheme.surfaceVariant
+                            if (selected) MaterialTheme.colorScheme.surfaceVariant
                             else Color.Transparent
                         )
-                        .pointerInput(Unit) {
-                            detectDragGesturesAfterLongPress(
-                                onDragStart = {
-                                    draggedLine = lineIndex
-                                    dragOffset = 0f
-                                    displayOrder = textFieldState.text.toString().split("\n").indices.toList()
-                                },
-                                onDrag = { change, amount ->
-                                    change.consume()
-                                    onDragMove(amount.y)
-                                },
-                                onDragEnd = { endDrag(commit = true) },
-                                onDragCancel = { endDrag(commit = false) }
+                        .padding(vertical = 4.dp)
+                        .pointerInput(lineStart, line) {
+                            detectTapGestures(
+                                onTap = { onToggleSelected() },
+                                onDoubleTap = { pos ->
+                                    onDeselect()
+                                    val inLine = textLayout[0]?.getOffsetForPosition(pos) ?: line.length
+                                    onEnterEditAt(lineStart + inLine.coerceIn(0, line.length))
+                                }
                             )
                         }
-                ) {
-                    if (line.isSeparatorLine()) {
-                        val name = line.separatorName()
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 4.dp)
-                                .pointerInput(textFieldState.text.toString()) {
-                                    detectTapGestures(onDoubleTap = {
-                                        onEnterEditAt(lineStarts[lineIndex] + line.length)
-                                    })
-                                }
+                )
+                if (selected) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        IconButton(
+                            onClick = { onToggleLineMarker("**") },
+                            modifier = Modifier.size(36.dp)
                         ) {
-                            HorizontalDivider(modifier = Modifier.weight(1f))
-                            if (name.isNotEmpty()) {
-                                Text(
-                                    name.uppercase(),
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = Color.Gray,
-                                    modifier = Modifier.padding(horizontal = 12.dp)
-                                )
-                                HorizontalDivider(modifier = Modifier.weight(1f))
-                            }
+                            Icon(Icons.Default.FormatBold, contentDescription = "Gras", tint = Color.Gray)
+                        }
+                        IconButton(
+                            onClick = { onToggleLineMarker("*") },
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Icon(Icons.Default.FormatItalic, contentDescription = "Italique", tint = Color.Gray)
+                        }
+                        IconButton(
+                            onClick = { onToggleLineMarker("__") },
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Icon(Icons.Default.FormatUnderlined, contentDescription = "Souligné", tint = Color.Gray)
+                        }
+                        if (isIngredientsNote) {
                             IconButton(
-                                onClick = { onDeleteLine(lineIndex) },
+                                onClick = { onMoveToCourses(); onDeselect() },
                                 modifier = Modifier.size(36.dp)
                             ) {
                                 Icon(
-                                    Icons.Default.Delete,
-                                    contentDescription = "Supprimer la ligne",
+                                    Icons.Default.ShoppingCart,
+                                    contentDescription = "Déplacer vers Courses",
                                     tint = Color.Gray
                                 )
                             }
                         }
-                    } else if (line.isCheckboxLine()) {
-                        val checked = line.isCheckedLine()
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { onToggleLine(lineIndex) }
+                        IconButton(
+                            onClick = { onDeleteLine(); onDeselect() },
+                            modifier = Modifier.size(36.dp)
                         ) {
-                            Checkbox(checked = checked, onCheckedChange = { onToggleLine(lineIndex) })
-                            Text(
-                                line.checkboxText().formatInline(),
-                                style = MaterialTheme.typography.bodyLarge,
-                                textDecoration = if (checked) TextDecoration.LineThrough else TextDecoration.None,
-                                color = if (checked) Color.Gray else MaterialTheme.colorScheme.onBackground,
-                                onTextLayout = { textLayout[0] = it },
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .pointerInput(textFieldState.text.toString()) {
-                                        detectTapGestures(
-                                            onTap = { onToggleLine(lineIndex) },
-                                            onDoubleTap = { pos ->
-                                                val inLine = textLayout[0]?.getOffsetForPosition(pos)
-                                                    ?: line.checkboxText().length
-                                                onEnterEditAt(
-                                                    lineStarts[lineIndex] + UNCHECKED_PREFIX.length +
-                                                        inLine.coerceIn(0, line.checkboxText().length)
-                                                )
-                                            }
-                                        )
-                                    }
-                            )
-                            if (isIngredientsNote) {
-                                IconButton(
-                                    onClick = { onMoveToCourses(lineIndex) },
-                                    modifier = Modifier.size(36.dp)
-                                ) {
-                                    Icon(
-                                        Icons.Default.ShoppingCart,
-                                        contentDescription = "Déplacer vers Courses",
-                                        tint = Color.Gray
-                                    )
-                                }
-                            }
-                            if (isTodoListNote && muscuDayMatch(line.checkboxText()) != null) {
-                                IconButton(
-                                    onClick = { onAdvanceMuscu(lineIndex) },
-                                    modifier = Modifier.size(36.dp)
-                                ) {
-                                    Icon(
-                                        Icons.Default.FitnessCenter,
-                                        contentDescription = "Jour suivant",
-                                        tint = Color.Gray
-                                    )
-                                }
-                            }
-                            IconButton(
-                                onClick = { onDeleteLine(lineIndex) },
-                                modifier = Modifier.size(36.dp)
-                            ) {
-                                Icon(
-                                    Icons.Default.Delete,
-                                    contentDescription = "Supprimer la ligne",
-                                    tint = Color.Gray
-                                )
-                            }
+                            Icon(Icons.Default.Delete, contentDescription = "Supprimer la ligne", tint = Color.Gray)
                         }
-                    } else {
-                        val selected = lineIndex == selectedLine
-                        Column(modifier = Modifier.fillMaxWidth()) {
-                            Text(
-                                (if (line.isEmpty()) " " else line).formatInline(),
-                                style = MaterialTheme.typography.bodyLarge,
-                                onTextLayout = { textLayout[0] = it },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .background(
-                                        if (selected) MaterialTheme.colorScheme.surfaceVariant
-                                        else Color.Transparent
-                                    )
-                                    .padding(vertical = 4.dp)
-                                    .pointerInput(textFieldState.text.toString()) {
-                                        detectTapGestures(
-                                            onTap = {
-                                                selectedLine = if (selected) -1 else lineIndex
-                                            },
-                                            onDoubleTap = { pos ->
-                                                selectedLine = -1
-                                                val inLine = textLayout[0]?.getOffsetForPosition(pos) ?: line.length
-                                                onEnterEditAt(lineStarts[lineIndex] + inLine.coerceIn(0, line.length))
-                                            }
-                                        )
-                                    }
-                            )
-                            if (selected) {
-                                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                    IconButton(
-                                        onClick = { onToggleLineMarker(lineIndex, "**") },
-                                        modifier = Modifier.size(36.dp)
-                                    ) {
-                                        Icon(Icons.Default.FormatBold, contentDescription = "Gras", tint = Color.Gray)
-                                    }
-                                    IconButton(
-                                        onClick = { onToggleLineMarker(lineIndex, "*") },
-                                        modifier = Modifier.size(36.dp)
-                                    ) {
-                                        Icon(Icons.Default.FormatItalic, contentDescription = "Italique", tint = Color.Gray)
-                                    }
-                                    IconButton(
-                                        onClick = { onToggleLineMarker(lineIndex, "__") },
-                                        modifier = Modifier.size(36.dp)
-                                    ) {
-                                        Icon(Icons.Default.FormatUnderlined, contentDescription = "Souligné", tint = Color.Gray)
-                                    }
-                                    if (isIngredientsNote) {
-                                        IconButton(
-                                            onClick = { onMoveToCourses(lineIndex); selectedLine = -1 },
-                                            modifier = Modifier.size(36.dp)
-                                        ) {
-                                            Icon(
-                                                Icons.Default.ShoppingCart,
-                                                contentDescription = "Déplacer vers Courses",
-                                                tint = Color.Gray
-                                            )
-                                        }
-                                    }
-                                    IconButton(
-                                        onClick = { onDeleteLine(lineIndex); selectedLine = -1 },
-                                        modifier = Modifier.size(36.dp)
-                                    ) {
-                                        Icon(Icons.Default.Delete, contentDescription = "Supprimer la ligne", tint = Color.Gray)
-                                    }
-                                    IconButton(
-                                        onClick = {
-                                            selectedLine = -1
-                                            onEnterEditAt(lineStarts[lineIndex] + line.length)
-                                        },
-                                        modifier = Modifier.size(36.dp)
-                                    ) {
-                                        Icon(Icons.Default.Edit, contentDescription = "Éditer", tint = Color.Gray)
-                                    }
-                                }
-                            }
+                        IconButton(
+                            onClick = {
+                                onDeselect()
+                                onEnterEditAt(lineStart + line.length)
+                            },
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Icon(Icons.Default.Edit, contentDescription = "Éditer", tint = Color.Gray)
                         }
                     }
                 }
