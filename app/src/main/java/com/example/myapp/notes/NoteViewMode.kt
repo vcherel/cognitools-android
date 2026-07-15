@@ -18,6 +18,7 @@ import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.FormatBold
 import androidx.compose.material.icons.filled.FormatItalic
@@ -339,6 +340,15 @@ fun NoteViewMode(
                                         modifier = Modifier.size(36.dp)
                                     ) {
                                         Icon(Icons.Default.Delete, contentDescription = "Supprimer la ligne", tint = Color.Gray)
+                                    }
+                                    IconButton(
+                                        onClick = {
+                                            selectedLine = -1
+                                            onEnterEditAt(lineStarts[lineIndex] + line.length)
+                                        },
+                                        modifier = Modifier.size(36.dp)
+                                    ) {
+                                        Icon(Icons.Default.Edit, contentDescription = "Éditer", tint = Color.Gray)
                                     }
                                 }
                             }
