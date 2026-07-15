@@ -16,6 +16,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -30,8 +31,12 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -44,6 +49,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -150,9 +156,7 @@ private fun WeatherContent(forecast: WeatherForecast, modifier: Modifier = Modif
     // Hours grouped by day once, so expanding a day is a cheap lookup rather than a full filter.
     val hoursByDate = remember(forecast) { forecast.hourly.groupBy { it.time.toLocalDate() } }
 
-    // A single scroll state shared by every day's strip, so opening a day lands on the same hour
-    // you last left off at (index == hour of day). Opening the current day is the exception: it
-    // snaps back to the current hour, one slot in from the left edge.
+    // One slot in from the left edge, so the current hour isn't flush against the strip's border.
     val currentHourTarget = remember(forecast) {
         val currentIndex = hoursByDate[today].orEmpty().indexOfFirst { it.time.hour == now.hour }
         (currentIndex - 1).coerceAtLeast(0)
@@ -161,8 +165,23 @@ private fun WeatherContent(forecast: WeatherForecast, modifier: Modifier = Modif
     // leaves composition instantly (the ExitTransition.None below is load-bearing): if a strip ever
     // animated out, two strips would bind sharedHourState at once during a day switch.
     val sharedHourState = remember(forecast) { LazyListState(firstVisibleItemIndex = currentHourTarget) }
+    // Which edge of a newly opened day to land on: the start when moving forward (next-day arrow,
+    // or opening a day from the list), the end when moving backward (previous-day arrow). Today is
+    // always the exception, snapping to the current hour instead, regardless of edge.
+    var landOnEndOfDay by remember(forecast) { mutableStateOf(false) }
     LaunchedEffect(expandedDate) {
-        if (expandedDate == today) sharedHourState.scrollToItem(currentHourTarget)
+        val date = expandedDate ?: return@LaunchedEffect
+        val hours = hoursByDate[date].orEmpty()
+        if (hours.isEmpty()) return@LaunchedEffect
+        val dayIndex = forecast.daily.indexOfFirst { it.date == date }
+        // Days other than the first have a leading previous-day arrow item shifting every index by 1.
+        val offset = if (dayIndex > 0) 1 else 0
+        val target = when {
+            date == today -> offset + currentHourTarget
+            landOnEndOfDay -> offset + hours.size - 1
+            else -> offset
+        }
+        sharedHourState.scrollToItem(target)
     }
 
     val summaryHours = hoursByDate[summaryDate].orEmpty()
@@ -181,12 +200,15 @@ private fun WeatherContent(forecast: WeatherForecast, modifier: Modifier = Modif
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        forecast.daily.forEach { day ->
+        forecast.daily.forEachIndexed { index, day ->
             val expanded = day.date == expandedDate
             DayRow(
                 day = day,
                 selected = expanded,
-                onClick = { expandedDate = if (expanded) null else day.date }
+                onClick = {
+                    landOnEndOfDay = false
+                    expandedDate = if (expanded) null else day.date
+                }
             )
             // A closing strip leaves composition immediately (no exit animation) so two strips
             // never share sharedHourState at once during a day switch.
@@ -195,7 +217,15 @@ private fun WeatherContent(forecast: WeatherForecast, modifier: Modifier = Modif
                     hours = hoursByDate[day.date].orEmpty(),
                     state = sharedHourState,
                     today = today,
-                    now = now
+                    now = now,
+                    onPrevious = {
+                        landOnEndOfDay = true
+                        expandedDate = forecast.daily[index - 1].date
+                    }.takeIf { index > 0 },
+                    onNext = {
+                        landOnEndOfDay = false
+                        expandedDate = forecast.daily[index + 1].date
+                    }.takeIf { index < forecast.daily.lastIndex }
                 )
             }
         }
@@ -203,11 +233,27 @@ private fun WeatherContent(forecast: WeatherForecast, modifier: Modifier = Modif
 }
 
 @Composable
-private fun HourStrip(hours: List<HourlyPoint>, state: LazyListState, today: LocalDate, now: LocalDateTime) {
+private fun HourStrip(
+    hours: List<HourlyPoint>,
+    state: LazyListState,
+    today: LocalDate,
+    now: LocalDateTime,
+    onPrevious: (() -> Unit)?,
+    onNext: (() -> Unit)?
+) {
     val hourItemWidth = 64.dp
     val isToday = hours.firstOrNull()?.time?.toLocalDate() == today
 
-    LazyRow(state = state, modifier = Modifier.padding(bottom = 8.dp)) {
+    LazyRow(
+        state = state,
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.padding(bottom = 8.dp)
+    ) {
+        if (onPrevious != null) {
+            item(key = "previous") {
+                DayNavArrow(icon = Icons.AutoMirrored.Filled.KeyboardArrowLeft, onClick = onPrevious)
+            }
+        }
         items(hours, key = { it.time.toString() }) { point ->
             val isCurrent = isToday && point.time.hour == now.hour
             val textColor = if (isCurrent) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
@@ -231,6 +277,25 @@ private fun HourStrip(hours: List<HourlyPoint>, state: LazyListState, today: Loc
                 )
             }
         }
+        if (onNext != null) {
+            item(key = "next") {
+                DayNavArrow(icon = Icons.AutoMirrored.Filled.KeyboardArrowRight, onClick = onNext)
+            }
+        }
+    }
+}
+
+@Composable
+private fun DayNavArrow(icon: ImageVector, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .padding(horizontal = 2.dp, vertical = 4.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .clickable(onClick = onClick)
+            .padding(vertical = 20.dp, horizontal = 8.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
     }
 }
 
