@@ -325,13 +325,16 @@ private fun fetchWeatherForecast(lat: Double, lon: Double): WeatherForecast {
     val hourlyTemps = hourlyJson.getJSONArray("temperature_2m")
     val hourlyRain = hourlyJson.getJSONArray("precipitation_probability")
     val hourlyCodes = hourlyJson.getJSONArray("weathercode")
-    val hourly = (0 until hourlyTimes.length()).map { i ->
+    // Temperature and weather code are also null for the last few hours of the forecast window,
+    // same as precipitation probability: drop those hours instead of crashing.
+    val hourly = (0 until hourlyTimes.length()).mapNotNull { i ->
+        val temp = hourlyTemps.optDouble(i, Double.NaN)
+        if (temp.isNaN()) return@mapNotNull null
         HourlyPoint(
             time = LocalDateTime.parse(hourlyTimes.getString(i)),
-            temp = hourlyTemps.getDouble(i),
-            // Precipitation probability is null for the last few hours of the forecast window.
+            temp = temp,
             rainProb = hourlyRain.optInt(i, 0),
-            weatherCode = hourlyCodes.getInt(i)
+            weatherCode = hourlyCodes.optInt(i, 0)
         )
     }
 
@@ -341,13 +344,16 @@ private fun fetchWeatherForecast(lat: Double, lon: Double): WeatherForecast {
     val dailyMin = dailyJson.getJSONArray("temperature_2m_min")
     val dailyRain = dailyJson.getJSONArray("precipitation_probability_max")
     val dailyCodes = dailyJson.getJSONArray("weathercode")
-    val daily = (0 until dailyDates.length()).map { i ->
+    val daily = (0 until dailyDates.length()).mapNotNull { i ->
+        val tempMax = dailyMax.optDouble(i, Double.NaN)
+        val tempMin = dailyMin.optDouble(i, Double.NaN)
+        if (tempMax.isNaN() || tempMin.isNaN()) return@mapNotNull null
         DailyPoint(
             date = LocalDate.parse(dailyDates.getString(i)),
-            tempMax = dailyMax.getDouble(i),
-            tempMin = dailyMin.getDouble(i),
+            tempMax = tempMax,
+            tempMin = tempMin,
             rainProb = dailyRain.optInt(i, 0),
-            weatherCode = dailyCodes.getInt(i)
+            weatherCode = dailyCodes.optInt(i, 0)
         )
     }
 
