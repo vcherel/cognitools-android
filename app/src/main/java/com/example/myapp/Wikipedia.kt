@@ -12,12 +12,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -47,8 +43,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import org.jsoup.Jsoup
-import java.net.HttpURLConnection
-import java.net.URL
 import java.net.URLDecoder
 import java.net.URLEncoder
 
@@ -60,7 +54,6 @@ fun WikipediaScreen(onBack: () -> Unit) {
     var error by remember { mutableStateOf<String?>(null) }
     var selectedLanguage by remember { mutableStateOf("fr") }
 
-    // Navigation history stack
     var navigationHistory by remember { mutableStateOf<List<WikipediaContent>>(emptyList()) }
 
     val scope = rememberCoroutineScope()
@@ -104,32 +97,13 @@ fun WikipediaScreen(onBack: () -> Unit) {
     Column(
         modifier = Modifier.fillMaxSize()
     ) {
-        // Top bar
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.weight(1f)
-            ) {
-                IconButton(onClick = goBackInHistory) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Retour")
-                }
+        ScreenTopBar(title = "Wikipedia", onBack = goBackInHistory) {
+            if (navigationHistory.isNotEmpty()) {
                 Text(
-                    "Wikipedia",
-                    style = MaterialTheme.typography.headlineMedium,
-                    modifier = Modifier.padding(start = 8.dp)
+                    text = " (${navigationHistory.size})",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-
-                // Show history depth indicator
-                if (navigationHistory.isNotEmpty()) {
-                    Text(
-                        text = " (${navigationHistory.size})",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
             }
         }
 
@@ -182,7 +156,6 @@ fun WikipediaScreen(onBack: () -> Unit) {
                         .padding(vertical = 16.dp)
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        // Title
                         Text(
                             text = content.title,
                             style = MaterialTheme.typography.headlineSmall,
@@ -190,7 +163,6 @@ fun WikipediaScreen(onBack: () -> Unit) {
                             modifier = Modifier.padding(bottom = 16.dp)
                         )
 
-                        // Content with links
                         val doc = remember(content.fullContentHtml) {
                             Jsoup.parse(content.fullContentHtml)
                         }
@@ -213,7 +185,6 @@ fun WikipediaScreen(onBack: () -> Unit) {
                             html = paragraphsToShow.joinToString("\n\n") { it.outerHtml().trim() },
                             language = content.language,
                             onLinkClick = { url ->
-                                // Extract title from Wikipedia URL
                                 val wikiPattern = """https?://(\w+)\.wikipedia\.org/wiki/(.+)""".toRegex()
                                 wikiPattern.find(url)?.let { matchResult ->
                                     val lang = matchResult.groupValues[1]
@@ -261,36 +232,12 @@ private val excludeStarts = listOf(
 
 private val whitespaceRegex = "\\s+".toRegex()
 
-// Purely numeric link text means a footnote marker, not worth linking
-private val digitsOnlyRegex = Regex("""^\d+$""")
-
 data class WikipediaContent(
     val title: String,
     val fullContentHtml: String,
     // Wikipedia language code ("fr", "en", ...), needed to resolve relative /wiki/ links
     val language: String
 )
-
-// Wikimedia's User-Agent policy requires a descriptive agent with contact info,
-// otherwise requests can be rejected with an HTTP error.
-private const val USER_AGENT = "CognitoolsAndroid/1.0 (https://github.com/valentincherel; valentin.cherel22@yahoo.com)"
-
-private fun httpGet(url: String): String {
-    val conn = URL(url).openConnection() as HttpURLConnection
-    try {
-        conn.requestMethod = "GET"
-        conn.setRequestProperty("User-Agent", USER_AGENT)
-        conn.setRequestProperty("Accept", "application/json")
-        val code = conn.responseCode
-        if (code !in 200..299) {
-            val body = (conn.errorStream ?: conn.inputStream)?.bufferedReader()?.readText().orEmpty()
-            throw Exception("HTTP $code ${conn.responseMessage}: ${body.take(200)}")
-        }
-        return conn.inputStream.bufferedReader().readText()
-    } finally {
-        conn.disconnect()
-    }
-}
 
 private suspend fun fetchRandomTitle(language: String): String = withContext(Dispatchers.IO) {
     // Use the MediaWiki action API: it returns the title directly, with no HTTP
@@ -320,21 +267,23 @@ private suspend fun fetchPageViews(language: String, title: String): Int = withC
 }
 
 private suspend fun fetchCompleteWikipedia(language: String): WikipediaContent = withContext(Dispatchers.IO) {
-    // Fetch several random titles, and for each title, fetch pageviews (last 30 days)
+    // Fetch several random titles in parallel, each with its last-30-days pageviews, and keep the
+    // ones that resolved. A single flaky fetch drops out instead of failing the whole batch.
     val viewCounts = coroutineScope {
         (1..5).map {
             async {
-                val title = fetchRandomTitle(language)
-                val views = fetchPageViews(language, title)
-                title to views
+                runCatching {
+                    val title = fetchRandomTitle(language)
+                    title to fetchPageViews(language, title)
+                }.getOrNull()
             }
-        }.awaitAll().toMap()
+        }.awaitAll().filterNotNull().toMap()
     }
 
-    // Pick the most viewed article
-    val bestTitle = viewCounts.maxByOrNull { it.value }?.key ?: viewCounts.keys.first()
+    // Pick the most viewed article; if every fetch failed, surface the error to the user.
+    val bestTitle = viewCounts.maxByOrNull { it.value }?.key
+        ?: throw Exception("Aucun article n'a pu être chargé")
 
-    // Fetch full content
     fetchWikipediaByTitle(bestTitle, language)
 }
 
@@ -343,13 +292,11 @@ private suspend fun fetchWikipediaByTitle(title: String, language: String): Wiki
     val contentUrl = "https://$language.wikipedia.org/w/api.php?action=parse&format=json&page=$encodedTitle&prop=text&redirects=1"
     val json = JSONObject(httpGet(contentUrl))
 
-    // Check if there's an error (page doesn't exist)
     if (json.has("error")) {
         throw Exception("Page not found: ${json.getJSONObject("error").getString("info")}")
     }
 
     val parseObject = json.getJSONObject("parse")
-
     WikipediaContent(
         title = parseObject.getString("title"),
         fullContentHtml = parseObject.getJSONObject("text").getString("*"),
@@ -395,7 +342,10 @@ private fun appendElementRecursively(
             // Skip red links (non-existing pages)
             val isRedLink = element.hasClass("new")
 
-            if (!isRedLink && text.isNotBlank() && !text.matches(digitsOnlyRegex)) {
+            // Purely numeric link text is a footnote marker, not worth linking
+            val isFootnote = text.isNotBlank() && text.all { it.isDigit() }
+
+            if (!isRedLink && text.isNotBlank() && !isFootnote) {
                 val absoluteUrl = if (url.startsWith("/wiki/")) {
                     "https://$language.wikipedia.org$url"
                 } else url

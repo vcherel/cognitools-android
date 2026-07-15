@@ -12,10 +12,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -39,6 +35,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.text.NumberFormat
 import java.util.Locale
 
@@ -63,55 +60,29 @@ fun Context.readMinMax() = randomDataStore.data.map { prefs ->
 
 @Composable
 fun RandomGeneratorScreen(onBack: () -> Unit, context: Context = LocalContext.current) {
-    // Integer state
     var min by remember { mutableStateOf("1") }
     var max by remember { mutableStateOf("100") }
     var intResult by remember { mutableStateOf<Int?>(null) }
 
-    // Word state
     var words by remember { mutableStateOf<List<String>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var wordResult by remember { mutableStateOf<String?>(null) }
 
     val scope = rememberCoroutineScope()
 
-    // Load the saved min/max once as initial values
     LaunchedEffect(Unit) {
+        // Seed the fields with the last used range
         val (savedMin, savedMax) = context.readMinMax().first()
         min = savedMin.toString()
         max = savedMax.toString()
+
+        words = withContext(Dispatchers.IO) {
+            context.assets.open("words.txt").bufferedReader().useLines { it.toList() }
+        }
+        isLoading = false
     }
 
-    // Load words
-    LaunchedEffect(Unit) {
-        launch(Dispatchers.IO) {
-            val loadedWords = context.assets.open("words.txt")
-                .bufferedReader()
-                .useLines { it.toList() }
-            words = loadedWords
-            isLoading = false
-        }
-    }
-
-    // Top bar
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.weight(1f)
-        ) {
-            IconButton(onClick = onBack) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Retour")
-            }
-            Text(
-                "Générateur aléatoire",
-                style = MaterialTheme.typography.headlineMedium,
-                modifier = Modifier.padding(start = 8.dp)
-            )
-        }
-    }
+    ScreenTopBar(title = "Générateur aléatoire", onBack = onBack)
 
     Column(
         modifier = Modifier
@@ -120,7 +91,6 @@ fun RandomGeneratorScreen(onBack: () -> Unit, context: Context = LocalContext.cu
             .padding(horizontal = 20.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Random Integer Section
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text("Nombre entier aléatoire", fontSize = 22.sp, fontWeight = FontWeight.Bold)
 
@@ -156,7 +126,6 @@ fun RandomGeneratorScreen(onBack: () -> Unit, context: Context = LocalContext.cu
 
         Spacer(Modifier.height(32.dp))
 
-        // Random Word Section
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text("Mot aléatoire", fontSize = 22.sp, fontWeight = FontWeight.Bold)
 

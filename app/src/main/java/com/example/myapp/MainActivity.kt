@@ -77,7 +77,6 @@ class MainActivity : ComponentActivity() {
         val splashScreen = installSplashScreen()
         super.onCreate(savedInstanceState)
 
-        // Configure splash screen animation
         splashScreen.setOnExitAnimationListener { splashScreenView ->
             try {
                 val icon = splashScreenView.iconView
@@ -249,7 +248,6 @@ fun MenuScreen(
             .fillMaxSize()
             .padding(12.dp)
     ) {
-        // Main content
         Column(
             modifier = Modifier
                 .align(Alignment.Center)
@@ -313,7 +311,6 @@ fun MenuScreen(
             }
         }
 
-        // Floating theme toggle button (top right)
         IconButton(
             onClick = {
                 coroutineScope.launch {

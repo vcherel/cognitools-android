@@ -6,6 +6,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -17,11 +18,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
-import androidx.compose.runtime.getValue
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -64,6 +65,39 @@ private fun buttonStyle(isPressed: Boolean, enabled: Boolean, isDarkMode: Boolea
     )
 }
 
+// The raised, gradient-filled surface every custom button and switch is built from:
+// a drop-shadow layer under a gradient layer, pressed down slightly while touched.
+@Composable
+private fun RaisedSurface(
+    style: ButtonStyle,
+    isPressed: Boolean,
+    modifier: Modifier = Modifier,
+    shadowOffset: Dp = 6.dp,
+    cornerPercent: Int = 35,
+    clickModifier: Modifier = Modifier,
+    content: @Composable BoxScope.() -> Unit
+) {
+    Box(
+        modifier = modifier
+            .scale(if (isPressed) 0.98f else 1f)
+            .then(clickModifier)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .offset(y = shadowOffset)
+                .background(style.shadow, RoundedCornerShape(cornerPercent))
+        )
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(style.gradient, RoundedCornerShape(cornerPercent)),
+            contentAlignment = Alignment.Center,
+            content = content
+        )
+    }
+}
+
 @Composable
 fun MyButton(
     text: String,
@@ -82,55 +116,30 @@ fun MyButton(
         buttonStyle(isPressed, enabled, isDarkMode)
     }
 
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(height)
-            .scale(if (isPressed) 0.98f else 1f)
-            .then(
-                if (enabled) Modifier.clickable(
-                    interactionSource = interactionSource,
-                    indication = null,
-                    onClick = onClick
-                ) else Modifier
-            )
+    RaisedSurface(
+        style = style,
+        isPressed = isPressed,
+        modifier = modifier.fillMaxWidth().height(height),
+        clickModifier = if (enabled) Modifier.clickable(
+            interactionSource = interactionSource,
+            indication = null,
+            onClick = onClick
+        ) else Modifier
     ) {
-        // Shadow layer
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .offset(y = 6.dp)
-                .background(
-                    color = style.shadow,
-                    shape = RoundedCornerShape(35)
-                )
-        )
-
-        // Main button
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    brush = style.gradient,
-                    shape = RoundedCornerShape(35)
-                ),
-            contentAlignment = Alignment.Center
-        ) {
-            if (icon != null) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = text,
-                    tint = style.text,
-                    modifier = Modifier.size(32.dp)
-                )
-            } else {
-                Text(
-                    text,
-                    color = style.text,
-                    fontSize = fontSize,
-                    fontWeight = FontWeight.SemiBold
-                )
-            }
+        if (icon != null) {
+            Icon(
+                imageVector = icon,
+                contentDescription = text,
+                tint = style.text,
+                modifier = Modifier.size(32.dp)
+            )
+        } else {
+            Text(
+                text,
+                color = style.text,
+                fontSize = fontSize,
+                fontWeight = FontWeight.SemiBold
+            )
         }
     }
 }
@@ -190,26 +199,17 @@ private fun SplitButtonHalf(
         buttonStyle(isPressed, enabled = true, isDarkMode = isDarkMode)
     }
 
-    Box(
-        modifier = modifier
-            .height(height)
-            .scale(if (isPressed) 0.98f else 1f)
-            .clickable(interactionSource = interactionSource, indication = null, onClick = onClick)
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .offset(y = 6.dp)
-                .background(style.shadow, RoundedCornerShape(35))
+    RaisedSurface(
+        style = style,
+        isPressed = isPressed,
+        modifier = modifier.height(height),
+        clickModifier = Modifier.clickable(
+            interactionSource = interactionSource,
+            indication = null,
+            onClick = onClick
         )
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(style.gradient, RoundedCornerShape(35)),
-            contentAlignment = Alignment.Center
-        ) {
-            content(style.text)
-        }
+    ) {
+        content(style.text)
     }
 }
 
@@ -232,66 +232,47 @@ fun MySwitch(
         buttonStyle(isPressed = isEnabled, enabled = true, isDarkMode = isDarkMode)
     }
 
-    Box(
-        modifier = modifier
-            .width(boxWidth)
-            .height(boxHeight)
-            .scale(if (isPressed) 0.98f else 1f)
+    RaisedSurface(
+        style = style,
+        isPressed = isPressed,
+        modifier = modifier.width(boxWidth).height(boxHeight),
+        shadowOffset = 5.dp,
+        cornerPercent = 40,
+        clickModifier = Modifier.clickable(
+            interactionSource = interactionSource,
+            indication = null
+        ) { onToggle(!isEnabled) }
     ) {
-        Box(
+        Row(
             modifier = Modifier
                 .fillMaxSize()
-                .offset(y = 5.dp)
-                .background(
-                    color = style.shadow,
-                    shape = RoundedCornerShape(40)
-                )
-        )
-
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    brush = style.gradient,
-                    shape = RoundedCornerShape(40)
-                )
-                .clickable(
-                    interactionSource = interactionSource,
-                    indication = null
-                ) { onToggle(!isEnabled) },
-            contentAlignment = Alignment.Center
+                .padding(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                if (text != null) {
-                    Text(
-                        text = text,
-                        color = style.text,
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-
-                // Display only: the whole surface handles the toggle.
-                Switch(
-                    checked = isEnabled,
-                    onCheckedChange = null,
-                    colors = SwitchDefaults.colors(
-                        checkedThumbColor = Color.White,
-                        checkedTrackColor = Color(0xFF0D47A1),
-                        uncheckedThumbColor = Color.White,
-                        uncheckedTrackColor = if (isDarkMode) Color(0xFF37474F) else Color(0xFFB0BEC5)
-                    ),
-                    modifier = Modifier.scale(1.2f)
+            if (text != null) {
+                Text(
+                    text = text,
+                    color = style.text,
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
+
+            // Display only: the whole surface handles the toggle.
+            Switch(
+                checked = isEnabled,
+                onCheckedChange = null,
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = Color.White,
+                    checkedTrackColor = Color(0xFF0D47A1),
+                    uncheckedThumbColor = Color.White,
+                    uncheckedTrackColor = if (isDarkMode) Color(0xFF37474F) else Color(0xFFB0BEC5)
+                ),
+                modifier = Modifier.scale(1.2f)
+            )
         }
     }
 }

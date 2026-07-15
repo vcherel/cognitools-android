@@ -23,7 +23,9 @@ Three independent tools live under `app/src/main/java/com/example/myapp/`. Use t
 Root package (shared/misc):
 - `MainActivity.kt`: app entry point, theme manager, main menu screen, nav host
 - `MyApplication.kt`: Application class, holds the FlashcardRepository singleton
-- `Buttons.kt`: shared composables, MyButton, SplitMyButton, MySwitch, ShowAlertDialog
+- `Buttons.kt`: shared composables, MyButton, SplitMyButton, MySwitch, ShowAlertDialog (all built on RaisedSurface)
+- `ScreenTopBar.kt`: shared back-arrow + title header used by the tool screens
+- `Http.kt`: shared httpGet helper and User-Agent (Weather + Wikipedia)
 - `BottomFadeOverlay.kt`: shared fade out gradient overlay composable
 - `BackupRestore.kt`: export/import actions for app data
 - `Random.kt`: random number generator tool screen
@@ -46,7 +48,9 @@ Root package (shared/misc):
 - `Models.kt`: Note data class, checkbox/separator line parsing helpers, quantity suffix parsing, formatInline
 - `NoteDao`: Room DAO, defined in `Models.kt`
 - `NotesListScreen.kt`: list of notes screen
-- `NoteEditorScreen.kt`: the note editor itself (43K, largest file); checkbox lines, undo, formatting toolbar
+- `NoteEditorScreen.kt`: the note editor shell; load/save, autosave, undo, edit-mode text field, menus
+- `NoteEditing.kt`: pure text helpers; input transformations, slash commands, inline/line marker toggling, muscu day
+- `NoteViewMode.kt`: the read-only note rendering; per-line checkbox/separator/text, drag reorder, double-tap to edit
 - `NoteLock.kt`: PIN lock for notes, PinDialog
 
 `undercover/` (party game tool):

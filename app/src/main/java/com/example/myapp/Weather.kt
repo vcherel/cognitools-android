@@ -30,12 +30,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -56,8 +52,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
-import java.net.HttpURLConnection
-import java.net.URL
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.format.TextStyle
@@ -110,19 +104,7 @@ fun WeatherScreen(onBack: () -> Unit) {
     BackHandler { onBack() }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            IconButton(onClick = onBack) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Retour")
-            }
-            Text(
-                "Météo",
-                style = MaterialTheme.typography.headlineMedium,
-                modifier = Modifier.padding(start = 8.dp)
-            )
-        }
+        ScreenTopBar(title = "Météo", onBack = onBack)
 
         if (forecast != null) {
             WeatherContent(
@@ -175,6 +157,9 @@ private fun WeatherContent(forecast: WeatherForecast, modifier: Modifier = Modif
         val currentIndex = hoursByDate[today].orEmpty().indexOfFirst { it.time.hour == now.hour }
         (currentIndex - 1).coerceAtLeast(0)
     }
+    // Every day's HourStrip binds this one state. That only stays correct because a closing strip
+    // leaves composition instantly (the ExitTransition.None below is load-bearing): if a strip ever
+    // animated out, two strips would bind sharedHourState at once during a day switch.
     val sharedHourState = remember(forecast) { LazyListState(firstVisibleItemIndex = currentHourTarget) }
     LaunchedEffect(expandedDate) {
         if (expandedDate == today) sharedHourState.scrollToItem(currentHourTarget)
@@ -328,31 +313,12 @@ data class HourlyPoint(val time: LocalDateTime, val temp: Double, val rainProb: 
 data class DailyPoint(val date: LocalDate, val tempMax: Double, val tempMin: Double, val rainProb: Int, val weatherCode: Int)
 data class WeatherForecast(val hourly: List<HourlyPoint>, val daily: List<DailyPoint>)
 
-private const val WEATHER_USER_AGENT = "CognitoolsAndroid/1.0 (https://github.com/valentincherel; valentin.cherel22@yahoo.com)"
-
-private fun httpGetWeather(url: String): String {
-    val conn = URL(url).openConnection() as HttpURLConnection
-    try {
-        conn.requestMethod = "GET"
-        conn.setRequestProperty("User-Agent", WEATHER_USER_AGENT)
-        conn.setRequestProperty("Accept", "application/json")
-        val code = conn.responseCode
-        if (code !in 200..299) {
-            val body = (conn.errorStream ?: conn.inputStream)?.bufferedReader()?.readText().orEmpty()
-            throw Exception("HTTP $code ${conn.responseMessage}: ${body.take(200)}")
-        }
-        return conn.inputStream.bufferedReader().readText()
-    } finally {
-        conn.disconnect()
-    }
-}
-
 private fun fetchWeatherForecast(lat: Double, lon: Double): WeatherForecast {
     val url = "https://api.open-meteo.com/v1/forecast?latitude=$lat&longitude=$lon" +
             "&hourly=temperature_2m,precipitation_probability,weathercode" +
             "&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,weathercode" +
             "&timezone=auto&forecast_days=16"
-    val json = JSONObject(httpGetWeather(url))
+    val json = JSONObject(httpGet(url))
 
     val hourlyJson = json.getJSONObject("hourly")
     val hourlyTimes = hourlyJson.getJSONArray("time")

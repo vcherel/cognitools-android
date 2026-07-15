@@ -1,10 +1,6 @@
 package com.example.myapp.notes
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,36 +10,27 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.text.input.InputTransformation
 import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.CheckBox
 import androidx.compose.material.icons.filled.CheckBoxOutlineBlank
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.FormatBold
 import androidx.compose.material.icons.filled.FormatItalic
 import androidx.compose.material.icons.filled.FormatUnderlined
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.VerticalAlignCenter
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -56,9 +43,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -70,109 +55,14 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.KeyboardCapitalization
-import androidx.compose.ui.text.style.TextDecoration
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.zIndex
 import com.example.myapp.flashcards.AppDatabase
 import java.util.UUID
-import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-
-/**
- * Pressing Enter at the end of a checkbox line continues the list with a fresh
- * checkbox; on an empty checkbox line it removes the checkbox instead. Enter
- * within the prefix of a non empty checkbox line inserts an empty checkbox
- * above the item. Backspacing right after a checkbox prefix removes the whole
- * prefix in one go instead of one character at a time.
- */
-private val autoContinueCheckboxTransformation = InputTransformation {
-    val cursor = selection.start
-    val oldText = originalText.toString()
-
-    val typedNewline = length == oldText.length + 1 &&
-        cursor > 0 && cursor <= length && charAt(cursor - 1) == '\n'
-    if (typedNewline) {
-        val oldCursor = cursor - 1
-        val oldLineStart = if (oldCursor == 0) 0 else oldText.lastIndexOf('\n', oldCursor - 1) + 1
-        val oldLineEnd = oldText.indexOf('\n', oldCursor).let { if (it == -1) oldText.length else it }
-        val oldLine = oldText.substring(oldLineStart, oldLineEnd)
-        if (oldLine.isCheckboxLine() &&
-            oldCursor - oldLineStart <= UNCHECKED_PREFIX.length &&
-            oldLine.checkboxText().isNotBlank()
-        ) {
-            replace(cursor - 1, cursor, "")
-            replace(oldLineStart, oldLineStart, UNCHECKED_PREFIX + "\n")
-            selection = TextRange(oldLineStart + UNCHECKED_PREFIX.length)
-            return@InputTransformation
-        }
-
-        val newText = asCharSequence().toString()
-        val prevLineStart = if (cursor == 1) 0 else newText.lastIndexOf('\n', cursor - 2) + 1
-        val prevLine = newText.substring(prevLineStart, cursor - 1)
-        if (!prevLine.isCheckboxLine()) return@InputTransformation
-
-        if (prevLine.checkboxText().isBlank()) {
-            // Empty checkbox line: Enter exits the list, dropping the empty item
-            replace(prevLineStart, cursor, "")
-            selection = TextRange(prevLineStart)
-        } else {
-            replace(cursor, cursor, UNCHECKED_PREFIX)
-            selection = TextRange(cursor + UNCHECKED_PREFIX.length)
-        }
-        return@InputTransformation
-    }
-
-    val deletedOneChar = selection.collapsed && length == oldText.length - 1
-    if (deletedOneChar) {
-        val newText = asCharSequence().toString()
-        val lineStart = if (cursor == 0) 0 else newText.lastIndexOf('\n', cursor - 1) + 1
-        val remainder = newText.substring(lineStart, cursor)
-        if (remainder == UNCHECKED_PREFIX.dropLast(1) || remainder == CHECKED_PREFIX.dropLast(1)) {
-            // The last character of a checkbox prefix was just erased; drop the rest in one go
-            replace(lineStart, cursor, "")
-            selection = TextRange(lineStart)
-        }
-    }
-}
-
-// The title field is single line; strips any newline that sneaks in (e.g. from pasted text).
-private val stripNewlinesTransformation = InputTransformation {
-    var i = 0
-    while (i < length) {
-        if (charAt(i) == '\n') replace(i, i + 1, "") else i++
-    }
-}
-
-private class SlashCommand(val label: String, val keywords: List<String>, val prefix: String)
-
-private val SLASH_COMMANDS = listOf(
-    SlashCommand("Case à cocher", listOf("case", "checkbox", "todo"), UNCHECKED_PREFIX),
-    SlashCommand("Séparateur", listOf("separateur", "séparateur", "ligne"), SEPARATOR_PREFIX)
-)
-
-/**
- * If the cursor sits in a "/commande" token at the start of its line, returns
- * the token start index and the text typed after the slash.
- */
-private fun slashQuery(state: TextFieldState): Pair<Int, String>? {
-    if (!state.selection.collapsed) return null
-    val cursor = state.selection.start
-    val text = state.text.toString()
-    if (cursor > text.length) return null
-    val lineStart = if (cursor == 0) 0 else text.lastIndexOf('\n', cursor - 1) + 1
-    if (cursor <= lineStart || text.getOrNull(lineStart) != '/') return null
-    val token = text.substring(lineStart + 1, cursor)
-    if (' ' in token) return null
-    return lineStart to token
-}
 
 @Composable
 fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
@@ -196,7 +86,7 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
     var showCreatePin by remember { mutableStateOf(false) }
     var titleFocused by remember { mutableStateOf(false) }
     var showFormatMenu by remember { mutableStateOf(false) }
-var showMoreMenu by remember { mutableStateOf(false) }
+    var showMoreMenu by remember { mutableStateOf(false) }
     // null until the note is loaded; guards the autosave against saving too early
     var lastSaved by remember { mutableStateOf<Pair<String, String>?>(if (isNew) "" to "" else null) }
     // Snapshots of (title, content) to step back through with the undo button
@@ -359,13 +249,6 @@ var showMoreMenu by remember { mutableStateOf(false) }
         }
     }
 
-    val frenchDays = listOf("lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche")
-
-    // Finds a "(jour)" day name on a "Muscu (jour)" checkbox line, regardless of note
-    fun muscuDayMatch(lineText: String) =
-        Regex("""^Muscu\s*\(([^)]+)\)""", RegexOption.IGNORE_CASE).find(lineText)
-            ?.takeIf { frenchDays.contains(it.groupValues[1].trim().lowercase()) }
-
     // Bumps the day in a "Muscu (jour)" checkbox line two days forward, wrapping
     // across the week, so a tap after a session sets it to the next planned one
     fun advanceMuscuLineDay(index: Int) {
@@ -436,9 +319,12 @@ var showMoreMenu by remember { mutableStateOf(false) }
             saveContent(lines.joinToString("\n"))
 
             val addedLine = UNCHECKED_PREFIX + removed.checkboxText()
-            val newCoursesContent =
-                if (courses.content.isEmpty()) addedLine else courses.content + "\n" + addedLine
-            dao.upsertNote(courses.copy(content = newCoursesContent, updatedAt = System.currentTimeMillis()))
+            val newCoursesLines =
+                if (courses.content.isEmpty()) listOf(addedLine) else courses.content.split("\n") + addedLine
+            // Position of the line we just appended, so undo removes exactly that one rather than
+            // an older identical line that already existed in Courses.
+            val addedIndex = newCoursesLines.size - 1
+            dao.upsertNote(courses.copy(content = newCoursesLines.joinToString("\n"), updatedAt = System.currentTimeMillis()))
 
             snackbarHostState.currentSnackbarData?.dismiss()
             val result = snackbarHostState.showSnackbar(
@@ -455,8 +341,8 @@ var showMoreMenu by remember { mutableStateOf(false) }
                 val latestCourses = dao.getNote(courses.id)
                 if (latestCourses != null) {
                     val coursesLines = latestCourses.content.split("\n").toMutableList()
-                    val addedIndex = coursesLines.lastIndexOf(addedLine)
-                    if (addedIndex >= 0) {
+                    // Only undo the append if that slot still holds our line (Courses may have changed)
+                    if (addedIndex in coursesLines.indices && coursesLines[addedIndex] == addedLine) {
                         coursesLines.removeAt(addedIndex)
                         dao.upsertNote(
                             latestCourses.copy(
@@ -470,84 +356,17 @@ var showMoreMenu by remember { mutableStateOf(false) }
         }
     }
 
-    // Bold ("**") and italic ("*") both use the asterisk, so a plain prefix check can't
-    // tell "already bold, adding italic" from "already italic": the asterisk run length
-    // (0..3) encodes the combination, matching formatInline (1 = italic, 2 = bold, 3 = both).
-    // Toggling a style flips its bit in that run length instead of blindly wrapping.
-    fun asteriskBit(marker: String) = if (marker == "*") 1 else 2
-
     // Wraps a whole line's text in the marker (or removes it when already wrapped)
     fun toggleLineMarker(index: Int, marker: String) {
-        val lines = textFieldState.text.toString().split("\n").toMutableList()
-        val line = lines[index]
-        lines[index] = if (marker == "*" || marker == "**") {
-            var run = 0
-            while (run < 3 && run < line.length && line[run] == '*') run++
-            var runEnd = 0
-            while (runEnd < 3 && runEnd < line.length - run && line[line.length - 1 - runEnd] == '*') runEnd++
-            val oldRun = minOf(run, runEnd)
-            val inner = line.substring(oldRun, line.length - oldRun)
-            val newRun = oldRun xor asteriskBit(marker)
-            "*".repeat(newRun) + inner + "*".repeat(newRun)
-        } else {
-            val m = marker.length
-            if (line.length >= 2 * m && line.startsWith(marker) && line.endsWith(marker)) {
-                line.substring(m, line.length - m)
-            } else {
-                marker + line + marker
-            }
-        }
-        saveContent(lines.joinToString("\n"))
+        saveContent(textFieldState.text.toString().withLineMarkerToggled(index, marker))
     }
 
-    // Wraps the selection in the marker (or removes it when already wrapped);
-    // with no selection, inserts a marker pair and puts the cursor inside
-    fun toggleInlineMarker(marker: String) {
-        val text = textFieldState.text.toString()
-        val start = textFieldState.selection.min
-        val end = textFieldState.selection.max
-        if (marker == "*" || marker == "**") {
-            var run = 0
-            while (run < 3 && start - run - 1 >= 0 && text[start - run - 1] == '*') run++
-            var runEnd = 0
-            while (runEnd < 3 && end + runEnd < text.length && text[end + runEnd] == '*') runEnd++
-            val oldRun = minOf(run, runEnd)
-            val newRun = oldRun xor asteriskBit(marker)
-            textFieldState.edit {
-                if (oldRun > 0) {
-                    replace(end, end + oldRun, "")
-                    replace(start - oldRun, start, "")
-                }
-                val newStart = start - oldRun
-                val newEnd = end - oldRun
-                if (newRun > 0) {
-                    val stars = "*".repeat(newRun)
-                    replace(newEnd, newEnd, stars)
-                    replace(newStart, newStart, stars)
-                    selection = TextRange(newStart + newRun, newEnd + newRun)
-                } else {
-                    selection = TextRange(newStart, newEnd)
-                }
-            }
-            return
-        }
-        val m = marker.length
-        textFieldState.edit {
-            if (start >= m && end + m <= text.length &&
-                text.startsWith(marker, start - m) && text.startsWith(marker, end)
-            ) {
-                replace(end, end + m, "")
-                replace(start - m, start, "")
-                selection = TextRange(start - m, end - m)
-            } else if (start == end) {
-                replace(start, start, marker + marker)
-                selection = TextRange(start + m)
-            } else {
-                replace(end, end, marker)
-                replace(start, start, marker)
-                selection = TextRange(start + m, end + m)
-            }
-        }
+    // Enters edit mode with the caret at the given content offset, padding the note
+    // first so there's room to type before the first line or after the last.
+    fun enterEditAt(offset: Int) {
+        val padded = padForEditing(offset)
+        textFieldState.edit { selection = TextRange(padded.coerceIn(0, length)) }
+        isEditing = true
     }
 
     // While editing, back validates the note and shows the view instead of leaving
@@ -653,17 +472,17 @@ var showMoreMenu by remember { mutableStateOf(false) }
                                 DropdownMenuItem(
                                     text = { Text("Gras") },
                                     leadingIcon = { Icon(Icons.Default.FormatBold, contentDescription = null) },
-                                    onClick = { toggleInlineMarker("**") }
+                                    onClick = { textFieldState.toggleInlineMarker("**") }
                                 )
                                 DropdownMenuItem(
                                     text = { Text("Italique") },
                                     leadingIcon = { Icon(Icons.Default.FormatItalic, contentDescription = null) },
-                                    onClick = { toggleInlineMarker("*") }
+                                    onClick = { textFieldState.toggleInlineMarker("*") }
                                 )
                                 DropdownMenuItem(
                                     text = { Text("Souligné") },
                                     leadingIcon = { Icon(Icons.Default.FormatUnderlined, contentDescription = null) },
-                                    onClick = { toggleInlineMarker("__") }
+                                    onClick = { textFieldState.toggleInlineMarker("__") }
                                 )
                             }
                         }
@@ -764,300 +583,17 @@ var showMoreMenu by remember { mutableStateOf(false) }
                     cursorBrush = SolidColor(MaterialTheme.colorScheme.onBackground)
                 )
             } else {
-                val isIngredientsNote = titleFieldState.text.toString().equals("Ingrédients", ignoreCase = true)
-                val isTodoListNote = titleFieldState.text.toString().equals("Todo list", ignoreCase = true)
-                val lines = textFieldState.text.toString().split("\n")
-
-                // Character offset of the start of each line, for double tap to edit
-                val lineStarts = remember(textFieldState.text.toString()) {
-                    val starts = IntArray(lines.size)
-                    var acc = 0
-                    lines.forEachIndexed { i, l ->
-                        starts[i] = acc
-                        acc += l.length + 1
-                    }
-                    starts
-                }
-
-                fun enterEditAt(offset: Int) {
-                    val padded = padForEditing(offset)
-                    textFieldState.edit {
-                        selection = TextRange(padded.coerceIn(0, length))
-                    }
-                    isEditing = true
-                }
-
-                // Selected plain text line, showing the format/delete toolbar; -1 when none
-                var selectedLine by remember { mutableStateOf(-1) }
-
-                // Long press drag to reorder lines. While a drag is in progress,
-                // displayOrder holds the permuted line indices; otherwise it is null.
-                var displayOrder by remember { mutableStateOf<List<Int>?>(null) }
-                var draggedLine by remember { mutableStateOf(-1) }
-                var dragOffset by remember { mutableStateOf(0f) }
-                val lineHeights = remember { mutableStateMapOf<Int, Int>() }
-
-                fun endDrag(commit: Boolean) {
-                    val order = displayOrder
-                    if (commit && order != null) {
-                        val current = textFieldState.text.toString().split("\n")
-                        if (order.size == current.size) {
-                            val newText = order.joinToString("\n") { current[it] }
-                            if (newText != textFieldState.text.toString()) saveContent(newText)
-                        }
-                    }
-                    displayOrder = null
-                    draggedLine = -1
-                    dragOffset = 0f
-                }
-
-                // Swaps the dragged line with its neighbours as the finger crosses them
-                fun onDragMove(deltaY: Float) {
-                    val order = (displayOrder ?: return).toMutableList()
-                    var pos = order.indexOf(draggedLine)
-                    if (pos < 0) return
-                    var offset = dragOffset + deltaY
-                    var moved = false
-                    while (true) {
-                        if (offset > 0) {
-                            val next = order.getOrNull(pos + 1) ?: break
-                            val h = lineHeights[next] ?: break
-                            if (h <= 0 || offset <= h / 2f) break
-                            order[pos] = next
-                            order[pos + 1] = draggedLine
-                            pos++
-                            offset -= h
-                        } else {
-                            val prev = order.getOrNull(pos - 1) ?: break
-                            val h = lineHeights[prev] ?: break
-                            if (h <= 0 || -offset <= h / 2f) break
-                            order[pos] = prev
-                            order[pos - 1] = draggedLine
-                            pos--
-                            offset += h
-                        }
-                        moved = true
-                    }
-                    if (moved) displayOrder = order
-                    dragOffset = offset
-                }
-
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .verticalScroll(rememberScrollState())
-                        .pointerInput(textFieldState.text.toString()) {
-                            detectTapGestures(
-                                onTap = { selectedLine = -1 },
-                                onDoubleTap = { enterEditAt(textFieldState.text.length) }
-                            )
-                        }
-                ) {
-                    (displayOrder ?: lines.indices.toList()).forEach { lineIndex ->
-                        key(lineIndex) {
-                            val line = lines[lineIndex]
-                            val isDragged = lineIndex == draggedLine
-                            // Text layout of the line, to map a double tap to a cursor position
-                            val textLayout = remember { arrayOfNulls<TextLayoutResult>(1) }
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .zIndex(if (isDragged) 1f else 0f)
-                                    .offset { IntOffset(0, if (isDragged) dragOffset.roundToInt() else 0) }
-                                    .onSizeChanged { lineHeights[lineIndex] = it.height }
-                                    .background(
-                                        if (isDragged) MaterialTheme.colorScheme.surfaceVariant
-                                        else Color.Transparent
-                                    )
-                                    .pointerInput(Unit) {
-                                        detectDragGesturesAfterLongPress(
-                                            onDragStart = {
-                                                draggedLine = lineIndex
-                                                dragOffset = 0f
-                                                displayOrder = textFieldState.text.toString().split("\n").indices.toList()
-                                            },
-                                            onDrag = { change, amount ->
-                                                change.consume()
-                                                onDragMove(amount.y)
-                                            },
-                                            onDragEnd = { endDrag(commit = true) },
-                                            onDragCancel = { endDrag(commit = false) }
-                                        )
-                                    }
-                            ) {
-                                if (line.isSeparatorLine()) {
-                                    val name = line.separatorName()
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(vertical = 4.dp)
-                                            .pointerInput(textFieldState.text.toString()) {
-                                                detectTapGestures(onDoubleTap = {
-                                                    enterEditAt(lineStarts[lineIndex] + line.length)
-                                                })
-                                            }
-                                    ) {
-                                        HorizontalDivider(modifier = Modifier.weight(1f))
-                                        if (name.isNotEmpty()) {
-                                            Text(
-                                                name.uppercase(),
-                                                style = MaterialTheme.typography.labelMedium,
-                                                color = Color.Gray,
-                                                modifier = Modifier.padding(horizontal = 12.dp)
-                                            )
-                                            HorizontalDivider(modifier = Modifier.weight(1f))
-                                        }
-                                        IconButton(
-                                            onClick = { deleteLine(lineIndex) },
-                                            modifier = Modifier.size(36.dp)
-                                        ) {
-                                            Icon(
-                                                Icons.Default.Delete,
-                                                contentDescription = "Supprimer la ligne",
-                                                tint = Color.Gray
-                                            )
-                                        }
-                                    }
-                                } else if (line.isCheckboxLine()) {
-                                    val checked = line.isCheckedLine()
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .clickable { toggleLine(lineIndex) }
-                                    ) {
-                                        Checkbox(checked = checked, onCheckedChange = { toggleLine(lineIndex) })
-                                        Text(
-                                            line.checkboxText().formatInline(),
-                                            style = MaterialTheme.typography.bodyLarge,
-                                            textDecoration = if (checked) TextDecoration.LineThrough else TextDecoration.None,
-                                            color = if (checked) Color.Gray else MaterialTheme.colorScheme.onBackground,
-                                            onTextLayout = { textLayout[0] = it },
-                                            modifier = Modifier
-                                                .weight(1f)
-                                                .pointerInput(textFieldState.text.toString()) {
-                                                    detectTapGestures(
-                                                        onTap = { toggleLine(lineIndex) },
-                                                        onDoubleTap = { pos ->
-                                                            val inLine = textLayout[0]?.getOffsetForPosition(pos)
-                                                                ?: line.checkboxText().length
-                                                            enterEditAt(
-                                                                lineStarts[lineIndex] + UNCHECKED_PREFIX.length +
-                                                                    inLine.coerceIn(0, line.checkboxText().length)
-                                                            )
-                                                        }
-                                                    )
-                                                }
-                                        )
-                                        if (isIngredientsNote) {
-                                            IconButton(
-                                                onClick = { moveLineToCourses(lineIndex) },
-                                                modifier = Modifier.size(36.dp)
-                                            ) {
-                                                Icon(
-                                                    Icons.Default.ShoppingCart,
-                                                    contentDescription = "Déplacer vers Courses",
-                                                    tint = Color.Gray
-                                                )
-                                            }
-                                        }
-                                        if (isTodoListNote && muscuDayMatch(line.checkboxText()) != null) {
-                                            IconButton(
-                                                onClick = { advanceMuscuLineDay(lineIndex) },
-                                                modifier = Modifier.size(36.dp)
-                                            ) {
-                                                Icon(
-                                                    Icons.Default.FitnessCenter,
-                                                    contentDescription = "Jour suivant",
-                                                    tint = Color.Gray
-                                                )
-                                            }
-                                        }
-                                        IconButton(
-                                            onClick = { deleteLine(lineIndex) },
-                                            modifier = Modifier.size(36.dp)
-                                        ) {
-                                            Icon(
-                                                Icons.Default.Delete,
-                                                contentDescription = "Supprimer la ligne",
-                                                tint = Color.Gray
-                                            )
-                                        }
-                                    }
-                                } else {
-                                    val selected = lineIndex == selectedLine
-                                    Column(modifier = Modifier.fillMaxWidth()) {
-                                        Text(
-                                            (if (line.isEmpty()) " " else line).formatInline(),
-                                            style = MaterialTheme.typography.bodyLarge,
-                                            onTextLayout = { textLayout[0] = it },
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .background(
-                                                    if (selected) MaterialTheme.colorScheme.surfaceVariant
-                                                    else Color.Transparent
-                                                )
-                                                .padding(vertical = 4.dp)
-                                                .pointerInput(textFieldState.text.toString()) {
-                                                    detectTapGestures(
-                                                        onTap = {
-                                                            selectedLine = if (selected) -1 else lineIndex
-                                                        },
-                                                        onDoubleTap = { pos ->
-                                                            selectedLine = -1
-                                                            val inLine = textLayout[0]?.getOffsetForPosition(pos) ?: line.length
-                                                            enterEditAt(lineStarts[lineIndex] + inLine.coerceIn(0, line.length))
-                                                        }
-                                                    )
-                                                }
-                                        )
-                                        if (selected) {
-                                            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                                IconButton(
-                                                    onClick = { toggleLineMarker(lineIndex, "**") },
-                                                    modifier = Modifier.size(36.dp)
-                                                ) {
-                                                    Icon(Icons.Default.FormatBold, contentDescription = "Gras", tint = Color.Gray)
-                                                }
-                                                IconButton(
-                                                    onClick = { toggleLineMarker(lineIndex, "*") },
-                                                    modifier = Modifier.size(36.dp)
-                                                ) {
-                                                    Icon(Icons.Default.FormatItalic, contentDescription = "Italique", tint = Color.Gray)
-                                                }
-                                                IconButton(
-                                                    onClick = { toggleLineMarker(lineIndex, "__") },
-                                                    modifier = Modifier.size(36.dp)
-                                                ) {
-                                                    Icon(Icons.Default.FormatUnderlined, contentDescription = "Souligné", tint = Color.Gray)
-                                                }
-                                                if (isIngredientsNote) {
-                                                    IconButton(
-                                                        onClick = { moveLineToCourses(lineIndex); selectedLine = -1 },
-                                                        modifier = Modifier.size(36.dp)
-                                                    ) {
-                                                        Icon(
-                                                            Icons.Default.ShoppingCart,
-                                                            contentDescription = "Déplacer vers Courses",
-                                                            tint = Color.Gray
-                                                        )
-                                                    }
-                                                }
-                                                IconButton(
-                                                    onClick = { deleteLine(lineIndex); selectedLine = -1 },
-                                                    modifier = Modifier.size(36.dp)
-                                                ) {
-                                                    Icon(Icons.Default.Delete, contentDescription = "Supprimer la ligne", tint = Color.Gray)
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
+                NoteViewMode(
+                    textFieldState = textFieldState,
+                    title = titleFieldState.text.toString(),
+                    onSaveContent = { saveContent(it) },
+                    onToggleLine = { toggleLine(it) },
+                    onDeleteLine = { deleteLine(it) },
+                    onMoveToCourses = { moveLineToCourses(it) },
+                    onAdvanceMuscu = { advanceMuscuLineDay(it) },
+                    onToggleLineMarker = { index, marker -> toggleLineMarker(index, marker) },
+                    onEnterEditAt = { enterEditAt(it) }
+                )
             }
         }
         }

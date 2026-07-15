@@ -10,8 +10,6 @@ import android.content.Intent
 import android.media.audiofx.LoudnessEnhancer
 import android.os.IBinder
 import androidx.compose.foundation.layout.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -184,25 +182,7 @@ fun VolumeBoosterScreen(onBack: () -> Unit) {
     val context = LocalContext.current
     val boostState by VolumeBoosterService.state.collectAsState()
 
-    // Top bar
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.weight(1f)
-        ) {
-            IconButton(onClick = onBack) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Retour")
-            }
-            Text(
-                "Volume Booster",
-                style = MaterialTheme.typography.headlineMedium,
-                modifier = Modifier.padding(start = 8.dp)
-            )
-        }
-    }
+    ScreenTopBar(title = "Volume Booster", onBack = onBack)
 
     Column(
         modifier = Modifier.fillMaxSize(),
