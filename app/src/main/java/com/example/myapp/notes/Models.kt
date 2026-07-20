@@ -162,6 +162,13 @@ fun String.separatorName(): String =
 /** True if any line of the content is a checkbox line. */
 fun String.hasCheckboxLine(): Boolean = lineSequence().any { it.isCheckboxLine() }
 
+/** True if any line of the content is a checked checkbox line. */
+fun String.hasCheckedLine(): Boolean = lineSequence().any { it.isCheckedLine() }
+
+/** Content with every checked checkbox line removed. */
+fun removeCheckedCheckboxes(content: String): String =
+    content.lineSequence().filterNot { it.isCheckedLine() }.joinToString("\n")
+
 // A checkbox line may end with "(N)" to mean the item counts N times, e.g. "Yaourts (4)".
 private val QUANTITY_SUFFIX = Regex("""\((\d+)\)\s*$""")
 
