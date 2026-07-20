@@ -175,6 +175,16 @@ private val QUANTITY_SUFFIX = Regex("""\((\d+)\)\s*$""")
 /** The quantity from a trailing "(N)" suffix, or 1 if there is none. */
 fun String.itemQuantity(): Int = QUANTITY_SUFFIX.find(this)?.groupValues?.get(1)?.toIntOrNull() ?: 1
 
+/** The text with its trailing "(N)" quantity suffix removed. */
+fun String.withoutQuantitySuffix(): String = QUANTITY_SUFFIX.replace(this, "").trimEnd()
+
+/** The text with its quantity changed by delta, floored at 1. The "(1)" suffix is dropped. */
+fun String.withQuantityDelta(delta: Int): String {
+    val newQuantity = (itemQuantity() + delta).coerceAtLeast(1)
+    val base = withoutQuantitySuffix()
+    return if (newQuantity <= 1) base else "$base ($newQuantity)"
+}
+
 /** Sum of quantities of unchecked checkbox lines, honoring the "(N)" suffix. */
 fun String.uncheckedItemCount(): Int = lineSequence()
     .filter { it.isCheckboxLine() && !it.isCheckedLine() }
