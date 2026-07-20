@@ -249,6 +249,18 @@ fun NotesListScreen(navController: NavController) {
                                                     )
                                                 )
                                             }
+                                        },
+                                        onDeleteLine = { index ->
+                                            val lines = pinnedTodo.content.split("\n").toMutableList()
+                                            lines.removeAt(index)
+                                            scope.launch {
+                                                dao.upsertNote(
+                                                    pinnedTodo.copy(
+                                                        content = lines.joinToString("\n"),
+                                                        updatedAt = System.currentTimeMillis()
+                                                    )
+                                                )
+                                            }
                                         }
                                     )
                                 }
@@ -294,7 +306,8 @@ fun NotesListScreen(navController: NavController) {
 private fun TodoWidgetCard(
     note: Note,
     onNavigate: () -> Unit,
-    onToggleLine: (Int) -> Unit
+    onToggleLine: (Int) -> Unit,
+    onDeleteLine: (Int) -> Unit
 ) {
     val isDarkMode = LocalIsDarkMode.current
     val cardColor = noteCardColor(note.color, isDarkMode)
@@ -362,19 +375,45 @@ private fun TodoWidgetCard(
                                 line.checkboxText().formatInline(),
                                 style = MaterialTheme.typography.bodyMedium,
                                 textDecoration = if (checked) TextDecoration.LineThrough else TextDecoration.None,
-                                color = if (checked) Color.Gray else MaterialTheme.colorScheme.onBackground
+                                color = if (checked) Color.Gray else MaterialTheme.colorScheme.onBackground,
+                                modifier = Modifier.weight(1f)
                             )
+                            DeleteLineButton(onClick = { onDeleteLine(index) })
                         }
                     } else {
-                        Text(
-                            line.formatInline(),
-                            style = MaterialTheme.typography.bodyMedium,
-                            modifier = Modifier.padding(vertical = 8.dp)
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                line.formatInline(),
+                                style = MaterialTheme.typography.bodyMedium,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .padding(vertical = 8.dp)
+                            )
+                            DeleteLineButton(onClick = { onDeleteLine(index) })
+                        }
                     }
                 }
             }
         }
+    }
+}
+
+/** Small trailing "x" to remove a single line of the Todo widget, checked or not. */
+@Composable
+private fun DeleteLineButton(onClick: () -> Unit) {
+    IconButton(
+        onClick = onClick,
+        modifier = Modifier.size(32.dp)
+    ) {
+        Icon(
+            Icons.Default.Close,
+            contentDescription = "Supprimer la ligne",
+            modifier = Modifier.size(18.dp),
+            tint = Color.Gray
+        )
     }
 }
 
