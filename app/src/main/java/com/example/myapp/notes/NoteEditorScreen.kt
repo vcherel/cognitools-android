@@ -283,6 +283,16 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
         saveContent(lines.joinToString("\n"))
     }
 
+    // Changes a checkbox line's "(N)" quantity by delta (floored at 1, "(1)" is dropped)
+    fun changeLineQuantity(index: Int, delta: Int) {
+        val lines = textFieldState.text.toString().split("\n").toMutableList()
+        val line = lines[index]
+        if (!line.isCheckboxLine()) return
+        val prefix = if (line.isCheckedLine()) CHECKED_PREFIX else UNCHECKED_PREFIX
+        lines[index] = prefix + line.checkboxText().withQuantityDelta(delta)
+        saveContent(lines.joinToString("\n"))
+    }
+
     val snackbarHostState = remember { SnackbarHostState() }
 
     fun deleteLine(index: Int) {
@@ -609,6 +619,7 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
                     onToggleLine = { toggleLine(it) },
                     onDeleteLine = { deleteLine(it) },
                     onMoveToCourses = { moveLineToCourses(it) },
+                    onChangeQuantity = { index, delta -> changeLineQuantity(index, delta) },
                     onAdvanceMuscu = { advanceMuscuLineDay(it) },
                     onToggleLineMarker = { index, marker -> toggleLineMarker(index, marker) },
                     onEnterEditAt = { enterEditAt(it) }

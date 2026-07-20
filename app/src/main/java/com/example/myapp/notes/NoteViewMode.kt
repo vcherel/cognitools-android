@@ -17,12 +17,14 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.FormatBold
 import androidx.compose.material.icons.filled.FormatItalic
 import androidx.compose.material.icons.filled.FormatUnderlined
+import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.HorizontalDivider
@@ -59,11 +61,13 @@ fun NoteViewMode(
     onToggleLine: (Int) -> Unit,
     onDeleteLine: (Int) -> Unit,
     onMoveToCourses: (Int) -> Unit,
+    onChangeQuantity: (Int, Int) -> Unit,
     onAdvanceMuscu: (Int) -> Unit,
     onToggleLineMarker: (Int, String) -> Unit,
     onEnterEditAt: (Int) -> Unit
 ) {
     val isIngredientsNote = title.equals("Ingrédients", ignoreCase = true)
+    val isCoursesNote = title.equals("Courses", ignoreCase = true)
     val isTodoListNote = title.equals("Todo list", ignoreCase = true)
     // Computed once per recomposition and reused below, instead of re-converting
     // the whole note's text to a String for every line.
@@ -157,6 +161,7 @@ fun NoteViewMode(
                     dragOffsetPx = if (lineIndex == draggedLine) dragOffset.roundToInt() else 0,
                     selected = lineIndex == selectedLine,
                     isIngredientsNote = isIngredientsNote,
+                    isCoursesNote = isCoursesNote,
                     isTodoListNote = isTodoListNote,
                     onSizeChanged = { lineHeights[lineIndex] = it },
                     onDragStart = {
@@ -172,6 +177,7 @@ fun NoteViewMode(
                     onToggleLine = { onToggleLine(lineIndex) },
                     onDeleteLine = { onDeleteLine(lineIndex) },
                     onMoveToCourses = { onMoveToCourses(lineIndex) },
+                    onChangeQuantity = { delta -> onChangeQuantity(lineIndex, delta) },
                     onAdvanceMuscu = { onAdvanceMuscu(lineIndex) },
                     onToggleLineMarker = { marker -> onToggleLineMarker(lineIndex, marker) },
                     onEnterEditAt = onEnterEditAt
@@ -193,6 +199,7 @@ private fun NoteLine(
     dragOffsetPx: Int,
     selected: Boolean,
     isIngredientsNote: Boolean,
+    isCoursesNote: Boolean,
     isTodoListNote: Boolean,
     onSizeChanged: (Int) -> Unit,
     onDragStart: () -> Unit,
@@ -204,6 +211,7 @@ private fun NoteLine(
     onToggleLine: () -> Unit,
     onDeleteLine: () -> Unit,
     onMoveToCourses: () -> Unit,
+    onChangeQuantity: (Int) -> Unit,
     onAdvanceMuscu: () -> Unit,
     onToggleLineMarker: (String) -> Unit,
     onEnterEditAt: (Int) -> Unit
@@ -297,6 +305,30 @@ private fun NoteLine(
                             )
                         }
                 )
+                if (isCoursesNote) {
+                    if (line.checkboxText().itemQuantity() > 1) {
+                        IconButton(
+                            onClick = { onChangeQuantity(-1) },
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.Remove,
+                                contentDescription = "Diminuer la quantité",
+                                tint = Color.Gray
+                            )
+                        }
+                    }
+                    IconButton(
+                        onClick = { onChangeQuantity(1) },
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.Add,
+                            contentDescription = "Augmenter la quantité",
+                            tint = Color.Gray
+                        )
+                    }
+                }
                 if (isIngredientsNote) {
                     IconButton(
                         onClick = onMoveToCourses,
