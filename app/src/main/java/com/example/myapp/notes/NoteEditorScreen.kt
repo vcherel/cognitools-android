@@ -22,6 +22,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.CheckBox
 import androidx.compose.material.icons.filled.CheckBoxOutlineBlank
+import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.FormatBold
 import androidx.compose.material.icons.filled.FormatItalic
 import androidx.compose.material.icons.filled.FormatUnderlined
@@ -533,6 +534,16 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
                                         saveContent(setAllCheckboxes(textFieldState.text.toString(), false))
                                     }
                                 )
+                                if (textFieldState.text.toString().hasCheckedLine()) {
+                                    DropdownMenuItem(
+                                        text = { Text("Supprimer les cochés") },
+                                        leadingIcon = { Icon(Icons.Default.DeleteSweep, contentDescription = null) },
+                                        onClick = {
+                                            showMoreMenu = false
+                                            saveContent(removeCheckedCheckboxes(textFieldState.text.toString()))
+                                        }
+                                    )
+                                }
                             }
                         }
                     }
