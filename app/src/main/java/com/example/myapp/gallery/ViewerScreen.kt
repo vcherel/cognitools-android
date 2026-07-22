@@ -3,7 +3,12 @@ package com.example.myapp.gallery
 import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.animation.core.Animatable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.calculatePan
+import androidx.compose.foundation.gestures.calculateZoom
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -114,24 +119,53 @@ fun GalleryViewerScreen(
             modifier = Modifier.padding(16.dp)
         )
 
-        HorizontalPager(
-            state = pagerState,
-            userScrollEnabled = !isZoomed,
-            modifier = Modifier.weight(1f).fillMaxWidth()
-        ) { page ->
-            val item = items[page]
-            when (item.type) {
-                MediaType.IMAGE -> ZoomableImage(item = item, onZoomChanged = { isZoomed = it })
-                MediaType.VIDEO -> if (page == pagerState.currentPage) {
-                    VideoPlayer(uri = item.uri)
-                } else {
-                    GalleryAsyncImage(
-                        uri = item.uri,
-                        dateModified = item.dateModified,
-                        contentDescription = item.displayName,
-                        contentScale = ContentScale.Fit,
-                        modifier = Modifier.fillMaxSize()
+        // Swipe the current item down (when not zoomed) to dismiss the viewer. The offset both
+        // translates and fades the content for feedback; releasing past the threshold goes back,
+        // otherwise it springs back to place.
+        val dismissOffset = remember { Animatable(0f) }
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .graphicsLayer {
+                    translationY = dismissOffset.value
+                    alpha = 1f - (dismissOffset.value / 900f).coerceIn(0f, 0.5f)
+                }
+                .pointerInput(isZoomed) {
+                    if (isZoomed) return@pointerInput
+                    detectVerticalDragGestures(
+                        onDragEnd = {
+                            if (dismissOffset.value > 220f) onBack()
+                            else scope.launch { dismissOffset.animateTo(0f) }
+                        },
+                        onDragCancel = { scope.launch { dismissOffset.animateTo(0f) } },
+                        onVerticalDrag = { change, delta ->
+                            val next = (dismissOffset.value + delta).coerceAtLeast(0f)
+                            scope.launch { dismissOffset.snapTo(next) }
+                            if (next > 0f) change.consume()
+                        }
                     )
+                }
+        ) {
+            HorizontalPager(
+                state = pagerState,
+                userScrollEnabled = !isZoomed,
+                modifier = Modifier.fillMaxSize()
+            ) { page ->
+                val item = items[page]
+                when (item.type) {
+                    MediaType.IMAGE -> ZoomableImage(item = item, onZoomChanged = { isZoomed = it })
+                    MediaType.VIDEO -> if (page == pagerState.currentPage) {
+                        VideoPlayer(uri = item.uri)
+                    } else {
+                        GalleryAsyncImage(
+                            uri = item.uri,
+                            dateModified = item.dateModified,
+                            contentDescription = item.displayName,
+                            contentScale = ContentScale.Fit,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
                 }
             }
         }
@@ -221,10 +255,21 @@ private fun ZoomableImage(item: MediaItem, onZoomChanged: (Boolean) -> Unit) {
         modifier = Modifier
             .fillMaxSize()
             .pointerInput(item.id) {
-                detectTransformGestures { _, pan, zoom, _ ->
-                    val newScale = (scale * zoom).coerceIn(1f, 5f)
-                    scale = newScale
-                    offset = if (newScale <= 1f) Offset.Zero else offset + pan
+                // Only claim the gesture when it's an actual pinch (two pointers) or when already
+                // zoomed in. A single-finger drag at scale 1 is left unconsumed so the enclosing
+                // HorizontalPager can swipe to the next item.
+                awaitEachGesture {
+                    awaitFirstDown(requireUnconsumed = false)
+                    do {
+                        val event = awaitPointerEvent()
+                        val pinching = event.changes.count { it.pressed } >= 2
+                        if (pinching || scale > 1f) {
+                            val newScale = (scale * event.calculateZoom()).coerceIn(1f, 5f)
+                            scale = newScale
+                            offset = if (newScale <= 1f) Offset.Zero else offset + event.calculatePan()
+                            event.changes.forEach { it.consume() }
+                        }
+                    } while (event.changes.any { it.pressed })
                 }
             }
             .graphicsLayer(
@@ -314,7 +359,7 @@ private fun RenameDialog(item: MediaItem, onDismiss: () -> Unit, onConfirm: (Str
 }
 
 @Composable
-private fun MoveDialog(currentBucketId: Long, onDismiss: () -> Unit, onConfirm: (String) -> Unit) {
+fun MoveDialog(currentBucketId: Long, onDismiss: () -> Unit, onConfirm: (String) -> Unit) {
     val context = LocalContext.current
     var albums by remember { mutableStateOf<List<Album>?>(null) }
     var newFolderName by remember { mutableStateOf("") }
