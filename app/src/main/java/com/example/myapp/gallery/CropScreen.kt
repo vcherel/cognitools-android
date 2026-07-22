@@ -64,7 +64,10 @@ fun GalleryCropScreen(itemId: Long, onBack: () -> Unit) {
         val found = withContext(Dispatchers.IO) { queryMediaItemById(context, itemId) }
         item = found
         if (found != null) {
-            displayBitmap = withContext(Dispatchers.IO) { decodeSampledBitmap(context, found.uri, maxDimension = 1440) }
+            val decoded = withContext(Dispatchers.IO) { decodeSampledBitmap(context, found.uri, maxDimension = 1440) }
+            if (decoded != null) displayBitmap = decoded else errorMessage = "Image illisible"
+        } else {
+            errorMessage = "Image introuvable"
         }
     }
 
@@ -251,8 +254,13 @@ private fun Modifier.pointerInputDragCrop(
 )
 
 private fun decodeSampledBitmap(context: android.content.Context, uri: android.net.Uri, maxDimension: Int): Bitmap? {
+    // Bounds pass: inJustDecodeBounds makes decodeStream always return null (it only fills the
+    // Options), so we check the stream itself for null, not the decode result.
     val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-    context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) } ?: return null
+    (context.contentResolver.openInputStream(uri) ?: return null).use {
+        BitmapFactory.decodeStream(it, null, bounds)
+    }
+    if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
     var sample = 1
     while (bounds.outWidth / (sample * 2) >= maxDimension && bounds.outHeight / (sample * 2) >= maxDimension) {
         sample *= 2
