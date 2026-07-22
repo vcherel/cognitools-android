@@ -177,12 +177,24 @@ suspend fun performMove(
     item: MediaItem,
     targetRelativePath: String,
     requestConsent: suspend (IntentSender) -> Boolean
-): Boolean = performMediaWrite(context, listOf(item.uri), requestConsent) {
-    moveMediaItem(context, item, targetRelativePath)
+): Boolean {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+        return performMediaWrite(context, listOf(item.uri), requestConsent) {
+            moveMediaItemLegacy(context, item, targetRelativePath)
+        }
+    }
+    // Fast path: works for items in shared collections (Camera, Screenshots, Downloads...).
+    val moved = performMediaWrite(context, listOf(item.uri), requestConsent) {
+        updateRelativePath(context, item, targetRelativePath)
+    }
+    if (moved) return true
+    // Falls back here for items MediaProvider refuses to reassign in place, e.g. photos still
+    // living in another app's private Android/media/<package>/ folder (WhatsApp, ...): copy the
+    // bytes into a new entry at the target location, then delete the original.
+    return copyThenDeleteMove(context, item, targetRelativePath, requestConsent)
 }
 
-private fun moveMediaItem(context: Context, item: MediaItem, targetRelativePath: String): WriteOutcome {
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return moveMediaItemLegacy(context, item, targetRelativePath)
+private fun updateRelativePath(context: Context, item: MediaItem, targetRelativePath: String): WriteOutcome {
     val values = ContentValues().apply { put(MediaStore.Files.FileColumns.RELATIVE_PATH, targetRelativePath) }
     return try {
         val rows = context.contentResolver.update(item.uri, values, null, null)
@@ -192,6 +204,44 @@ private fun moveMediaItem(context: Context, item: MediaItem, targetRelativePath:
     } catch (e: Exception) {
         WriteOutcome.Error(e.message ?: "Erreur")
     }
+}
+
+private suspend fun copyThenDeleteMove(
+    context: Context,
+    item: MediaItem,
+    targetRelativePath: String,
+    requestConsent: suspend (IntentSender) -> Boolean
+): Boolean {
+    val collection = if (item.type == MediaType.VIDEO) {
+        MediaStore.Video.Media.EXTERNAL_CONTENT_URI
+    } else {
+        MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+    }
+    val values = ContentValues().apply {
+        put(MediaStore.Files.FileColumns.DISPLAY_NAME, item.displayName)
+        put(MediaStore.Files.FileColumns.MIME_TYPE, item.mimeType)
+        put(MediaStore.Files.FileColumns.RELATIVE_PATH, targetRelativePath)
+        put(MediaStore.Files.FileColumns.IS_PENDING, 1)
+    }
+    val newUri = context.contentResolver.insert(collection, values) ?: return false
+    val copied = try {
+        context.contentResolver.openInputStream(item.uri)?.use { input ->
+            context.contentResolver.openOutputStream(newUri)?.use { output -> input.copyTo(output) }
+        } != null
+    } catch (e: Exception) {
+        false
+    }
+    if (!copied) {
+        context.contentResolver.delete(newUri, null, null)
+        return false
+    }
+    context.contentResolver.update(
+        newUri,
+        ContentValues().apply { put(MediaStore.Files.FileColumns.IS_PENDING, 0) },
+        null,
+        null
+    )
+    return performDelete(context, item, requestConsent)
 }
 
 @Suppress("DEPRECATION")
