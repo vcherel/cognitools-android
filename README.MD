@@ -44,3 +44,15 @@ uv run jupyter notebook generate_dataset.ipynb
 - **Wikipedia Reader**
 
 Explore random Wikipedia pages
+
+- **Weather Forecast**
+
+Check the forecast for your current GPS location or a searched city, with temperature, weather conditions, and rain amount.
+
+- **Notes**
+
+A lightweight notes tool with checkbox and separator lines, PIN lock per note, and a Courses/Ingrédients sync mode that keeps a shopping list and an ingredients list reconciled with each other.
+
+- **Gallery**
+
+A lightweight photo/video browser: albums from your device's folders, a full-screen swipe viewer with pinch zoom and video playback, plus rename, move, delete, crop, and video trim.
