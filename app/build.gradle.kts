@@ -117,6 +117,13 @@ dependencies {
     // Scraping
     implementation(libs.jsoup)
 
+    // Gallery: image/video thumbnails and playback, video trim
+    implementation(libs.coil.compose)
+    implementation(libs.coil.video)
+    implementation(libs.androidx.media3.exoplayer)
+    implementation(libs.androidx.media3.ui)
+    implementation(libs.androidx.media3.transformer)
+
     // Unit testing
     testImplementation(libs.junit)
 

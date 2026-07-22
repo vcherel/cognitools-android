@@ -34,6 +34,11 @@ import androidx.datastore.preferences.preferencesDataStore
 import com.example.myapp.flashcards.FlashcardDetailScreen
 import com.example.myapp.flashcards.FlashcardGameScreen
 import com.example.myapp.flashcards.FlashcardListsScreen
+import com.example.myapp.gallery.GalleryAlbumGridScreen
+import com.example.myapp.gallery.GalleryAlbumsScreen
+import com.example.myapp.gallery.GalleryCropScreen
+import com.example.myapp.gallery.GalleryTrimScreen
+import com.example.myapp.gallery.GalleryViewerScreen
 import com.example.myapp.notes.NoteEditorScreen
 import com.example.myapp.notes.NotesListScreen
 import com.example.myapp.undercover.UndercoverScreen
@@ -196,6 +201,39 @@ fun MainScreen(themeManager: ThemeManager, isDarkMode: Boolean) {
                     composable("weather") {
                         WeatherScreen(onBack = { navController.popBackStack() })
                     }
+                    composable("gallery") {
+                        GalleryAlbumsScreen(
+                            onBack = { navController.popBackStack() },
+                            onOpenAlbum = { bucketId -> navController.navigate("gallery/album/$bucketId") }
+                        )
+                    }
+                    composable("gallery/album/{bucketId}") { backStackEntry ->
+                        val bucketId = backStackEntry.arguments?.getString("bucketId")?.toLongOrNull() ?: 0L
+                        GalleryAlbumGridScreen(
+                            bucketId = bucketId,
+                            onBack = { navController.popBackStack() },
+                            onOpenItem = { itemId -> navController.navigate("gallery/viewer/$bucketId/$itemId") }
+                        )
+                    }
+                    composable("gallery/viewer/{bucketId}/{itemId}") { backStackEntry ->
+                        val bucketId = backStackEntry.arguments?.getString("bucketId")?.toLongOrNull() ?: 0L
+                        val itemId = backStackEntry.arguments?.getString("itemId")?.toLongOrNull() ?: 0L
+                        GalleryViewerScreen(
+                            bucketId = bucketId,
+                            initialItemId = itemId,
+                            onBack = { navController.popBackStack() },
+                            onCrop = { id -> navController.navigate("gallery/crop/$id") },
+                            onTrim = { id -> navController.navigate("gallery/trim/$id") }
+                        )
+                    }
+                    composable("gallery/crop/{itemId}") { backStackEntry ->
+                        val itemId = backStackEntry.arguments?.getString("itemId")?.toLongOrNull() ?: 0L
+                        GalleryCropScreen(itemId = itemId, onBack = { navController.popBackStack() })
+                    }
+                    composable("gallery/trim/{itemId}") { backStackEntry ->
+                        val itemId = backStackEntry.arguments?.getString("itemId")?.toLongOrNull() ?: 0L
+                        GalleryTrimScreen(itemId = itemId, onBack = { navController.popBackStack() })
+                    }
                     composable("notes") {
                         NotesListScreen(navController = navController)
                     }
@@ -309,6 +347,8 @@ fun MenuScreen(
                 MyButton(text = "Volume", modifier = Modifier.weight(1f), height = buttonHeight) { onNavigate("volumeBooster") }
                 MyButton(text = "Wikipedia", modifier = Modifier.weight(1f), height = buttonHeight) { onNavigate("wikipedia") }
             }
+            Spacer(modifier = Modifier.height(spaceHeight))
+            MyButton(text = "Galerie", height = buttonHeight) { onNavigate("gallery") }
         }
 
         IconButton(
