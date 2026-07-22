@@ -277,6 +277,53 @@ suspend fun performDelete(
     }
 }
 
+// Deletes several items in one shot. On API 30+ MediaStore shows a single system consent dialog
+// covering the whole batch; on older versions we fall back to deleting one by one.
+suspend fun performDeleteBatch(
+    context: Context,
+    items: List<MediaItem>,
+    requestConsent: suspend (IntentSender) -> Boolean
+): Boolean {
+    if (items.isEmpty()) return true
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+        val pending = MediaStore.createDeleteRequest(context.contentResolver, items.map { it.uri })
+        return requestConsent(pending.intentSender)
+    }
+    var allOk = true
+    for (item in items) {
+        if (!performDelete(context, item, requestConsent)) allOk = false
+    }
+    return allOk
+}
+
+// Moves several items with a single write consent on API 30+. Each item is reassigned in place;
+// any MediaProvider refuses (e.g. another app's private media dir) falls back to copy+delete,
+// mirroring the single-item performMove.
+suspend fun performMoveBatch(
+    context: Context,
+    items: List<MediaItem>,
+    targetRelativePath: String,
+    requestConsent: suspend (IntentSender) -> Boolean
+): Boolean {
+    if (items.isEmpty()) return true
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+        var ok = true
+        for (item in items) if (!performMove(context, item, targetRelativePath, requestConsent)) ok = false
+        return ok
+    }
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+        val pending = MediaStore.createWriteRequest(context.contentResolver, items.map { it.uri })
+        if (!requestConsent(pending.intentSender)) return false
+    }
+    var allOk = true
+    for (item in items) {
+        if (updateRelativePath(context, item, targetRelativePath) != WriteOutcome.Done) {
+            if (!copyThenDeleteMove(context, item, targetRelativePath, requestConsent)) allOk = false
+        }
+    }
+    return allOk
+}
+
 private fun deleteMediaItem(context: Context, item: MediaItem): WriteOutcome {
     return try {
         val rows = context.contentResolver.delete(item.uri, null, null)
