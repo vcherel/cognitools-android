@@ -102,6 +102,9 @@ fun FlashcardDetailScreen(
 
     // Local mutable list for fast UI updates
     val elementsState = remember { mutableStateListOf<FlashcardElement>() }
+    // Bumped whenever elementsState is mutated, so the filter/sort effect below can key off a
+    // cheap int instead of copying and diffing the whole list on every recomposition.
+    var elementsVersion by remember { mutableStateOf(0) }
 
     // Sync repository elements into local state
     LaunchedEffect(listId) {
@@ -116,6 +119,7 @@ fun FlashcardDetailScreen(
                 elementsState.clear()
                 list.chunked(20).forEach { chunk ->
                     elementsState.addAll(chunk)
+                    elementsVersion++
                     delay(16)
                 }
                 isLoading = false
@@ -125,6 +129,7 @@ fun FlashcardDetailScreen(
                 // Later DB updates (reset, edit, ...): patch only what changed so just the
                 // affected cards recompose and the scroll stays where it is.
                 elementsState.patchTo(list)
+                elementsVersion++
             }
         }
     }
@@ -137,7 +142,7 @@ fun FlashcardDetailScreen(
     val prevQuery = remember { mutableStateOf(searchQuery) }
     val prevSort = remember { mutableStateOf(sortMode) }
 
-    LaunchedEffect(elementsState.toList(), searchQuery, sortMode) {
+    LaunchedEffect(elementsVersion, searchQuery, sortMode) {
         // Capture the current scroll position before the visible list is rebuilt.
         val savedIndex = listState.firstVisibleItemIndex
         val savedOffset = listState.firstVisibleItemScrollOffset
