@@ -140,7 +140,7 @@ private suspend fun performMediaWrite(
     requestConsent: suspend (IntentSender) -> Boolean,
     write: () -> WriteOutcome
 ): Boolean {
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && !hasAllFilesAccess()) {
         val pending = MediaStore.createWriteRequest(context.contentResolver, uris)
         if (!requestConsent(pending.intentSender)) return false
     }
@@ -266,7 +266,7 @@ suspend fun performDelete(
     item: MediaItem,
     requestConsent: suspend (IntentSender) -> Boolean
 ): Boolean {
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && !hasAllFilesAccess()) {
         val pending = MediaStore.createDeleteRequest(context.contentResolver, listOf(item.uri))
         return requestConsent(pending.intentSender)
     }
@@ -285,7 +285,7 @@ suspend fun performDeleteBatch(
     requestConsent: suspend (IntentSender) -> Boolean
 ): Boolean {
     if (items.isEmpty()) return true
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && !hasAllFilesAccess()) {
         val pending = MediaStore.createDeleteRequest(context.contentResolver, items.map { it.uri })
         return requestConsent(pending.intentSender)
     }
@@ -311,7 +311,7 @@ suspend fun performMoveBatch(
         for (item in items) if (!performMove(context, item, targetRelativePath, requestConsent)) ok = false
         return ok
     }
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && !hasAllFilesAccess()) {
         val pending = MediaStore.createWriteRequest(context.contentResolver, items.map { it.uri })
         if (!requestConsent(pending.intentSender)) return false
     }
