@@ -16,6 +16,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -23,8 +24,11 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
@@ -34,11 +38,17 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -51,13 +61,17 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import androidx.core.content.ContextCompat
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
+import java.net.URLEncoder
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.format.TextStyle
@@ -78,26 +92,33 @@ fun WeatherScreen(onBack: () -> Unit) {
     var isLoading by remember { mutableStateOf(false) }
     var forecast by remember { mutableStateOf<WeatherForecast?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
+    var selectedCity by remember { mutableStateOf(loadSavedCity(context)) }
+    var showCityDialog by remember { mutableStateOf(false) }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted -> hasPermission = granted }
 
-    LaunchedEffect(hasPermission) {
-        if (!hasPermission) {
+    LaunchedEffect(hasPermission, selectedCity) {
+        val city = selectedCity
+        if (city == null && !hasPermission) {
             permissionLauncher.launch(Manifest.permission.ACCESS_COARSE_LOCATION)
             return@LaunchedEffect
         }
         isLoading = true
         error = null
         try {
-            val location = getCurrentLocation(context)
-            forecast = if (location == null) {
+            val coords = if (city != null) {
+                city.lat to city.lon
+            } else {
+                getCurrentLocation(context)?.let { it.latitude to it.longitude }
+            }
+            forecast = if (coords == null) {
                 error = "Position indisponible, réessaie plus tard."
                 null
             } else {
                 withContext(Dispatchers.IO) {
-                    fetchWeatherForecast(location.latitude, location.longitude)
+                    fetchWeatherForecast(coords.first, coords.second)
                 }
             }
         } catch (e: Exception) {
@@ -109,8 +130,24 @@ fun WeatherScreen(onBack: () -> Unit) {
 
     BackHandler { onBack() }
 
+    if (showCityDialog) {
+        CitySearchDialog(
+            onCitySelected = { city ->
+                saveCity(context, city)
+                selectedCity = city
+            },
+            onDismiss = { showCityDialog = false }
+        )
+    }
+
     Column(modifier = Modifier.fillMaxSize()) {
         ScreenTopBar(title = "Météo", onBack = onBack)
+
+        LocationChip(
+            label = selectedCity?.name ?: "Position actuelle",
+            onClick = { showCityDialog = true },
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+        )
 
         if (forecast != null) {
             WeatherContent(
@@ -286,6 +323,135 @@ private fun HourStrip(
 }
 
 @Composable
+private fun LocationChip(label: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        modifier = modifier
+            .clip(RoundedCornerShape(50))
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 8.dp)
+    ) {
+        Icon(
+            Icons.Default.LocationOn,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(18.dp)
+        )
+        Text(
+            label,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+
+@Composable
+private fun CitySearchDialog(onCitySelected: (CityLocation?) -> Unit, onDismiss: () -> Unit) {
+    var query by remember { mutableStateOf("") }
+    var results by remember { mutableStateOf<List<CityLocation>>(emptyList()) }
+    var isSearching by remember { mutableStateOf(false) }
+    var searchError by remember { mutableStateOf<String?>(null) }
+
+    // Debounced so every keystroke doesn't fire a request.
+    LaunchedEffect(query) {
+        if (query.trim().length < 2) {
+            results = emptyList()
+            searchError = null
+            return@LaunchedEffect
+        }
+        delay(400)
+        isSearching = true
+        searchError = null
+        try {
+            results = withContext(Dispatchers.IO) { searchCities(query.trim()) }
+        } catch (e: Exception) {
+            searchError = "Recherche impossible: ${e.message}"
+        } finally {
+            isSearching = false
+        }
+    }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(16.dp),
+            color = MaterialTheme.colorScheme.surface,
+            tonalElevation = 6.dp
+        ) {
+            Column(modifier = Modifier.fillMaxWidth().padding(20.dp)) {
+                Text("Choisir une ville", style = MaterialTheme.typography.titleMedium)
+                Spacer(Modifier.height(12.dp))
+                OutlinedTextField(
+                    value = query,
+                    onValueChange = { query = it },
+                    placeholder = { Text("Nom de la ville") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(Modifier.height(4.dp))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            onCitySelected(null)
+                            onDismiss()
+                        }
+                        .padding(vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Icon(Icons.Default.MyLocation, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("Utiliser ma position actuelle", style = MaterialTheme.typography.bodyLarge)
+                }
+                HorizontalDivider()
+                when {
+                    isSearching -> Box(modifier = Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator()
+                    }
+                    searchError != null -> Text(
+                        searchError!!,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.padding(vertical = 12.dp)
+                    )
+                    else -> LazyColumn(modifier = Modifier.heightIn(max = 320.dp)) {
+                        items(results, key = { "${it.name}${it.lat}${it.lon}" }) { city ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        onCitySelected(city)
+                                        onDismiss()
+                                    }
+                                    .padding(vertical = 10.dp)
+                            ) {
+                                Column {
+                                    Text(city.name, style = MaterialTheme.typography.bodyLarge)
+                                    val subtitle = listOfNotNull(city.admin1, city.country).joinToString(", ")
+                                    if (subtitle.isNotEmpty()) {
+                                        Text(
+                                            subtitle,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                    TextButton(onClick = onDismiss) { Text("Fermer") }
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun DayNavArrow(icon: ImageVector, onClick: () -> Unit) {
     Box(
         modifier = Modifier
@@ -377,6 +543,58 @@ private fun daySummary(hours: List<HourlyPoint>, date: LocalDate): String {
 data class HourlyPoint(val time: LocalDateTime, val temp: Double, val rainProb: Int, val weatherCode: Int)
 data class DailyPoint(val date: LocalDate, val tempMax: Double, val tempMin: Double, val rainProb: Int, val weatherCode: Int)
 data class WeatherForecast(val hourly: List<HourlyPoint>, val daily: List<DailyPoint>)
+data class CityLocation(val name: String, val admin1: String?, val country: String?, val lat: Double, val lon: Double)
+
+private const val WEATHER_PREFS = "weather_prefs"
+private const val KEY_SELECTED_CITY = "selected_city"
+
+private fun loadSavedCity(context: Context): CityLocation? {
+    val json = context.getSharedPreferences(WEATHER_PREFS, Context.MODE_PRIVATE)
+        .getString(KEY_SELECTED_CITY, null) ?: return null
+    return runCatching {
+        val obj = JSONObject(json)
+        CityLocation(
+            name = obj.getString("name"),
+            admin1 = obj.optString("admin1").ifBlank { null },
+            country = obj.optString("country").ifBlank { null },
+            lat = obj.getDouble("lat"),
+            lon = obj.getDouble("lon")
+        )
+    }.getOrNull()
+}
+
+private fun saveCity(context: Context, city: CityLocation?) {
+    val prefs = context.getSharedPreferences(WEATHER_PREFS, Context.MODE_PRIVATE)
+    if (city == null) {
+        prefs.edit().remove(KEY_SELECTED_CITY).apply()
+        return
+    }
+    val json = JSONObject().apply {
+        put("name", city.name)
+        put("admin1", city.admin1 ?: "")
+        put("country", city.country ?: "")
+        put("lat", city.lat)
+        put("lon", city.lon)
+    }
+    prefs.edit().putString(KEY_SELECTED_CITY, json.toString()).apply()
+}
+
+private fun searchCities(query: String): List<CityLocation> {
+    val encoded = URLEncoder.encode(query, "UTF-8")
+    val url = "https://geocoding-api.open-meteo.com/v1/search?name=$encoded&count=8&language=fr&format=json"
+    val json = JSONObject(httpGet(url))
+    val results = json.optJSONArray("results") ?: return emptyList()
+    return (0 until results.length()).map { i ->
+        val obj = results.getJSONObject(i)
+        CityLocation(
+            name = obj.getString("name"),
+            admin1 = obj.optString("admin1").ifBlank { null },
+            country = obj.optString("country").ifBlank { null },
+            lat = obj.getDouble("latitude"),
+            lon = obj.getDouble("longitude")
+        )
+    }
+}
 
 private fun fetchWeatherForecast(lat: Double, lon: Double): WeatherForecast {
     val url = "https://api.open-meteo.com/v1/forecast?latitude=$lat&longitude=$lon" +
