@@ -19,13 +19,16 @@ import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.automirrored.filled.Undo
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckBox
 import androidx.compose.material.icons.filled.CheckBoxOutlineBlank
 import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.FormatBold
 import androidx.compose.material.icons.filled.FormatItalic
 import androidx.compose.material.icons.filled.FormatUnderlined
+import androidx.compose.material.icons.filled.Kitchen
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.MoreVert
@@ -295,6 +298,27 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
 
     val snackbarHostState = remember { SnackbarHostState() }
 
+    // Set while a Courses -> Ingrédients move (or a direct add / model re-sort) has
+    // unknown items left to reconcile; drives the reconcile dialog and holds the
+    // undo snapshots for the whole batch.
+    var ingredientBatch by remember { mutableStateOf<IngredientMoveBatch?>(null) }
+    var showAddIngredientDialog by remember { mutableStateOf(false) }
+
+    // Writes new content to the note identified by noteId: through the live text field
+    // when it's the note currently open (so the screen reflects it immediately), or
+    // straight to the DAO otherwise.
+    suspend fun updateNoteContent(noteId: String, newContent: String) {
+        if (noteId == id) {
+            saveContent(newContent)
+        } else {
+            dao.getNote(noteId)?.let {
+                if (it.content != newContent) {
+                    dao.upsertNote(it.copy(content = newContent, updatedAt = System.currentTimeMillis()))
+                }
+            }
+        }
+    }
+
     fun deleteLine(index: Int) {
         val lines = textFieldState.text.toString().split("\n").toMutableList()
         val removed = lines.removeAt(index)
@@ -322,7 +346,7 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
     fun moveLineToCourses(index: Int) {
         val removed = textFieldState.text.toString().split("\n")[index]
         scope.launch {
-            val courses = dao.getNotes().firstOrNull { it.title.equals("Courses", ignoreCase = true) }
+            val courses = dao.getNotes().firstOrNull { it.title.trim().equals("Courses", ignoreCase = true) }
             if (courses == null) {
                 snackbarHostState.currentSnackbarData?.dismiss()
                 snackbarHostState.showSnackbar(
@@ -374,6 +398,275 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
             }
         }
     }
+
+    // Shows the "X ingrédients ajoutés/réordonnés" snackbar at the end of a batch, whose
+    // Annuler restores the Courses, Ingrédients and Modèle notes to their snapshots.
+    fun finishIngredientMove(batch: IngredientMoveBatch) {
+        scope.launch {
+            snackbarHostState.currentSnackbarData?.dismiss()
+            val n = batch.movedCount
+            if (n == 0) return@launch
+            val plural = if (n > 1) "s" else ""
+            val verb = if (batch.reorder) "réordonné" else "ajouté"
+            val result = snackbarHostState.showSnackbar(
+                message = "$n ingrédient$plural $verb$plural",
+                actionLabel = "Annuler",
+                withDismissAction = true,
+                duration = SnackbarDuration.Short
+            )
+            if (result == SnackbarResult.ActionPerformed) {
+                if (batch.coursesId != null && batch.coursesSnapshot != null) {
+                    updateNoteContent(batch.coursesId, batch.coursesSnapshot)
+                }
+                updateNoteContent(batch.ingredientsId, batch.ingredientsSnapshot)
+                updateNoteContent(batch.modelId, batch.modelSnapshot)
+            }
+        }
+    }
+
+    // Drops the current item from the pending list and, once none remain, closes the
+    // batch and shows its snackbar. `moved` counts the item toward the "X ajoutés" tally.
+    fun advancePending(moved: Boolean) {
+        val batch = ingredientBatch ?: return
+        val remaining = batch.pending.drop(1)
+        val updated = batch.copy(
+            pending = remaining,
+            movedCount = batch.movedCount + if (moved) 1 else 0
+        )
+        if (remaining.isEmpty()) {
+            ingredientBatch = null
+            finishIngredientMove(updated)
+        } else {
+            ingredientBatch = updated
+        }
+    }
+
+    // Moves every checked Courses item into the Ingrédients prompt. Items found in the
+    // Modèle note are spliced in at their canonical spot and removed from Courses right
+    // away; items not in the model are queued for the reconcile dialog.
+    fun sendCheckedToIngredients() {
+        scope.launch {
+            val notes = dao.getNotes()
+            val ingNote = notes.firstOrNull { it.title.trim().equals(INGREDIENTS_TITLE, ignoreCase = true) }
+            val modelNote = notes.firstOrNull { it.title.trim().equals(INGREDIENT_MODEL_TITLE, ignoreCase = true) }
+            if (ingNote == null || modelNote == null) {
+                val missing = if (ingNote == null) INGREDIENTS_TITLE else INGREDIENT_MODEL_TITLE
+                snackbarHostState.currentSnackbarData?.dismiss()
+                snackbarHostState.showSnackbar(
+                    message = "Note \"$missing\" introuvable",
+                    withDismissAction = true,
+                    duration = SnackbarDuration.Short
+                )
+                return@launch
+            }
+
+            val checkedLines = textFieldState.text.toString().split("\n").filter { it.isCheckedLine() }
+            if (checkedLines.isEmpty()) return@launch
+
+            val groups = parseIngredientGroups(modelNote.content)
+            val flatModel = groups.flatten()
+            val modelKeys = flatModel.map { it.trim().lowercase() }
+
+            val matchedNames = mutableListOf<String>()
+            val matchedLines = mutableListOf<String>()
+            val unknown = mutableListOf<ReconcileItem>()
+            for (line in checkedLines) {
+                val mi = modelKeys.indexOf(line.ingredientKey())
+                if (mi >= 0) {
+                    matchedNames.add(flatModel[mi])
+                    matchedLines.add(line)
+                } else {
+                    unknown.add(ReconcileItem(name = line.checkboxText().withoutQuantitySuffix().trim(), coursesLine = line, inIngredients = false))
+                }
+            }
+
+            val coursesSnap = textFieldState.text.toString()
+            val ingSnap = ingNote.content
+            val modelSnap = modelNote.content
+
+            if (matchedNames.isNotEmpty()) {
+                val present = presentIngredients(ingNote.content)
+                val newPresent = (present + matchedNames).distinctBy { it.trim().lowercase() }
+                updateNoteContent(ingNote.id, renderIntoIngredientsNote(ingNote.content, newPresent, groups))
+            }
+            if (matchedLines.isNotEmpty()) {
+                saveContent(removeFirstLines(textFieldState.text.toString(), matchedLines))
+            }
+
+            val batch = IngredientMoveBatch(
+                ingredientsId = ingNote.id,
+                modelId = modelNote.id,
+                coursesId = id,
+                coursesSnapshot = coursesSnap,
+                ingredientsSnapshot = ingSnap,
+                modelSnapshot = modelSnap,
+                groups = groups,
+                pending = unknown,
+                movedCount = matchedLines.size
+            )
+            if (unknown.isEmpty()) finishIngredientMove(batch) else ingredientBatch = batch
+        }
+    }
+
+    // Adds a single ingredient directly from the Ingrédients note: same matching against
+    // the model as the Courses flow, but with no Courses line to remove.
+    fun addIngredientDirectly(name: String) {
+        scope.launch {
+            val modelNote = dao.getNotes().firstOrNull { it.title.trim().equals(INGREDIENT_MODEL_TITLE, ignoreCase = true) }
+            if (modelNote == null) {
+                snackbarHostState.currentSnackbarData?.dismiss()
+                snackbarHostState.showSnackbar(
+                    message = "Note \"$INGREDIENT_MODEL_TITLE\" introuvable",
+                    withDismissAction = true,
+                    duration = SnackbarDuration.Short
+                )
+                return@launch
+            }
+            val groups = parseIngredientGroups(modelNote.content)
+            val flatModel = groups.flatten()
+            val modelKeys = flatModel.map { it.trim().lowercase() }
+            val ingSnap = textFieldState.text.toString()
+            val modelSnap = modelNote.content
+            val mi = modelKeys.indexOf(name.trim().lowercase())
+
+            if (mi >= 0) {
+                val present = presentIngredients(textFieldState.text.toString())
+                val newPresent = (present + flatModel[mi]).distinctBy { it.trim().lowercase() }
+                saveContent(renderIntoIngredientsNote(textFieldState.text.toString(), newPresent, groups))
+                finishIngredientMove(
+                    IngredientMoveBatch(
+                        ingredientsId = id,
+                        modelId = modelNote.id,
+                        coursesId = null,
+                        coursesSnapshot = null,
+                        ingredientsSnapshot = ingSnap,
+                        modelSnapshot = modelSnap,
+                        groups = groups,
+                        pending = emptyList(),
+                        movedCount = 1
+                    )
+                )
+            } else {
+                ingredientBatch = IngredientMoveBatch(
+                    ingredientsId = id,
+                    modelId = modelNote.id,
+                    coursesId = null,
+                    coursesSnapshot = null,
+                    ingredientsSnapshot = ingSnap,
+                    modelSnapshot = modelSnap,
+                    groups = groups,
+                    pending = listOf(ReconcileItem(name = name, coursesLine = null, inIngredients = false)),
+                    movedCount = 0
+                )
+            }
+        }
+    }
+
+    // Re-sorts the ingredients already present in the Ingrédients note by the model's
+    // groups and alphabetical order; anything present but unrecognized by the model goes
+    // through the same reconcile flow as usual.
+    fun resortIngredients() {
+        scope.launch {
+            val ingNote = dao.getNotes().firstOrNull { it.title.trim().equals(INGREDIENTS_TITLE, ignoreCase = true) }
+            if (ingNote == null) {
+                snackbarHostState.currentSnackbarData?.dismiss()
+                snackbarHostState.showSnackbar(
+                    message = "Note \"$INGREDIENTS_TITLE\" introuvable",
+                    withDismissAction = true,
+                    duration = SnackbarDuration.Short
+                )
+                return@launch
+            }
+            val groups = parseIngredientGroups(textFieldState.text.toString())
+            val modelKeys = groups.flatten().map { it.trim().lowercase() }
+            val present = presentIngredients(ingNote.content)
+            val unknown = present.filter { it.trim().lowercase() !in modelKeys }
+
+            val ingSnap = ingNote.content
+            val modelSnap = textFieldState.text.toString()
+
+            val newIngContent = renderIntoIngredientsNote(ingNote.content, present, groups)
+            if (newIngContent != ingNote.content) {
+                dao.upsertNote(ingNote.copy(content = newIngContent, updatedAt = System.currentTimeMillis()))
+            }
+
+            val pending = unknown.map { ReconcileItem(name = it, coursesLine = null, inIngredients = true) }
+            val batch = IngredientMoveBatch(
+                ingredientsId = ingNote.id,
+                modelId = id,
+                coursesId = null,
+                coursesSnapshot = null,
+                ingredientsSnapshot = ingSnap,
+                modelSnapshot = modelSnap,
+                groups = groups,
+                pending = pending,
+                movedCount = present.size - unknown.size,
+                reorder = true
+            )
+            if (pending.isEmpty()) finishIngredientMove(batch) else ingredientBatch = batch
+        }
+    }
+
+    // Reconcile choice: add the current unknown item to the model in the chosen group
+    // (alphabetically placed), refresh the Ingrédients note, and remove it from Courses
+    // if it came from there. `groupIndex` of -1 means a brand-new group.
+    fun reconcileAddNew(groupIndex: Int) {
+        val batch = ingredientBatch ?: return
+        val current = batch.pending.firstOrNull() ?: return
+        val name = current.name
+        scope.launch {
+            val modelNote = dao.getNote(batch.modelId)
+            val ingNote = dao.getNote(batch.ingredientsId)
+            if (modelNote == null || ingNote == null || name.isEmpty()) {
+                advancePending(false)
+                return@launch
+            }
+            val modelContent = if (batch.modelId == id) textFieldState.text.toString() else modelNote.content
+            val newModelContent = addNameToModelGroup(modelContent, groupIndex, name)
+            updateNoteContent(batch.modelId, newModelContent)
+
+            val newGroups = parseIngredientGroups(newModelContent)
+            val ingContent = if (batch.ingredientsId == id) textFieldState.text.toString() else ingNote.content
+            val present = presentIngredients(ingContent)
+            val newPresent = if (current.inIngredients) present else (present + name).distinctBy { it.trim().lowercase() }
+            updateNoteContent(batch.ingredientsId, renderIntoIngredientsNote(ingContent, newPresent, newGroups))
+
+            current.coursesLine?.let { line ->
+                saveContent(removeFirstLines(textFieldState.text.toString(), listOf(line)))
+            }
+            advancePending(true)
+        }
+    }
+
+    // Reconcile choice: the current unknown item is really an existing model entry
+    // written differently; splice that canonical name in and remove it from Courses
+    // if it came from there.
+    fun reconcileMapExisting(canonical: String) {
+        val batch = ingredientBatch ?: return
+        val current = batch.pending.firstOrNull() ?: return
+        scope.launch {
+            val ingNote = dao.getNote(batch.ingredientsId)
+            if (ingNote == null) {
+                advancePending(false)
+                return@launch
+            }
+            val ingContent = if (batch.ingredientsId == id) textFieldState.text.toString() else ingNote.content
+            val present = presentIngredients(ingContent)
+            val basePresent = if (current.inIngredients) {
+                present.filter { it.trim().lowercase() != current.name.trim().lowercase() }
+            } else present
+            val newPresent = (basePresent + canonical).distinctBy { it.trim().lowercase() }
+            updateNoteContent(batch.ingredientsId, renderIntoIngredientsNote(ingContent, newPresent, batch.groups))
+
+            current.coursesLine?.let { line ->
+                saveContent(removeFirstLines(textFieldState.text.toString(), listOf(line)))
+            }
+            advancePending(true)
+        }
+    }
+
+    // Reconcile choice: leave the item as is and move on.
+    fun reconcileSkip() = advancePending(false)
 
     // Wraps a whole line's text in the marker (or removes it when already wrapped)
     fun toggleLineMarker(index: Int, marker: String) {
@@ -450,7 +743,9 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
                 BasicTextField(
                     state = titleFieldState,
                     inputTransformation = stripNewlinesTransformation,
-                    lineLimits = TextFieldLineLimits.SingleLine,
+                    // Wraps onto several lines rather than being clipped by the buttons;
+                    // stripNewlinesTransformation still keeps it a single logical line.
+                    lineLimits = TextFieldLineLimits.MultiLine(),
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
                     modifier = Modifier
                         .padding(start = 8.dp)
@@ -477,6 +772,28 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
                     if (!isEditing && textFieldState.text.toString().let { it != it.trimBlankEdgeLines() }) {
                         IconButton(onClick = { saveContent(textFieldState.text.toString().trimBlankEdgeLines()) }) {
                             Icon(Icons.Default.VerticalAlignCenter, contentDescription = "Supprimer les lignes vides en haut/bas")
+                        }
+                    }
+                    if (!isEditing &&
+                        titleFieldState.text.toString().trim().equals("Courses", ignoreCase = true) &&
+                        textFieldState.text.toString().hasCheckedLine()
+                    ) {
+                        IconButton(onClick = { sendCheckedToIngredients() }) {
+                            Icon(Icons.Default.Kitchen, contentDescription = "Ranger les articles cochés dans les Ingrédients")
+                        }
+                    }
+                    if (!isEditing &&
+                        titleFieldState.text.toString().trim().equals(INGREDIENTS_TITLE, ignoreCase = true)
+                    ) {
+                        IconButton(onClick = { showAddIngredientDialog = true }) {
+                            Icon(Icons.Default.Add, contentDescription = "Ajouter un ingrédient")
+                        }
+                    }
+                    if (!isEditing &&
+                        titleFieldState.text.toString().trim().equals(INGREDIENT_MODEL_TITLE, ignoreCase = true)
+                    ) {
+                        IconButton(onClick = { resortIngredients() }) {
+                            Icon(Icons.AutoMirrored.Filled.Sort, contentDescription = "Réordonner les ingrédients présents")
                         }
                     }
                     IconButton(onClick = { performUndo() }, enabled = undoStack.isNotEmpty()) {
@@ -648,6 +965,33 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
                     showCreatePin = false
                     persistLock(true)
                 }
+            )
+        }
+
+        ingredientBatch?.let { batch ->
+            batch.pending.firstOrNull()?.let { current ->
+                IngredientReconcileDialog(
+                    itemName = current.name,
+                    groups = batch.groups,
+                    onAddNew = { reconcileAddNew(it) },
+                    onMapExisting = { reconcileMapExisting(it) },
+                    onSkip = { reconcileSkip() },
+                    onDismiss = {
+                        // Stop reconciling; keep what's already resolved, leave the rest as is
+                        ingredientBatch = null
+                        finishIngredientMove(batch.copy(pending = emptyList()))
+                    }
+                )
+            }
+        }
+
+        if (showAddIngredientDialog) {
+            AddIngredientNameDialog(
+                onConfirm = {
+                    showAddIngredientDialog = false
+                    addIngredientDirectly(it)
+                },
+                onDismiss = { showAddIngredientDialog = false }
             )
         }
     }
