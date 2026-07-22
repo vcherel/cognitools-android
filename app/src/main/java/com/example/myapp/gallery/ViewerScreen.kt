@@ -11,6 +11,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.calculatePan
@@ -64,7 +65,9 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -129,23 +132,40 @@ fun GalleryViewerScreen(
     // the Android system bars for a true immersive fullscreen view.
     var chromeVisible by remember { mutableStateOf(false) }
     val view = LocalView.current
-    LaunchedEffect(chromeVisible) {
-        val window = view.context.findActivity()?.window ?: return@LaunchedEffect
-        val controller = WindowInsetsControllerCompat(window, view)
-        controller.systemBarsBehavior =
-            WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-        if (chromeVisible) controller.show(WindowInsetsCompat.Type.systemBars())
-        else controller.hide(WindowInsetsCompat.Type.systemBars())
-    }
+    // Keep the system bars hidden the whole time the viewer is open, even while the tools are
+    // showing, so the filename and action bar sit flush against the screen edges instead of
+    // leaving the status/navigation bar heights as empty gaps. The bars still swipe in transiently.
     DisposableEffect(Unit) {
+        val window = view.context.findActivity()?.window
+        if (window != null) {
+            val controller = WindowInsetsControllerCompat(window, view)
+            controller.systemBarsBehavior =
+                WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            controller.hide(WindowInsetsCompat.Type.systemBars())
+        }
         onDispose {
             // Restore the system bars when leaving the viewer.
-            val window = view.context.findActivity()?.window ?: return@onDispose
-            WindowInsetsControllerCompat(window, view).show(WindowInsetsCompat.Type.systemBars())
+            val w = view.context.findActivity()?.window ?: return@onDispose
+            WindowInsetsControllerCompat(w, view).show(WindowInsetsCompat.Type.systemBars())
         }
     }
 
     val scrimColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f)
+
+    // When the tools are showing, inset the image by the measured heights of the top/bottom bars so
+    // the whole picture stays visible between them instead of being overlaid; back to full screen
+    // when the tools hide. Animated so the picture resizes smoothly with the bars fading in/out.
+    val density = LocalDensity.current
+    var topBarHeightPx by remember { mutableStateOf(0) }
+    var bottomBarHeightPx by remember { mutableStateOf(0) }
+    val topInset by animateDpAsState(
+        targetValue = if (chromeVisible) with(density) { topBarHeightPx.toDp() } else 0.dp,
+        label = "topInset"
+    )
+    val bottomInset by animateDpAsState(
+        targetValue = if (chromeVisible) with(density) { bottomBarHeightPx.toDp() } else 0.dp,
+        label = "bottomInset"
+    )
 
     Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
         // Swipe the current item down (when not zoomed) to dismiss the viewer. The offset both
@@ -178,7 +198,7 @@ fun GalleryViewerScreen(
             HorizontalPager(
                 state = pagerState,
                 userScrollEnabled = !isZoomed,
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier.fillMaxSize().padding(top = topInset, bottom = bottomInset)
             ) { page ->
                 val item = items[page]
                 when (item.type) {
@@ -214,9 +234,10 @@ fun GalleryViewerScreen(
                 titleStyle = MaterialTheme.typography.titleMedium,
                 modifier = Modifier
                     .fillMaxWidth()
+                    .onSizeChanged { topBarHeightPx = it.height }
                     .background(scrimColor)
                     .statusBarsPadding()
-                    .padding(16.dp)
+                    .padding(horizontal = 8.dp)
             )
         }
 
@@ -235,6 +256,7 @@ fun GalleryViewerScreen(
                 onDelete = { showDeleteDialog = true },
                 modifier = Modifier
                     .fillMaxWidth()
+                    .onSizeChanged { bottomBarHeightPx = it.height }
                     .background(scrimColor)
                     .navigationBarsPadding()
             )
@@ -409,7 +431,7 @@ private fun ViewerActionBar(
     modifier: Modifier = Modifier
 ) {
     Row(
-        modifier = modifier.fillMaxWidth().padding(vertical = 8.dp),
+        modifier = modifier.fillMaxWidth().padding(top = 4.dp),
         horizontalArrangement = Arrangement.SpaceEvenly
     ) {
         ActionIcon(Icons.Default.Edit, "Renommer", onRename)
