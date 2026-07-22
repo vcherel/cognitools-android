@@ -52,6 +52,7 @@ Root package (shared/misc):
 - `NoteEditing.kt`: pure text helpers; input transformations, slash commands, inline/line marker toggling, muscu day
 - `NoteViewMode.kt`: the read-only note rendering; per-line checkbox/separator/text, drag reorder, double-tap to edit
 - `NoteLock.kt`: PIN lock for notes, PinDialog
+- `IngredientSync.kt`: Courses <-> Ingrédients sync and model-driven ordering for both; NoteSyncBatch/ReconcileItem, group parsing and rendering (Ingrédients: `Modèle ingrédients`, anonymous blank-line groups; Courses: `Modèle courses`, named "--- Nom" sections), the reconcile dialog
 
 `undercover/` (party game tool):
 - `Data.kt`: Player, GameSettings, GameState, MrWhiteScenario, ScoreValues data model
