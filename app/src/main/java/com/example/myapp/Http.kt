@@ -7,10 +7,15 @@ import java.net.URL
 // requests without one can be rejected with an HTTP error.
 const val USER_AGENT = "CognitoolsAndroid/1.0 (https://github.com/valentincherel; valentin.cherel22@yahoo.com)"
 
+private const val CONNECT_TIMEOUT_MS = 10_000
+private const val READ_TIMEOUT_MS = 10_000
+
 fun httpGet(url: String): String {
     val conn = URL(url).openConnection() as HttpURLConnection
     try {
         conn.requestMethod = "GET"
+        conn.connectTimeout = CONNECT_TIMEOUT_MS
+        conn.readTimeout = READ_TIMEOUT_MS
         conn.setRequestProperty("User-Agent", USER_AGENT)
         conn.setRequestProperty("Accept", "application/json")
         val code = conn.responseCode
