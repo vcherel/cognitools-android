@@ -69,11 +69,12 @@ internal val stripNewlinesTransformation = InputTransformation {
     }
 }
 
-internal class SlashCommand(val label: String, val keywords: List<String>, val prefix: String)
+internal class SlashCommand(val label: String, val keywords: List<String>, val prefix: String, val suffix: String = "")
 
 internal val SLASH_COMMANDS = listOf(
     SlashCommand("Case à cocher", listOf("case", "checkbox", "todo"), UNCHECKED_PREFIX),
-    SlashCommand("Séparateur", listOf("separateur", "séparateur", "ligne"), SEPARATOR_PREFIX)
+    SlashCommand("Séparateur", listOf("separateur", "séparateur", "ligne"), SEPARATOR_PREFIX),
+    SlashCommand("Titre", listOf("titre", "title"), "**__", "__**")
 )
 
 /**
