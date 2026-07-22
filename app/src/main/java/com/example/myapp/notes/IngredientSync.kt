@@ -40,15 +40,28 @@ import androidx.compose.ui.window.Dialog
 import java.text.Collator
 import java.util.Locale
 
-// The "Courses" -> "Ingrédients" flow, plus adding/reordering ingredients directly. The
-// Ingrédients note is a free-text recipe prompt whose ingredient names sit between an
-// "Ingrédients :" header and a "Contraintes :" section, one per line with a blank line
-// between logical groups. The "Modèle ingrédients" note holds the canonical ingredients,
-// also one per line with blank-line groups, giving both the group layout and, within each
-// group, membership. Ingredients are always kept sorted alphabetically inside their group.
+// The "Courses" <-> "Ingrédients" flow, plus adding/reordering items directly on either
+// note. The Ingrédients note is a free-text recipe prompt whose ingredient names sit
+// between an "Ingrédients :" header and a "Contraintes :" section, one per line with a
+// blank line between logical groups. The "Modèle ingrédients" note holds the canonical
+// ingredients, also one per line with blank-line groups, giving both the group layout and,
+// within each group, membership. Ingredients are always kept sorted alphabetically inside
+// their group.
+//
+// The Courses note follows the same idea but stays a checkbox list: the "Modèle courses"
+// note holds the canonical shopping order as named sections (one "--- Nom" separator per
+// section), and Courses gets laid out with a labeled section per group, each sorted
+// alphabetically, preserving every line's checked state and "(N)" quantity. Unlike the
+// Ingrédients note, single additions to Courses are inserted surgically into their section
+// rather than triggering a full re-render, so manual drag reordering elsewhere survives;
+// only the explicit "reorder" action rebuilds the whole note from the model.
 
 const val INGREDIENTS_TITLE = "Ingrédients"
 const val INGREDIENT_MODEL_TITLE = "Modèle ingrédients"
+const val COURSES_TITLE = "Courses"
+const val COURSES_MODEL_TITLE = "Modèle courses"
+
+enum class SyncKind { INGREDIENT, COURSE }
 
 // French-aware, case- and accent-insensitive ordering for the alphabetical sorting.
 private val frenchCollator: Collator = Collator.getInstance(Locale.FRENCH).apply {
@@ -57,31 +70,34 @@ private val frenchCollator: Collator = Collator.getInstance(Locale.FRENCH).apply
 private val byFrenchName = Comparator<String> { a, b -> frenchCollator.compare(a.trim(), b.trim()) }
 
 /** An unknown item awaiting reconciliation: its own (possibly misspelled) name, the
- *  Courses line to remove once resolved (null off the Courses flow), and whether it is
- *  already a line in the Ingrédients note (true when re-sorting the note in place). */
+ *  source line to remove once resolved (null when there's no source note in this flow),
+ *  and whether it is already a line in the target note (true when re-sorting in place). */
 data class ReconcileItem(
     val name: String,
-    val coursesLine: String?,
-    val inIngredients: Boolean
+    val sourceLine: String?,
+    val inTarget: Boolean
 )
 
 /**
- * In-flight state for an ingredient batch (Courses move, direct add, or model re-sort).
- * Holds snapshots of every touched note so the whole batch can be undone at once, the
- * current model groups for the reconcile picker, the unknown items still to reconcile,
- * the count of items added, and whether this batch was a pure reorder.
+ * In-flight state for a sync batch (a Courses<->Ingrédients move, a direct add, or a model
+ * re-sort, for either note). Holds snapshots of every touched note so the whole batch can
+ * be undone at once, the current model groups for the reconcile picker (with their names
+ * for Courses), the unknown items still to reconcile, the count of items added, and
+ * whether this batch was a pure reorder.
  */
-data class IngredientMoveBatch(
-    val ingredientsId: String,
+data class NoteSyncBatch(
+    val targetId: String,
     val modelId: String,
-    val coursesId: String?,
-    val coursesSnapshot: String?,
-    val ingredientsSnapshot: String,
+    val sourceId: String?,
+    val sourceSnapshot: String?,
+    val targetSnapshot: String,
     val modelSnapshot: String,
     val groups: List<List<String>>,
+    val groupNames: List<String>? = null,
     val pending: List<ReconcileItem>,
     val movedCount: Int,
-    val reorder: Boolean = false
+    val reorder: Boolean = false,
+    val kind: SyncKind = SyncKind.INGREDIENT
 )
 
 /** Canonical key for matching an item against the model: no checkbox prefix, no "(N)"
@@ -185,6 +201,113 @@ fun renderIntoIngredientsNote(noteContent: String, present: List<String>, groups
     return rebuilt.joinToString("\n")
 }
 
+/** One named section of the Modèle courses note: a shop-order group (e.g. "Crèmerie") and
+ *  the canonical item names it contains. */
+data class CourseGroup(val name: String, val items: List<String>)
+
+/** The Modèle courses note split into named groups: each "--- Nom" separator starts a new
+ *  group that runs until the next separator. Lines before the first separator, if any,
+ *  form an unnamed leading group. */
+fun parseCourseGroups(content: String): List<CourseGroup> {
+    val groups = mutableListOf<CourseGroup>()
+    var name = ""
+    var current = mutableListOf<String>()
+    for (raw in content.split("\n")) {
+        val t = raw.trim()
+        if (t.isEmpty()) continue
+        if (t.isSeparatorLine()) {
+            if (current.isNotEmpty()) { groups.add(CourseGroup(name, current)); current = mutableListOf() }
+            name = t.separatorName()
+        } else current.add(t)
+    }
+    if (current.isNotEmpty()) groups.add(CourseGroup(name, current))
+    return groups
+}
+
+/** Index of the Courses model group containing `name` (case-insensitive), or `groups.size`
+ *  as a virtual trailing "Autres" slot when no group has it. */
+fun courseGroupIndexOf(groups: List<CourseGroup>, name: String): Int {
+    val k = name.trim().lowercase()
+    val i = groups.indexOfFirst { g -> g.items.any { it.trim().lowercase() == k } }
+    return if (i >= 0) i else groups.size
+}
+
+/** Every checkbox line currently in the Courses note (separators and blanks skipped). */
+fun presentCourseLines(content: String): List<String> =
+    content.split("\n").map { it.trim() }.filter { it.isCheckboxLine() }
+
+private val byFrenchCourseLine = Comparator<String> { a, b ->
+    frenchCollator.compare(a.ingredientKey(), b.ingredientKey())
+}
+
+/** A checkbox line with its item name replaced, keeping its checkbox state and "(N)"
+ *  quantity suffix intact. */
+fun String.withItemName(newName: String): String {
+    val prefix = if (isCheckedLine()) CHECKED_PREFIX else UNCHECKED_PREFIX
+    val qty = checkboxText().itemQuantity()
+    return prefix + newName + (if (qty > 1) " ($qty)" else "")
+}
+
+/**
+ * Lays out the present Courses lines grouped and ordered by the model: one labeled section
+ * per Modèle courses group, in that group's canonical order, each section sorted
+ * alphabetically by item name. Lines whose name isn't in any group land in a trailing
+ * "Autres" section so nothing is ever lost.
+ */
+fun renderCoursesSection(present: List<String>, groups: List<CourseGroup>): String {
+    val distinct = present.distinctBy { it.ingredientKey() }
+    val blocks = mutableListOf<String>()
+    for (g in groups) {
+        val keys = g.items.map { it.trim().lowercase() }.toSet()
+        val members = distinct.filter { it.ingredientKey() in keys }.sortedWith(byFrenchCourseLine)
+        if (members.isNotEmpty()) {
+            val header = if (g.name.isNotEmpty()) SEPARATOR_PREFIX + g.name else "---"
+            blocks.add((listOf(header) + members).joinToString("\n"))
+        }
+    }
+    val known = groups.flatMap { it.items }.map { it.trim().lowercase() }.toSet()
+    val unknown = distinct.filter { it.ingredientKey() !in known }.sortedWith(byFrenchCourseLine)
+    if (unknown.isNotEmpty()) blocks.add((listOf(SEPARATOR_PREFIX + "Autres") + unknown).joinToString("\n"))
+    return blocks.joinToString("\n")
+}
+
+private data class CourseSection(val headerLine: Int, val groupIdx: Int, val range: IntRange)
+
+/**
+ * Inserts a single new Courses checkbox line into its canonical section (by group index,
+ * or `groups.size` for the trailing "Autres" section), without touching any other line, so
+ * manual reordering elsewhere in the note survives. Creates the section if it isn't present
+ * yet, positioned relative to the sections that are, per the model's group order.
+ */
+fun insertCourseLine(content: String, groups: List<CourseGroup>, groupIndex: Int, line: String): String {
+    val lines = content.split("\n").filter { it.isNotBlank() }.toMutableList()
+    val headerName = groups.getOrNull(groupIndex)?.name ?: "Autres"
+
+    val headerIdxs = lines.indices.filter { lines[it].trim().isSeparatorLine() }
+    val sections = headerIdxs.mapIndexed { i, hi ->
+        val name = lines[hi].trim().separatorName()
+        val gi = groups.indexOfFirst { it.name.equals(name, ignoreCase = true) }.let { if (it >= 0) it else groups.size }
+        val end = headerIdxs.getOrNull(i + 1) ?: lines.size
+        CourseSection(hi, gi, (hi + 1) until end)
+    }
+
+    val existing = sections.firstOrNull { it.groupIdx == groupIndex }
+    if (existing != null) {
+        var insertAt = existing.range.last + 1
+        for (idx in existing.range) {
+            if (byFrenchCourseLine.compare(line, lines[idx]) < 0) { insertAt = idx; break }
+        }
+        lines.add(insertAt, line)
+        return lines.joinToString("\n")
+    }
+
+    val header = if (headerName.isNotEmpty()) SEPARATOR_PREFIX + headerName else "---"
+    val insertBefore = sections.firstOrNull { it.groupIdx > groupIndex }
+    val at = insertBefore?.headerLine ?: lines.size
+    lines.addAll(at, listOf(header, line))
+    return lines.joinToString("\n")
+}
+
 /** Inserts `name` alphabetically into the model's group at `groupIndex` (a blank-line
  *  separated block), leaving the rest of the model verbatim. Falls back to a new group
  *  when the index is out of range. */
@@ -246,15 +369,18 @@ fun rankIngredientsByCloseness(model: List<String>, query: String): List<String>
 private enum class ReconcileStep { Choose, Group, Existing }
 
 /**
- * Shown for an item whose name isn't in the model. Lets the user add it as a new
- * ingredient (choosing which group, or a new group), map it to an existing model entry
- * (for a misspelling or variant spelling), or skip it. Within the chosen group the
- * ingredient is placed alphabetically, so only the group needs picking.
+ * Shown for an item whose name isn't in the model. Lets the user add it as a new entry
+ * (choosing which group, or a new group when `allowNewGroup`), map it to an existing model
+ * entry (for a misspelling or variant spelling), or skip it. Within the chosen group the
+ * entry is placed alphabetically, so only the group needs picking. `groupLabels`, when
+ * given, names each group in the picker instead of listing its members.
  */
 @Composable
 fun IngredientReconcileDialog(
     itemName: String,
     groups: List<List<String>>,
+    groupLabels: List<String>? = null,
+    allowNewGroup: Boolean = true,
     onAddNew: (groupIndex: Int) -> Unit,
     onMapExisting: (String) -> Unit,
     onSkip: () -> Unit,
@@ -274,15 +400,15 @@ fun IngredientReconcileDialog(
                         Text("« $itemName »", style = MaterialTheme.typography.titleMedium)
                         Spacer(Modifier.height(8.dp))
                         Text(
-                            "Cet article n'est pas dans le modèle d'ingrédients.",
+                            "Cet article n'est pas reconnu.",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Spacer(Modifier.height(16.dp))
-                        ChoiceRow("Ajouter comme nouvel ingrédient", Icons.Default.Add) {
+                        ChoiceRow("Ajouter au modèle", Icons.Default.Add) {
                             step = ReconcileStep.Group
                         }
-                        ChoiceRow("C'est un ingrédient existant", Icons.Default.Edit) {
+                        ChoiceRow("C'est déjà dans le modèle", Icons.Default.Edit) {
                             step = ReconcileStep.Existing
                         }
                         ChoiceRow("Ignorer", Icons.Default.Close, onSkip)
@@ -298,11 +424,13 @@ fun IngredientReconcileDialog(
                         Spacer(Modifier.height(12.dp))
                         LazyColumn(modifier = Modifier.heightIn(max = 360.dp)) {
                             itemsIndexed(groups) { i, g ->
-                                PositionRow(g.joinToString(", ")) { onAddNew(i) }
+                                PositionRow(groupLabels?.getOrNull(i)?.ifEmpty { null } ?: g.joinToString(", ")) { onAddNew(i) }
                                 HorizontalDivider()
                             }
-                            item {
-                                PositionRow("Nouveau groupe", bold = true) { onAddNew(-1) }
+                            if (allowNewGroup) {
+                                item {
+                                    PositionRow("Nouveau groupe", bold = true) { onAddNew(-1) }
+                                }
                             }
                         }
                         Spacer(Modifier.height(8.dp))
@@ -311,7 +439,7 @@ fun IngredientReconcileDialog(
 
                     ReconcileStep.Existing -> {
                         var query by remember { mutableStateOf("") }
-                        Text("Quel ingrédient ?", style = MaterialTheme.typography.titleMedium)
+                        Text("Lequel ?", style = MaterialTheme.typography.titleMedium)
                         Spacer(Modifier.height(8.dp))
                         OutlinedTextField(
                             value = query,
@@ -336,9 +464,13 @@ fun IngredientReconcileDialog(
     }
 }
 
-/** Simple name prompt for adding an ingredient directly from the Ingrédients note. */
+/** Simple name prompt for adding an item directly to the Ingrédients or Courses note. */
 @Composable
-fun AddIngredientNameDialog(onConfirm: (String) -> Unit, onDismiss: () -> Unit) {
+fun AddIngredientNameDialog(
+    title: String = "Ajouter un ingrédient",
+    onConfirm: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
     var text by remember { mutableStateOf("") }
     Dialog(onDismissRequest = onDismiss) {
         Surface(
@@ -347,7 +479,7 @@ fun AddIngredientNameDialog(onConfirm: (String) -> Unit, onDismiss: () -> Unit) 
             tonalElevation = 6.dp
         ) {
             Column(modifier = Modifier.fillMaxWidth().padding(20.dp)) {
-                Text("Ajouter un ingrédient", style = MaterialTheme.typography.titleMedium)
+                Text(title, style = MaterialTheme.typography.titleMedium)
                 Spacer(Modifier.height(12.dp))
                 OutlinedTextField(
                     value = text,

@@ -298,11 +298,12 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
 
     val snackbarHostState = remember { SnackbarHostState() }
 
-    // Set while a Courses -> Ingrédients move (or a direct add / model re-sort) has
-    // unknown items left to reconcile; drives the reconcile dialog and holds the
-    // undo snapshots for the whole batch.
-    var ingredientBatch by remember { mutableStateOf<IngredientMoveBatch?>(null) }
+    // Set while a Courses <-> Ingrédients move (or a direct add / model re-sort, on
+    // either note) has unknown items left to reconcile; drives the reconcile dialog and
+    // holds the undo snapshots for the whole batch.
+    var syncBatch by remember { mutableStateOf<NoteSyncBatch?>(null) }
     var showAddIngredientDialog by remember { mutableStateOf(false) }
+    var showAddCourseDialog by remember { mutableStateOf(false) }
 
     // Writes new content to the note identified by noteId: through the live text field
     // when it's the note currently open (so the screen reflects it immediately), or
@@ -340,34 +341,40 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
         }
     }
 
-    // Removes a checkbox line from this note (the "Ingrédients" note) and appends it as a
-    // new unchecked item on the "Courses" note, so running out of an ingredient turns
-    // straight into a shopping list entry. Does nothing if "Courses" doesn't exist.
+    // Removes a checkbox line from this note (the "Ingrédients" note) and inserts it as a
+    // new unchecked item into its canonical section of the "Courses" note, so running out
+    // of an ingredient turns straight into a correctly placed shopping list entry. Items
+    // not found in "Modèle courses" land in a trailing "Autres" section rather than being
+    // lost. Does nothing if "Courses" doesn't exist.
     fun moveLineToCourses(index: Int) {
         val removed = textFieldState.text.toString().split("\n")[index]
         scope.launch {
-            val courses = dao.getNotes().firstOrNull { it.title.trim().equals("Courses", ignoreCase = true) }
+            val notes = dao.getNotes()
+            val courses = notes.firstOrNull { it.title.trim().equals(COURSES_TITLE, ignoreCase = true) }
             if (courses == null) {
                 snackbarHostState.currentSnackbarData?.dismiss()
                 snackbarHostState.showSnackbar(
-                    message = "Note \"Courses\" introuvable",
+                    message = "Note \"$COURSES_TITLE\" introuvable",
                     withDismissAction = true,
                     duration = SnackbarDuration.Short
                 )
                 return@launch
             }
+            val modelNote = notes.firstOrNull { it.title.trim().equals(COURSES_MODEL_TITLE, ignoreCase = true) }
+            val itemName = removed.checkboxText().withoutQuantitySuffix().trim()
 
             val lines = textFieldState.text.toString().split("\n").toMutableList()
             lines.removeAt(index)
             saveContent(lines.joinToString("\n"))
 
-            val addedLine = UNCHECKED_PREFIX + removed.checkboxText()
-            val newCoursesLines =
-                if (courses.content.isEmpty()) listOf(addedLine) else courses.content.split("\n") + addedLine
-            // Position of the line we just appended, so undo removes exactly that one rather than
-            // an older identical line that already existed in Courses.
-            val addedIndex = newCoursesLines.size - 1
-            dao.upsertNote(courses.copy(content = newCoursesLines.joinToString("\n"), updatedAt = System.currentTimeMillis()))
+            val addedLine = UNCHECKED_PREFIX + itemName
+            val newCoursesContent = if (modelNote != null) {
+                val groups = parseCourseGroups(modelNote.content)
+                insertCourseLine(courses.content, groups, courseGroupIndexOf(groups, itemName), addedLine)
+            } else {
+                if (courses.content.isEmpty()) addedLine else courses.content + "\n" + addedLine
+            }
+            dao.upsertNote(courses.copy(content = newCoursesContent, updatedAt = System.currentTimeMillis()))
 
             snackbarHostState.currentSnackbarData?.dismiss()
             val result = snackbarHostState.showSnackbar(
@@ -384,9 +391,9 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
                 val latestCourses = dao.getNote(courses.id)
                 if (latestCourses != null) {
                     val coursesLines = latestCourses.content.split("\n").toMutableList()
-                    // Only undo the append if that slot still holds our line (Courses may have changed)
-                    if (addedIndex in coursesLines.indices && coursesLines[addedIndex] == addedLine) {
-                        coursesLines.removeAt(addedIndex)
+                    val i = coursesLines.indexOf(addedLine)
+                    if (i >= 0) {
+                        coursesLines.removeAt(i)
                         dao.upsertNote(
                             latestCourses.copy(
                                 content = coursesLines.joinToString("\n"),
@@ -399,26 +406,27 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
         }
     }
 
-    // Shows the "X ingrédients ajoutés/réordonnés" snackbar at the end of a batch, whose
-    // Annuler restores the Courses, Ingrédients and Modèle notes to their snapshots.
-    fun finishIngredientMove(batch: IngredientMoveBatch) {
+    // Shows the "X ingrédients/articles ajoutés/réordonnés" snackbar at the end of a batch,
+    // whose Annuler restores the source, target and model notes to their snapshots.
+    fun finishSyncMove(batch: NoteSyncBatch) {
         scope.launch {
             snackbarHostState.currentSnackbarData?.dismiss()
             val n = batch.movedCount
             if (n == 0) return@launch
             val plural = if (n > 1) "s" else ""
+            val noun = if (batch.kind == SyncKind.COURSE) "article" else "ingrédient"
             val verb = if (batch.reorder) "réordonné" else "ajouté"
             val result = snackbarHostState.showSnackbar(
-                message = "$n ingrédient$plural $verb$plural",
+                message = "$n $noun$plural $verb$plural",
                 actionLabel = "Annuler",
                 withDismissAction = true,
                 duration = SnackbarDuration.Short
             )
             if (result == SnackbarResult.ActionPerformed) {
-                if (batch.coursesId != null && batch.coursesSnapshot != null) {
-                    updateNoteContent(batch.coursesId, batch.coursesSnapshot)
+                if (batch.sourceId != null && batch.sourceSnapshot != null) {
+                    updateNoteContent(batch.sourceId, batch.sourceSnapshot)
                 }
-                updateNoteContent(batch.ingredientsId, batch.ingredientsSnapshot)
+                updateNoteContent(batch.targetId, batch.targetSnapshot)
                 updateNoteContent(batch.modelId, batch.modelSnapshot)
             }
         }
@@ -427,17 +435,17 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
     // Drops the current item from the pending list and, once none remain, closes the
     // batch and shows its snackbar. `moved` counts the item toward the "X ajoutés" tally.
     fun advancePending(moved: Boolean) {
-        val batch = ingredientBatch ?: return
+        val batch = syncBatch ?: return
         val remaining = batch.pending.drop(1)
         val updated = batch.copy(
             pending = remaining,
             movedCount = batch.movedCount + if (moved) 1 else 0
         )
         if (remaining.isEmpty()) {
-            ingredientBatch = null
-            finishIngredientMove(updated)
+            syncBatch = null
+            finishSyncMove(updated)
         } else {
-            ingredientBatch = updated
+            syncBatch = updated
         }
     }
 
@@ -476,7 +484,7 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
                     matchedNames.add(flatModel[mi])
                     matchedLines.add(line)
                 } else {
-                    unknown.add(ReconcileItem(name = line.checkboxText().withoutQuantitySuffix().trim(), coursesLine = line, inIngredients = false))
+                    unknown.add(ReconcileItem(name = line.checkboxText().withoutQuantitySuffix().trim(), sourceLine = line, inTarget = false))
                 }
             }
 
@@ -493,18 +501,18 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
                 saveContent(removeFirstLines(textFieldState.text.toString(), matchedLines))
             }
 
-            val batch = IngredientMoveBatch(
-                ingredientsId = ingNote.id,
+            val batch = NoteSyncBatch(
+                targetId = ingNote.id,
                 modelId = modelNote.id,
-                coursesId = id,
-                coursesSnapshot = coursesSnap,
-                ingredientsSnapshot = ingSnap,
+                sourceId = id,
+                sourceSnapshot = coursesSnap,
+                targetSnapshot = ingSnap,
                 modelSnapshot = modelSnap,
                 groups = groups,
                 pending = unknown,
                 movedCount = matchedLines.size
             )
-            if (unknown.isEmpty()) finishIngredientMove(batch) else ingredientBatch = batch
+            if (unknown.isEmpty()) finishSyncMove(batch) else syncBatch = batch
         }
     }
 
@@ -533,13 +541,13 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
                 val present = presentIngredients(textFieldState.text.toString())
                 val newPresent = (present + flatModel[mi]).distinctBy { it.trim().lowercase() }
                 saveContent(renderIntoIngredientsNote(textFieldState.text.toString(), newPresent, groups))
-                finishIngredientMove(
-                    IngredientMoveBatch(
-                        ingredientsId = id,
+                finishSyncMove(
+                    NoteSyncBatch(
+                        targetId = id,
                         modelId = modelNote.id,
-                        coursesId = null,
-                        coursesSnapshot = null,
-                        ingredientsSnapshot = ingSnap,
+                        sourceId = null,
+                        sourceSnapshot = null,
+                        targetSnapshot = ingSnap,
                         modelSnapshot = modelSnap,
                         groups = groups,
                         pending = emptyList(),
@@ -547,15 +555,15 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
                     )
                 )
             } else {
-                ingredientBatch = IngredientMoveBatch(
-                    ingredientsId = id,
+                syncBatch = NoteSyncBatch(
+                    targetId = id,
                     modelId = modelNote.id,
-                    coursesId = null,
-                    coursesSnapshot = null,
-                    ingredientsSnapshot = ingSnap,
+                    sourceId = null,
+                    sourceSnapshot = null,
+                    targetSnapshot = ingSnap,
                     modelSnapshot = modelSnap,
                     groups = groups,
-                    pending = listOf(ReconcileItem(name = name, coursesLine = null, inIngredients = false)),
+                    pending = listOf(ReconcileItem(name = name, sourceLine = null, inTarget = false)),
                     movedCount = 0
                 )
             }
@@ -590,34 +598,145 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
                 dao.upsertNote(ingNote.copy(content = newIngContent, updatedAt = System.currentTimeMillis()))
             }
 
-            val pending = unknown.map { ReconcileItem(name = it, coursesLine = null, inIngredients = true) }
-            val batch = IngredientMoveBatch(
-                ingredientsId = ingNote.id,
+            val pending = unknown.map { ReconcileItem(name = it, sourceLine = null, inTarget = true) }
+            val batch = NoteSyncBatch(
+                targetId = ingNote.id,
                 modelId = id,
-                coursesId = null,
-                coursesSnapshot = null,
-                ingredientsSnapshot = ingSnap,
+                sourceId = null,
+                sourceSnapshot = null,
+                targetSnapshot = ingSnap,
                 modelSnapshot = modelSnap,
                 groups = groups,
                 pending = pending,
                 movedCount = present.size - unknown.size,
                 reorder = true
             )
-            if (pending.isEmpty()) finishIngredientMove(batch) else ingredientBatch = batch
+            if (pending.isEmpty()) finishSyncMove(batch) else syncBatch = batch
+        }
+    }
+
+    // Adds a single article directly to the Courses note: matched against Modèle courses
+    // and inserted surgically into its section so the rest of the list is undisturbed;
+    // unmatched names go through the reconcile dialog to pick a section.
+    fun addCourseItem(name: String) {
+        scope.launch {
+            val modelNote = dao.getNotes().firstOrNull { it.title.trim().equals(COURSES_MODEL_TITLE, ignoreCase = true) }
+            if (modelNote == null) {
+                snackbarHostState.currentSnackbarData?.dismiss()
+                snackbarHostState.showSnackbar(
+                    message = "Note \"$COURSES_MODEL_TITLE\" introuvable",
+                    withDismissAction = true,
+                    duration = SnackbarDuration.Short
+                )
+                return@launch
+            }
+            val groups = parseCourseGroups(modelNote.content)
+            val groupIndex = courseGroupIndexOf(groups, name)
+            val targetSnap = textFieldState.text.toString()
+            val modelSnap = modelNote.content
+
+            if (groupIndex < groups.size) {
+                val canonical = groups[groupIndex].items.first { it.trim().lowercase() == name.trim().lowercase() }
+                saveContent(insertCourseLine(textFieldState.text.toString(), groups, groupIndex, UNCHECKED_PREFIX + canonical))
+                finishSyncMove(
+                    NoteSyncBatch(
+                        targetId = id,
+                        modelId = modelNote.id,
+                        sourceId = null,
+                        sourceSnapshot = null,
+                        targetSnapshot = targetSnap,
+                        modelSnapshot = modelSnap,
+                        groups = groups.map { it.items },
+                        groupNames = groups.map { it.name },
+                        pending = emptyList(),
+                        movedCount = 1,
+                        kind = SyncKind.COURSE
+                    )
+                )
+            } else {
+                syncBatch = NoteSyncBatch(
+                    targetId = id,
+                    modelId = modelNote.id,
+                    sourceId = null,
+                    sourceSnapshot = null,
+                    targetSnapshot = targetSnap,
+                    modelSnapshot = modelSnap,
+                    groups = groups.map { it.items },
+                    groupNames = groups.map { it.name },
+                    pending = listOf(ReconcileItem(name = name, sourceLine = null, inTarget = false)),
+                    movedCount = 0,
+                    kind = SyncKind.COURSE
+                )
+            }
+        }
+    }
+
+    // Re-sorts the Courses note into labeled sections per Modèle courses group, sorted
+    // alphabetically within each, preserving checked state and quantities; anything present
+    // but unrecognized by the model goes through the same reconcile flow as usual. Callable
+    // from either note: whichever one is currently open is read from/written through the
+    // live text field, the other through the DAO.
+    fun resortCourses() {
+        scope.launch {
+            val notes = dao.getNotes()
+            val coursesNote = notes.firstOrNull { it.title.trim().equals(COURSES_TITLE, ignoreCase = true) }
+            val modelNote = notes.firstOrNull { it.title.trim().equals(COURSES_MODEL_TITLE, ignoreCase = true) }
+            if (coursesNote == null || modelNote == null) {
+                val missing = if (coursesNote == null) COURSES_TITLE else COURSES_MODEL_TITLE
+                snackbarHostState.currentSnackbarData?.dismiss()
+                snackbarHostState.showSnackbar(
+                    message = "Note \"$missing\" introuvable",
+                    withDismissAction = true,
+                    duration = SnackbarDuration.Short
+                )
+                return@launch
+            }
+            val coursesContent = if (coursesNote.id == id) textFieldState.text.toString() else coursesNote.content
+            val modelContent = if (modelNote.id == id) textFieldState.text.toString() else modelNote.content
+
+            val groups = parseCourseGroups(modelContent)
+            val modelKeys = groups.flatMap { it.items }.map { it.trim().lowercase() }.toSet()
+            val present = presentCourseLines(coursesContent)
+            val unknown = present.filter { it.ingredientKey() !in modelKeys }
+
+            val coursesSnap = coursesContent
+            val modelSnap = modelContent
+
+            val newCoursesContent = renderCoursesSection(present, groups)
+            if (newCoursesContent != coursesContent) {
+                updateNoteContent(coursesNote.id, newCoursesContent)
+            }
+
+            val pending = unknown.map { ReconcileItem(name = it.checkboxText().withoutQuantitySuffix().trim(), sourceLine = null, inTarget = true) }
+            val batch = NoteSyncBatch(
+                targetId = coursesNote.id,
+                modelId = modelNote.id,
+                sourceId = null,
+                sourceSnapshot = null,
+                targetSnapshot = coursesSnap,
+                modelSnapshot = modelSnap,
+                groups = groups.map { it.items },
+                groupNames = groups.map { it.name },
+                pending = pending,
+                movedCount = present.size - unknown.size,
+                reorder = true,
+                kind = SyncKind.COURSE
+            )
+            if (pending.isEmpty()) finishSyncMove(batch) else syncBatch = batch
         }
     }
 
     // Reconcile choice: add the current unknown item to the model in the chosen group
-    // (alphabetically placed), refresh the Ingrédients note, and remove it from Courses
-    // if it came from there. `groupIndex` of -1 means a brand-new group.
+    // (alphabetically placed), refresh the target note, and remove it from the source note
+    // if it came from one. `groupIndex` of -1 means a brand-new group (Ingrédients only).
     fun reconcileAddNew(groupIndex: Int) {
-        val batch = ingredientBatch ?: return
+        val batch = syncBatch ?: return
         val current = batch.pending.firstOrNull() ?: return
         val name = current.name
         scope.launch {
             val modelNote = dao.getNote(batch.modelId)
-            val ingNote = dao.getNote(batch.ingredientsId)
-            if (modelNote == null || ingNote == null || name.isEmpty()) {
+            val targetNote = dao.getNote(batch.targetId)
+            if (modelNote == null || targetNote == null || name.isEmpty()) {
                 advancePending(false)
                 return@launch
             }
@@ -625,13 +744,26 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
             val newModelContent = addNameToModelGroup(modelContent, groupIndex, name)
             updateNoteContent(batch.modelId, newModelContent)
 
-            val newGroups = parseIngredientGroups(newModelContent)
-            val ingContent = if (batch.ingredientsId == id) textFieldState.text.toString() else ingNote.content
-            val present = presentIngredients(ingContent)
-            val newPresent = if (current.inIngredients) present else (present + name).distinctBy { it.trim().lowercase() }
-            updateNoteContent(batch.ingredientsId, renderIntoIngredientsNote(ingContent, newPresent, newGroups))
+            val targetContent = if (batch.targetId == id) textFieldState.text.toString() else targetNote.content
+            when (batch.kind) {
+                SyncKind.INGREDIENT -> {
+                    val newGroups = parseIngredientGroups(newModelContent)
+                    val present = presentIngredients(targetContent)
+                    val newPresent = if (current.inTarget) present else (present + name).distinctBy { it.trim().lowercase() }
+                    updateNoteContent(batch.targetId, renderIntoIngredientsNote(targetContent, newPresent, newGroups))
+                }
+                SyncKind.COURSE -> {
+                    val newGroups = parseCourseGroups(newModelContent)
+                    val newTargetContent = if (current.inTarget) {
+                        renderCoursesSection(presentCourseLines(targetContent), newGroups)
+                    } else {
+                        insertCourseLine(targetContent, newGroups, groupIndex, UNCHECKED_PREFIX + name)
+                    }
+                    updateNoteContent(batch.targetId, newTargetContent)
+                }
+            }
 
-            current.coursesLine?.let { line ->
+            current.sourceLine?.let { line ->
                 saveContent(removeFirstLines(textFieldState.text.toString(), listOf(line)))
             }
             advancePending(true)
@@ -639,26 +771,43 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
     }
 
     // Reconcile choice: the current unknown item is really an existing model entry
-    // written differently; splice that canonical name in and remove it from Courses
-    // if it came from there.
+    // written differently; splice that canonical name in and remove it from the source
+    // note if it came from one.
     fun reconcileMapExisting(canonical: String) {
-        val batch = ingredientBatch ?: return
+        val batch = syncBatch ?: return
         val current = batch.pending.firstOrNull() ?: return
         scope.launch {
-            val ingNote = dao.getNote(batch.ingredientsId)
-            if (ingNote == null) {
+            val targetNote = dao.getNote(batch.targetId)
+            if (targetNote == null) {
                 advancePending(false)
                 return@launch
             }
-            val ingContent = if (batch.ingredientsId == id) textFieldState.text.toString() else ingNote.content
-            val present = presentIngredients(ingContent)
-            val basePresent = if (current.inIngredients) {
-                present.filter { it.trim().lowercase() != current.name.trim().lowercase() }
-            } else present
-            val newPresent = (basePresent + canonical).distinctBy { it.trim().lowercase() }
-            updateNoteContent(batch.ingredientsId, renderIntoIngredientsNote(ingContent, newPresent, batch.groups))
+            val targetContent = if (batch.targetId == id) textFieldState.text.toString() else targetNote.content
+            when (batch.kind) {
+                SyncKind.INGREDIENT -> {
+                    val present = presentIngredients(targetContent)
+                    val basePresent = if (current.inTarget) {
+                        present.filter { it.trim().lowercase() != current.name.trim().lowercase() }
+                    } else present
+                    val newPresent = (basePresent + canonical).distinctBy { it.trim().lowercase() }
+                    updateNoteContent(batch.targetId, renderIntoIngredientsNote(targetContent, newPresent, batch.groups))
+                }
+                SyncKind.COURSE -> {
+                    val groups = batch.groups.mapIndexed { i, items -> CourseGroup(batch.groupNames?.getOrNull(i) ?: "", items) }
+                    val newTargetContent = if (current.inTarget) {
+                        val relabeled = targetContent.split("\n").joinToString("\n") { raw ->
+                            val t = raw.trim()
+                            if (t.isCheckboxLine() && t.ingredientKey() == current.name.trim().lowercase()) t.withItemName(canonical) else raw
+                        }
+                        renderCoursesSection(presentCourseLines(relabeled), groups)
+                    } else {
+                        insertCourseLine(targetContent, groups, courseGroupIndexOf(groups, canonical), UNCHECKED_PREFIX + canonical)
+                    }
+                    updateNoteContent(batch.targetId, newTargetContent)
+                }
+            }
 
-            current.coursesLine?.let { line ->
+            current.sourceLine?.let { line ->
                 saveContent(removeFirstLines(textFieldState.text.toString(), listOf(line)))
             }
             advancePending(true)
@@ -743,15 +892,15 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
                 BasicTextField(
                     state = titleFieldState,
                     inputTransformation = stripNewlinesTransformation,
-                    // Wraps onto several lines rather than being clipped by the buttons;
+                    // Wraps onto up to two lines rather than being clipped by the buttons;
                     // stripNewlinesTransformation still keeps it a single logical line.
-                    lineLimits = TextFieldLineLimits.MultiLine(),
+                    lineLimits = TextFieldLineLimits.MultiLine(maxHeightInLines = 2),
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
                     modifier = Modifier
                         .padding(start = 8.dp)
                         .weight(1f)
                         .onFocusChanged { titleFocused = it.isFocused },
-                    textStyle = MaterialTheme.typography.headlineSmall.copy(
+                    textStyle = MaterialTheme.typography.titleMedium.copy(
                         color = MaterialTheme.colorScheme.onBackground
                     ),
                     cursorBrush = SolidColor(MaterialTheme.colorScheme.onBackground),
@@ -760,7 +909,7 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
                             if (titleFieldState.text.isEmpty()) {
                                 Text(
                                     "Note",
-                                    style = MaterialTheme.typography.headlineSmall,
+                                    style = MaterialTheme.typography.titleMedium,
                                     color = Color.Gray
                                 )
                             }
@@ -775,7 +924,7 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
                         }
                     }
                     if (!isEditing &&
-                        titleFieldState.text.toString().trim().equals("Courses", ignoreCase = true) &&
+                        titleFieldState.text.toString().trim().equals(COURSES_TITLE, ignoreCase = true) &&
                         textFieldState.text.toString().hasCheckedLine()
                     ) {
                         IconButton(onClick = { sendCheckedToIngredients() }) {
@@ -794,6 +943,13 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
                     ) {
                         IconButton(onClick = { resortIngredients() }) {
                             Icon(Icons.AutoMirrored.Filled.Sort, contentDescription = "Réordonner les ingrédients présents")
+                        }
+                    }
+                    if (!isEditing &&
+                        titleFieldState.text.toString().trim().equals(COURSES_TITLE, ignoreCase = true)
+                    ) {
+                        IconButton(onClick = { showAddCourseDialog = true }) {
+                            Icon(Icons.Default.Add, contentDescription = "Ajouter un article")
                         }
                     }
                     IconButton(onClick = { performUndo() }, enabled = undoStack.isNotEmpty()) {
@@ -872,12 +1028,22 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
                                     )
                                 }
                             }
+                            if (!isEditing && titleFieldState.text.toString().trim().equals(COURSES_TITLE, ignoreCase = true)) {
+                                DropdownMenuItem(
+                                    text = { Text("Mettre à jour selon le modèle") },
+                                    leadingIcon = { Icon(Icons.AutoMirrored.Filled.Sort, contentDescription = null) },
+                                    onClick = {
+                                        showMoreMenu = false
+                                        resortCourses()
+                                    }
+                                )
+                            }
                         }
                     }
                 }
             }
 
-            if (!isEditing && !titleFocused && titleFieldState.text.toString().equals("Courses", ignoreCase = true)) {
+            if (!isEditing && !titleFocused && titleFieldState.text.toString().equals(COURSES_TITLE, ignoreCase = true)) {
                 val itemCount = textFieldState.text.toString().uncheckedItemCount()
                 if (itemCount > 0) {
                     Text(
@@ -968,18 +1134,20 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
             )
         }
 
-        ingredientBatch?.let { batch ->
+        syncBatch?.let { batch ->
             batch.pending.firstOrNull()?.let { current ->
                 IngredientReconcileDialog(
                     itemName = current.name,
                     groups = batch.groups,
+                    groupLabels = batch.groupNames,
+                    allowNewGroup = batch.kind == SyncKind.INGREDIENT,
                     onAddNew = { reconcileAddNew(it) },
                     onMapExisting = { reconcileMapExisting(it) },
                     onSkip = { reconcileSkip() },
                     onDismiss = {
                         // Stop reconciling; keep what's already resolved, leave the rest as is
-                        ingredientBatch = null
-                        finishIngredientMove(batch.copy(pending = emptyList()))
+                        syncBatch = null
+                        finishSyncMove(batch.copy(pending = emptyList()))
                     }
                 )
             }
@@ -992,6 +1160,17 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
                     addIngredientDirectly(it)
                 },
                 onDismiss = { showAddIngredientDialog = false }
+            )
+        }
+
+        if (showAddCourseDialog) {
+            AddIngredientNameDialog(
+                title = "Ajouter un article",
+                onConfirm = {
+                    showAddCourseDialog = false
+                    addCourseItem(it)
+                },
+                onDismiss = { showAddCourseDialog = false }
             )
         }
     }
