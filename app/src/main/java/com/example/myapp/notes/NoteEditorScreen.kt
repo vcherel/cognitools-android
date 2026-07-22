@@ -905,7 +905,7 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
                                     val lineStart = slash!!.first
                                     val cursor = textFieldState.selection.start
                                     textFieldState.edit {
-                                        replace(lineStart, cursor, cmd.prefix)
+                                        replace(lineStart, cursor, cmd.prefix + cmd.suffix)
                                         selection = TextRange(lineStart + cmd.prefix.length)
                                     }
                                 },
