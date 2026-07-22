@@ -492,9 +492,21 @@ private fun DayRow(day: DailyPoint, selected: Boolean, onClick: () -> Unit) {
             fontWeight = FontWeight.Medium,
             modifier = Modifier.weight(1f)
         )
-        Text("${day.rainProb}% 🌧️", color = contentColor)
+        Column(horizontalAlignment = Alignment.End) {
+            Text("${day.rainProb}% 🌧️", color = contentColor)
+            if (day.rainAmount >= 0.1) {
+                Text(
+                    "${formatRainAmount(day.rainAmount)}mm",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = contentColor
+                )
+            }
+        }
     }
 }
+
+private fun formatRainAmount(amount: Double): String =
+    if (amount >= 10) amount.roundToInt().toString() else String.format(Locale.FRANCE, "%.1f", amount)
 
 private fun shortDayLabel(date: LocalDate): String {
     val today = LocalDate.now()
@@ -540,8 +552,8 @@ private fun daySummary(hours: List<HourlyPoint>, date: LocalDate): String {
     }
 }
 
-data class HourlyPoint(val time: LocalDateTime, val temp: Double, val rainProb: Int, val weatherCode: Int)
-data class DailyPoint(val date: LocalDate, val tempMax: Double, val tempMin: Double, val rainProb: Int, val weatherCode: Int)
+data class HourlyPoint(val time: LocalDateTime, val temp: Double, val rainProb: Int, val rainAmount: Double, val weatherCode: Int)
+data class DailyPoint(val date: LocalDate, val tempMax: Double, val tempMin: Double, val rainProb: Int, val rainAmount: Double, val weatherCode: Int)
 data class WeatherForecast(val hourly: List<HourlyPoint>, val daily: List<DailyPoint>)
 data class CityLocation(val name: String, val admin1: String?, val country: String?, val lat: Double, val lon: Double)
 
@@ -596,47 +608,68 @@ private fun searchCities(query: String): List<CityLocation> {
     }
 }
 
+// Temperature, weather code and rain amount come from Météo-France (AROME over France, seamlessly
+// falling back to their coarser global ARPEGE model elsewhere, all within this one call). Rain
+// probability comes from Open-Meteo's best_match blend instead, since Météo-France's deterministic
+// model doesn't expose a probability, only an amount. Météo-France's own forecast horizon is much
+// shorter than best_match's (a few days vs 16), so past that horizon every field falls back to
+// best_match instead of leaving the rest of the 16 days empty.
 private fun fetchWeatherForecast(lat: Double, lon: Double): WeatherForecast {
     val url = "https://api.open-meteo.com/v1/forecast?latitude=$lat&longitude=$lon" +
-            "&hourly=temperature_2m,precipitation_probability,weathercode" +
-            "&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,weathercode" +
-            "&timezone=auto&forecast_days=16"
+            "&hourly=temperature_2m,precipitation_probability,precipitation,weathercode" +
+            "&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum,weathercode" +
+            "&timezone=auto&forecast_days=16&models=meteofrance_seamless,best_match"
     val json = JSONObject(httpGet(url))
 
     val hourlyJson = json.getJSONObject("hourly")
     val hourlyTimes = hourlyJson.getJSONArray("time")
-    val hourlyTemps = hourlyJson.getJSONArray("temperature_2m")
-    val hourlyRain = hourlyJson.getJSONArray("precipitation_probability")
-    val hourlyCodes = hourlyJson.getJSONArray("weathercode")
-    // Temperature and weather code are also null for the last few hours of the forecast window,
-    // same as precipitation probability: drop those hours instead of crashing.
+    val hourlyTemps = hourlyJson.getJSONArray("temperature_2m_meteofrance_seamless")
+    val hourlyTempsFallback = hourlyJson.getJSONArray("temperature_2m_best_match")
+    val hourlyRain = hourlyJson.getJSONArray("precipitation_probability_best_match")
+    val hourlyAmount = hourlyJson.getJSONArray("precipitation_meteofrance_seamless")
+    val hourlyAmountFallback = hourlyJson.getJSONArray("precipitation_best_match")
+    val hourlyCodes = hourlyJson.getJSONArray("weathercode_meteofrance_seamless")
+    val hourlyCodesFallback = hourlyJson.getJSONArray("weathercode_best_match")
+    // Temperature is null once Météo-France's own forecast horizon ends; fall back to best_match
+    // rather than dropping the rest of the 16 requested days.
     val hourly = (0 until hourlyTimes.length()).mapNotNull { i ->
-        val temp = hourlyTemps.optDouble(i, Double.NaN)
+        val mfTemp = hourlyTemps.optDouble(i, Double.NaN)
+        val temp = if (mfTemp.isNaN()) hourlyTempsFallback.optDouble(i, Double.NaN) else mfTemp
         if (temp.isNaN()) return@mapNotNull null
         HourlyPoint(
             time = LocalDateTime.parse(hourlyTimes.getString(i)),
             temp = temp,
             rainProb = hourlyRain.optInt(i, 0),
-            weatherCode = hourlyCodes.optInt(i, 0)
+            rainAmount = if (mfTemp.isNaN()) hourlyAmountFallback.optDouble(i, 0.0) else hourlyAmount.optDouble(i, 0.0),
+            weatherCode = if (mfTemp.isNaN()) hourlyCodesFallback.optInt(i, 0) else hourlyCodes.optInt(i, 0)
         )
     }
 
     val dailyJson = json.getJSONObject("daily")
     val dailyDates = dailyJson.getJSONArray("time")
-    val dailyMax = dailyJson.getJSONArray("temperature_2m_max")
-    val dailyMin = dailyJson.getJSONArray("temperature_2m_min")
-    val dailyRain = dailyJson.getJSONArray("precipitation_probability_max")
-    val dailyCodes = dailyJson.getJSONArray("weathercode")
+    val dailyMax = dailyJson.getJSONArray("temperature_2m_max_meteofrance_seamless")
+    val dailyMaxFallback = dailyJson.getJSONArray("temperature_2m_max_best_match")
+    val dailyMin = dailyJson.getJSONArray("temperature_2m_min_meteofrance_seamless")
+    val dailyMinFallback = dailyJson.getJSONArray("temperature_2m_min_best_match")
+    val dailyRain = dailyJson.getJSONArray("precipitation_probability_max_best_match")
+    val dailyAmount = dailyJson.getJSONArray("precipitation_sum_meteofrance_seamless")
+    val dailyAmountFallback = dailyJson.getJSONArray("precipitation_sum_best_match")
+    val dailyCodes = dailyJson.getJSONArray("weathercode_meteofrance_seamless")
+    val dailyCodesFallback = dailyJson.getJSONArray("weathercode_best_match")
     val daily = (0 until dailyDates.length()).mapNotNull { i ->
-        val tempMax = dailyMax.optDouble(i, Double.NaN)
-        val tempMin = dailyMin.optDouble(i, Double.NaN)
+        val mfTempMax = dailyMax.optDouble(i, Double.NaN)
+        val mfTempMin = dailyMin.optDouble(i, Double.NaN)
+        val usesFallback = mfTempMax.isNaN() || mfTempMin.isNaN()
+        val tempMax = if (usesFallback) dailyMaxFallback.optDouble(i, Double.NaN) else mfTempMax
+        val tempMin = if (usesFallback) dailyMinFallback.optDouble(i, Double.NaN) else mfTempMin
         if (tempMax.isNaN() || tempMin.isNaN()) return@mapNotNull null
         DailyPoint(
             date = LocalDate.parse(dailyDates.getString(i)),
             tempMax = tempMax,
             tempMin = tempMin,
             rainProb = dailyRain.optInt(i, 0),
-            weatherCode = dailyCodes.optInt(i, 0)
+            rainAmount = if (usesFallback) dailyAmountFallback.optDouble(i, 0.0) else dailyAmount.optDouble(i, 0.0),
+            weatherCode = if (usesFallback) dailyCodesFallback.optInt(i, 0) else dailyCodes.optInt(i, 0)
         )
     }
 
