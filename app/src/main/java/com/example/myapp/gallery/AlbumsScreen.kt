@@ -35,6 +35,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.example.myapp.MyButton
 import com.example.myapp.ScreenTopBar
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -43,12 +45,15 @@ import kotlinx.coroutines.withContext
 fun GalleryAlbumsScreen(onBack: () -> Unit, onOpenAlbum: (Long) -> Unit) {
     val context = LocalContext.current
     var hasPermission by remember { mutableStateOf(hasReadMediaPermission(context)) }
+    var hasAllFiles by remember { mutableStateOf(hasAllFilesAccess()) }
     var albums by remember { mutableStateOf<List<Album>?>(null) }
     val refreshVersion by GalleryRefresh.version.collectAsState()
 
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { result -> hasPermission = result.values.all { it } }
+
+    val requestAllFiles = rememberAllFilesAccessRequester { hasAllFiles = hasAllFilesAccess() }
 
     LaunchedEffect(Unit) {
         if (!hasPermission) permissionLauncher.launch(readMediaPermissions())
@@ -64,6 +69,10 @@ fun GalleryAlbumsScreen(onBack: () -> Unit, onOpenAlbum: (Long) -> Unit) {
 
     Column(modifier = Modifier.fillMaxSize()) {
         ScreenTopBar(title = "Galerie", onBack = onBack, modifier = Modifier.padding(16.dp))
+
+        if (hasPermission && !hasAllFiles) {
+            AllFilesAccessBanner(onGrant = requestAllFiles)
+        }
 
         when {
             !hasPermission -> Box(
@@ -93,6 +102,29 @@ fun GalleryAlbumsScreen(onBack: () -> Unit, onOpenAlbum: (Long) -> Unit) {
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun AllFilesAccessBanner(onGrant: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+            .padding(bottom = 8.dp)
+    ) {
+        Text(
+            "Autorise l'accès complet aux fichiers pour supprimer et déplacer tes photos sans " +
+                "la confirmation Android à chaque fois.",
+            style = MaterialTheme.typography.bodyMedium
+        )
+        MyButton(
+            text = "Autoriser",
+            onClick = onGrant,
+            height = 56.dp,
+            fontSize = 18.sp,
+            modifier = Modifier.padding(top = 8.dp)
+        )
     }
 }
 
