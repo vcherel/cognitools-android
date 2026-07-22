@@ -1,14 +1,24 @@
 package com.example.myapp.gallery
 
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
 import android.net.Uri
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.calculatePan
 import androidx.compose.foundation.gestures.calculateZoom
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -49,11 +59,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
@@ -111,22 +125,36 @@ fun GalleryViewerScreen(
 
     val currentItem = items.getOrNull(pagerState.currentPage.coerceIn(items.indices)) ?: items.first()
 
-    Column(modifier = Modifier.fillMaxSize()) {
-        ScreenTopBar(
-            title = currentItem.displayName,
-            onBack = onBack,
-            titleStyle = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.padding(16.dp)
-        )
+    // The photo opens clean (no tools). A single tap toggles the top/bottom bars and, with them,
+    // the Android system bars for a true immersive fullscreen view.
+    var chromeVisible by remember { mutableStateOf(false) }
+    val view = LocalView.current
+    LaunchedEffect(chromeVisible) {
+        val window = view.context.findActivity()?.window ?: return@LaunchedEffect
+        val controller = WindowInsetsControllerCompat(window, view)
+        controller.systemBarsBehavior =
+            WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        if (chromeVisible) controller.show(WindowInsetsCompat.Type.systemBars())
+        else controller.hide(WindowInsetsCompat.Type.systemBars())
+    }
+    DisposableEffect(Unit) {
+        onDispose {
+            // Restore the system bars when leaving the viewer.
+            val window = view.context.findActivity()?.window ?: return@onDispose
+            WindowInsetsControllerCompat(window, view).show(WindowInsetsCompat.Type.systemBars())
+        }
+    }
 
+    val scrimColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f)
+
+    Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
         // Swipe the current item down (when not zoomed) to dismiss the viewer. The offset both
         // translates and fades the content for feedback; releasing past the threshold goes back,
         // otherwise it springs back to place.
         val dismissOffset = remember { Animatable(0f) }
         Box(
             modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth()
+                .fillMaxSize()
                 .graphicsLayer {
                     translationY = dismissOffset.value
                     alpha = 1f - (dismissOffset.value / 900f).coerceIn(0f, 0.5f)
@@ -154,7 +182,11 @@ fun GalleryViewerScreen(
             ) { page ->
                 val item = items[page]
                 when (item.type) {
-                    MediaType.IMAGE -> ZoomableImage(item = item, onZoomChanged = { isZoomed = it })
+                    MediaType.IMAGE -> ZoomableImage(
+                        item = item,
+                        onZoomChanged = { isZoomed = it },
+                        onToggleChrome = { chromeVisible = !chromeVisible }
+                    )
                     MediaType.VIDEO -> if (page == pagerState.currentPage) {
                         VideoPlayer(uri = item.uri)
                     } else {
@@ -170,14 +202,43 @@ fun GalleryViewerScreen(
             }
         }
 
-        ViewerActionBar(
-            item = currentItem,
-            onRename = { showRenameDialog = true },
-            onMove = { showMoveDialog = true },
-            onCrop = { onCrop(currentItem.id) },
-            onTrim = { onTrim(currentItem.id) },
-            onDelete = { showDeleteDialog = true }
-        )
+        AnimatedVisibility(
+            visible = chromeVisible,
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier.align(Alignment.TopCenter)
+        ) {
+            ScreenTopBar(
+                title = currentItem.displayName,
+                onBack = onBack,
+                titleStyle = MaterialTheme.typography.titleMedium,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(scrimColor)
+                    .statusBarsPadding()
+                    .padding(16.dp)
+            )
+        }
+
+        AnimatedVisibility(
+            visible = chromeVisible,
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier.align(Alignment.BottomCenter)
+        ) {
+            ViewerActionBar(
+                item = currentItem,
+                onRename = { showRenameDialog = true },
+                onMove = { showMoveDialog = true },
+                onCrop = { onCrop(currentItem.id) },
+                onTrim = { onTrim(currentItem.id) },
+                onDelete = { showDeleteDialog = true },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(scrimColor)
+                    .navigationBarsPadding()
+            )
+        }
     }
 
     if (showRenameDialog) {
@@ -241,8 +302,21 @@ fun GalleryViewerScreen(
     }
 }
 
+private fun Context.findActivity(): Activity? {
+    var ctx: Context = this
+    while (ctx is ContextWrapper) {
+        if (ctx is Activity) return ctx
+        ctx = ctx.baseContext
+    }
+    return null
+}
+
 @Composable
-private fun ZoomableImage(item: MediaItem, onZoomChanged: (Boolean) -> Unit) {
+private fun ZoomableImage(
+    item: MediaItem,
+    onZoomChanged: (Boolean) -> Unit,
+    onToggleChrome: () -> Unit
+) {
     var scale by remember(item.id) { mutableStateOf(1f) }
     var offset by remember(item.id) { mutableStateOf(Offset.Zero) }
     LaunchedEffect(scale) { onZoomChanged(scale > 1.01f) }
@@ -255,19 +329,43 @@ private fun ZoomableImage(item: MediaItem, onZoomChanged: (Boolean) -> Unit) {
         modifier = Modifier
             .fillMaxSize()
             .pointerInput(item.id) {
-                // Only claim the gesture when it's an actual pinch (two pointers) or when already
-                // zoomed in. A single-finger drag at scale 1 is left unconsumed so the enclosing
-                // HorizontalPager can swipe to the next item.
+                // Single tap toggles the viewer chrome; double tap zooms to 2.5x centered on the
+                // tapped point (or back to fit if already zoomed). Both live in one detector so
+                // they don't fight the pinch handler below over consuming the touch.
+                detectTapGestures(
+                    onTap = { onToggleChrome() },
+                    onDoubleTap = { tapPos ->
+                        if (scale > 1f) {
+                            scale = 1f
+                            offset = Offset.Zero
+                        } else {
+                            val target = 2.5f
+                            val center = Offset(size.width / 2f, size.height / 2f)
+                            offset = (tapPos - center) * (1f - target)
+                            scale = target
+                        }
+                    }
+                )
+            }
+            .pointerInput(item.id) {
+                // Only claim the gesture when it's an actual pinch (two pointers) or a pan while
+                // already zoomed in. Plain taps (no movement) are left unconsumed so the tap
+                // detector above can handle them; a single-finger drag at scale 1 is left for the
+                // enclosing HorizontalPager to swipe to the next item.
                 awaitEachGesture {
                     awaitFirstDown(requireUnconsumed = false)
                     do {
                         val event = awaitPointerEvent()
                         val pinching = event.changes.count { it.pressed } >= 2
                         if (pinching || scale > 1f) {
-                            val newScale = (scale * event.calculateZoom()).coerceIn(1f, 5f)
-                            scale = newScale
-                            offset = if (newScale <= 1f) Offset.Zero else offset + event.calculatePan()
-                            event.changes.forEach { it.consume() }
+                            val zoom = event.calculateZoom()
+                            val pan = event.calculatePan()
+                            if (zoom != 1f || pan != Offset.Zero) {
+                                val newScale = (scale * zoom).coerceIn(1f, 5f)
+                                scale = newScale
+                                offset = if (newScale <= 1f) Offset.Zero else offset + pan
+                                event.changes.forEach { it.consume() }
+                            }
                         }
                     } while (event.changes.any { it.pressed })
                 }
@@ -307,10 +405,11 @@ private fun ViewerActionBar(
     onMove: () -> Unit,
     onCrop: () -> Unit,
     onTrim: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+        modifier = modifier.fillMaxWidth().padding(vertical = 8.dp),
         horizontalArrangement = Arrangement.SpaceEvenly
     ) {
         ActionIcon(Icons.Default.Edit, "Renommer", onRename)
