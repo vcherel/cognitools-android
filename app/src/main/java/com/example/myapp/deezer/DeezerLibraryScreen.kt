@@ -22,8 +22,13 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Diamond
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -31,6 +36,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -46,24 +52,23 @@ import coil3.compose.AsyncImage
 import com.example.myapp.ScreenTopBar
 import kotlinx.coroutines.launch
 
-/** Landing screen: search entry, a Favoris preview row, and a Playlists preview row. */
+/** Landing screen: search entry, a Favoris card (count + shuffle), and a Playlists preview row. */
 @Composable
 fun DeezerLibraryScreen(
     repo: DeezerRepository,
     onBack: () -> Unit,
     onOpenSearch: () -> Unit,
-    onOpenFavorites: () -> Unit,
     onOpenPlaylist: (DeezerPlaylist) -> Unit
 ) {
     val scope = rememberCoroutineScope()
-    var favorites by remember { mutableStateOf<List<DeezerTrack>?>(null) }
+    val favorites by repo.favorites.collectAsState()
     var playlists by remember { mutableStateOf<List<DeezerPlaylist>?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     var showSettings by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         if (!repo.hasArl()) { showSettings = true; return@LaunchedEffect }
-        runCatching { favorites = repo.favorites() }.onFailure { error = it.message }
+        runCatching { repo.ensureFavorites() }.onFailure { error = it.message }
         runCatching { playlists = repo.playlists() }.onFailure { error = it.message }
     }
 
@@ -101,15 +106,11 @@ fun DeezerLibraryScreen(
                 Text("Erreur: $it", color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(vertical = 8.dp))
             }
 
-            SectionHeader(title = "Favoris", onSeeAll = onOpenFavorites)
-            when (val f = favorites) {
-                null -> LoadingRow()
-                else -> Column {
-                    f.take(5).forEachIndexed { index, track ->
-                        TrackRow(track) { scope.launch { repo.playTracks(f, index) } }
-                    }
-                }
-            }
+            SectionHeader(title = "Favoris", onSeeAll = null)
+            FavoritesCard(
+                count = favorites?.size,
+                onShuffle = { scope.launch { runCatching { repo.shuffleFavorites() }.onFailure { error = it.message } } }
+            )
 
             Spacer(Modifier.height(16.dp))
             SectionHeader(title = "Playlists", onSeeAll = null)
@@ -134,7 +135,7 @@ fun DeezerLibraryScreen(
                 showSettings = false
                 scope.launch {
                     error = null
-                    runCatching { favorites = repo.favorites() }.onFailure { error = it.message }
+                    runCatching { repo.ensureFavorites(force = true) }.onFailure { error = it.message }
                     runCatching { playlists = repo.playlists() }.onFailure { error = it.message }
                 }
             }
@@ -157,6 +158,32 @@ private fun SectionHeader(title: String, onSeeAll: (() -> Unit)?) {
                 modifier = Modifier.clickable(onClick = onSeeAll).padding(4.dp)
             )
         }
+    }
+}
+
+/** Favoris surface: no track list, just the total count and a shuffle-all entry point (whole card taps to shuffle). */
+@Composable
+private fun FavoritesCard(count: Int?, onShuffle: () -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .clickable(onClick = onShuffle)
+            .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(Icons.Filled.Favorite, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+        Spacer(Modifier.width(12.dp))
+        Text(
+            count?.let { "$it titres" } ?: "…",
+            style = MaterialTheme.typography.bodyLarge,
+            modifier = Modifier.weight(1f)
+        )
+        Icon(Icons.Filled.Shuffle, contentDescription = "Lecture aléatoire", tint = MaterialTheme.colorScheme.primary)
+        Spacer(Modifier.width(6.dp))
+        Text("Aléatoire", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
     }
 }
 
@@ -191,9 +218,21 @@ private fun PlaylistCard(playlist: DeezerPlaylist, onClick: () -> Unit) {
     }
 }
 
-/** Shared: one tappable track line. */
+/**
+ * Shared: one tappable track line. Tap plays. When [showActions] is on, inline icons appear on the
+ * right: heart (like/unlike, filled when [isFavorite]), diamond (add to Best pépites), and, only if
+ * [onRemoveFromPlaylist] is provided, a cross that removes it from the current playlist.
+ */
 @Composable
-fun TrackRow(track: DeezerTrack, onClick: () -> Unit) {
+fun TrackRow(
+    track: DeezerTrack,
+    onClick: () -> Unit,
+    showActions: Boolean = false,
+    isFavorite: Boolean = false,
+    onToggleFavorite: (() -> Unit)? = null,
+    onAddToBestPepites: (() -> Unit)? = null,
+    onRemoveFromPlaylist: (() -> Unit)? = null
+) {
     Row(
         Modifier
             .fillMaxWidth()
@@ -212,6 +251,25 @@ fun TrackRow(track: DeezerTrack, onClick: () -> Unit) {
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
+        }
+        if (showActions) {
+            IconButton(onClick = { onToggleFavorite?.invoke() }, modifier = Modifier.size(40.dp)) {
+                Icon(
+                    if (isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                    contentDescription = if (isFavorite) "Retirer des favoris" else "Ajouter aux favoris",
+                    tint = if (isFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            if (onAddToBestPepites != null) {
+                IconButton(onClick = onAddToBestPepites, modifier = Modifier.size(40.dp)) {
+                    Icon(Icons.Filled.Diamond, contentDescription = "Ajouter à Best pépites", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+            if (onRemoveFromPlaylist != null) {
+                IconButton(onClick = onRemoveFromPlaylist, modifier = Modifier.size(40.dp)) {
+                    Icon(Icons.Filled.Close, contentDescription = "Retirer de la playlist", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
         }
     }
 }

@@ -22,6 +22,8 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.text.Normalizer
+import kotlin.random.Random
 
 /**
  * Singleton (held by MyApplication, like FlashcardRepository). Owns:
@@ -82,11 +84,71 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
 
     // ---- Library data ----
 
-    suspend fun favorites(): List<DeezerTrack> = withTokenRetry { api.getFavorites(it) }
     suspend fun playlists(): List<DeezerPlaylist> = withTokenRetry { api.getPlaylists(it) }
     suspend fun playlistTracks(playlistId: String): List<DeezerTrack> =
         withTokenRetry { api.getPlaylistTracks(it, playlistId) }
     suspend fun search(query: String): List<DeezerTrack> = api.searchTracks(query)
+
+    // ---- Favorites cache ----
+    // Loaded once (all of them, paged past the old 200 cap) and kept in memory. This single list
+    // powers the total count, shuffle-all, and the filled/empty heart state on every row.
+
+    private val _favorites = MutableStateFlow<List<DeezerTrack>?>(null)
+    val favorites: StateFlow<List<DeezerTrack>?> = _favorites
+
+    private val _favoriteIds = MutableStateFlow<Set<String>>(emptySet())
+    val favoriteIds: StateFlow<Set<String>> = _favoriteIds
+
+    private val favoritesMutex = Mutex()
+
+    /** Ensures the favorites cache is populated. Re-fetches only when [force] or not yet loaded. */
+    suspend fun ensureFavorites(force: Boolean = false): List<DeezerTrack> = favoritesMutex.withLock {
+        if (!force) _favorites.value?.let { return it }
+        val list = withTokenRetry { api.getFavorites(it) }
+        setFavorites(list)
+        list
+    }
+
+    private fun setFavorites(list: List<DeezerTrack>) {
+        _favorites.value = list
+        _favoriteIds.value = list.mapTo(HashSet()) { it.sngId }
+    }
+
+    fun isFavorite(sngId: String): Boolean = _favoriteIds.value.contains(sngId)
+
+    /** Likes or unlikes [track], updating both Deezer and the local cache. */
+    suspend fun toggleFavorite(track: DeezerTrack) {
+        val liked = isFavorite(track.sngId)
+        withTokenRetry { if (liked) api.removeFavorite(it, track.sngId) else api.addFavorite(it, track.sngId) }
+        val cur = _favorites.value ?: emptyList()
+        setFavorites(if (liked) cur.filterNot { it.sngId == track.sngId } else listOf(track) + cur)
+    }
+
+    // ---- "Best pépites" quick-add ----
+
+    @Volatile private var bestPepitesId: String? = null
+
+    /** Resolves (and caches) the id of the owner's "Best pépites" playlist, or null if none exists. */
+    suspend fun bestPepitesPlaylistId(): String? =
+        bestPepitesId ?: playlists().firstOrNull { normalizeName(it.title).contains("pepite") }?.id?.also { bestPepitesId = it }
+
+    /** Adds [track] to the owner's "Best pépites" playlist. Returns false if no such playlist exists. */
+    suspend fun addToBestPepites(track: DeezerTrack): Boolean {
+        val pid = bestPepitesPlaylistId() ?: return false
+        withTokenRetry { api.addSongToPlaylist(it, pid, track.sngId) }
+        return true
+    }
+
+    /** Lowercases and strips accents + non-letters so "Best pépites 💎" matches on "pepite". */
+    private fun normalizeName(s: String): String =
+        Normalizer.normalize(s, Normalizer.Form.NFD)
+            .replace(Regex("\\p{M}+"), "")
+            .lowercase()
+
+    /** Removes [sngId] from [playlistId]. */
+    suspend fun removeFromPlaylist(playlistId: String, sngId: String) {
+        withTokenRetry { api.removeSongFromPlaylist(it, playlistId, sngId) }
+    }
 
     // ---- CDN resolution (called from DeezerDataSource on ExoPlayer's loading thread) ----
 
@@ -149,13 +211,28 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
         )
     }
 
-    /** Sets the queue to [tracks] starting at [startIndex] and plays. */
+    /** Sets the queue to [tracks] starting at [startIndex] and plays in order. */
     suspend fun playTracks(tracks: List<DeezerTrack>, startIndex: Int) {
         if (tracks.isEmpty()) return
         val controller = ensureController()
         val items = tracks.map { buildMediaItem(it, DEFAULT_QUALITY) }
         withContext(Dispatchers.Main) {
+            controller.shuffleModeEnabled = false
             controller.setMediaItems(items, startIndex, 0L)
+            controller.prepare()
+            controller.play()
+        }
+    }
+
+    /** Queues every favorite and plays them shuffled, starting from a random one. */
+    suspend fun shuffleFavorites() {
+        val list = ensureFavorites()
+        if (list.isEmpty()) return
+        val controller = ensureController()
+        val items = list.map { buildMediaItem(it, DEFAULT_QUALITY) }
+        withContext(Dispatchers.Main) {
+            controller.shuffleModeEnabled = true
+            controller.setMediaItems(items, Random.nextInt(items.size), 0L)
             controller.prepare()
             controller.play()
         }

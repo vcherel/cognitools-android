@@ -16,6 +16,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Diamond
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
@@ -35,12 +38,17 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import android.widget.Toast
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.util.Locale
 
 /** Slim bar pinned above nothing (it sits at the bottom of the Deezer tool), tap to expand. */
@@ -96,6 +104,14 @@ fun FullPlayerSheet(
 ) {
     BackHandler(enabled = true, onBack = onCollapse)
 
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val favoriteIds by repo.favoriteIds.collectAsState()
+    val isFav = state.sngId != null && favoriteIds.contains(state.sngId)
+
+    // Keep the favorites cache warm so the heart reflects the real like-state.
+    LaunchedEffect(Unit) { runCatching { repo.ensureFavorites() } }
+
     var positionMs by remember { mutableLongStateOf(0L) }
     var durationMs by remember { mutableLongStateOf(0L) }
     var scrubbing by remember { mutableStateOf(false) }
@@ -142,6 +158,34 @@ fun FullPlayerSheet(
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+
+            Spacer(Modifier.height(8.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+                IconButton(onClick = {
+                    val id = state.sngId ?: return@IconButton
+                    scope.launch { runCatching { repo.toggleFavorite(DeezerTrack(id, state.title, state.artist, "", 0, null)) } }
+                }) {
+                    Icon(
+                        if (isFav) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                        contentDescription = if (isFav) "Retirer des favoris" else "Ajouter aux favoris",
+                        tint = if (isFav) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                IconButton(onClick = {
+                    val id = state.sngId ?: return@IconButton
+                    scope.launch {
+                        val ok = runCatching { repo.addToBestPepites(DeezerTrack(id, state.title, state.artist, "", 0, null)) }.getOrDefault(false)
+                        Toast.makeText(
+                            context,
+                            if (ok) "Ajouté à Best pépites" else "Playlist Best pépites introuvable",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                }) {
+                    Icon(Icons.Filled.Diamond, contentDescription = "Ajouter à Best pépites", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+
             Spacer(Modifier.height(24.dp))
 
             val sliderMax = durationMs.coerceAtLeast(1L).toFloat()

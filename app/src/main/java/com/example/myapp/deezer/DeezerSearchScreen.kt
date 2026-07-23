@@ -55,7 +55,7 @@ fun DeezerSearchScreen(repo: DeezerRepository, onBack: () -> Unit) {
         }
         LazyColumn(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
             itemsIndexed(results) { index, track ->
-                TrackRow(track) { scope.launch { repo.playTracks(results, index) } }
+                TrackRow(track = track, onClick = { scope.launch { repo.playTracks(results, index) } })
             }
             item { Spacer(Modifier.padding(8.dp)) }
         }

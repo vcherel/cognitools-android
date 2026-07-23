@@ -41,20 +41,11 @@ fun DeezerScreen(onBack: () -> Unit) {
                         repo = repo,
                         onBack = onBack,
                         onOpenSearch = { nav.navigate("search") },
-                        onOpenFavorites = { nav.navigate("favorites") },
                         onOpenPlaylist = { pl -> nav.navigate("playlist/${pl.id}/${java.net.URLEncoder.encode(pl.title, "UTF-8")}") }
                     )
                 }
                 composable("search") {
                     DeezerSearchScreen(repo = repo, onBack = { nav.popBackStack() })
-                }
-                composable("favorites") {
-                    DeezerTrackListScreen(
-                        repo = repo,
-                        title = "Favoris",
-                        loader = { repo.favorites() },
-                        onBack = { nav.popBackStack() }
-                    )
                 }
                 composable("playlist/{id}/{title}") { entry ->
                     val id = entry.arguments?.getString("id").orEmpty()
@@ -62,6 +53,7 @@ fun DeezerScreen(onBack: () -> Unit) {
                     DeezerTrackListScreen(
                         repo = repo,
                         title = title,
+                        playlistId = id,
                         loader = { repo.playlistTracks(id) },
                         onBack = { nav.popBackStack() }
                     )
