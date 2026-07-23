@@ -201,6 +201,9 @@ fun MainScreen(themeManager: ThemeManager, isDarkMode: Boolean) {
                     composable("weather") {
                         WeatherScreen(onBack = { navController.popBackStack() })
                     }
+                    composable("deezer") {
+                        com.example.myapp.deezer.DeezerScreen(onBack = { navController.popBackStack() })
+                    }
                     composable("gallery") {
                         GalleryAlbumsScreen(
                             onBack = { navController.popBackStack() },
@@ -314,10 +317,10 @@ fun MenuScreen(
             )
             Spacer(modifier = Modifier.height(spaceHeight))
             SplitMyButton(
-                text = "Générateur aléatoire",
+                text = "Deezer",
                 rightIcon = Icons.Default.Casino,
                 height = buttonHeight,
-                onMainClick = { onNavigate("randomGenerator") },
+                onMainClick = { onNavigate("deezer") },
                 onRightClick = {
                     coroutineScope.launch {
                         val (min, max) = context.readMinMax().first()
@@ -345,7 +348,8 @@ fun MenuScreen(
             Spacer(modifier = Modifier.height(spaceHeight))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 MyButton(text = "Volume", modifier = Modifier.weight(1f), height = buttonHeight) { onNavigate("volumeBooster") }
-                MyButton(text = "Wikipedia", modifier = Modifier.weight(1f), height = buttonHeight) { onNavigate("wikipedia") }
+                MyButton(text = "Random", modifier = Modifier.weight(1f), height = buttonHeight) { onNavigate("randomGenerator") }
+                MyButton(text = "Wiki", modifier = Modifier.weight(1f), height = buttonHeight) { onNavigate("wikipedia") }
             }
             Spacer(modifier = Modifier.height(spaceHeight))
             MyButton(text = "Galerie", height = buttonHeight) { onNavigate("gallery") }

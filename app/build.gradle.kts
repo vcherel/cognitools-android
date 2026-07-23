@@ -120,9 +120,11 @@ dependencies {
     // Gallery: image/video thumbnails and playback, video trim
     implementation(libs.coil.compose)
     implementation(libs.coil.video)
+    implementation(libs.coil.network.okhttp)
     implementation(libs.androidx.media3.exoplayer)
     implementation(libs.androidx.media3.ui)
     implementation(libs.androidx.media3.transformer)
+    implementation(libs.androidx.media3.session)
 
     // Unit testing
     testImplementation(libs.junit)
