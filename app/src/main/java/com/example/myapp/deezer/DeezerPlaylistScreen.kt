@@ -53,6 +53,7 @@ fun DeezerTrackListScreen(
     var tracks by remember { mutableStateOf<List<DeezerTrack>?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     var isBestPepites by remember { mutableStateOf(false) }
+    var pickerTrack by remember { mutableStateOf<DeezerTrack?>(null) }
     val favoriteIds by repo.favoriteIds.collectAsState()
 
     LaunchedEffect(title) {
@@ -103,6 +104,7 @@ fun DeezerTrackListScreen(
                                 }
                             }
                         },
+                        onAddToPlaylist = { pickerTrack = track },
                         onRemoveFromPlaylist = playlistId?.let { pid ->
                             {
                                 scope.launch {
@@ -116,5 +118,23 @@ fun DeezerTrackListScreen(
                 item { Spacer(Modifier.height(8.dp)) }
             }
         }
+    }
+
+    pickerTrack?.let { track ->
+        PlaylistPickerDialog(
+            repo = repo,
+            onDismiss = { pickerTrack = null },
+            onPick = { playlist ->
+                pickerTrack = null
+                scope.launch {
+                    val ok = runCatching { repo.addToPlaylist(playlist.id, track) }.isSuccess
+                    Toast.makeText(
+                        context,
+                        if (ok) "Ajouté à ${playlist.title}" else "Échec de l'ajout",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
+        )
     }
 }
