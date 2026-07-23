@@ -20,6 +20,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -27,28 +28,39 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import android.widget.Toast
 import com.example.myapp.MyButton
 import com.example.myapp.ScreenTopBar
 import kotlinx.coroutines.launch
 
 /**
- * Reusable ordered track list: used for a playlist and for the full favorites list. [loader] fetches
- * the tracks; tapping a row plays from there, and the header button plays the whole list.
+ * Reusable ordered track list. [loader] fetches the tracks; tapping a row plays from there, and the
+ * header button plays the whole list. When [playlistId] is set, each row's cross removes the track
+ * from that playlist. The heart and diamond are always available.
  */
 @Composable
 fun DeezerTrackListScreen(
     repo: DeezerRepository,
     title: String,
     loader: suspend () -> List<DeezerTrack>,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    playlistId: String? = null
 ) {
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
     var tracks by remember { mutableStateOf<List<DeezerTrack>?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
+    var isBestPepites by remember { mutableStateOf(false) }
+    val favoriteIds by repo.favoriteIds.collectAsState()
 
     LaunchedEffect(title) {
         runCatching { tracks = loader() }.onFailure { error = it.message }
+        // Warm the favorites cache so the hearts show the correct filled/empty state.
+        runCatching { repo.ensureFavorites() }
+        // Hide the "add to Best pépites" action when this very playlist is Best pépites.
+        isBestPepites = playlistId != null && runCatching { repo.bestPepitesPlaylistId() }.getOrNull() == playlistId
     }
 
     Column(Modifier.fillMaxSize()) {
@@ -72,8 +84,34 @@ fun DeezerTrackListScreen(
                         }
                     }
                 }
-                itemsIndexed(t) { index, track ->
-                    TrackRow(track) { scope.launch { repo.playTracks(t, index) } }
+                itemsIndexed(t, key = { _, track -> track.sngId }) { index, track ->
+                    TrackRow(
+                        track = track,
+                        onClick = { scope.launch { repo.playTracks(t, index) } },
+                        showActions = true,
+                        isFavorite = favoriteIds.contains(track.sngId),
+                        onToggleFavorite = { scope.launch { runCatching { repo.toggleFavorite(track) } } },
+                        onAddToBestPepites = if (isBestPepites) null else {
+                            {
+                                scope.launch {
+                                    val ok = runCatching { repo.addToBestPepites(track) }.getOrDefault(false)
+                                    Toast.makeText(
+                                        context,
+                                        if (ok) "Ajouté à Best pépites" else "Playlist Best pépites introuvable",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+                            }
+                        },
+                        onRemoveFromPlaylist = playlistId?.let { pid ->
+                            {
+                                scope.launch {
+                                    runCatching { repo.removeFromPlaylist(pid, track.sngId) }
+                                        .onSuccess { tracks = tracks?.filterNot { it.sngId == track.sngId } }
+                                }
+                            }
+                        }
+                    )
                 }
                 item { Spacer(Modifier.height(8.dp)) }
             }

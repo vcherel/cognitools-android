@@ -64,15 +64,27 @@ class DeezerApi {
             parseGwTrack(r, sngId) to trackToken
         }
 
-    /** The owner's favorite (loved) tracks, most recently added first. */
-    suspend fun getFavorites(session: DeezerSession, start: Int = 0, count: Int = 200): List<DeezerTrack> =
-        withContext(Dispatchers.IO) {
-            val body = """{"user_id":"${session.userId}","start":$start,"nb":$count}"""
+    /**
+     * All of the owner's favorite (loved) tracks, most recently added first. Pages through the gw
+     * gateway until it runs dry, so there is no 200 track ceiling. Metadata only, no audio.
+     */
+    suspend fun getFavorites(session: DeezerSession): List<DeezerTrack> = withContext(Dispatchers.IO) {
+        val page = 2000
+        val objs = ArrayList<kotlinx.serialization.json.JsonObject>()
+        var start = 0
+        var iter = 0
+        while (iter++ < 50) {
+            val body = """{"user_id":"${session.userId}","start":$start,"nb":$page}"""
             val data = gw("favorite_song.getList", body, session.apiToken)
                 .jsonObject["results"]?.jsonObject?.get("data")?.jsonArray.orEmpty()
-            data.sortedByDescending { it.jsonObject["DATE_ADD"]?.jsonPrimitive?.content?.toLongOrNull() ?: 0L }
-                .map { parseGwTrack(it.jsonObject, it.jsonObject["SNG_ID"]?.jsonPrimitive?.content.orEmpty()) }
+            if (data.isEmpty()) break
+            data.forEach { objs += it.jsonObject }
+            start += data.size
+            if (data.size < page) break
         }
+        objs.sortedByDescending { it["DATE_ADD"]?.jsonPrimitive?.content?.toLongOrNull() ?: 0L }
+            .map { parseGwTrack(it, it["SNG_ID"]?.jsonPrimitive?.content.orEmpty()) }
+    }
 
     /** The owner's own playlists (created by them), newest first. Excludes followed playlists. */
     suspend fun getPlaylists(session: DeezerSession, count: Int = 100): List<DeezerPlaylist> =
@@ -94,13 +106,47 @@ class DeezerApi {
                 }
         }
 
-    /** Tracks of a playlist in order. */
-    suspend fun getPlaylistTracks(session: DeezerSession, playlistId: String, count: Int = 500): List<DeezerTrack> =
+    /** All tracks of a playlist, in order. Pages until exhausted, so 3000+ track playlists load fully. */
+    suspend fun getPlaylistTracks(session: DeezerSession, playlistId: String): List<DeezerTrack> =
         withContext(Dispatchers.IO) {
-            val body = """{"playlist_id":"$playlistId","start":0,"nb":$count}"""
-            val data = gw("playlist.getSongs", body, session.apiToken)
-                .jsonObject["results"]?.jsonObject?.get("data")?.jsonArray.orEmpty()
-            data.map { parseGwTrack(it.jsonObject, it.jsonObject["SNG_ID"]?.jsonPrimitive?.content.orEmpty()) }
+            val page = 2000
+            val out = ArrayList<DeezerTrack>()
+            var start = 0
+            var iter = 0
+            while (iter++ < 50) {
+                val body = """{"playlist_id":"$playlistId","start":$start,"nb":$page}"""
+                val data = gw("playlist.getSongs", body, session.apiToken)
+                    .jsonObject["results"]?.jsonObject?.get("data")?.jsonArray.orEmpty()
+                if (data.isEmpty()) break
+                data.forEach { out += parseGwTrack(it.jsonObject, it.jsonObject["SNG_ID"]?.jsonPrimitive?.content.orEmpty()) }
+                start += data.size
+                if (data.size < page) break
+            }
+            out
+        }
+
+    // ---- Mutations (like/unlike, add/remove from a playlist) ----
+
+    /** Adds a track to the owner's favorites (loved tracks). */
+    suspend fun addFavorite(session: DeezerSession, sngId: String): Unit = withContext(Dispatchers.IO) {
+        gw("favorite_song.add", """{"SNG_ID":"$sngId"}""", session.apiToken)
+    }
+
+    /** Removes a track from the owner's favorites. */
+    suspend fun removeFavorite(session: DeezerSession, sngId: String): Unit = withContext(Dispatchers.IO) {
+        gw("favorite_song.remove", """{"SNG_ID":"$sngId"}""", session.apiToken)
+    }
+
+    /** Appends a track to a playlist the owner controls. */
+    suspend fun addSongToPlaylist(session: DeezerSession, playlistId: String, sngId: String): Unit =
+        withContext(Dispatchers.IO) {
+            gw("playlist.addSongs", """{"playlist_id":"$playlistId","songs":[["$sngId",0]],"offset":-1}""", session.apiToken)
+        }
+
+    /** Removes a track from a playlist the owner controls. */
+    suspend fun removeSongFromPlaylist(session: DeezerSession, playlistId: String, sngId: String): Unit =
+        withContext(Dispatchers.IO) {
+            gw("playlist.deleteSongs", """{"playlist_id":"$playlistId","songs":[["$sngId",0]]}""", session.apiToken)
         }
 
     /** Catalog search via the public API (no auth). Returns tracks. */
