@@ -139,6 +139,11 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
         return true
     }
 
+    /** Adds [track] to any of the owner's playlists. */
+    suspend fun addToPlaylist(playlistId: String, track: DeezerTrack) {
+        withTokenRetry { api.addSongToPlaylist(it, playlistId, track.sngId) }
+    }
+
     /** Lowercases and strips accents + non-letters so "Best pépites 💎" matches on "pepite". */
     private fun normalizeName(s: String): String =
         Normalizer.normalize(s, Normalizer.Form.NFD)
@@ -225,8 +230,13 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
     }
 
     /** Queues every favorite and plays them shuffled, starting from a random one. */
-    suspend fun shuffleFavorites() {
-        val list = ensureFavorites()
+    suspend fun shuffleFavorites() = playShuffled(ensureFavorites())
+
+    /** Loads [playlistId]'s tracks and plays them shuffled, starting from a random one. */
+    suspend fun shufflePlaylist(playlistId: String) = playShuffled(playlistTracks(playlistId))
+
+    /** Queues [list] with shuffle on and plays from a random position. */
+    private suspend fun playShuffled(list: List<DeezerTrack>) {
         if (list.isEmpty()) return
         val controller = ensureController()
         val items = list.map { buildMediaItem(it, DEFAULT_QUALITY) }
