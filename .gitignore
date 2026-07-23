@@ -18,3 +18,5 @@ cc*
 .kotlin/sessions
 venv
 backups/
+# Deezer ARL credential for the Phase 0 spike, never commit
+.deezer_arl.local
