@@ -27,7 +27,11 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.IOException
 import java.text.Normalizer
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.random.Random
+
+/** Outcome of adding a track to a playlist: it was added, it was already there, or the playlist doesn't exist. */
+enum class PlaylistAddResult { ADDED, DUPLICATE, NO_PLAYLIST }
 
 /**
  * Singleton (held by MyApplication, like FlashcardRepository). Owns:
@@ -91,8 +95,9 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
 
     /** Fetches the owner's playlists from the network. Prefer the [playlists] flow for the landing screen. */
     suspend fun fetchPlaylists(): List<DeezerPlaylist> = withTokenRetry { api.getPlaylists(it) }
+
     suspend fun playlistTracks(playlistId: String): List<DeezerTrack> =
-        withTokenRetry { api.getPlaylistTracks(it, playlistId) }
+        withTokenRetry { api.getPlaylistTracks(it, playlistId) }.also { rememberMembership(playlistId, it) }
     suspend fun search(query: String): List<DeezerTrack> = api.searchTracks(query)
 
     // ---- Library snapshot (stale-while-revalidate) ----
@@ -190,6 +195,24 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
         persistSnapshot()
     }
 
+    // ---- Playlist membership ----
+    // The track ids of every playlist we have looked at, so an add can refuse a track that is already
+    // there instead of creating a duplicate. Seeded by playlistTracks and kept in sync with our own
+    // adds and removes; a playlist edited elsewhere is only re-read on the next fetch.
+
+    private val playlistTrackIds = ConcurrentHashMap<String, MutableSet<String>>()
+
+    private fun rememberMembership(playlistId: String, tracks: List<DeezerTrack>) {
+        playlistTrackIds[playlistId] = ConcurrentHashMap.newKeySet<String>().apply { tracks.forEach { add(it.sngId) } }
+    }
+
+    /** The cached id set for [playlistId], fetching the playlist once if we have never read it. */
+    private suspend fun membership(playlistId: String): MutableSet<String> {
+        playlistTrackIds[playlistId]?.let { return it }
+        playlistTracks(playlistId)
+        return playlistTrackIds.getOrPut(playlistId) { ConcurrentHashMap.newKeySet() }
+    }
+
     // ---- "Best pépites" quick-add ----
 
     @Volatile private var bestPepitesId: String? = null
@@ -198,16 +221,28 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
     suspend fun bestPepitesPlaylistId(): String? =
         bestPepitesId ?: fetchPlaylists().firstOrNull { normalizeName(it.title).contains("pepite") }?.id?.also { bestPepitesId = it }
 
-    /** Adds [track] to the owner's "Best pépites" playlist. Returns false if no such playlist exists. */
-    suspend fun addToBestPepites(track: DeezerTrack): Boolean {
-        val pid = bestPepitesPlaylistId() ?: return false
-        withTokenRetry { api.addSongToPlaylist(it, pid, track.sngId) }
-        return true
+    /** Adds [track] to the owner's "Best pépites" playlist, unless it is already in it. */
+    suspend fun addToBestPepites(track: DeezerTrack): PlaylistAddResult {
+        val pid = bestPepitesPlaylistId() ?: return PlaylistAddResult.NO_PLAYLIST
+        return addToPlaylist(pid, track)
     }
 
-    /** Adds [track] to any of the owner's playlists. */
-    suspend fun addToPlaylist(playlistId: String, track: DeezerTrack) {
+    /** Loads the "Best pépites" contents so [bestPepitesContains] can answer without a network call. */
+    suspend fun ensureBestPepitesLoaded() {
+        membership(bestPepitesPlaylistId() ?: return)
+    }
+
+    /** Whether [sngId] is in "Best pépites", or null while the playlist has never been read. */
+    fun bestPepitesContains(sngId: String): Boolean? =
+        bestPepitesId?.let { playlistTrackIds[it] }?.contains(sngId)
+
+    /** Adds [track] to any of the owner's playlists, unless it is already in it. */
+    suspend fun addToPlaylist(playlistId: String, track: DeezerTrack): PlaylistAddResult {
+        val ids = membership(playlistId)
+        if (track.sngId in ids) return PlaylistAddResult.DUPLICATE
         withTokenRetry { api.addSongToPlaylist(it, playlistId, track.sngId) }
+        ids += track.sngId
+        return PlaylistAddResult.ADDED
     }
 
     /** Lowercases and strips accents + non-letters so "Best pépites 💎" matches on "pepite". */
@@ -219,6 +254,7 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
     /** Removes [sngId] from [playlistId]. */
     suspend fun removeFromPlaylist(playlistId: String, sngId: String) {
         withTokenRetry { api.removeSongFromPlaylist(it, playlistId, sngId) }
+        playlistTrackIds[playlistId]?.remove(sngId)
     }
 
     // ---- CDN resolution (called from DeezerDataSource on ExoPlayer's loading thread) ----
@@ -302,6 +338,7 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
     suspend fun playTracks(tracks: List<DeezerTrack>, startIndex: Int) {
         if (tracks.isEmpty()) return
         val controller = ensureController()
+        queuedTracks.clear()
         val items = tracks.map { buildMediaItem(it, DEFAULT_QUALITY) }
         withContext(Dispatchers.Main) {
             controller.shuffleModeEnabled = false
@@ -321,6 +358,7 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
     private suspend fun playShuffled(list: List<DeezerTrack>) {
         if (list.isEmpty()) return
         val controller = ensureController()
+        queuedTracks.clear()
         val items = list.map { buildMediaItem(it, DEFAULT_QUALITY) }
         withContext(Dispatchers.Main) {
             controller.shuffleModeEnabled = true
@@ -337,8 +375,18 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
     fun positionMs(): Long = controller?.currentPosition ?: 0L
     fun durationMs(): Long = controller?.duration?.takeIf { it > 0 } ?: 0L
 
-    private fun buildMediaItem(track: DeezerTrack, quality: DeezerQuality): MediaItem =
-        MediaItem.Builder()
+    /**
+     * The tracks of the current queue, by SNG_ID. A MediaItem only carries title/artist/cover, so this
+     * is how the notification actions and the now playing sheet recover the full track (album, cover
+     * md5) they need to like it or push it into a playlist.
+     */
+    private val queuedTracks = ConcurrentHashMap<String, DeezerTrack>()
+
+    fun trackById(sngId: String): DeezerTrack? = queuedTracks[sngId]
+
+    private fun buildMediaItem(track: DeezerTrack, quality: DeezerQuality): MediaItem {
+        queuedTracks[track.sngId] = track
+        return MediaItem.Builder()
             .setUri(Uri.parse("dzr://${track.sngId}?q=${quality.name}"))
             .setMediaId(track.sngId)
             .setMediaMetadata(
@@ -350,4 +398,5 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
                     .build()
             )
             .build()
+    }
 }
