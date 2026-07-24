@@ -14,6 +14,9 @@ import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.MoreExecutors
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
@@ -22,6 +25,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.io.IOException
 import java.text.Normalizer
 import kotlin.random.Random
 
@@ -84,10 +88,70 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
 
     // ---- Library data ----
 
-    suspend fun playlists(): List<DeezerPlaylist> = withTokenRetry { api.getPlaylists(it) }
+    /** Fetches the owner's playlists from the network. Prefer the [playlists] flow for the landing screen. */
+    suspend fun fetchPlaylists(): List<DeezerPlaylist> = withTokenRetry { api.getPlaylists(it) }
     suspend fun playlistTracks(playlistId: String): List<DeezerTrack> =
         withTokenRetry { api.getPlaylistTracks(it, playlistId) }
     suspend fun search(query: String): List<DeezerTrack> = api.searchTracks(query)
+
+    // ---- Library snapshot (stale-while-revalidate) ----
+    // The landing screen reads favorites + playlists from these flows. On launch we seed them from the
+    // last on-disk snapshot (instant), then revalidate over the network and persist the fresh result.
+
+    private val _playlists = MutableStateFlow<List<DeezerPlaylist>?>(null)
+    val playlists: StateFlow<List<DeezerPlaylist>?> = _playlists
+
+    private val libraryCacheFile: File by lazy { File(appContext.filesDir, "deezer_library.json") }
+    private val libraryMutex = Mutex()
+    private val snapshotWriteMutex = Mutex()
+    @Volatile private var diskSeedTried = false
+
+    /** Seeds the flows from disk (once), then revalidates over the network. Safe to call on every screen entry. */
+    suspend fun ensureLibrary() {
+        if (!diskSeedTried && (_favorites.value == null || _playlists.value == null)) {
+            diskSeedTried = true
+            withContext(Dispatchers.IO) { DeezerLibraryCache.read(libraryCacheFile) }?.let { snap ->
+                if (_favorites.value == null) setFavorites(snap.favorites)
+                if (_playlists.value == null) _playlists.value = snap.playlists
+            }
+        }
+        refreshLibrary()
+    }
+
+    /** Fetches favorites and playlists concurrently, updates the flows, and persists the fresh snapshot. */
+    suspend fun refreshLibrary(): Unit = libraryMutex.withLock {
+        withTokenRetry { session ->
+            coroutineScope {
+                val favsDeferred = async { api.getFavorites(session) }
+                val plsDeferred = async { api.getPlaylists(session) }
+                val favs = favsDeferred.await()
+                val pls = plsDeferred.await()
+                setFavorites(favs)
+                _playlists.value = pls
+                writeSnapshot(favs, pls)
+            }
+        }
+    }
+
+    /** Serializes and writes the snapshot on IO, guarded so concurrent writers can't corrupt the file. */
+    private suspend fun writeSnapshot(favs: List<DeezerTrack>, pls: List<DeezerPlaylist>) =
+        withContext(Dispatchers.IO) {
+            snapshotWriteMutex.withLock {
+                DeezerLibraryCache.write(libraryCacheFile, DeezerLibrarySnapshot(favs, pls))
+            }
+        }
+
+    /**
+     * Rewrites the snapshot from the current in-memory favorites so a like/unlike survives a kill even
+     * when offline. Falls back to the on-disk playlists when they aren't loaded yet, so we never wipe them.
+     */
+    private suspend fun persistSnapshot() {
+        val favs = _favorites.value ?: return
+        val pls = _playlists.value
+            ?: withContext(Dispatchers.IO) { DeezerLibraryCache.read(libraryCacheFile) }?.playlists
+            ?: emptyList()
+        writeSnapshot(favs, pls)
+    }
 
     // ---- Favorites cache ----
     // Loaded once (all of them, paged past the old 200 cap) and kept in memory. This single list
@@ -122,6 +186,7 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
         withTokenRetry { if (liked) api.removeFavorite(it, track.sngId) else api.addFavorite(it, track.sngId) }
         val cur = _favorites.value ?: emptyList()
         setFavorites(if (liked) cur.filterNot { it.sngId == track.sngId } else listOf(track) + cur)
+        persistSnapshot()
     }
 
     // ---- "Best pépites" quick-add ----
@@ -130,7 +195,7 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
 
     /** Resolves (and caches) the id of the owner's "Best pépites" playlist, or null if none exists. */
     suspend fun bestPepitesPlaylistId(): String? =
-        bestPepitesId ?: playlists().firstOrNull { normalizeName(it.title).contains("pepite") }?.id?.also { bestPepitesId = it }
+        bestPepitesId ?: fetchPlaylists().firstOrNull { normalizeName(it.title).contains("pepite") }?.id?.also { bestPepitesId = it }
 
     /** Adds [track] to the owner's "Best pépites" playlist. Returns false if no such playlist exists. */
     suspend fun addToBestPepites(track: DeezerTrack): Boolean {
