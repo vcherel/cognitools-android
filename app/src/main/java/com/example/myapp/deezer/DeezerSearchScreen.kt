@@ -71,12 +71,7 @@ fun DeezerSearchScreen(repo: DeezerRepository, onBack: () -> Unit) {
                     onToggleFavorite = { scope.launch { runCatching { repo.toggleFavorite(track) } } },
                     onAddToBestPepites = {
                         scope.launch {
-                            val ok = runCatching { repo.addToBestPepites(track) }.getOrDefault(false)
-                            Toast.makeText(
-                                context,
-                                if (ok) "Ajouté à Best pépites" else "Playlist Best pépites introuvable",
-                                Toast.LENGTH_SHORT
-                            ).show()
+                            Toast.makeText(context, addToBestPepitesMessage(repo, track), Toast.LENGTH_SHORT).show()
                         }
                     },
                     onAddToPlaylist = { pickerTrack = track }
@@ -93,12 +88,7 @@ fun DeezerSearchScreen(repo: DeezerRepository, onBack: () -> Unit) {
             onPick = { playlist ->
                 pickerTrack = null
                 scope.launch {
-                    val ok = runCatching { repo.addToPlaylist(playlist.id, track) }.isSuccess
-                    Toast.makeText(
-                        context,
-                        if (ok) "Ajouté à ${playlist.title}" else "Échec de l'ajout",
-                        Toast.LENGTH_SHORT
-                    ).show()
+                    Toast.makeText(context, addToPlaylistMessage(repo, playlist, track), Toast.LENGTH_SHORT).show()
                 }
             }
         )

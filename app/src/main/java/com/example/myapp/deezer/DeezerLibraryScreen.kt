@@ -293,6 +293,31 @@ fun TrackRow(
 }
 
 /**
+ * Shared: runs the "add to Best pépites" action and returns the toast to show. Every entry point (row
+ * action, now playing sheet, notification) reports the same three outcomes, duplicate included.
+ */
+suspend fun addToBestPepitesMessage(repo: DeezerRepository, track: DeezerTrack): String =
+    runCatching { repo.addToBestPepites(track) }.fold(
+        onSuccess = {
+            when (it) {
+                PlaylistAddResult.ADDED -> "Ajouté à Best pépites"
+                PlaylistAddResult.DUPLICATE -> "Déjà dans Best pépites"
+                PlaylistAddResult.NO_PLAYLIST -> "Playlist Best pépites introuvable"
+            }
+        },
+        onFailure = { "Échec de l'ajout" }
+    )
+
+/** Shared: same for the playlist picked in [PlaylistPickerDialog]. */
+suspend fun addToPlaylistMessage(repo: DeezerRepository, playlist: DeezerPlaylist, track: DeezerTrack): String =
+    runCatching { repo.addToPlaylist(playlist.id, track) }.fold(
+        onSuccess = {
+            if (it == PlaylistAddResult.DUPLICATE) "Déjà dans ${playlist.title}" else "Ajouté à ${playlist.title}"
+        },
+        onFailure = { "Échec de l'ajout" }
+    )
+
+/**
  * Shared: a dialog listing all of the owner's playlists so a track can be added to any of them.
  * Loads the playlists on open; [onPick] fires with the chosen playlist.
  */

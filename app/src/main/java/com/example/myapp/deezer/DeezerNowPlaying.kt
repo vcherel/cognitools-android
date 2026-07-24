@@ -51,6 +51,15 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.Locale
 
+/**
+ * The full track playing right now: the player state only carries what the MediaItem shows, so we ask
+ * the repository for the queued track (album, cover md5) and fall back to a thin one if it is gone.
+ */
+private fun currentTrack(repo: DeezerRepository, state: PlayerUiState): DeezerTrack? {
+    val id = state.sngId ?: return null
+    return repo.trackById(id) ?: DeezerTrack(id, state.title, state.artist, "", 0, null)
+}
+
 /** Slim bar pinned above nothing (it sits at the bottom of the Deezer tool), tap to expand. */
 @Composable
 fun MiniPlayerBar(
@@ -162,8 +171,8 @@ fun FullPlayerSheet(
             Spacer(Modifier.height(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
                 IconButton(onClick = {
-                    val id = state.sngId ?: return@IconButton
-                    scope.launch { runCatching { repo.toggleFavorite(DeezerTrack(id, state.title, state.artist, "", 0, null)) } }
+                    val track = currentTrack(repo, state) ?: return@IconButton
+                    scope.launch { runCatching { repo.toggleFavorite(track) } }
                 }) {
                     Icon(
                         if (isFav) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
@@ -172,14 +181,9 @@ fun FullPlayerSheet(
                     )
                 }
                 IconButton(onClick = {
-                    val id = state.sngId ?: return@IconButton
+                    val track = currentTrack(repo, state) ?: return@IconButton
                     scope.launch {
-                        val ok = runCatching { repo.addToBestPepites(DeezerTrack(id, state.title, state.artist, "", 0, null)) }.getOrDefault(false)
-                        Toast.makeText(
-                            context,
-                            if (ok) "Ajouté à Best pépites" else "Playlist Best pépites introuvable",
-                            Toast.LENGTH_SHORT
-                        ).show()
+                        Toast.makeText(context, addToBestPepitesMessage(repo, track), Toast.LENGTH_SHORT).show()
                     }
                 }) {
                     Icon(Icons.Filled.Diamond, contentDescription = "Ajouter à Best pépites", tint = MaterialTheme.colorScheme.onSurfaceVariant)
