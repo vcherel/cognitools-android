@@ -63,14 +63,13 @@ fun DeezerLibraryScreen(
 ) {
     val scope = rememberCoroutineScope()
     val favorites by repo.favorites.collectAsState()
-    var playlists by remember { mutableStateOf<List<DeezerPlaylist>?>(null) }
+    val playlists by repo.playlists.collectAsState()
     var error by remember { mutableStateOf<String?>(null) }
     var showSettings by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         if (!repo.hasArl()) { showSettings = true; return@LaunchedEffect }
-        runCatching { repo.ensureFavorites() }.onFailure { error = it.message }
-        runCatching { playlists = repo.playlists() }.onFailure { error = it.message }
+        runCatching { repo.ensureLibrary() }.onFailure { error = it.message }
     }
 
     Column(Modifier.fillMaxSize()) {
@@ -143,8 +142,7 @@ fun DeezerLibraryScreen(
                 showSettings = false
                 scope.launch {
                     error = null
-                    runCatching { repo.ensureFavorites(force = true) }.onFailure { error = it.message }
-                    runCatching { playlists = repo.playlists() }.onFailure { error = it.message }
+                    runCatching { repo.refreshLibrary() }.onFailure { error = it.message }
                 }
             }
         )
@@ -305,7 +303,7 @@ fun PlaylistPickerDialog(
     onPick: (DeezerPlaylist) -> Unit
 ) {
     var playlists by remember { mutableStateOf<List<DeezerPlaylist>?>(null) }
-    LaunchedEffect(Unit) { runCatching { playlists = repo.playlists() } }
+    LaunchedEffect(Unit) { runCatching { playlists = repo.fetchPlaylists() } }
 
     AlertDialog(
         onDismissRequest = onDismiss,
