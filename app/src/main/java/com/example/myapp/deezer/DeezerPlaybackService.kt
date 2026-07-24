@@ -1,7 +1,10 @@
 package com.example.myapp.deezer
 
+import android.util.Log
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
+import androidx.media3.common.PlaybackException
+import androidx.media3.common.Player
 import androidx.media3.datasource.cache.CacheDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
@@ -42,7 +45,58 @@ class DeezerPlaybackService : MediaSessionService() {
             )
             .setHandleAudioBecomingNoisy(true)
             .build()
+        player.addListener(ErrorRecovery(player))
         mediaSession = MediaSession.Builder(this, player).build()
+    }
+
+    /**
+     * Keeps the queue moving when an item fails to load. A dzr:// item can fail transiently (CDN
+     * resolve hiccup, network drop between two tracks) or permanently (track not streamable): retry
+     * the same one once, then skip to the next. Without this the player just parks in IDLE at the
+     * end of a track and needs a manual next + play.
+     */
+    private class ErrorRecovery(private val player: ExoPlayer) : Player.Listener {
+
+        private var failedMediaId: String? = null
+        private var retriedCurrent = false
+        private var consecutiveSkips = 0
+
+        override fun onPlayerError(error: PlaybackException) {
+            val mediaId = player.currentMediaItem?.mediaId
+            if (mediaId != failedMediaId) {
+                failedMediaId = mediaId
+                retriedCurrent = false
+            }
+            Log.w(TAG, "Playback error on $mediaId (${error.errorCodeName})", error)
+
+            if (!retriedCurrent) {
+                retriedCurrent = true
+                player.prepare() // resumes the same item at the position it died at
+                player.play()
+                return
+            }
+            if (consecutiveSkips >= MAX_SKIPS || !player.hasNextMediaItem()) {
+                Log.w(TAG, "Giving up after $consecutiveSkips skipped tracks")
+                return
+            }
+            consecutiveSkips++
+            player.seekToNextMediaItem()
+            player.prepare()
+            player.play()
+        }
+
+        // Audio actually coming out means the queue is healthy again: forget the failure history.
+        override fun onIsPlayingChanged(isPlaying: Boolean) {
+            if (!isPlaying) return
+            failedMediaId = null
+            retriedCurrent = false
+            consecutiveSkips = 0
+        }
+
+        private companion object {
+            const val TAG = "DeezerPlayback"
+            const val MAX_SKIPS = 5
+        }
     }
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? = mediaSession

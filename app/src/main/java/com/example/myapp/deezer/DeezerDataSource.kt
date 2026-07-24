@@ -6,6 +6,7 @@ import androidx.media3.datasource.BaseDataSource
 import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DataSpec
 import androidx.media3.datasource.DefaultHttpDataSource
+import java.io.IOException
 import kotlin.math.min
 
 /**
@@ -47,7 +48,15 @@ class DeezerDataSource(
         val quality = dataSpec.uri.getQueryParameter("q") ?: DeezerQuality.MP3_128.name
         key = DeezerCrypto.blowfishKey(sngId)
 
-        val cdnUrl = resolver.resolve(sngId, quality)
+        // Media3 only retries IOExceptions; anything else is an "unexpected" fatal error that stops
+        // the whole queue, so a transient API failure must never escape as its own type.
+        val cdnUrl = try {
+            resolver.resolve(sngId, quality)
+        } catch (e: IOException) {
+            throw e
+        } catch (e: Exception) {
+            throw IOException("CDN resolve failed for $sngId", e)
+        }
 
         val alignedStart = (dataSpec.position / DeezerCrypto.CHUNK_SIZE) * DeezerCrypto.CHUNK_SIZE
         skipRemaining = (dataSpec.position - alignedStart).toInt()
@@ -95,7 +104,12 @@ class DeezerDataSource(
             if (r == C.RESULT_END_OF_INPUT) break
             got += r
         }
-        if (got == 0) return false
+        // A CDN connection that drops mid track must be reported, not silently reported as EOF:
+        // otherwise the track ends early and a truncated span gets written to the cache.
+        if (got == 0) {
+            if (bytesRemaining > 0) throw IOException("CDN stream ended $bytesRemaining bytes early")
+            return false
+        }
 
         decBuf = if (chunkIndex % 3 == 0 && got == DeezerCrypto.CHUNK_SIZE) {
             DeezerCrypto.decryptChunk(key!!, chunkTmp.copyOf(DeezerCrypto.CHUNK_SIZE))

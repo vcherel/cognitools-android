@@ -46,6 +46,7 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
         val DEFAULT_QUALITY = DeezerQuality.MP3_320
         const val CACHE_LIMIT_BYTES = 2L * 1024 * 1024 * 1024 // 2 GB
         const val CACHE_LIMIT_LABEL = "2 Go"
+        private const val RESOLVE_ATTEMPTS = 3
     }
 
     private val api = DeezerApi()
@@ -222,9 +223,25 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
 
     // ---- CDN resolution (called from DeezerDataSource on ExoPlayer's loading thread) ----
 
+    /**
+     * Called on ExoPlayer's loading thread, once per track (and again on seek). Retries a few times
+     * with a fresh session, because a single failure here kills the whole queue: the failure must
+     * also surface as an IOException, the only kind Media3 considers retriable.
+     */
     override fun resolve(sngId: String, quality: String): String = runBlocking {
         val q = DeezerQuality.fromName(quality)
-        withTokenRetry { s -> api.resolveStream(s, sngId, q).cdnUrl }
+        var last: Exception? = null
+        repeat(RESOLVE_ATTEMPTS) { attempt ->
+            try {
+                // Any retry re-bootstraps the session: a stale sid is the most common cause here.
+                val s = ensureSession(forceRefresh = attempt > 0)
+                return@runBlocking api.resolveStream(s, sngId, q).cdnUrl
+            } catch (e: Exception) {
+                last = e
+                if (attempt < RESOLVE_ATTEMPTS - 1) delay(500L * (attempt + 1))
+            }
+        }
+        throw IOException("Deezer stream resolve failed for $sngId: ${last?.message}", last)
     }
 
     // ---- Player ----
