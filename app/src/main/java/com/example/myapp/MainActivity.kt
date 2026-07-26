@@ -48,9 +48,9 @@ import com.example.myapp.notes.NotesTrashScreen
 import com.example.myapp.undercover.UndercoverScreen
 import android.content.Context
 import android.widget.Toast
-import androidx.compose.material.icons.filled.Casino
 import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Shuffle
 import com.example.myapp.flashcards.AppDatabase
 import com.example.myapp.notes.noteTitleAndPreview
 import androidx.compose.ui.platform.LocalContext
@@ -58,8 +58,6 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
-import java.text.NumberFormat
-import java.util.Locale
 
 val Context.themeDataStore by preferencesDataStore("theme_preferences")
 
@@ -356,16 +354,14 @@ fun MenuScreen(
             Spacer(modifier = Modifier.height(spaceHeight))
             SplitMyButton(
                 text = "Deezer",
-                rightIcon = Icons.Default.Casino,
+                rightIcon = Icons.Default.Shuffle,
                 height = buttonHeight,
                 onMainClick = { onNavigate("deezer") },
                 onRightClick = {
+                    val repo = (context.applicationContext as MyApplication).deezerRepository
                     coroutineScope.launch {
-                        val (min, max) = context.readMinMax().first()
-                        if (min <= max) {
-                            val result = (min..max).random()
-                            val formatted = NumberFormat.getNumberInstance(Locale.FRANCE).format(result)
-                            Toast.makeText(context, formatted, Toast.LENGTH_SHORT).show()
+                        runCatching { repo.shuffleFavorites() }.onFailure {
+                            Toast.makeText(context, "Erreur: ${it.message}", Toast.LENGTH_SHORT).show()
                         }
                     }
                 }
