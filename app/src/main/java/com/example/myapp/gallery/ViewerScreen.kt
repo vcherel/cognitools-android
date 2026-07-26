@@ -270,10 +270,21 @@ fun GalleryViewerScreen(
                 onShare = { showShareDialog = true },
                 onDelete = {
                     // No confirmation: the item goes to the trash, the pager moves on to the next
-                    // one, and the snackbar offers the undo.
+                    // one, and the snackbar offers the undo. The item is spliced out of the local
+                    // list and the pager explicitly moved right away, instead of waiting on the
+                    // MediaStore requery triggered by GalleryRefresh: that one lands late enough
+                    // that the pager was snapping back to the album grid in the meantime.
                     val toTrash = listOf(currentItem)
+                    val deletedIndex = items.indexOfFirst { it.id == currentItem.id }
                     scope.launch {
                         if (performTrashBatch(context, toTrash, requestConsent)) {
+                            val remaining = items.filterNot { it.id == currentItem.id }
+                            items = remaining
+                            if (remaining.isEmpty()) {
+                                onBack()
+                            } else {
+                                pagerState.scrollToPage(deletedIndex.coerceIn(0, remaining.size - 1))
+                            }
                             GalleryRefresh.bump()
                             showTrashedSnackbar(context, toTrash, requestConsent)
                         } else {
