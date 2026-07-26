@@ -65,7 +65,6 @@ import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import com.example.myapp.BackIconButton
-import com.example.myapp.SuppressIdleReset
 import com.example.myapp.flashcards.AppDatabase
 import java.util.UUID
 import kotlinx.coroutines.delay
@@ -80,9 +79,6 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
     val dao = remember { AppDatabase.get(context).noteDao() }
     val isNew = noteId == "new"
     val id = remember { if (isNew) UUID.randomUUID().toString() else noteId }
-
-    // An open note keeps its scroll and cursor position instead of being reset to the menu
-    SuppressIdleReset()
 
     var isEditing by remember { mutableStateOf(isNew) }
     val titleFieldState = remember { TextFieldState() }
