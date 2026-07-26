@@ -19,6 +19,13 @@
          Android's per-operation consent dialog. Sideloaded personal app, no Play policy concern. -->
     <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"
         tools:ignore="ScopedStorage" />
+    <!-- Package visibility (API 30+): without this, PackageManager can't see whether these apps
+         are installed, so the gallery's restricted share picker would always come up empty. -->
+    <queries>
+        <package android:name="com.whatsapp" />
+        <package android:name="com.beeper.android" />
+        <package android:name="com.facebook.orca" />
+    </queries>
     <application
         android:name=".MyApplication"
         android:allowBackup="true"
