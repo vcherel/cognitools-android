@@ -25,6 +25,7 @@ Root package (shared/misc):
 - `MyApplication.kt`: Application class, holds the FlashcardRepository and DeezerRepository singletons
 - `Buttons.kt`: shared composables, MyButton, SplitMyButton, MySwitch, ShowAlertDialog (all built on RaisedSurface)
 - `ScreenTopBar.kt`: shared back-arrow + title header used by the tool screens
+- `Home.kt`: BackIconButton (tap = back, long press = main menu), the LocalGoHome hook, and the idle-return-to-menu lifecycle watcher with its IdleResetGuard
 - `Http.kt`: shared httpGet helper and User-Agent (Weather + Wikipedia)
 - `BottomFadeOverlay.kt`: shared fade out gradient overlay composable
 - `BackupRestore.kt`: export/import actions for app data

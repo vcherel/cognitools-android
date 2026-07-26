@@ -152,8 +152,18 @@ class MainActivity : ComponentActivity() {
 val LocalIsDarkMode = compositionLocalOf { false }
 @Composable
 fun MainScreen(themeManager: ThemeManager, isDarkMode: Boolean) {
-    CompositionLocalProvider(LocalIsDarkMode provides isDarkMode) {
-        val navController = rememberNavController()
+    val navController = rememberNavController()
+    val idleGuard = remember { IdleResetGuard() }
+    val goHome: () -> Unit = { navController.popBackStack("menu", inclusive = false) }
+
+    // Coming back after a long time away starts over from the main menu
+    IdleReturnToMenu(guard = idleGuard, onIdle = goHome)
+
+    CompositionLocalProvider(
+        LocalIsDarkMode provides isDarkMode,
+        LocalGoHome provides goHome,
+        LocalIdleResetGuard provides idleGuard
+    ) {
         val context = LocalContext.current
         val coroutineScope = rememberCoroutineScope()
 

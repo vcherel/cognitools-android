@@ -57,6 +57,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.activity.compose.BackHandler
 import androidx.navigation.NavController
+import com.example.myapp.BackIconButton
 import com.example.myapp.BackupRestoreActions
 import com.example.myapp.BottomFadeOverlay
 import com.example.myapp.MyButton
@@ -133,9 +134,7 @@ fun FlashcardListsScreen(navController: NavController) {
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.weight(1f)
                 ) {
-                    IconButton(onClick = { backToMenu() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Retour")
-                    }
+                    BackIconButton(onBack = { backToMenu() })
                     Text(
                         "Listes",
                         style = MaterialTheme.typography.headlineSmall,
