@@ -11,6 +11,7 @@ import androidx.media3.datasource.cache.CacheWriter
 import androidx.media3.datasource.cache.ContentMetadata
 import androidx.media3.datasource.cache.NoOpCacheEvictor
 import androidx.media3.datasource.cache.SimpleCache
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -33,6 +34,8 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import java.io.File
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 
 /** What the library screen shows about the offline mirror. */
 data class OfflineState(
@@ -58,6 +61,9 @@ private data class OfflineSnapshot(val playlistId: String, val tracks: List<Deez
  * Sync is incremental: only tracks missing from the cache are fetched, one at a time, and tracks
  * dropped from the playlist are deleted. Start it with [syncInBackground] on entering the tool: the
  * check costs one playlist fetch and downloads nothing when the playlist has not moved.
+ *
+ * Every run also appends to a rolling log next to the app's external files, so a failure that
+ * happened days ago can still be read back with adb on a release build.
  */
 class DeezerOfflineLibrary(private val appContext: Context, private val repo: DeezerRepository) {
 
@@ -117,31 +123,88 @@ class DeezerOfflineLibrary(private val appContext: Context, private val repo: De
                 val tracks = (fresh ?: known)?.tracks
                 if (tracks.isNullOrEmpty()) {
                     _state.update { it.copy(error = "Liste Best pépites indisponible") }
+                    log("sync aborted: no track list (playlist fetch failed and no snapshot on disk)")
                     return@withLock
                 }
 
                 prune(tracks)
                 publishCounts(tracks)
 
-                var failed = 0
-                for (track in tracks) {
-                    if (!currentCoroutineContext().isActive) break
-                    if (isDownloaded(cacheKey(track))) continue
-                    val ok = runCatching { download(track) }
-                        .onFailure { Log.w(TAG, "Download failed for ${track.title}", it) }
-                        .isSuccess
-                    if (!ok) failed++
-                    publishCounts(tracks, failed)
-                    delay(THROTTLE_MS) // stay closer to a listening pattern than to a scraper
+                val cachedBefore = tracks.count { isDownloaded(cacheKey(it)) }
+                log("sync start: ${tracks.size} tracks, $cachedBefore already downloaded")
+
+                val failed = downloadMissing(tracks)
+
+                val cachedAfter = tracks.count { isDownloaded(cacheKey(it)) }
+                log("sync end: ${cachedAfter - cachedBefore} newly downloaded, $cachedAfter/${tracks.size} on disk, ${failed.size} failed")
+                _state.update {
+                    it.copy(error = if (failed.isEmpty()) null else "${failed.size} titre(s) non téléchargé(s)")
                 }
-                if (failed > 0) _state.update { it.copy(error = "$failed titre(s) non téléchargé(s)") }
             } catch (e: Exception) {
                 Log.w(TAG, "Offline sync failed", e)
+                log("sync crashed: ${describe(e)}")
                 _state.update { it.copy(error = e.message ?: "Échec de la synchro") }
             } finally {
                 _state.update { it.copy(syncing = false) }
             }
         }
+    }
+
+    /**
+     * Downloads everything not already on disk, in up to [PASSES] passes. Returns the tracks still
+     * missing at the end, mapped to their last error.
+     *
+     * Each pass recomputes what is missing, so a track already fully cached is never fetched again,
+     * and a track that died on a transient failure (CDN read timeout, network drop between two
+     * chunks) gets a fresh go later in the same run instead of waiting for the next sync.
+     */
+    private suspend fun downloadMissing(tracks: List<DeezerTrack>): Map<DeezerTrack, String> {
+        var failed = emptyMap<DeezerTrack, String>()
+        for (pass in 1..PASSES) {
+            val pending = tracks.filterNot { isDownloaded(cacheKey(it)) }
+            if (pending.isEmpty()) return emptyMap()
+            if (pass > 1) {
+                log("retry pass $pass on ${pending.size} track(s)")
+                delay(PASS_PAUSE_MS)
+            }
+            val round = LinkedHashMap<DeezerTrack, String>()
+            for ((index, track) in pending.withIndex()) {
+                if (!currentCoroutineContext().isActive) {
+                    log("sync interrupted with ${pending.size - index} track(s) still to do")
+                    return round
+                }
+                attemptDownload(track)?.let { error ->
+                    round[track] = error
+                    log("failed: \"${track.title}\" by ${track.artist} [${track.sngId}] $error")
+                }
+                publishCounts(tracks, round.size)
+                delay(THROTTLE_MS) // stay closer to a listening pattern than to a scraper
+            }
+            failed = round
+        }
+        return failed
+    }
+
+    /**
+     * Downloads one track, retrying a few times with a growing pause. Returns null on success, or a
+     * description of the last error. Retries are cheap: a failed attempt leaves its spans in the
+     * cache, so the next one resumes instead of restarting from zero.
+     */
+    private suspend fun attemptDownload(track: DeezerTrack): String? {
+        var last: Throwable? = null
+        for (attempt in 0 until ATTEMPTS) {
+            try {
+                download(track)
+                return null
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                last = e
+                Log.w(TAG, "Attempt ${attempt + 1}/$ATTEMPTS failed for ${track.title}", e)
+                if (attempt < ATTEMPTS - 1) delay(ATTEMPT_PAUSES_MS[attempt])
+            }
+        }
+        return describe(last)
     }
 
     /** Downloads one full track into the offline cache, resuming whatever spans are already there. */
@@ -206,8 +269,47 @@ class DeezerOfflineLibrary(private val appContext: Context, private val repo: De
         runCatching { snapshotFile.writeText(root.toString()) }
     }
 
+    // ---- Sync log ----
+    // In getExternalFilesDir so a release build's log can be read with plain adb (run-as only works
+    // on debug builds):
+    //   adb shell cat /sdcard/Android/data/com.example.myapp/files/deezer_sync_log.txt
+
+    private val logFile: File by lazy { File(appContext.getExternalFilesDir(null) ?: dir, LOG_NAME) }
+
+    /** Appends one line to the rolling log. Called from the sync coroutine, which is already on IO. */
+    private fun log(line: String) {
+        Log.i(TAG, line)
+        runCatching {
+            logFile.appendText("${LocalDateTime.now().format(STAMP)} $line\n")
+            if (logFile.length() > LOG_MAX_BYTES) {
+                val kept = logFile.readLines().takeLast(LOG_KEEP_LINES)
+                logFile.writeText(kept.joinToString("\n", postfix = "\n"))
+            }
+        }
+    }
+
+    /** Flattens a throwable and its causes into one loggable line: the message is what identifies it. */
+    private fun describe(t: Throwable?): String =
+        generateSequence(t) { it.cause }
+            .take(3)
+            .joinToString(", caused by ") { "${it.javaClass.simpleName}: ${it.message?.take(200)}" }
+            .ifBlank { "unknown error" }
+
     private companion object {
         const val TAG = "DeezerOffline"
         const val THROTTLE_MS = 400L
+
+        /** Attempts per track inside one pass, then how long to wait before each next attempt. */
+        const val ATTEMPTS = 3
+        val ATTEMPT_PAUSES_MS = longArrayOf(1_500L, 5_000L)
+
+        /** Full passes over what is still missing, and the breather taken before a retry pass. */
+        const val PASSES = 2
+        const val PASS_PAUSE_MS = 10_000L
+
+        const val LOG_NAME = "deezer_sync_log.txt"
+        const val LOG_MAX_BYTES = 96 * 1024L
+        const val LOG_KEEP_LINES = 400
+        val STAMP: DateTimeFormatter = DateTimeFormatter.ofPattern("MM-dd HH:mm:ss")
     }
 }
