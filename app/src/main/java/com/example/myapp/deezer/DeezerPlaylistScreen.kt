@@ -88,6 +88,11 @@ fun DeezerTrackListScreen(
                         showActions = true,
                         isFavorite = favoriteIds.contains(track.sngId),
                         onToggleFavorite = { scope.launch { runCatching { repo.toggleFavorite(track) } } },
+                        onAddToQueue = {
+                            scope.launch {
+                                Toast.makeText(context, addToQueueMessage(repo, track), Toast.LENGTH_SHORT).show()
+                            }
+                        },
                         onAddToBestPepites = if (isBestPepites) null else {
                             {
                                 scope.launch {

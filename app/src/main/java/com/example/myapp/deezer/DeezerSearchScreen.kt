@@ -69,6 +69,11 @@ fun DeezerSearchScreen(repo: DeezerRepository, onBack: () -> Unit) {
                     showActions = true,
                     isFavorite = favoriteIds.contains(track.sngId),
                     onToggleFavorite = { scope.launch { runCatching { repo.toggleFavorite(track) } } },
+                    onAddToQueue = {
+                        scope.launch {
+                            Toast.makeText(context, addToQueueMessage(repo, track), Toast.LENGTH_SHORT).show()
+                        }
+                    },
                     onAddToBestPepites = {
                         scope.launch {
                             Toast.makeText(context, addToBestPepitesMessage(repo, track), Toast.LENGTH_SHORT).show()
