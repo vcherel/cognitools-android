@@ -209,6 +209,18 @@ fun String.withQuantityDelta(delta: Int): String {
     return if (newQuantity <= 1) base else "$base ($newQuantity)"
 }
 
+// A checkbox line may end with a non-numeric "(...)" suffix to mean it's on hold until
+// that day or date arrives, e.g. "Renouveler passeport (12/09)" or "Appeler Paul (lundi)".
+// Requiring the content to not be all digits keeps this distinct from the "(N)" quantity suffix.
+private val DATE_SUFFIX = Regex("""\(([^)]+)\)\s*$""")
+
+/** True if the line ends with a non-numeric "(...)" suffix, e.g. a waiting day/date. */
+fun String.hasDateSuffix(): Boolean =
+    DATE_SUFFIX.find(this)?.groupValues?.get(1)?.let { it.isNotEmpty() && !it.all(Char::isDigit) } ?: false
+
+/** The text with its trailing non-numeric "(...)" suffix removed. */
+fun String.withoutDateSuffix(): String = if (hasDateSuffix()) DATE_SUFFIX.replace(this, "").trimEnd() else this
+
 /** Sum of quantities of unchecked checkbox lines, honoring the "(N)" suffix. */
 fun String.uncheckedItemCount(): Int = lineSequence()
     .filter { it.isCheckboxLine() && !it.isCheckedLine() }
