@@ -160,6 +160,7 @@ class DeezerPlaybackService : MediaSessionService() {
                     MediaSession.ConnectionResult.DEFAULT_SESSION_COMMANDS.buildUpon()
                         .add(SessionCommand(CMD_TOGGLE_LIKE, Bundle.EMPTY))
                         .add(SessionCommand(CMD_ADD_PEPITES, Bundle.EMPTY))
+                        .add(SessionCommand(CMD_STOP_ALL, Bundle.EMPTY))
                         .build()
                 )
                 .build()
@@ -170,6 +171,20 @@ class DeezerPlaybackService : MediaSessionService() {
             customCommand: SessionCommand,
             args: Bundle
         ): ListenableFuture<SessionResult> {
+            // Doesn't need a current track: it acts on the player/service itself, and must still work
+            // even if the queue metadata is gone.
+            if (customCommand.customAction == CMD_STOP_ALL) {
+                val player = session.player
+                player.stop()
+                player.clearMediaItems()
+                // Force the notification gone right away instead of waiting on Media3's own
+                // "user engaged" grace period, which otherwise leaves it (and the service) around
+                // for several seconds after a pause.
+                stopForeground(STOP_FOREGROUND_REMOVE)
+                stopSelf()
+                return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
+            }
+
             val track = currentTrack()
                 ?: return Futures.immediateFuture(SessionResult(SessionResult.RESULT_ERROR_INVALID_STATE))
             when (customCommand.customAction) {
@@ -277,8 +292,12 @@ class DeezerPlaybackService : MediaSessionService() {
         super.onDestroy()
     }
 
-    private companion object {
-        const val CMD_TOGGLE_LIKE = "com.example.myapp.deezer.TOGGLE_LIKE"
-        const val CMD_ADD_PEPITES = "com.example.myapp.deezer.ADD_BEST_PEPITES"
+    companion object {
+        private const val CMD_TOGGLE_LIKE = "com.example.myapp.deezer.TOGGLE_LIKE"
+        private const val CMD_ADD_PEPITES = "com.example.myapp.deezer.ADD_BEST_PEPITES"
+
+        // Not private: DeezerRepository sends this from the UI (the "stop everything" button), so it
+        // needs the same action string the session was told to accept above.
+        const val CMD_STOP_ALL = "com.example.myapp.deezer.STOP_ALL"
     }
 }

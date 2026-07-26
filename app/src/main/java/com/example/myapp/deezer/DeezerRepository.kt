@@ -11,6 +11,7 @@ import androidx.media3.database.StandaloneDatabaseProvider
 import androidx.media3.datasource.cache.LeastRecentlyUsedCacheEvictor
 import androidx.media3.datasource.cache.SimpleCache
 import androidx.media3.session.MediaController
+import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.MoreExecutors
 import kotlinx.coroutines.CompletableDeferred
@@ -418,6 +419,20 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
     fun seekTo(ms: Long) { controller?.seekTo(ms) }
     fun positionMs(): Long = controller?.currentPosition ?: 0L
     fun durationMs(): Long = controller?.duration?.takeIf { it > 0 } ?: 0L
+
+    /**
+     * Pauses playback, removes the notification, and stops the playback service entirely. Also drops
+     * our own MediaController: a service stays alive as long as any client is bound to it, so without
+     * this the service's own stopSelf() would have no real effect until the app itself goes away.
+     */
+    fun stopAll() {
+        val c = controller ?: return
+        c.sendCustomCommand(SessionCommand(DeezerPlaybackService.CMD_STOP_ALL, Bundle.EMPTY), Bundle.EMPTY)
+        c.release()
+        controller = null
+        controllerDeferred = null
+        _playerState.value = PlayerUiState()
+    }
 
     /**
      * The tracks of the current queue, by SNG_ID. A MediaItem only carries title/artist/cover, so this
