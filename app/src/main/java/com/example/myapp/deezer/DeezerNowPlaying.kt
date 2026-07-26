@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -95,10 +96,14 @@ fun MiniPlayerBar(
                 }
             }
             IconButton(onClick = onTogglePlay) {
-                Icon(
-                    if (state.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                    contentDescription = if (state.isPlaying) "Pause" else "Lecture"
-                )
+                if (state.isBuffering) {
+                    CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+                } else {
+                    Icon(
+                        if (state.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                        contentDescription = if (state.isPlaying) "Pause" else "Lecture"
+                    )
+                }
             }
         }
     }
@@ -211,11 +216,15 @@ fun FullPlayerSheet(
                     Icon(Icons.Filled.SkipPrevious, contentDescription = "Précédent", modifier = Modifier.size(40.dp))
                 }
                 IconButton(onClick = { repo.togglePlay() }) {
-                    Icon(
-                        if (state.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                        contentDescription = if (state.isPlaying) "Pause" else "Lecture",
-                        modifier = Modifier.size(56.dp)
-                    )
+                    if (state.isBuffering) {
+                        CircularProgressIndicator(modifier = Modifier.size(40.dp), strokeWidth = 3.dp)
+                    } else {
+                        Icon(
+                            if (state.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                            contentDescription = if (state.isPlaying) "Pause" else "Lecture",
+                            modifier = Modifier.size(56.dp)
+                        )
+                    }
                 }
                 IconButton(onClick = { repo.next() }) {
                     Icon(Icons.Filled.SkipNext, contentDescription = "Suivant", modifier = Modifier.size(40.dp))

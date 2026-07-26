@@ -16,6 +16,7 @@ import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionResult
+import com.example.myapp.AppSnackbar
 import com.example.myapp.MyApplication
 import com.example.myapp.R
 import com.google.common.util.concurrent.Futures
@@ -211,6 +212,7 @@ class DeezerPlaybackService : MediaSessionService() {
 
         override fun onPlayerError(error: PlaybackException) {
             val mediaId = player.currentMediaItem?.mediaId
+            val title = player.currentMediaItem?.mediaMetadata?.title?.toString()
             if (mediaId != failedMediaId) {
                 failedMediaId = mediaId
                 retriedCurrent = false
@@ -225,9 +227,17 @@ class DeezerPlaybackService : MediaSessionService() {
             }
             if (consecutiveSkips >= MAX_SKIPS || !player.hasNextMediaItem()) {
                 Log.w(TAG, "Giving up after $consecutiveSkips skipped tracks")
+                AppSnackbar.show(
+                    if (title.isNullOrBlank()) "Lecture interrompue, impossible de reprendre"
+                    else "Lecture de « $title » interrompue, impossible de reprendre"
+                )
                 return
             }
             consecutiveSkips++
+            AppSnackbar.show(
+                if (title.isNullOrBlank()) "Échec du chargement, passage au morceau suivant"
+                else "Échec du chargement de « $title », passage au morceau suivant"
+            )
             player.seekToNextMediaItem()
             player.prepare()
             player.play()

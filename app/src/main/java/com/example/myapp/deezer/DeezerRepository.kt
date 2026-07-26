@@ -342,6 +342,7 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
         _playerState.value = PlayerUiState(
             hasItem = true,
             isPlaying = c.isPlaying,
+            isBuffering = c.playbackState == Player.STATE_BUFFERING,
             title = m.title?.toString().orEmpty(),
             artist = m.artist?.toString().orEmpty(),
             coverUrl = m.artworkUri?.toString(),
