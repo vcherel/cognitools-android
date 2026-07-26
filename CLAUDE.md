@@ -7,6 +7,9 @@ After implementing a change, deploy it on the phone (see below) so Valentin can 
 
 For UI/layout changes with more than one reasonable arrangement (where to put a control, how a view is structured, an interaction model), sketch 2-3 concrete options up front with AskUserQuestion and let Valentin pick before writing any code. Don't implement your first interpretation and iterate from corrections.
 
+## Language exception
+This app's UI text (labels, toasts, snackbars, content descriptions, etc.) is French, deliberately, confirmed with Valentin: the app is French-only, sole user, not a shortcut or an oversight. This overrides the global English-only writing instruction, but only for in-app UI text; replies, code, comments, and commit messages to Valentin stay English as usual.
+
 ## Deploy method
 Build the release APK and install it on the connected phone:
 
