@@ -364,13 +364,13 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
     }
 
     /** Queues every favorite and plays them shuffled, starting from a random one. */
-    suspend fun shuffleFavorites() = playShuffled(ensureFavorites())
+    suspend fun shuffleFavorites() = shuffleTracks(ensureFavorites())
 
     /** Loads [playlistId]'s tracks and plays them shuffled, starting from a random one. */
-    suspend fun shufflePlaylist(playlistId: String) = playShuffled(playlistTracks(playlistId))
+    suspend fun shufflePlaylist(playlistId: String) = shuffleTracks(playlistTracks(playlistId))
 
     /** Queues [list] with shuffle on and plays from a random position. */
-    private suspend fun playShuffled(list: List<DeezerTrack>) {
+    suspend fun shuffleTracks(list: List<DeezerTrack>) {
         if (list.isEmpty()) return
         val controller = ensureController()
         queuedTracks.clear()

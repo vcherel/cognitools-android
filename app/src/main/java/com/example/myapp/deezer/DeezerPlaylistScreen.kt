@@ -9,13 +9,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -31,13 +31,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import android.widget.Toast
-import com.example.myapp.MyButton
 import com.example.myapp.ScreenTopBar
 import kotlinx.coroutines.launch
 
 /**
  * Reusable ordered track list. [loader] fetches the tracks; tapping a row plays from there, and the
- * header button plays the whole list. When [playlistId] is set, each row's cross removes the track
+ * header shuffle button plays the whole list at random. When [playlistId] is set, each row's cross removes the track
  * from that playlist. The heart and diamond are always available.
  */
 @Composable
@@ -77,11 +76,8 @@ fun DeezerTrackListScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text("${t.size} titres", style = MaterialTheme.typography.bodyMedium, maxLines = 1, modifier = Modifier.weight(1f))
-                        // MyButton fills its parent's width, so bound it in a fixed-width Box.
-                        Box(Modifier.width(130.dp)) {
-                            MyButton(text = "Tout lire", height = 48.dp, fontSize = MaterialTheme.typography.labelLarge.fontSize) {
-                                scope.launch { repo.playTracks(t, 0) }
-                            }
+                        IconButton(onClick = { scope.launch { repo.shuffleTracks(t) } }) {
+                            Icon(Icons.Filled.Shuffle, contentDescription = "Lecture aléatoire", tint = MaterialTheme.colorScheme.primary)
                         }
                     }
                 }
