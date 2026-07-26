@@ -1,6 +1,7 @@
 package com.example.myapp.gallery
 
 import android.app.RecoverableSecurityException
+import android.content.ContentResolver
 import android.content.ContentUris
 import android.content.ContentValues
 import android.content.Context
@@ -8,6 +9,7 @@ import android.content.IntentSender
 import android.media.MediaScannerConnection
 import android.net.Uri
 import android.os.Build
+import android.os.Bundle
 import android.os.Environment
 import android.provider.MediaStore
 import java.io.File
@@ -19,17 +21,26 @@ sealed interface WriteOutcome {
     data class Error(val message: String) : WriteOutcome
 }
 
-private val PROJECTION = arrayOf(
-    MediaStore.Files.FileColumns._ID,
-    MediaStore.Files.FileColumns.DISPLAY_NAME,
-    MediaStore.Files.FileColumns.MEDIA_TYPE,
-    MediaStore.Files.FileColumns.DATE_ADDED,
-    MediaStore.Files.FileColumns.DATE_MODIFIED,
-    MediaStore.Files.FileColumns.BUCKET_ID,
-    MediaStore.Files.FileColumns.BUCKET_DISPLAY_NAME,
-    MediaStore.Files.FileColumns.MIME_TYPE,
-    MediaStore.Files.FileColumns.DATA
-)
+private val PROJECTION = buildList {
+    add(MediaStore.Files.FileColumns._ID)
+    add(MediaStore.Files.FileColumns.DISPLAY_NAME)
+    add(MediaStore.Files.FileColumns.MEDIA_TYPE)
+    add(MediaStore.Files.FileColumns.DATE_ADDED)
+    add(MediaStore.Files.FileColumns.DATE_MODIFIED)
+    add(MediaStore.Files.FileColumns.BUCKET_ID)
+    add(MediaStore.Files.FileColumns.BUCKET_DISPLAY_NAME)
+    add(MediaStore.Files.FileColumns.MIME_TYPE)
+    add(MediaStore.Files.FileColumns.DATA)
+    // Column added in API 29; asking for it below that throws.
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) add(MediaStore.Files.FileColumns.DATE_EXPIRES)
+}.toTypedArray()
+
+// The trash is MediaStore's own: trashed rows stay in place with IS_TRASHED set, are hidden from
+// every normal query, and MediaProvider deletes them 30 days later without us doing anything.
+// It only exists from API 30 on; below that a delete stays permanent.
+fun trashSupported(): Boolean = Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
+
+const val TRASH_RETENTION_DAYS = 30
 
 fun queryAlbums(context: Context): List<Album> {
     val items = queryMediaItems(context)
@@ -52,7 +63,16 @@ fun queryAlbums(context: Context): List<Album> {
 fun queryMediaItemById(context: Context, id: Long): MediaItem? =
     queryMediaItems(context, itemId = id).firstOrNull()
 
-fun queryMediaItems(context: Context, bucketId: Long? = null, itemId: Long? = null): List<MediaItem> {
+/** The trashed items, most recently trashed first. Empty below API 30, where there is no trash. */
+fun queryTrashedItems(context: Context): List<MediaItem> =
+    if (trashSupported()) queryMediaItems(context, trashedOnly = true) else emptyList()
+
+fun queryMediaItems(
+    context: Context,
+    bucketId: Long? = null,
+    itemId: Long? = null,
+    trashedOnly: Boolean = false
+): List<MediaItem> {
     val collection = MediaStore.Files.getContentUri("external")
     val selection = buildString {
         append("(${MediaStore.Files.FileColumns.MEDIA_TYPE} = ? OR ${MediaStore.Files.FileColumns.MEDIA_TYPE} = ?)")
@@ -65,15 +85,29 @@ fun queryMediaItems(context: Context, bucketId: Long? = null, itemId: Long? = nu
         if (bucketId != null) add(bucketId.toString())
         if (itemId != null) add(itemId.toString())
     }.toTypedArray()
+    // Trashed rows are excluded from a plain query, so listing them takes the Bundle form with
+    // MATCH_ONLY; the newest ones expire last, hence the DATE_EXPIRES sort.
+    val sortOrder = if (trashedOnly && trashSupported()) {
+        "${MediaStore.Files.FileColumns.DATE_EXPIRES} DESC"
+    } else {
+        "${MediaStore.Files.FileColumns.DATE_ADDED} DESC"
+    }
+    val cursor = if (trashedOnly && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+        val queryArgs = Bundle().apply {
+            putString(ContentResolver.QUERY_ARG_SQL_SELECTION, selection)
+            putStringArray(ContentResolver.QUERY_ARG_SQL_SELECTION_ARGS, args)
+            putString(ContentResolver.QUERY_ARG_SQL_SORT_ORDER, sortOrder)
+            putInt(MediaStore.QUERY_ARG_MATCH_TRASHED, MediaStore.MATCH_ONLY)
+        }
+        context.contentResolver.query(collection, PROJECTION, queryArgs, null)
+    } else if (trashedOnly) {
+        null
+    } else {
+        context.contentResolver.query(collection, PROJECTION, selection, args, sortOrder)
+    }
 
     val items = mutableListOf<MediaItem>()
-    context.contentResolver.query(
-        collection,
-        PROJECTION,
-        selection,
-        args,
-        "${MediaStore.Files.FileColumns.DATE_ADDED} DESC"
-    )?.use { cursor ->
+    cursor?.use { cursor ->
         val idCol = cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns._ID)
         val nameCol = cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns.DISPLAY_NAME)
         val typeCol = cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns.MEDIA_TYPE)
@@ -84,6 +118,7 @@ fun queryMediaItems(context: Context, bucketId: Long? = null, itemId: Long? = nu
         val mimeCol = cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns.MIME_TYPE)
         @Suppress("DEPRECATION")
         val dataCol = cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns.DATA)
+        val expiresCol = cursor.getColumnIndex(MediaStore.Files.FileColumns.DATE_EXPIRES)
 
         while (cursor.moveToNext()) {
             val id = cursor.getLong(idCol)
@@ -112,7 +147,8 @@ fun queryMediaItems(context: Context, bucketId: Long? = null, itemId: Long? = nu
                     bucketId = cursor.getLong(bucketIdCol),
                     bucketName = cursor.getString(bucketNameCol) ?: "Autres",
                     relativePath = relativeFolderFromData(data),
-                    mimeType = cursor.getString(mimeCol) ?: ""
+                    mimeType = cursor.getString(mimeCol) ?: "",
+                    dateExpires = if (expiresCol >= 0) cursor.getLong(expiresCol) else 0
                 )
             )
         }
@@ -322,6 +358,48 @@ suspend fun performMoveBatch(
         }
     }
     return allOk
+}
+
+// Moves items to the system trash, where they stay for 30 days. On API 29 and below there is no
+// trash to move them to, so this deletes them for good instead.
+suspend fun performTrashBatch(
+    context: Context,
+    items: List<MediaItem>,
+    requestConsent: suspend (IntentSender) -> Boolean
+): Boolean =
+    if (trashSupported()) setTrashed(context, items, true, requestConsent)
+    else performDeleteBatch(context, items, requestConsent)
+
+/** Puts trashed items back where they came from. */
+suspend fun performRestoreBatch(
+    context: Context,
+    items: List<MediaItem>,
+    requestConsent: suspend (IntentSender) -> Boolean
+): Boolean = setTrashed(context, items, false, requestConsent)
+
+private suspend fun setTrashed(
+    context: Context,
+    items: List<MediaItem>,
+    trashed: Boolean,
+    requestConsent: suspend (IntentSender) -> Boolean
+): Boolean {
+    if (items.isEmpty()) return true
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return false
+    val values = ContentValues().apply {
+        put(MediaStore.Files.FileColumns.IS_TRASHED, if (trashed) 1 else 0)
+    }
+    // With All files access the flag flips directly, no dialog. Otherwise MediaProvider refuses
+    // every item this app doesn't own, and createTrashRequest asks once for the whole batch.
+    val failed = items.filter { item ->
+        try {
+            context.contentResolver.update(item.uri, values, null, null) == 0
+        } catch (_: Exception) {
+            true
+        }
+    }
+    if (failed.isEmpty()) return true
+    val pending = MediaStore.createTrashRequest(context.contentResolver, failed.map { it.uri }, trashed)
+    return requestConsent(pending.intentSender)
 }
 
 private fun deleteMediaItem(context: Context, item: MediaItem): WriteOutcome {

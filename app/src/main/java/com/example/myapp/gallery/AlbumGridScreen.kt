@@ -58,13 +58,12 @@ import kotlinx.coroutines.withContext
 fun GalleryAlbumGridScreen(bucketId: Long, onBack: () -> Unit, onOpenItem: (Long) -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val requestConsent = rememberIntentSenderRequester()
+    val requestConsent = LocalMediaConsent.current
     val gridState = rememberLazyGridState()
     var items by remember { mutableStateOf<List<MediaItem>?>(null) }
     var albumName by remember { mutableStateOf("") }
     var selectedIds by remember { mutableStateOf<Set<Long>>(emptySet()) }
     var showMoveDialog by remember { mutableStateOf(false) }
-    var showDeleteDialog by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     // A plain clickable still fires on release however long the press was, so a long press would
     // select a thumbnail and the release would immediately toggle it back off. This swallows that
@@ -92,7 +91,20 @@ fun GalleryAlbumGridScreen(bucketId: Long, onBack: () -> Unit, onOpenItem: (Long
                 count = selectedIds.size,
                 onClose = { selectedIds = emptySet() },
                 onMove = { showMoveDialog = true },
-                onDelete = { showDeleteDialog = true }
+                onDelete = {
+                    // Straight to the trash, no confirmation: the snackbar undo and the trash
+                    // itself are the safety net.
+                    val toTrash = (items ?: emptyList()).filter { it.id in selectedIds }
+                    scope.launch {
+                        if (performTrashBatch(context, toTrash, requestConsent)) {
+                            selectedIds = emptySet()
+                            GalleryRefresh.bump()
+                            showTrashedSnackbar(context, toTrash, requestConsent)
+                        } else {
+                            errorMessage = "Suppression impossible"
+                        }
+                    }
+                }
             )
         } else {
             ScreenTopBar(title = albumName.ifEmpty { "Album" }, onBack = onBack, modifier = Modifier.padding(16.dp))
@@ -227,26 +239,6 @@ fun GalleryAlbumGridScreen(bucketId: Long, onBack: () -> Unit, onOpenItem: (Long
             }
         )
     }
-
-    ShowAlertDialog(
-        show = showDeleteDialog,
-        onDismiss = { showDeleteDialog = false },
-        title = if (selectedIds.size > 1) "Supprimer ${selectedIds.size} fichiers ?" else "Supprimer ce fichier ?",
-        onCancel = { showDeleteDialog = false },
-        onConfirm = {
-            showDeleteDialog = false
-            val toDelete = (items ?: emptyList()).filter { it.id in selectedIds }
-            scope.launch {
-                val ok = performDeleteBatch(context, toDelete, requestConsent)
-                if (ok) {
-                    selectedIds = emptySet()
-                    GalleryRefresh.bump()
-                } else {
-                    errorMessage = "Suppression impossible"
-                }
-            }
-        }
-    )
 
     errorMessage?.let { message ->
         ShowAlertDialog(

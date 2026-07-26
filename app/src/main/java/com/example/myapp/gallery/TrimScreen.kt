@@ -49,7 +49,7 @@ import kotlin.coroutines.resume
 fun GalleryTrimScreen(itemId: Long, onBack: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val requestConsent = rememberIntentSenderRequester()
+    val requestConsent = LocalMediaConsent.current
 
     var item by remember { mutableStateOf<MediaItem?>(null) }
     var durationMs by remember { mutableStateOf(0L) }

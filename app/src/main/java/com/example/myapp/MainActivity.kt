@@ -37,10 +37,14 @@ import com.example.myapp.flashcards.FlashcardListsScreen
 import com.example.myapp.gallery.GalleryAlbumGridScreen
 import com.example.myapp.gallery.GalleryAlbumsScreen
 import com.example.myapp.gallery.GalleryCropScreen
+import com.example.myapp.gallery.GalleryTrashScreen
 import com.example.myapp.gallery.GalleryTrimScreen
 import com.example.myapp.gallery.GalleryViewerScreen
+import com.example.myapp.gallery.LocalMediaConsent
+import com.example.myapp.gallery.rememberIntentSenderRequester
 import com.example.myapp.notes.NoteEditorScreen
 import com.example.myapp.notes.NotesListScreen
+import com.example.myapp.notes.NotesTrashScreen
 import com.example.myapp.undercover.UndercoverScreen
 import android.content.Context
 import android.widget.Toast
@@ -159,15 +163,32 @@ fun MainScreen(themeManager: ThemeManager, isDarkMode: Boolean) {
     // Coming back after a long time away starts over from the main menu
     IdleReturnToMenu(guard = idleGuard, onIdle = goHome)
 
+    // One consent launcher for the whole app: an undo posted from a screen that is already gone
+    // (deleting from the gallery viewer) still has something to ask Android with.
+    val mediaConsent = rememberIntentSenderRequester()
+
     CompositionLocalProvider(
         LocalIsDarkMode provides isDarkMode,
         LocalGoHome provides goHome,
-        LocalIdleResetGuard provides idleGuard
+        LocalIdleResetGuard provides idleGuard,
+        LocalMediaConsent provides mediaConsent
     ) {
         val context = LocalContext.current
         val coroutineScope = rememberCoroutineScope()
 
-        Scaffold { innerPadding ->
+        val snackbarHostState = remember { SnackbarHostState() }
+        LaunchedEffect(Unit) {
+            AppSnackbar.requests.collect { request ->
+                val result = snackbarHostState.showSnackbar(
+                    message = request.message,
+                    actionLabel = request.actionLabel,
+                    duration = SnackbarDuration.Short
+                )
+                if (result == SnackbarResult.ActionPerformed) request.onAction?.invoke()
+            }
+        }
+
+        Scaffold(snackbarHost = { SnackbarHost(snackbarHostState) }) { innerPadding ->
             Box(modifier = Modifier.padding(innerPadding)) {
                 NavHost(navController = navController, startDestination = "menu") {
                     composable("menu") {
@@ -217,8 +238,12 @@ fun MainScreen(themeManager: ThemeManager, isDarkMode: Boolean) {
                     composable("gallery") {
                         GalleryAlbumsScreen(
                             onBack = { navController.popBackStack() },
-                            onOpenAlbum = { bucketId -> navController.navigate("gallery/album/$bucketId") }
+                            onOpenAlbum = { bucketId -> navController.navigate("gallery/album/$bucketId") },
+                            onOpenTrash = { navController.navigate("gallery/trash") }
                         )
+                    }
+                    composable("gallery/trash") {
+                        GalleryTrashScreen(onBack = { navController.popBackStack() })
                     }
                     composable("gallery/album/{bucketId}") { backStackEntry ->
                         val bucketId = backStackEntry.arguments?.getString("bucketId")?.toLongOrNull() ?: 0L
@@ -249,6 +274,9 @@ fun MainScreen(themeManager: ThemeManager, isDarkMode: Boolean) {
                     }
                     composable("notes") {
                         NotesListScreen(navController = navController)
+                    }
+                    composable("notes/trash") {
+                        NotesTrashScreen(onBack = { navController.popBackStack() })
                     }
                     composable("note/{noteId}") { backStackEntry ->
                         val noteId = backStackEntry.arguments?.getString("noteId") ?: "new"

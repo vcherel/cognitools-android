@@ -54,12 +54,12 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.example.myapp.AppSnackbar
 import com.example.myapp.BackIconButton
 import com.example.myapp.BackupRestoreActions
 import com.example.myapp.BottomFadeOverlay
 import com.example.myapp.LocalIsDarkMode
 import com.example.myapp.MyButton
-import com.example.myapp.ShowAlertDialog
 import com.example.myapp.flashcards.AppDatabase
 import com.example.myapp.flashcards.formatDuration
 import kotlinx.coroutines.launch
@@ -101,6 +101,10 @@ fun NotesListScreen(navController: NavController) {
     }
     LaunchedEffect(dao) {
         dao.observeNotes().collect { notes = it }
+    }
+    var trashedCount by remember { mutableStateOf(0) }
+    LaunchedEffect(dao) {
+        dao.observeTrashedNotes().collect { trashedCount = it.size }
     }
 
     var searchActive by remember { mutableStateOf(false) }
@@ -212,7 +216,7 @@ fun NotesListScreen(navController: NavController) {
                 } else displayedNotes
                 when {
                     currentNotes == null -> CircularProgressIndicator()
-                    currentNotes.isEmpty() -> Text(
+                    currentNotes.isEmpty() && trashedCount == 0 -> Text(
                         "Aucune note",
                         style = MaterialTheme.typography.bodyMedium
                     )
@@ -272,8 +276,25 @@ fun NotesListScreen(navController: NavController) {
                                         // Keep updatedAt so recoloring does not reorder the list
                                         scope.launch { dao.upsertNote(note.copy(color = nextNoteColor(note.color))) }
                                     },
-                                    onDelete = { scope.launch { dao.deleteNote(note.id) } }
+                                    onDelete = {
+                                        scope.launch {
+                                            dao.trashNote(note.id)
+                                            AppSnackbar.show(
+                                                message = "Note dans la corbeille",
+                                                actionLabel = "Annuler",
+                                                onAction = { dao.restoreNote(note.id) }
+                                            )
+                                        }
+                                    }
                                 )
+                            }
+                            if (trashedCount > 0) {
+                                item(key = "trash-entry", span = StaggeredGridItemSpan.FullLine) {
+                                    TrashEntryRow(
+                                        count = trashedCount,
+                                        onClick = { navController.navigate("notes/trash") }
+                                    )
+                                }
                             }
                         }
 
@@ -297,6 +318,31 @@ fun NotesListScreen(navController: NavController) {
                 onClick = { navController.navigate("note/new") }
             )
         }
+    }
+}
+
+/** Way into the notes trash, after the last note and only while the trash holds something. */
+@Composable
+private fun TrashEntryRow(count: Int, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            Icons.Default.Delete,
+            contentDescription = null,
+            modifier = Modifier.size(20.dp),
+            tint = Color.Gray
+        )
+        Text(
+            "Corbeille ($count)",
+            style = MaterialTheme.typography.bodyMedium,
+            color = Color.Gray,
+            modifier = Modifier.padding(start = 8.dp)
+        )
     }
 }
 
@@ -423,7 +469,6 @@ private fun NoteItem(
     onRecolor: () -> Unit,
     onDelete: () -> Unit
 ) {
-    var showDeleteDialog by remember { mutableStateOf(false) }
     val (title, preview) = remember(note) { noteTitleAndPreview(note) }
     val isDarkMode = LocalIsDarkMode.current
     val cardColor = noteCardColor(note.color, isDarkMode)
@@ -506,7 +551,7 @@ private fun NoteItem(
                 }
                 Spacer(Modifier.size(4.dp))
                 IconButton(
-                    onClick = { showDeleteDialog = true },
+                    onClick = onDelete,
                     modifier = Modifier.size(36.dp)
                 ) {
                     Icon(Icons.Default.Delete, contentDescription = "Supprimer")
@@ -514,17 +559,4 @@ private fun NoteItem(
             }
         }
     }
-
-    ShowAlertDialog(
-        show = showDeleteDialog,
-        onDismiss = { showDeleteDialog = false },
-        title = "T'es sûr ??",
-        onCancel = { showDeleteDialog = false },
-        onConfirm = {
-            onDelete()
-            showDeleteDialog = false
-        },
-        cancelText = "Oula non merci",
-        confirmText = "Oui t'inquiète"
-    )
 }
