@@ -67,6 +67,7 @@ data class DeezerPlaylist(
 data class PlayerUiState(
     val hasItem: Boolean = false,
     val isPlaying: Boolean = false,
+    val isBuffering: Boolean = false,
     val title: String = "",
     val artist: String = "",
     val coverUrl: String? = null,
