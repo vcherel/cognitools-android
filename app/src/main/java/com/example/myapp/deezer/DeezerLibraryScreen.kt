@@ -33,6 +33,7 @@ import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Shuffle
+import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -84,6 +85,9 @@ fun DeezerLibraryScreen(
     Column(Modifier.fillMaxSize()) {
         ScreenTopBar(title = "Deezer", onBack = onBack) {
             Spacer(Modifier.weight(1f))
+            IconButton(onClick = { repo.stopAll() }) {
+                Icon(Icons.Filled.Stop, contentDescription = "Tout arrêter")
+            }
             IconButton(onClick = { showSettings = true }) {
                 Icon(Icons.Filled.Settings, contentDescription = "Réglages")
             }
