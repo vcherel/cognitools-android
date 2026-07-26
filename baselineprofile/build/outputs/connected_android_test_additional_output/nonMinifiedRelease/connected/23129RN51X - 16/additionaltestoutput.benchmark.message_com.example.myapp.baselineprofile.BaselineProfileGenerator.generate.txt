@@ -1,6 +1,0 @@
-BaselineProfileGenerator_generate
-Total run time Ns: 202689643166.
-Baseline profile [results](file://BaselineProfileGenerator_generate-baseline-prof-2026-06-29-11-52-59.txt)
-
-To copy the profile use:
-adb -s M7HQV8TCOFF6NFA6 pull "/sdcard/Android/media/com.example.myapp.baselineprofile/additional_test_output/BaselineProfileGenerator_generate-baseline-prof.txt" .

@@ -10,6 +10,8 @@
 /.idea/deploymentTargetSelector.xml
 .DS_Store
 /build
+# every module's generated output, not just the root one
+build/
 /captures
 .externalNativeBuild
 .cxx
