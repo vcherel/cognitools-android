@@ -66,6 +66,10 @@ fun GalleryAlbumGridScreen(bucketId: Long, onBack: () -> Unit, onOpenItem: (Long
     var showMoveDialog by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    // A plain clickable still fires on release however long the press was, so a long press would
+    // select a thumbnail and the release would immediately toggle it back off. This swallows that
+    // one click. Thumbnails read it on click, the long press gesture arms it.
+    val suppressClick = remember { mutableStateOf(false) }
     val refreshVersion by GalleryRefresh.version.collectAsState()
 
     LaunchedEffect(bucketId, refreshVersion) {
@@ -121,6 +125,7 @@ fun GalleryAlbumGridScreen(bucketId: Long, onBack: () -> Unit, onOpenItem: (Long
                                     anchor = idx
                                     baseline = selectedIds
                                     selectedIds = selectedIds + currentItems[idx].id
+                                    suppressClick.value = true
                                 }
                             },
                             onDrag = { change, _ ->
@@ -131,8 +136,10 @@ fun GalleryAlbumGridScreen(bucketId: Long, onBack: () -> Unit, onOpenItem: (Long
                                 val range = minOf(start, idx)..maxOf(start, idx)
                                 selectedIds = baseline + range.mapNotNull { currentItems.getOrNull(it)?.id }
                             },
-                            onDragEnd = { anchor = null },
-                            onDragCancel = { anchor = null }
+                            // The thumbnail's click is dispatched before these, so disarming here
+                            // only affects a sweep whose click got cancelled by the drag.
+                            onDragEnd = { anchor = null; suppressClick.value = false },
+                            onDragCancel = { anchor = null; suppressClick.value = false }
                         )
                     }
             ) {
@@ -142,6 +149,10 @@ fun GalleryAlbumGridScreen(bucketId: Long, onBack: () -> Unit, onOpenItem: (Long
                         modifier = Modifier
                             .aspectRatio(1f)
                             .clickable {
+                                if (suppressClick.value) {
+                                    suppressClick.value = false
+                                    return@clickable
+                                }
                                 if (selectionMode) {
                                     selectedIds = if (selected) selectedIds - item.id else selectedIds + item.id
                                 } else {
