@@ -37,7 +37,7 @@ enum class PlaylistAddResult { ADDED, DUPLICATE, NO_PLAYLIST }
  * Singleton (held by MyApplication, like FlashcardRepository). Owns:
  *  - the Deezer session lifecycle (token refresh on error),
  *  - the shared MediaController the whole tool drives, plus a StateFlow of player state for the UI,
- *  - the decrypted-stream disk cache,
+ *  - the decrypted-stream disk cache and the permanent offline mirror,
  *  - library data access (favorites, playlists, search).
  *
  * Playback resolves lazily: a MediaItem carries only `dzr://<sngId>?q=<quality>`, and DeezerDataSource
@@ -70,6 +70,9 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
         )
     }
 
+    /** The permanent Best pépites mirror: its own uncapped cache, read before [streamCache] on playback. */
+    val offline: DeezerOfflineLibrary by lazy { DeezerOfflineLibrary(appContext, this) }
+
     // ---- Session ----
 
     suspend fun hasArl(): Boolean = settings.arl.first().isNotBlank()
@@ -96,8 +99,16 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
     /** Fetches the owner's playlists from the network. Prefer the [playlists] flow for the landing screen. */
     suspend fun fetchPlaylists(): List<DeezerPlaylist> = withTokenRetry { api.getPlaylists(it) }
 
+    /**
+     * The playlist's tracks, from the network. Falls back to the offline mirror when the network is
+     * gone, which is what lets Best pépites be opened, shuffled and played with no connection.
+     */
     suspend fun playlistTracks(playlistId: String): List<DeezerTrack> =
-        withTokenRetry { api.getPlaylistTracks(it, playlistId) }.also { rememberMembership(playlistId, it) }
+        try {
+            withTokenRetry { api.getPlaylistTracks(it, playlistId) }.also { rememberMembership(playlistId, it) }
+        } catch (e: Exception) {
+            offline.tracksFor(playlistId) ?: throw e
+        }
     suspend fun search(query: String): List<DeezerTrack> = api.searchTracks(query)
 
     // ---- Library snapshot (stale-while-revalidate) ----
@@ -217,9 +228,13 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
 
     @Volatile private var bestPepitesId: String? = null
 
-    /** Resolves (and caches) the id of the owner's "Best pépites" playlist, or null if none exists. */
+    /**
+     * Resolves (and caches) the id of the owner's "Best pépites" playlist, or null if none exists.
+     * Reads the already loaded playlists first, so it also answers offline once the library is seeded.
+     */
     suspend fun bestPepitesPlaylistId(): String? =
-        bestPepitesId ?: fetchPlaylists().firstOrNull { normalizeName(it.title).contains("pepite") }?.id?.also { bestPepitesId = it }
+        bestPepitesId ?: (_playlists.value ?: fetchPlaylists())
+            .firstOrNull { normalizeName(it.title).contains("pepite") }?.id?.also { bestPepitesId = it }
 
     /** Adds [track] to the owner's "Best pépites" playlist, unless it is already in it. */
     suspend fun addToBestPepites(track: DeezerTrack): PlaylistAddResult {

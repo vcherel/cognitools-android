@@ -1,6 +1,7 @@
 package com.example.myapp.deezer
 
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.add
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
@@ -19,23 +20,32 @@ data class DeezerLibrarySnapshot(val favorites: List<DeezerTrack>, val playlists
  * kotlinx-serialization gradle plugin.
  */
 object DeezerLibraryCache {
-    private val json = Json { ignoreUnknownKeys = true }
+    val json = Json { ignoreUnknownKeys = true }
+
+    /** One track as a compact JSON object. Shared with the offline snapshot (see DeezerOffline). */
+    fun trackToJson(t: DeezerTrack): JsonObject = buildJsonObject {
+        put("i", t.sngId)
+        put("t", t.title)
+        put("a", t.artist)
+        put("b", t.album)
+        put("d", t.durationSec)
+        t.coverMd5?.let { put("c", it) }
+    }
+
+    fun trackFromJson(o: JsonObject): DeezerTrack = DeezerTrack(
+        sngId = o["i"]?.jsonPrimitive?.content.orEmpty(),
+        title = o["t"]?.jsonPrimitive?.content.orEmpty(),
+        artist = o["a"]?.jsonPrimitive?.content.orEmpty(),
+        album = o["b"]?.jsonPrimitive?.content.orEmpty(),
+        durationSec = o["d"]?.jsonPrimitive?.content?.toIntOrNull() ?: 0,
+        coverMd5 = o["c"]?.jsonPrimitive?.content?.ifBlank { null }
+    )
 
     fun read(file: File): DeezerLibrarySnapshot? {
         if (!file.exists()) return null
         return runCatching {
             val root = json.parseToJsonElement(file.readText()).jsonObject
-            val favorites = root["favorites"]?.jsonArray.orEmpty().map { el ->
-                val o = el.jsonObject
-                DeezerTrack(
-                    sngId = o["i"]?.jsonPrimitive?.content.orEmpty(),
-                    title = o["t"]?.jsonPrimitive?.content.orEmpty(),
-                    artist = o["a"]?.jsonPrimitive?.content.orEmpty(),
-                    album = o["b"]?.jsonPrimitive?.content.orEmpty(),
-                    durationSec = o["d"]?.jsonPrimitive?.content?.toIntOrNull() ?: 0,
-                    coverMd5 = o["c"]?.jsonPrimitive?.content?.ifBlank { null }
-                )
-            }
+            val favorites = root["favorites"]?.jsonArray.orEmpty().map { trackFromJson(it.jsonObject) }
             val playlists = root["playlists"]?.jsonArray.orEmpty().map { el ->
                 val o = el.jsonObject
                 DeezerPlaylist(
@@ -53,16 +63,7 @@ object DeezerLibraryCache {
     fun write(file: File, snapshot: DeezerLibrarySnapshot) {
         val root = buildJsonObject {
             put("favorites", buildJsonArray {
-                snapshot.favorites.forEach { t ->
-                    add(buildJsonObject {
-                        put("i", t.sngId)
-                        put("t", t.title)
-                        put("a", t.artist)
-                        put("b", t.album)
-                        put("d", t.durationSec)
-                        t.coverMd5?.let { put("c", it) }
-                    })
-                }
+                snapshot.favorites.forEach { add(trackToJson(it)) }
             })
             put("playlists", buildJsonArray {
                 snapshot.playlists.forEach { p ->
