@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
 import android.net.Uri
+import android.view.View
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -56,6 +57,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -208,7 +210,11 @@ fun GalleryViewerScreen(
                         onToggleChrome = { chromeVisible = !chromeVisible }
                     )
                     MediaType.VIDEO -> if (page == pagerState.currentPage) {
-                        VideoPlayer(uri = item.uri)
+                        VideoPlayer(
+                            uri = item.uri,
+                            chromeVisible = chromeVisible,
+                            onChromeVisibleChange = { chromeVisible = it }
+                        )
                     } else {
                         GalleryAsyncImage(
                             uri = item.uri,
@@ -402,7 +408,11 @@ private fun ZoomableImage(
 }
 
 @Composable
-private fun VideoPlayer(uri: Uri) {
+private fun VideoPlayer(
+    uri: Uri,
+    chromeVisible: Boolean,
+    onChromeVisibleChange: (Boolean) -> Unit
+) {
     val context = LocalContext.current
     val exoPlayer = remember(uri) {
         ExoPlayer.Builder(context).build().apply {
@@ -414,10 +424,34 @@ private fun VideoPlayer(uri: Uri) {
     DisposableEffect(exoPlayer) {
         onDispose { exoPlayer.release() }
     }
-    AndroidView(
-        factory = { ctx -> PlayerView(ctx).apply { player = exoPlayer } },
-        modifier = Modifier.fillMaxSize()
-    )
+
+    // The player's own controller is the only tap target on a video page, so it drives the viewer
+    // chrome: showing the transport controls also brings up the filename bar and the action row,
+    // and hiding them (tap again, or the controller's auto-hide) takes everything away.
+    val onVisibilityChange by rememberUpdatedState(onChromeVisibleChange)
+    val playerView = remember(uri) {
+        PlayerView(context).apply {
+            player = exoPlayer
+            // Open clean like a photo does, instead of flashing the controls on load.
+            controllerAutoShow = false
+            setShowSubtitleButton(false)
+            setControllerVisibilityListener(
+                PlayerView.ControllerVisibilityListener { visibility ->
+                    // Track selection and playback speed are useless on a local clip: drop the
+                    // gear every time the controller comes back, since it rebuilds its own row.
+                    findViewById<View>(androidx.media3.ui.R.id.exo_settings)?.visibility = View.GONE
+                    onVisibilityChange(visibility == View.VISIBLE)
+                }
+            )
+        }
+    }
+    // Keep the controller in sync when the chrome was toggled elsewhere, e.g. swiping in from a
+    // photo that had its bars showing.
+    LaunchedEffect(playerView, chromeVisible) {
+        if (chromeVisible) playerView.showController() else playerView.hideController()
+    }
+
+    AndroidView(factory = { playerView }, modifier = Modifier.fillMaxSize())
 }
 
 @Composable
