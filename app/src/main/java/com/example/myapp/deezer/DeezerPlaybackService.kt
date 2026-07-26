@@ -17,6 +17,7 @@ import androidx.media3.session.MediaSessionService
 import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionResult
 import com.example.myapp.MyApplication
+import com.example.myapp.R
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import kotlinx.coroutines.CoroutineScope
@@ -93,7 +94,11 @@ class DeezerPlaybackService : MediaSessionService() {
             .setDisplayName(if (liked) "Retirer des favoris" else "Ajouter aux favoris")
             .setSlots(CommandButton.SLOT_BACK_SECONDARY, CommandButton.SLOT_OVERFLOW)
             .build(),
+        // Media3 has no diamond among its icon constants, so the notification draws our own vector
+        // (the same Material diamond as the now playing screen); the constant stays as the fallback
+        // for surfaces that only understand the predefined set, like Android Auto.
         CommandButton.Builder(if (inPepites) CommandButton.ICON_CHECK_CIRCLE_FILLED else CommandButton.ICON_PLAYLIST_ADD)
+            .setCustomIconResId(if (inPepites) R.drawable.ic_diamond_filled else R.drawable.ic_diamond)
             .setSessionCommand(SessionCommand(CMD_ADD_PEPITES, Bundle.EMPTY))
             .setDisplayName(if (inPepites) "Déjà dans Best pépites" else "Ajouter à Best pépites")
             .setSlots(CommandButton.SLOT_FORWARD_SECONDARY, CommandButton.SLOT_OVERFLOW)
