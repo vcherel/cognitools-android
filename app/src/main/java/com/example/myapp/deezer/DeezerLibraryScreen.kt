@@ -28,11 +28,15 @@ import androidx.compose.material.icons.filled.Diamond
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
 import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -270,10 +274,10 @@ private fun PlaylistRow(playlist: DeezerPlaylist, onOpen: () -> Unit, onShuffle:
 }
 
 /**
- * Shared: one tappable track line. Tap plays. When [showActions] is on, inline icons appear on the
- * right: heart (like/unlike, filled when [isFavorite]), diamond (add to Best pépites), a plus (add to
- * any playlist via a picker), and, only if [onRemoveFromPlaylist] is provided, a cross that removes it
- * from the current playlist.
+ * Shared: one tappable track line. Tap plays. When [showActions] is on, a heart (like/unlike, filled
+ * when [isFavorite]) sits on the right, plus a three dot menu with the rest: add to queue, add to Best
+ * pépites, add to a playlist, and, only if [onRemoveFromPlaylist] is provided, remove from the current
+ * playlist.
  */
 @Composable
 fun TrackRow(
@@ -282,10 +286,12 @@ fun TrackRow(
     showActions: Boolean = false,
     isFavorite: Boolean = false,
     onToggleFavorite: (() -> Unit)? = null,
+    onAddToQueue: (() -> Unit)? = null,
     onAddToBestPepites: (() -> Unit)? = null,
     onAddToPlaylist: (() -> Unit)? = null,
     onRemoveFromPlaylist: (() -> Unit)? = null
 ) {
+    var menuExpanded by remember { mutableStateOf(false) }
     Row(
         Modifier
             .fillMaxWidth()
@@ -313,24 +319,51 @@ fun TrackRow(
                     tint = if (isFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            if (onAddToBestPepites != null) {
-                IconButton(onClick = onAddToBestPepites, modifier = Modifier.size(40.dp)) {
-                    Icon(Icons.Filled.Diamond, contentDescription = "Ajouter à Best pépites", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            Box {
+                IconButton(onClick = { menuExpanded = true }, modifier = Modifier.size(40.dp)) {
+                    Icon(Icons.Filled.MoreVert, contentDescription = "Plus d'options", tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-            }
-            if (onAddToPlaylist != null) {
-                IconButton(onClick = onAddToPlaylist, modifier = Modifier.size(40.dp)) {
-                    Icon(Icons.AutoMirrored.Filled.PlaylistAdd, contentDescription = "Ajouter à une playlist", tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            }
-            if (onRemoveFromPlaylist != null) {
-                IconButton(onClick = onRemoveFromPlaylist, modifier = Modifier.size(40.dp)) {
-                    Icon(Icons.Filled.Close, contentDescription = "Retirer de la playlist", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+                    if (onAddToQueue != null) {
+                        DropdownMenuItem(
+                            text = { Text("Ajouter à la file d'attente") },
+                            leadingIcon = { Icon(Icons.AutoMirrored.Filled.QueueMusic, contentDescription = null) },
+                            onClick = { menuExpanded = false; onAddToQueue() }
+                        )
+                    }
+                    if (onAddToBestPepites != null) {
+                        DropdownMenuItem(
+                            text = { Text("Ajouter à Best pépites") },
+                            leadingIcon = { Icon(Icons.Filled.Diamond, contentDescription = null) },
+                            onClick = { menuExpanded = false; onAddToBestPepites() }
+                        )
+                    }
+                    if (onAddToPlaylist != null) {
+                        DropdownMenuItem(
+                            text = { Text("Ajouter à une playlist") },
+                            leadingIcon = { Icon(Icons.AutoMirrored.Filled.PlaylistAdd, contentDescription = null) },
+                            onClick = { menuExpanded = false; onAddToPlaylist() }
+                        )
+                    }
+                    if (onRemoveFromPlaylist != null) {
+                        DropdownMenuItem(
+                            text = { Text("Retirer de la playlist") },
+                            leadingIcon = { Icon(Icons.Filled.Close, contentDescription = null) },
+                            onClick = { menuExpanded = false; onRemoveFromPlaylist() }
+                        )
+                    }
                 }
             }
         }
     }
 }
+
+/** Shared: runs the "add to queue" action and returns the toast to show. */
+suspend fun addToQueueMessage(repo: DeezerRepository, track: DeezerTrack): String =
+    runCatching { repo.addToQueue(track) }.fold(
+        onSuccess = { "Ajouté à la file d'attente" },
+        onFailure = { "Échec de l'ajout" }
+    )
 
 /**
  * Shared: runs the "add to Best pépites" action and returns the toast to show. Every entry point (row

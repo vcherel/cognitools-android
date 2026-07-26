@@ -3,6 +3,7 @@ package com.example.myapp.deezer
 import android.content.ComponentName
 import android.content.Context
 import android.net.Uri
+import android.os.Bundle
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
@@ -51,6 +52,7 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
         const val CACHE_LIMIT_BYTES = 2L * 1024 * 1024 * 1024 // 2 GB
         const val CACHE_LIMIT_LABEL = "2 Go"
         private const val RESOLVE_ATTEMPTS = 3
+        private const val QUEUED_NEXT_KEY = "deezer_queued_next"
     }
 
     private val api = DeezerApi()
@@ -384,6 +386,32 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
         }
     }
 
+    /**
+     * Inserts [track] right after the currently playing item, ahead of whatever the active playlist
+     * had queued there. Ignores that playlist entirely otherwise: repeated calls stack up in the order
+     * they were tapped, right after the last one already inserted this way. Starts playback if nothing
+     * is queued yet.
+     */
+    suspend fun addToQueue(track: DeezerTrack) {
+        val controller = ensureController()
+        withContext(Dispatchers.Main) {
+            if (controller.mediaItemCount == 0) {
+                controller.setMediaItem(buildMediaItem(track, DEFAULT_QUALITY))
+                controller.prepare()
+                controller.play()
+                return@withContext
+            }
+            var insertIndex = controller.currentMediaItemIndex + 1
+            while (insertIndex < controller.mediaItemCount && controller.getMediaItemAt(insertIndex).isQueuedNext) {
+                insertIndex++
+            }
+            controller.addMediaItem(insertIndex, buildMediaItem(track, DEFAULT_QUALITY, queuedNext = true))
+        }
+    }
+
+    private val MediaItem.isQueuedNext: Boolean
+        get() = mediaMetadata.extras?.getBoolean(QUEUED_NEXT_KEY) == true
+
     fun togglePlay() = controller?.let { if (it.isPlaying) it.pause() else it.play() }
     fun next() = controller?.seekToNextMediaItem()
     fun previous() = controller?.seekToPreviousMediaItem()
@@ -400,19 +428,18 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
 
     fun trackById(sngId: String): DeezerTrack? = queuedTracks[sngId]
 
-    private fun buildMediaItem(track: DeezerTrack, quality: DeezerQuality): MediaItem {
+    private fun buildMediaItem(track: DeezerTrack, quality: DeezerQuality, queuedNext: Boolean = false): MediaItem {
         queuedTracks[track.sngId] = track
+        val metadata = MediaMetadata.Builder()
+            .setTitle(track.title)
+            .setArtist(track.artist)
+            .setAlbumTitle(track.album)
+            .setArtworkUri(track.coverUrl()?.let { Uri.parse(it) })
+        if (queuedNext) metadata.setExtras(Bundle().apply { putBoolean(QUEUED_NEXT_KEY, true) })
         return MediaItem.Builder()
             .setUri(Uri.parse("dzr://${track.sngId}?q=${quality.name}"))
             .setMediaId(track.sngId)
-            .setMediaMetadata(
-                MediaMetadata.Builder()
-                    .setTitle(track.title)
-                    .setArtist(track.artist)
-                    .setAlbumTitle(track.album)
-                    .setArtworkUri(track.coverUrl()?.let { Uri.parse(it) })
-                    .build()
-            )
+            .setMediaMetadata(metadata.build())
             .build()
     }
 }
