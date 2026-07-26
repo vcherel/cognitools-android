@@ -15,6 +15,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import com.example.myapp.SuppressIdleReset
 import com.example.myapp.ScreenTopBar
 import com.example.myapp.ShowAlertDialog
 
@@ -24,6 +25,9 @@ fun UndercoverScreen(onBack: () -> Unit) {
 
     var state by remember { mutableStateOf(UndercoverGameState()) }
     var showExitDialog by remember { mutableStateOf(false) }
+
+    // A game in progress lives in composable state, so never reset it from the outside
+    SuppressIdleReset(active = state.gameState !is GameState.Settings)
 
     BackHandler {
         if (state.gameState is GameState.Settings) {

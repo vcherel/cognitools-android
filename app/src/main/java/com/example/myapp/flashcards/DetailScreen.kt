@@ -54,6 +54,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.example.myapp.BackIconButton
 import com.example.myapp.BottomFadeOverlay
 import com.example.myapp.MyButton
 import com.example.myapp.ShowAlertDialog
@@ -210,9 +211,7 @@ fun FlashcardDetailScreen(
             ) {
                 // Left side: back button + title
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = { onBack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Retour")
-                    }
+                    BackIconButton(onBack = { onBack() })
                     Text(
                         listName,
                         style = MaterialTheme.typography.headlineSmall,

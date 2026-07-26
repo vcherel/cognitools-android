@@ -54,6 +54,7 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.example.myapp.BackIconButton
 import com.example.myapp.BackupRestoreActions
 import com.example.myapp.BottomFadeOverlay
 import com.example.myapp.LocalIsDarkMode
@@ -152,9 +153,7 @@ fun NotesListScreen(navController: NavController) {
                             }
                         )
                     } else {
-                        IconButton(onClick = { navController.popBackStack() }) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Retour")
-                        }
+                        BackIconButton(onBack = { navController.popBackStack() })
                         Text(
                             "Notes",
                             style = MaterialTheme.typography.headlineSmall,

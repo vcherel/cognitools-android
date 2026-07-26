@@ -64,6 +64,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.example.myapp.BackIconButton
 import com.example.myapp.LocalIsDarkMode
 import com.example.myapp.MyButton
 import kotlinx.coroutines.launch
@@ -295,16 +296,14 @@ fun FlashcardGameScreen(listId: String, navController: NavController) {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(
-                    onClick = {
+                BackIconButton(
+                    onBack = {
                         if (!hasNavigatedBack) {
                             hasNavigatedBack = true
                             navController.popBackStack()
                         }
                     }
-                ) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Retour")
-                }
+                )
 
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
