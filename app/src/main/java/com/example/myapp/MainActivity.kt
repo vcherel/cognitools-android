@@ -24,10 +24,12 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.core.animation.doOnEnd
 import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.preferencesDataStore
@@ -277,10 +279,15 @@ fun MainScreen(themeManager: ThemeManager, isDarkMode: Boolean) {
                     composable("notes/trash") {
                         NotesTrashScreen(onBack = { navController.popBackStack() })
                     }
-                    composable("note/{noteId}") { backStackEntry ->
+                    composable(
+                        "note/{noteId}?editAt={editAt}",
+                        arguments = listOf(navArgument("editAt") { type = NavType.IntType; defaultValue = -1 })
+                    ) { backStackEntry ->
                         val noteId = backStackEntry.arguments?.getString("noteId") ?: "new"
+                        val editAt = backStackEntry.arguments?.getInt("editAt") ?: -1
                         NoteEditorScreen(
                             noteId = noteId,
+                            initialEditOffset = editAt,
                             onBack = { navController.popBackStack() }
                         )
                     }

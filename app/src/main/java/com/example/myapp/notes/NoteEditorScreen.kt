@@ -73,7 +73,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 
 @Composable
-fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
+fun NoteEditorScreen(noteId: String, initialEditOffset: Int = -1, onBack: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val dao = remember { AppDatabase.get(context).noteDao() }
@@ -120,6 +120,10 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
             unlocked = !(note?.locked ?: false)
             textFieldState.setTextAndPlaceCursorAtEnd(content)
             lastSaved = titleFieldState.text.toString() to content
+            if (initialEditOffset >= 0) {
+                textFieldState.edit { selection = TextRange(initialEditOffset.coerceIn(0, length)) }
+                isEditing = true
+            }
         }
     }
 

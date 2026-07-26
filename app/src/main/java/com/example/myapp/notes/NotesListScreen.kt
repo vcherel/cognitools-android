@@ -20,6 +20,7 @@ import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridItemSpan
 import androidx.compose.foundation.lazy.staggeredgrid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
@@ -265,6 +266,23 @@ fun NotesListScreen(navController: NavController) {
                                                     )
                                                 )
                                             }
+                                        },
+                                        onAddItem = {
+                                            val lines = pinnedTodo.content.split("\n").toMutableList()
+                                            val insertAt = lines.indexOfFirst { it.isSeparatorLine() }
+                                                .let { if (it == -1) lines.size else it }
+                                            val offset = lines.take(insertAt).sumOf { it.length + 1 } +
+                                                UNCHECKED_PREFIX.length
+                                            lines.add(insertAt, UNCHECKED_PREFIX)
+                                            scope.launch {
+                                                dao.upsertNote(
+                                                    pinnedTodo.copy(
+                                                        content = lines.joinToString("\n"),
+                                                        updatedAt = System.currentTimeMillis()
+                                                    )
+                                                )
+                                                navController.navigate("note/${pinnedTodo.id}?editAt=$offset")
+                                            }
                                         }
                                     )
                                 }
@@ -353,7 +371,8 @@ private fun TodoWidgetCard(
     note: Note,
     onNavigate: () -> Unit,
     onToggleLine: (Int) -> Unit,
-    onDeleteLine: (Int) -> Unit
+    onDeleteLine: (Int) -> Unit,
+    onAddItem: () -> Unit
 ) {
     val isDarkMode = LocalIsDarkMode.current
     val cardColor = noteCardColor(note.color, isDarkMode)
@@ -441,6 +460,21 @@ private fun TodoWidgetCard(
                             DeleteLineButton(onClick = { onDeleteLine(index) })
                         }
                     }
+                }
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onAddItem() }
+                ) {
+                    IconButton(onClick = onAddItem, modifier = Modifier.size(40.dp)) {
+                        Icon(Icons.Default.Add, contentDescription = null, tint = Color.Gray)
+                    }
+                    Text(
+                        "Nouvel élément",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color.Gray
+                    )
                 }
             }
         }
