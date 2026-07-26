@@ -14,6 +14,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -63,6 +64,10 @@ fun rememberAllFilesAccessRequester(onResult: () -> Unit): () -> Unit {
         }
     }
 }
+
+// The consent requester below, registered once by the nav host so it stays usable after the screen
+// that started an operation is gone (undoing a delete made from the viewer, for instance).
+val LocalMediaConsent = compositionLocalOf<suspend (IntentSender) -> Boolean> { { false } }
 
 // Bridges the launcher-based consent flow (createWriteRequest/createDeleteRequest PendingIntents,
 // and RecoverableSecurityException recovery) into a plain suspend call the repository functions

@@ -28,6 +28,7 @@ Root package (shared/misc):
 - `Home.kt`: BackIconButton (tap = back, long press = main menu), the LocalGoHome hook, and the idle-return-to-menu lifecycle watcher with its IdleResetGuard
 - `Http.kt`: shared httpGet helper and User-Agent (Weather + Wikipedia)
 - `BottomFadeOverlay.kt`: shared fade out gradient overlay composable
+- `Snackbar.kt`: AppSnackbar, the app wide snackbar screens post undo actions through
 - `BackupRestore.kt`: export/import actions for app data
 - `Random.kt`: random number generator tool screen
 - `Volume.kt`: volume booster foreground service and its screen
@@ -67,6 +68,7 @@ Root package (shared/misc):
 - `MediaStoreRepository.kt`: all MediaStore reads (queryAlbums/queryMediaItems) and writes (performRename/Move/Delete/Overwrite + batch variants), WriteOutcome
 - `GalleryPermissions.kt`: read-media and all-files permission checks, rememberIntentSenderRequester for scoped storage consent prompts
 - `GalleryRefresh.kt`: global refresh counter the screens observe after a write
+- `TrashScreen.kt`: the trashed items grid (restore, delete for good) and showTrashedSnackbar
 - `GalleryImage.kt`: GalleryAsyncImage, the Coil loader with a dateModified aware cache key
 - `AlbumsScreen.kt`: album list
 - `AlbumGridScreen.kt`: thumbnail grid, multi-select with drag, batch actions
@@ -82,6 +84,7 @@ Root package (shared/misc):
 - `NoteEditing.kt`: pure text helpers; input transformations, slash commands, inline/line marker toggling, muscu day
 - `NoteViewMode.kt`: the read-only note rendering; per-line checkbox/separator/text, drag reorder, double-tap to edit
 - `NoteLock.kt`: PIN lock for notes, PinDialog
+- `NotesTrashScreen.kt`: the trashed notes screen (restore, delete for good, empty the trash)
 - `IngredientSync.kt`: Courses <-> Ingrédients sync and model-driven ordering for both; NoteSyncBatch/ReconcileItem, group parsing and rendering (Ingrédients: `Modèle ingrédients`, anonymous blank-line groups; Courses: `Modèle courses`, named "--- Nom" sections), the reconcile dialog
 
 `undercover/` (party game tool):
@@ -100,9 +103,11 @@ Root package (shared/misc):
 ## Cross-cutting things, and where they actually live
 The map above is by feature. These are the ones you won't find by feature name:
 
-- **Room**: one database for the whole app, declared in `flashcards/Database.kt` (version 5). The notes `Note` entity is registered there too, and `NoteDao` sits in `notes/Models.kt`, not in a Database file.
+- **Room**: one database for the whole app, declared in `flashcards/Database.kt` (version 6). The notes `Note` entity is registered there too, and `NoteDao` sits in `notes/Models.kt`, not in a Database file.
 - **Media notification and lockscreen buttons**: `deezer/DeezerPlaybackService.kt`, `actionButtons()`. Media3 draws the notification; the buttons are `CommandButton`s handled in `SessionCallback.onCustomCommand`, so they act without opening the app.
 - **Icons**: screens use Compose `Icons.*` (material-icons-extended). `res/drawable/` only holds what the framework needs as a real resource: the launcher and the notification action icons. Media3 has no icon constant for most things, so a custom button icon means a vector in `res/drawable/` passed to `setCustomIconResId`.
 - **Singletons**: `MyApplication` holds FlashcardRepository and DeezerRepository. Anything long lived hangs off there, not off an object/DI graph.
 - **HTTP**: `Http.kt`'s `httpGet` serves Weather and Wikipedia only. Deezer has its own client in `deezer/DeezerApi.kt`, Gallery does no networking.
 - **Foreground services**: `Volume.kt` (volume booster) and `deezer/DeezerPlaybackService.kt`. The Deezer offline sync deliberately has none.
+- **30 day trash**: two different mechanisms. Notes carry a `deletedAt` timestamp and are purged by `MyApplication.onCreate`. The gallery uses MediaStore's own trash (`IS_TRASHED`, `performTrashBatch`/`performRestoreBatch`), which Android empties by itself; it only exists from API 30 on, below that a delete stays permanent.
+- **Media consent launcher**: registered once in `MainActivity` and passed down through `LocalMediaConsent`, so an undo posted after its screen is gone can still show the system dialog. Gallery screens read it instead of calling `rememberIntentSenderRequester` themselves.

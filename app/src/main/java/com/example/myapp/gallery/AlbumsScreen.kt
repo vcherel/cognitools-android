@@ -3,6 +3,7 @@ package com.example.myapp.gallery
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -12,11 +13,15 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -42,11 +47,12 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 @Composable
-fun GalleryAlbumsScreen(onBack: () -> Unit, onOpenAlbum: (Long) -> Unit) {
+fun GalleryAlbumsScreen(onBack: () -> Unit, onOpenAlbum: (Long) -> Unit, onOpenTrash: () -> Unit) {
     val context = LocalContext.current
     var hasPermission by remember { mutableStateOf(hasReadMediaPermission(context)) }
     var hasAllFiles by remember { mutableStateOf(hasAllFilesAccess()) }
     var albums by remember { mutableStateOf<List<Album>?>(null) }
+    var trashCount by remember { mutableStateOf(0) }
     val refreshVersion by GalleryRefresh.version.collectAsState()
 
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -62,6 +68,7 @@ fun GalleryAlbumsScreen(onBack: () -> Unit, onOpenAlbum: (Long) -> Unit) {
     LaunchedEffect(hasPermission, refreshVersion) {
         if (hasPermission) {
             albums = withContext(Dispatchers.IO) { queryAlbums(context) }
+            trashCount = withContext(Dispatchers.IO) { queryTrashedItems(context).size }
         }
     }
 
@@ -87,7 +94,10 @@ fun GalleryAlbumsScreen(onBack: () -> Unit, onOpenAlbum: (Long) -> Unit) {
             albums == null -> Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator()
             }
-            albums!!.isEmpty() -> Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            albums!!.isEmpty() && trashCount == 0 -> Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
                 Text("Aucune photo ou vidéo trouvée")
             }
             else -> LazyVerticalGrid(
@@ -99,6 +109,10 @@ fun GalleryAlbumsScreen(onBack: () -> Unit, onOpenAlbum: (Long) -> Unit) {
             ) {
                 items(albums!!, key = { it.bucketId }) { album ->
                     AlbumCard(album = album, onClick = { onOpenAlbum(album.bucketId) })
+                }
+                // Last, after every album: deleting a photo shouldn't push the albums down.
+                if (trashCount > 0) {
+                    item(key = "trash") { TrashCard(itemCount = trashCount, onClick = onOpenTrash) }
                 }
             }
         }
@@ -124,6 +138,40 @@ private fun AllFilesAccessBanner(onGrant: () -> Unit) {
             height = 56.dp,
             fontSize = 18.sp,
             modifier = Modifier.padding(top = 8.dp)
+        )
+    }
+}
+
+// Sits where an album cover would, first in the grid, and only while the trash holds something.
+@Composable
+private fun TrashCard(itemCount: Int, onClick: () -> Unit) {
+    Column(modifier = Modifier.fillMaxWidth().clickable(onClick = onClick)) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .aspectRatio(1f)
+                .clip(RoundedCornerShape(12.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                Icons.Default.Delete,
+                contentDescription = null,
+                modifier = Modifier.size(48.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        Text(
+            "Corbeille",
+            style = MaterialTheme.typography.titleSmall,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(top = 6.dp)
+        )
+        Text(
+            "$itemCount élément${if (itemCount > 1) "s" else ""}",
+            style = MaterialTheme.typography.bodySmall,
+            color = Color.Gray
         )
     }
 }

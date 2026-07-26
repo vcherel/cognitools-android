@@ -51,7 +51,7 @@ private enum class DragHandle { NONE, MOVE, TOP_LEFT, TOP_RIGHT, BOTTOM_LEFT, BO
 fun GalleryCropScreen(itemId: Long, onBack: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val requestConsent = rememberIntentSenderRequester()
+    val requestConsent = LocalMediaConsent.current
 
     var item by remember { mutableStateOf<MediaItem?>(null) }
     var displayBitmap by remember { mutableStateOf<Bitmap?>(null) }

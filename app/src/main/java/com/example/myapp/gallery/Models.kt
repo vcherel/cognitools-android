@@ -17,7 +17,10 @@ data class MediaItem(
     // target when moving another item into this item's album.
     val relativePath: String,
     val durationMs: Long = 0,
-    val mimeType: String = ""
+    val mimeType: String = "",
+    // For a trashed item, the epoch second at which Android deletes it for good (30 days after it
+    // was trashed). 0 for a normal item.
+    val dateExpires: Long = 0
 )
 
 data class Album(

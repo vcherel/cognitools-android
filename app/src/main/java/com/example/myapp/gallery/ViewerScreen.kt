@@ -96,7 +96,7 @@ fun GalleryViewerScreen(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val requestConsent = rememberIntentSenderRequester()
+    val requestConsent = LocalMediaConsent.current
     var items by remember { mutableStateOf<List<MediaItem>>(emptyList()) }
     var loaded by remember { mutableStateOf(false) }
     val refreshVersion by GalleryRefresh.version.collectAsState()
@@ -125,7 +125,6 @@ fun GalleryViewerScreen(
     var isZoomed by remember { mutableStateOf(false) }
     var showRenameDialog by remember { mutableStateOf(false) }
     var showMoveDialog by remember { mutableStateOf(false) }
-    var showDeleteDialog by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
     val currentItem = items.getOrNull(pagerState.currentPage.coerceIn(items.indices)) ?: items.first()
@@ -259,7 +258,19 @@ fun GalleryViewerScreen(
                 onMove = { showMoveDialog = true },
                 onCrop = { onCrop(currentItem.id) },
                 onTrim = { onTrim(currentItem.id) },
-                onDelete = { showDeleteDialog = true },
+                onDelete = {
+                    // No confirmation: the item goes to the trash, the pager moves on to the next
+                    // one, and the snackbar offers the undo.
+                    val toTrash = listOf(currentItem)
+                    scope.launch {
+                        if (performTrashBatch(context, toTrash, requestConsent)) {
+                            GalleryRefresh.bump()
+                            showTrashedSnackbar(context, toTrash, requestConsent)
+                        } else {
+                            errorMessage = "Suppression impossible"
+                        }
+                    }
+                },
                 modifier = Modifier
                     .fillMaxWidth()
                     .onSizeChanged { bottomBarHeightPx = it.height }
@@ -301,25 +312,6 @@ fun GalleryViewerScreen(
             }
         )
     }
-
-    ShowAlertDialog(
-        show = showDeleteDialog,
-        onDismiss = { showDeleteDialog = false },
-        title = "Supprimer ce fichier ?",
-        onCancel = { showDeleteDialog = false },
-        onConfirm = {
-            showDeleteDialog = false
-            scope.launch {
-                val ok = performDelete(context, currentItem, requestConsent)
-                if (ok) {
-                    GalleryRefresh.bump()
-                    onBack()
-                } else {
-                    errorMessage = "Suppression impossible"
-                }
-            }
-        }
-    )
 
     errorMessage?.let { message ->
         ShowAlertDialog(
