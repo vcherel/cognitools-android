@@ -1,14 +1,18 @@
 package com.example.myapp.gallery
 
 import android.app.Activity
+import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.ContextWrapper
+import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.view.View
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.animation.core.Animatable
@@ -31,6 +35,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
@@ -42,6 +47,7 @@ import androidx.compose.material.icons.filled.Crop
 import androidx.compose.material.icons.filled.ContentCut
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -63,6 +69,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
@@ -71,6 +78,7 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
+import androidx.core.graphics.drawable.toBitmap
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.compose.ui.unit.dp
@@ -125,6 +133,7 @@ fun GalleryViewerScreen(
     var isZoomed by remember { mutableStateOf(false) }
     var showRenameDialog by remember { mutableStateOf(false) }
     var showMoveDialog by remember { mutableStateOf(false) }
+    var showShareDialog by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
     val currentItem = items.getOrNull(pagerState.currentPage.coerceIn(items.indices)) ?: items.first()
@@ -258,6 +267,7 @@ fun GalleryViewerScreen(
                 onMove = { showMoveDialog = true },
                 onCrop = { onCrop(currentItem.id) },
                 onTrim = { onTrim(currentItem.id) },
+                onShare = { showShareDialog = true },
                 onDelete = {
                     // No confirmation: the item goes to the trash, the pager moves on to the next
                     // one, and the snackbar offers the undo.
@@ -313,6 +323,14 @@ fun GalleryViewerScreen(
         )
     }
 
+    if (showShareDialog) {
+        ShareDialog(
+            item = currentItem,
+            onDismiss = { showShareDialog = false },
+            onError = { errorMessage = it }
+        )
+    }
+
     errorMessage?.let { message ->
         ShowAlertDialog(
             onDismiss = { errorMessage = null },
@@ -320,6 +338,106 @@ fun GalleryViewerScreen(
             onConfirm = { errorMessage = null }
         )
     }
+}
+
+// The only apps Valentin ever shares photos/videos to. Restricting to these instead of the
+// full system share sheet keeps the picker to a single tap on the app that's actually wanted.
+private data class ShareTarget(val packageName: String, val label: String)
+
+private val shareTargets = listOf(
+    ShareTarget("com.whatsapp", "WhatsApp"),
+    ShareTarget("com.beeper.android", "Beeper"),
+    ShareTarget("com.facebook.orca", "Messenger")
+)
+
+@Composable
+private fun ShareDialog(item: MediaItem, onDismiss: () -> Unit, onError: (String) -> Unit) {
+    val context = LocalContext.current
+    val packageManager = context.packageManager
+    val installedTargets = remember {
+        shareTargets.filter { target ->
+            try {
+                packageManager.getApplicationInfo(target.packageName, 0)
+                true
+            } catch (e: PackageManager.NameNotFoundException) {
+                false
+            }
+        }
+    }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(16.dp),
+            color = MaterialTheme.colorScheme.surface,
+            tonalElevation = 6.dp
+        ) {
+            Column(modifier = Modifier.fillMaxWidth().padding(20.dp)) {
+                Text("Partager", style = MaterialTheme.typography.titleMedium)
+                Spacer(Modifier.height(16.dp))
+                if (installedTargets.isEmpty()) {
+                    Text("Aucune application compatible installée")
+                } else {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceEvenly
+                    ) {
+                        installedTargets.forEach { target ->
+                            ShareTargetIcon(
+                                target = target,
+                                onClick = {
+                                    onDismiss()
+                                    try {
+                                        shareItemTo(context, item, target.packageName)
+                                    } catch (e: ActivityNotFoundException) {
+                                        onError("Partage impossible")
+                                    }
+                                }
+                            )
+                        }
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                    TextButton(onClick = onDismiss) { Text("Annuler") }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ShareTargetIcon(target: ShareTarget, onClick: () -> Unit) {
+    val context = LocalContext.current
+    val appIcon = remember(target.packageName) {
+        try {
+            context.packageManager.getApplicationIcon(target.packageName).toBitmap().asImageBitmap()
+        } catch (e: PackageManager.NameNotFoundException) {
+            null
+        }
+    }
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.clickable(onClick = onClick).padding(8.dp)
+    ) {
+        if (appIcon != null) {
+            Image(bitmap = appIcon, contentDescription = target.label, modifier = Modifier.size(48.dp))
+        }
+        Spacer(Modifier.height(4.dp))
+        Text(target.label, style = MaterialTheme.typography.labelSmall)
+    }
+}
+
+private fun shareItemTo(context: Context, item: MediaItem, packageName: String) {
+    val mimeType = item.mimeType.ifBlank {
+        if (item.type == MediaType.VIDEO) "video/*" else "image/*"
+    }
+    val intent = Intent(Intent.ACTION_SEND).apply {
+        type = mimeType
+        putExtra(Intent.EXTRA_STREAM, item.uri)
+        setPackage(packageName)
+        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    }
+    context.startActivity(intent)
 }
 
 private fun Context.findActivity(): Activity? {
@@ -453,6 +571,7 @@ private fun ViewerActionBar(
     onMove: () -> Unit,
     onCrop: () -> Unit,
     onTrim: () -> Unit,
+    onShare: () -> Unit,
     onDelete: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -464,6 +583,7 @@ private fun ViewerActionBar(
         ActionIcon(Icons.AutoMirrored.Filled.DriveFileMove, "Déplacer", onMove)
         if (item.type == MediaType.IMAGE) ActionIcon(Icons.Default.Crop, "Rogner", onCrop)
         if (item.type == MediaType.VIDEO) ActionIcon(Icons.Default.ContentCut, "Durée", onTrim)
+        ActionIcon(Icons.Default.Share, "Partager", onShare)
         ActionIcon(Icons.Default.Delete, "Supprimer", onDelete)
     }
 }
