@@ -11,13 +11,16 @@ import androidx.media3.datasource.cache.CacheWriter
 import androidx.media3.datasource.cache.ContentMetadata
 import androidx.media3.datasource.cache.NoOpCacheEvictor
 import androidx.media3.datasource.cache.SimpleCache
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -53,8 +56,8 @@ private data class OfflineSnapshot(val playlistId: String, val tracks: List<Deez
  * next to it, which is what makes the list browsable and playable while fully offline.
  *
  * Sync is incremental: only tracks missing from the cache are fetched, one at a time, and tracks
- * dropped from the playlist are deleted. Run it from [DeezerOfflineSyncService], not directly, so it
- * survives leaving the app.
+ * dropped from the playlist are deleted. Start it with [syncInBackground] on entering the tool: the
+ * check costs one playlist fetch and downloads nothing when the playlist has not moved.
  */
 class DeezerOfflineLibrary(private val appContext: Context, private val repo: DeezerRepository) {
 
@@ -78,7 +81,15 @@ class DeezerOfflineLibrary(private val appContext: Context, private val repo: De
 
     private val syncMutex = Mutex()
 
+    // Process lifetime, not screen lifetime: moving between the Deezer screens must not abort a download.
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
     @Volatile private var snapshot: OfflineSnapshot? = null
+
+    /** Fire and forget incremental sync. A no-op once the mirror matches the playlist. */
+    fun syncInBackground() {
+        scope.launch { sync() }
+    }
 
     /** The mirrored track list for [playlistId], or null if that is not the offline playlist. */
     fun tracksFor(playlistId: String): List<DeezerTrack>? =
