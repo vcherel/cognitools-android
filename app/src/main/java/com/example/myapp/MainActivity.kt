@@ -58,6 +58,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 
 val Context.themeDataStore by preferencesDataStore("theme_preferences")
 
@@ -352,16 +353,28 @@ fun MenuScreen(
                 onRightClick = { onNavigate("todoNote") }
             )
             Spacer(modifier = Modifier.height(spaceHeight))
+            var isShuffleLoading by remember { mutableStateOf(false) }
             SplitMyButton(
                 text = "Deezer",
                 rightIcon = Icons.Default.Shuffle,
                 height = buttonHeight,
+                rightLoading = isShuffleLoading,
                 onMainClick = { onNavigate("deezer") },
                 onRightClick = {
-                    val repo = (context.applicationContext as MyApplication).deezerRepository
-                    coroutineScope.launch {
-                        runCatching { repo.shuffleFavorites() }.onFailure {
-                            Toast.makeText(context, "Erreur: ${it.message}", Toast.LENGTH_SHORT).show()
+                    if (!isShuffleLoading) {
+                        val repo = (context.applicationContext as MyApplication).deezerRepository
+                        val previousSngId = repo.playerState.value.sngId
+                        isShuffleLoading = true
+                        coroutineScope.launch {
+                            runCatching {
+                                repo.shuffleFavorites()
+                                withTimeoutOrNull(15_000) {
+                                    repo.playerState.first { it.isPlaying && it.sngId != previousSngId }
+                                }
+                            }.onFailure {
+                                Toast.makeText(context, "Erreur: ${it.message}", Toast.LENGTH_SHORT).show()
+                            }
+                            isShuffleLoading = false
                         }
                     }
                 }

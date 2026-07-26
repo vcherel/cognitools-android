@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
@@ -150,6 +151,7 @@ fun SplitMyButton(
     rightIcon: ImageVector,
     modifier: Modifier = Modifier,
     height: Dp = 90.dp,
+    rightLoading: Boolean = false,
     onMainClick: () -> Unit,
     onRightClick: () -> Unit
 ) {
@@ -175,12 +177,20 @@ fun SplitMyButton(
             height = height,
             onClick = onRightClick
         ) { textColor ->
-            Icon(
-                imageVector = rightIcon,
-                contentDescription = null,
-                tint = textColor,
-                modifier = Modifier.size(32.dp)
-            )
+            if (rightLoading) {
+                CircularProgressIndicator(
+                    color = textColor,
+                    strokeWidth = 3.dp,
+                    modifier = Modifier.size(28.dp)
+                )
+            } else {
+                Icon(
+                    imageVector = rightIcon,
+                    contentDescription = null,
+                    tint = textColor,
+                    modifier = Modifier.size(32.dp)
+                )
+            }
         }
     }
 }
