@@ -23,7 +23,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.CloudDone
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.Diamond
 import androidx.compose.material.icons.filled.Favorite
@@ -50,7 +49,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
@@ -66,7 +64,6 @@ fun DeezerLibraryScreen(
     onOpenPlaylist: (DeezerPlaylist) -> Unit
 ) {
     val scope = rememberCoroutineScope()
-    val context = LocalContext.current
     val favorites by repo.favorites.collectAsState()
     val playlists by repo.playlists.collectAsState()
     val offlineState by repo.offline.state.collectAsState()
@@ -77,7 +74,7 @@ fun DeezerLibraryScreen(
         if (!repo.hasArl()) { showSettings = true; return@LaunchedEffect }
         runCatching { repo.ensureLibrary() }.onFailure { error = it.message }
         // Incremental: after the first run this downloads only what was added to Best pépites since.
-        DeezerOfflineSyncService.start(context)
+        repo.offline.syncInBackground()
     }
 
     Column(Modifier.fillMaxSize()) {
@@ -139,9 +136,7 @@ fun DeezerLibraryScreen(
                 }
             }
 
-            Spacer(Modifier.height(16.dp))
-            SectionHeader(title = "Hors ligne", onSeeAll = null)
-            OfflineCard(state = offlineState, onSync = { DeezerOfflineSyncService.start(context) })
+            OfflineStatusLine(offlineState)
             Spacer(Modifier.height(16.dp))
         }
     }
@@ -206,59 +201,36 @@ private fun FavoritesCard(count: Int?, onShuffle: () -> Unit) {
 }
 
 /**
- * Best pépites mirror status: how many of its tracks are on the phone and how much space they take.
- * Tapping re-runs the sync, which is also started automatically on entering the tool.
+ * Best pépites offline mirror, shown only when it has something to say: while tracks are actually
+ * downloading, or after a failure. An up to date mirror renders nothing, the sync being automatic.
  */
 @Composable
-private fun OfflineCard(state: OfflineState, onSync: () -> Unit) {
-    val complete = state.total > 0 && state.downloaded == state.total
-    Column(
-        Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant)
-            .clickable(enabled = !state.syncing, onClick = onSync)
-            .padding(16.dp)
-    ) {
+private fun OfflineStatusLine(state: OfflineState) {
+    val downloading = state.syncing && state.total > 0 && state.downloaded < state.total
+    if (!downloading && state.error == null) return
+
+    Column(Modifier.fillMaxWidth().padding(top = 12.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(
-                if (complete) Icons.Filled.CloudDone else Icons.Filled.CloudDownload,
+                Icons.Filled.CloudDownload,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(16.dp)
             )
-            Spacer(Modifier.width(12.dp))
-            Column(Modifier.weight(1f)) {
-                Text("Best pépites", style = MaterialTheme.typography.bodyLarge)
-                Text(
-                    when {
-                        state.total == 0 && state.syncing -> "Vérification…"
-                        state.total == 0 -> "Aucun titre synchronisé"
-                        else -> "${state.downloaded}/${state.total} titres · ${formatSize(state.bytes)}"
-                    },
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            if (!state.syncing) {
-                Text("Synchroniser", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
-            }
+            Spacer(Modifier.width(8.dp))
+            Text(
+                if (downloading) "Best pépites · ${state.downloaded}/${state.total}" else state.error!!,
+                style = MaterialTheme.typography.bodySmall,
+                color = if (downloading) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.error
+            )
         }
-        if (state.syncing && state.total > 0) {
+        if (downloading) {
             LinearProgressIndicator(
                 progress = { state.downloaded.toFloat() / state.total },
-                modifier = Modifier.fillMaxWidth().padding(top = 10.dp)
+                modifier = Modifier.fillMaxWidth().padding(top = 6.dp).height(2.dp)
             )
         }
-        state.error?.let {
-            Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 6.dp))
-        }
     }
-}
-
-private fun formatSize(bytes: Long): String = when {
-    bytes >= 1024L * 1024 * 1024 -> "%.1f Go".format(bytes / (1024.0 * 1024 * 1024))
-    else -> "${bytes / (1024 * 1024)} Mo"
 }
 
 @Composable
