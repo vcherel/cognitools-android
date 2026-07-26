@@ -43,10 +43,18 @@ class DeezerPlaybackService : MediaSessionService() {
         super.onCreate()
         repo = (application as MyApplication).deezerRepository
 
-        // dzr:// URIs -> DeezerDataSource (resolve CDN + decrypt on the fly) -> CacheDataSource (disk cache).
-        val cacheFactory = CacheDataSource.Factory()
+        // Read order: offline mirror -> LRU stream cache -> DeezerDataSource (resolve CDN + decrypt).
+        // A track downloaded by DeezerOfflineLibrary is therefore served from disk with no network at
+        // all. The offline layer is read-only here: only the sync writes into it, so ordinary playback
+        // can't fill the uncapped store with tracks nobody asked to keep.
+        val streamFactory = CacheDataSource.Factory()
             .setCache(repo.streamCache)
             .setUpstreamDataSourceFactory(DeezerDataSource.Factory(repo))
+            .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
+        val cacheFactory = CacheDataSource.Factory()
+            .setCache(repo.offline.cache)
+            .setUpstreamDataSourceFactory(streamFactory)
+            .setCacheWriteDataSinkFactory(null)
             .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
 
         val player = ExoPlayer.Builder(this)

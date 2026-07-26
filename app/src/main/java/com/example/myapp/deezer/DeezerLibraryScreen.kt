@@ -23,6 +23,8 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.CloudDone
+import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.Diamond
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
@@ -34,6 +36,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -47,6 +50,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
@@ -62,14 +66,18 @@ fun DeezerLibraryScreen(
     onOpenPlaylist: (DeezerPlaylist) -> Unit
 ) {
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
     val favorites by repo.favorites.collectAsState()
     val playlists by repo.playlists.collectAsState()
+    val offlineState by repo.offline.state.collectAsState()
     var error by remember { mutableStateOf<String?>(null) }
     var showSettings by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         if (!repo.hasArl()) { showSettings = true; return@LaunchedEffect }
         runCatching { repo.ensureLibrary() }.onFailure { error = it.message }
+        // Incremental: after the first run this downloads only what was added to Best pépites since.
+        DeezerOfflineSyncService.start(context)
     }
 
     Column(Modifier.fillMaxSize()) {
@@ -130,6 +138,10 @@ fun DeezerLibraryScreen(
                     }
                 }
             }
+
+            Spacer(Modifier.height(16.dp))
+            SectionHeader(title = "Hors ligne", onSeeAll = null)
+            OfflineCard(state = offlineState, onSync = { DeezerOfflineSyncService.start(context) })
             Spacer(Modifier.height(16.dp))
         }
     }
@@ -191,6 +203,62 @@ private fun FavoritesCard(count: Int?, onShuffle: () -> Unit) {
         Spacer(Modifier.width(6.dp))
         Text("Aléatoire", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
     }
+}
+
+/**
+ * Best pépites mirror status: how many of its tracks are on the phone and how much space they take.
+ * Tapping re-runs the sync, which is also started automatically on entering the tool.
+ */
+@Composable
+private fun OfflineCard(state: OfflineState, onSync: () -> Unit) {
+    val complete = state.total > 0 && state.downloaded == state.total
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .clickable(enabled = !state.syncing, onClick = onSync)
+            .padding(16.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                if (complete) Icons.Filled.CloudDone else Icons.Filled.CloudDownload,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary
+            )
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text("Best pépites", style = MaterialTheme.typography.bodyLarge)
+                Text(
+                    when {
+                        state.total == 0 && state.syncing -> "Vérification…"
+                        state.total == 0 -> "Aucun titre synchronisé"
+                        else -> "${state.downloaded}/${state.total} titres · ${formatSize(state.bytes)}"
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            if (!state.syncing) {
+                Text("Synchroniser", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
+            }
+        }
+        if (state.syncing && state.total > 0) {
+            LinearProgressIndicator(
+                progress = { state.downloaded.toFloat() / state.total },
+                modifier = Modifier.fillMaxWidth().padding(top = 10.dp)
+            )
+        }
+        state.error?.let {
+            Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 6.dp))
+        }
+    }
+}
+
+private fun formatSize(bytes: Long): String = when {
+    bytes >= 1024L * 1024 * 1024 -> "%.1f Go".format(bytes / (1024.0 * 1024 * 1024))
+    else -> "${bytes / (1024 * 1024)} Mo"
 }
 
 @Composable
