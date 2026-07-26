@@ -280,6 +280,17 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
         saveContent(lines.joinToString("\n"))
     }
 
+    // Drops a checkbox line's trailing "(jour)"/"(date)" waiting suffix, once its day
+    // or date has come and the item moves out of the waiting zone into the active list
+    fun removeLineDateSuffix(index: Int) {
+        val lines = textFieldState.text.toString().split("\n").toMutableList()
+        val line = lines[index]
+        if (!line.isCheckboxLine()) return
+        val prefix = if (line.isCheckedLine()) CHECKED_PREFIX else UNCHECKED_PREFIX
+        lines[index] = prefix + line.checkboxText().withoutDateSuffix()
+        saveContent(lines.joinToString("\n"))
+    }
+
     fun toggleLine(index: Int) {
         val lines = textFieldState.text.toString().split("\n").toMutableList()
         val line = lines[index]
@@ -1105,6 +1116,7 @@ fun NoteEditorScreen(noteId: String, onBack: () -> Unit) {
                     onMoveToCourses = { moveLineToCourses(it) },
                     onChangeQuantity = { index, delta -> changeLineQuantity(index, delta) },
                     onAdvanceMuscu = { advanceMuscuLineDay(it) },
+                    onRemoveDateSuffix = { removeLineDateSuffix(it) },
                     onToggleLineMarker = { index, marker -> toggleLineMarker(index, marker) },
                     onEnterEditAt = { enterEditAt(it) }
                 )

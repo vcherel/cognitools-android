@@ -20,6 +20,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.EventBusy
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.FormatBold
 import androidx.compose.material.icons.filled.FormatItalic
@@ -63,6 +64,7 @@ fun NoteViewMode(
     onMoveToCourses: (Int) -> Unit,
     onChangeQuantity: (Int, Int) -> Unit,
     onAdvanceMuscu: (Int) -> Unit,
+    onRemoveDateSuffix: (Int) -> Unit,
     onToggleLineMarker: (Int, String) -> Unit,
     onEnterEditAt: (Int) -> Unit
 ) {
@@ -179,6 +181,7 @@ fun NoteViewMode(
                     onMoveToCourses = { onMoveToCourses(lineIndex) },
                     onChangeQuantity = { delta -> onChangeQuantity(lineIndex, delta) },
                     onAdvanceMuscu = { onAdvanceMuscu(lineIndex) },
+                    onRemoveDateSuffix = { onRemoveDateSuffix(lineIndex) },
                     onToggleLineMarker = { marker -> onToggleLineMarker(lineIndex, marker) },
                     onEnterEditAt = onEnterEditAt
                 )
@@ -213,6 +216,7 @@ private fun NoteLine(
     onMoveToCourses: () -> Unit,
     onChangeQuantity: (Int) -> Unit,
     onAdvanceMuscu: () -> Unit,
+    onRemoveDateSuffix: () -> Unit,
     onToggleLineMarker: (String) -> Unit,
     onEnterEditAt: (Int) -> Unit
 ) {
@@ -349,6 +353,17 @@ private fun NoteLine(
                         Icon(
                             Icons.Default.FitnessCenter,
                             contentDescription = "Jour suivant",
+                            tint = Color.Gray
+                        )
+                    }
+                } else if (isTodoListNote && line.checkboxText().hasDateSuffix()) {
+                    IconButton(
+                        onClick = onRemoveDateSuffix,
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.EventBusy,
+                            contentDescription = "Retirer la date",
                             tint = Color.Gray
                         )
                     }
