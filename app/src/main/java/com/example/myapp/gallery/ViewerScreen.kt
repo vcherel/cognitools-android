@@ -47,8 +47,14 @@ import androidx.compose.material.icons.filled.Crop
 import androidx.compose.material.icons.filled.ContentCut
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -87,16 +93,24 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.runtime.DisposableEffect
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
+import com.example.myapp.AppSnackbar
 import com.example.myapp.ScreenTopBar
 import com.example.myapp.ShowAlertDialog
+import com.example.myapp.flashcards.AppDatabase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import androidx.media3.common.MediaItem as Media3Item
 
+// Where GalleryViewerScreen gets its items from: a normal album, or the pinned set (hero first).
+sealed interface ViewerSource {
+    data class Album(val bucketId: Long) : ViewerSource
+    data object Pinned : ViewerSource
+}
+
 @Composable
 fun GalleryViewerScreen(
-    bucketId: Long,
+    source: ViewerSource,
     initialItemId: Long,
     onBack: () -> Unit,
     onCrop: (Long) -> Unit,
@@ -108,26 +122,52 @@ fun GalleryViewerScreen(
     var items by remember { mutableStateOf<List<MediaItem>>(emptyList()) }
     var loaded by remember { mutableStateOf(false) }
     val refreshVersion by GalleryRefresh.version.collectAsState()
+    val pinDao = remember { AppDatabase.get(context).pinnedMediaItemDao() }
+    // Null until the Room Flow's first real emission arrives: collectAsState's own initial value
+    // (an empty list) is indistinguishable from "really no pins", which would otherwise bounce a
+    // Pinned-source viewer straight back out before the actual pins ever get read.
+    val pinnedRowsState by pinDao.observePinned().collectAsState(initial = null)
+    val pinnedRows = pinnedRowsState ?: emptyList()
+    val pinnedIds = remember(pinnedRows) { pinnedRows.map { it.mediaItemId }.toSet() }
+    val heroId = remember(pinnedRows) { orderedPinnedIds(pinnedRows).firstOrNull() }
 
-    LaunchedEffect(bucketId, refreshVersion) {
-        items = withContext(Dispatchers.IO) { queryMediaItems(context, bucketId = bucketId) }
+    LaunchedEffect(source, refreshVersion, pinnedRowsState) {
+        if (source is ViewerSource.Pinned && pinnedRowsState == null) return@LaunchedEffect
+        items = when (source) {
+            is ViewerSource.Album -> withContext(Dispatchers.IO) { queryMediaItems(context, bucketId = source.bucketId) }
+            ViewerSource.Pinned -> resolvedPinnedMediaItems(context, pinnedRows)
+        }
         loaded = true
     }
 
-    BackHandler { onBack() }
+    // Several things independently decide "nothing left to show here, leave": the trash/move/unpin
+    // handlers below splice their item out locally and go straight back, and the resulting
+    // refreshVersion/pinnedRows bump then also retriggers the loader above with an empty result,
+    // which would otherwise ask to leave a second time. Guarding onBack to fire once keeps a
+    // straggling second call from popping past the screen it already returned to.
+    var hasLeft by remember { mutableStateOf(false) }
+    val leave: () -> Unit = {
+        if (!hasLeft) {
+            hasLeft = true
+            onBack()
+        }
+    }
+
+    BackHandler { leave() }
 
     if (!loaded) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
         return
     }
     if (items.isEmpty()) {
-        // Everything in this album was deleted or moved away: nothing left to show.
-        LaunchedEffect(Unit) { onBack() }
+        // Everything in this album was deleted or moved away, or every pin was removed: nothing
+        // left to show.
+        LaunchedEffect(Unit) { leave() }
         return
     }
 
-    val initialIndex = remember(bucketId) {
-        items.indexOfFirst { it.id == initialItemId }.coerceAtLeast(0)
+    val initialIndex = remember(source) {
+        if (source is ViewerSource.Pinned) 0 else items.indexOfFirst { it.id == initialItemId }.coerceAtLeast(0)
     }
     val pagerState = rememberPagerState(initialPage = initialIndex) { items.size }
     var isZoomed by remember { mutableStateOf(false) }
@@ -193,7 +233,7 @@ fun GalleryViewerScreen(
                     if (isZoomed) return@pointerInput
                     detectVerticalDragGestures(
                         onDragEnd = {
-                            if (dismissOffset.value > 220f) onBack()
+                            if (dismissOffset.value > 220f) leave()
                             else scope.launch { dismissOffset.animateTo(0f) }
                         },
                         onDragCancel = { scope.launch { dismissOffset.animateTo(0f) } },
@@ -263,10 +303,43 @@ fun GalleryViewerScreen(
         ) {
             ViewerActionBar(
                 item = currentItem,
+                isPinned = currentItem.id in pinnedIds,
+                isHero = currentItem.id == heroId,
                 onRename = { showRenameDialog = true },
                 onMove = { showMoveDialog = true },
                 onCrop = { onCrop(currentItem.id) },
                 onTrim = { onTrim(currentItem.id) },
+                onTogglePin = {
+                    val id = currentItem.id
+                    val wasPinned = id in pinnedIds
+                    scope.launch {
+                        if (wasPinned) {
+                            unpinItem(context, id)
+                            // Browsing the pinned pager itself: splice the now unpinned item out
+                            // locally right away instead of waiting on the Room Flow update, same
+                            // reasoning as the delete flow below.
+                            if (source is ViewerSource.Pinned) {
+                                val removedIndex = items.indexOfFirst { it.id == id }
+                                val remaining = items.filterNot { it.id == id }
+                                items = remaining
+                                if (remaining.isEmpty()) {
+                                    leave()
+                                } else {
+                                    pagerState.scrollToPage(removedIndex.coerceIn(0, remaining.size - 1))
+                                }
+                            }
+                        } else {
+                            pinItems(context, listOf(id))
+                        }
+                    }
+                },
+                onSetHero = {
+                    val id = currentItem.id
+                    scope.launch {
+                        setHero(context, id)
+                        AppSnackbar.show("Photo mise en avant")
+                    }
+                },
                 onShare = { showShareDialog = true },
                 onDelete = {
                     // No confirmation: the item goes to the trash, the pager moves on to the next
@@ -281,7 +354,7 @@ fun GalleryViewerScreen(
                             val remaining = items.filterNot { it.id == currentItem.id }
                             items = remaining
                             if (remaining.isEmpty()) {
-                                onBack()
+                                leave()
                             } else {
                                 pagerState.scrollToPage(deletedIndex.coerceIn(0, remaining.size - 1))
                             }
@@ -317,7 +390,7 @@ fun GalleryViewerScreen(
 
     if (showMoveDialog) {
         MoveDialog(
-            currentBucketId = bucketId,
+            currentBucketId = (source as? ViewerSource.Album)?.bucketId ?: -1L,
             onDismiss = { showMoveDialog = false },
             onConfirm = { targetRelativePath ->
                 showMoveDialog = false
@@ -325,7 +398,7 @@ fun GalleryViewerScreen(
                     val ok = performMove(context, currentItem, targetRelativePath, requestConsent)
                     if (ok) {
                         GalleryRefresh.bump()
-                        onBack()
+                        leave()
                     } else {
                         errorMessage = "Déplacement impossible"
                     }
@@ -578,23 +651,64 @@ private fun VideoPlayer(
 @Composable
 private fun ViewerActionBar(
     item: MediaItem,
+    isPinned: Boolean,
+    isHero: Boolean,
     onRename: () -> Unit,
     onMove: () -> Unit,
     onCrop: () -> Unit,
     onTrim: () -> Unit,
+    onTogglePin: () -> Unit,
+    onSetHero: () -> Unit,
     onShare: () -> Unit,
     onDelete: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var showMoreMenu by remember { mutableStateOf(false) }
+
     Row(
         modifier = modifier.fillMaxWidth().padding(top = 4.dp),
         horizontalArrangement = Arrangement.SpaceEvenly
     ) {
         ActionIcon(Icons.Default.Edit, "Renommer", onRename)
         ActionIcon(Icons.AutoMirrored.Filled.DriveFileMove, "Déplacer", onMove)
-        if (item.type == MediaType.IMAGE) ActionIcon(Icons.Default.Crop, "Rogner", onCrop)
-        if (item.type == MediaType.VIDEO) ActionIcon(Icons.Default.ContentCut, "Durée", onTrim)
-        ActionIcon(Icons.Default.Share, "Partager", onShare)
+        Box {
+            ActionIcon(Icons.Default.MoreVert, "Plus") { showMoreMenu = true }
+            DropdownMenu(expanded = showMoreMenu, onDismissRequest = { showMoreMenu = false }) {
+                DropdownMenuItem(
+                    text = { Text("Partager") },
+                    leadingIcon = { Icon(Icons.Default.Share, contentDescription = null) },
+                    onClick = { showMoreMenu = false; onShare() }
+                )
+                DropdownMenuItem(
+                    text = { Text(if (isPinned) "Désépingler" else "Épingler") },
+                    leadingIcon = {
+                        Icon(if (isPinned) Icons.Default.PushPin else Icons.Outlined.PushPin, contentDescription = null)
+                    },
+                    onClick = { showMoreMenu = false; onTogglePin() }
+                )
+                if (isPinned && !isHero) {
+                    DropdownMenuItem(
+                        text = { Text("Mettre en avant") },
+                        leadingIcon = { Icon(Icons.Default.Star, contentDescription = null) },
+                        onClick = { showMoreMenu = false; onSetHero() }
+                    )
+                }
+                if (item.type == MediaType.IMAGE) {
+                    DropdownMenuItem(
+                        text = { Text("Rogner") },
+                        leadingIcon = { Icon(Icons.Default.Crop, contentDescription = null) },
+                        onClick = { showMoreMenu = false; onCrop() }
+                    )
+                }
+                if (item.type == MediaType.VIDEO) {
+                    DropdownMenuItem(
+                        text = { Text("Durée") },
+                        leadingIcon = { Icon(Icons.Default.ContentCut, contentDescription = null) },
+                        onClick = { showMoreMenu = false; onTrim() }
+                    )
+                }
+            }
+        }
         ActionIcon(Icons.Default.Delete, "Supprimer", onDelete)
     }
 }

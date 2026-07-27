@@ -9,6 +9,8 @@ import androidx.room.RoomDatabase
 import androidx.room.Upsert
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
+import com.example.myapp.gallery.PinnedMediaItem
+import com.example.myapp.gallery.PinnedMediaItemDao
 import com.example.myapp.notes.Note
 import com.example.myapp.notes.NoteDao
 import kotlinx.coroutines.flow.Flow
@@ -68,10 +70,14 @@ interface FlashcardDao {
     suspend fun purgeMasteredCards(maxInterval: Int, keepListIds: List<String>)
 }
 
-@Database(entities = [FlashcardList::class, FlashcardElement::class, Note::class], version = 6)
+@Database(
+    entities = [FlashcardList::class, FlashcardElement::class, Note::class, PinnedMediaItem::class],
+    version = 7
+)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun flashcardDao(): FlashcardDao
     abstract fun noteDao(): NoteDao
+    abstract fun pinnedMediaItemDao(): PinnedMediaItemDao
 
     companion object {
         @Volatile private var instance: AppDatabase? = null
@@ -112,13 +118,27 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_6_7 = object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `pinned_media_items` (" +
+                        "`mediaItemId` INTEGER NOT NULL, " +
+                        "`pinnedAt` INTEGER NOT NULL, " +
+                        "`isHero` INTEGER NOT NULL DEFAULT 0, " +
+                        "PRIMARY KEY(`mediaItemId`))"
+                )
+            }
+        }
+
         fun get(context: Context): AppDatabase =
             instance ?: synchronized(this) {
                 instance ?: Room.databaseBuilder(
                     context.applicationContext,
                     AppDatabase::class.java,
                     "flashcards.db"
-                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
+                ).addMigrations(
+                    MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7
+                )
                     .build().also { instance = it }
             }
     }
