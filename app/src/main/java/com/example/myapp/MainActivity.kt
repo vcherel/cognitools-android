@@ -43,6 +43,7 @@ import com.example.myapp.gallery.GalleryTrashScreen
 import com.example.myapp.gallery.GalleryTrimScreen
 import com.example.myapp.gallery.GalleryViewerScreen
 import com.example.myapp.gallery.LocalMediaConsent
+import com.example.myapp.gallery.ViewerSource
 import com.example.myapp.gallery.rememberIntentSenderRequester
 import com.example.myapp.notes.NoteEditorScreen
 import com.example.myapp.notes.NotesListScreen
@@ -52,6 +53,7 @@ import android.content.Context
 import android.widget.Toast
 import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Shuffle
 import com.example.myapp.flashcards.AppDatabase
 import com.example.myapp.notes.noteTitleAndPreview
@@ -200,6 +202,7 @@ fun MainScreen(themeManager: ThemeManager, isDarkMode: Boolean) {
                                         navController.navigate("lists")
                                         navController.navigate("game/all")
                                     }
+                                    "galleryPinned" -> navController.navigate("gallery/pinned")
                                     "todoNote" -> coroutineScope.launch {
                                         val todo = AppDatabase.get(context).noteDao().getNotes()
                                             .firstOrNull {
@@ -240,7 +243,8 @@ fun MainScreen(themeManager: ThemeManager, isDarkMode: Boolean) {
                         GalleryAlbumsScreen(
                             onBack = { navController.popBackStack() },
                             onOpenAlbum = { bucketId -> navController.navigate("gallery/album/$bucketId") },
-                            onOpenTrash = { navController.navigate("gallery/trash") }
+                            onOpenTrash = { navController.navigate("gallery/trash") },
+                            onOpenPinned = { navController.navigate("gallery/pinned") }
                         )
                     }
                     composable("gallery/trash") {
@@ -258,8 +262,17 @@ fun MainScreen(themeManager: ThemeManager, isDarkMode: Boolean) {
                         val bucketId = backStackEntry.arguments?.getString("bucketId")?.toLongOrNull() ?: 0L
                         val itemId = backStackEntry.arguments?.getString("itemId")?.toLongOrNull() ?: 0L
                         GalleryViewerScreen(
-                            bucketId = bucketId,
+                            source = ViewerSource.Album(bucketId),
                             initialItemId = itemId,
+                            onBack = { navController.popBackStack() },
+                            onCrop = { id -> navController.navigate("gallery/crop/$id") },
+                            onTrim = { id -> navController.navigate("gallery/trim/$id") }
+                        )
+                    }
+                    composable("gallery/pinned") {
+                        GalleryViewerScreen(
+                            source = ViewerSource.Pinned,
+                            initialItemId = -1L,
                             onBack = { navController.popBackStack() },
                             onCrop = { id -> navController.navigate("gallery/crop/$id") },
                             onTrim = { id -> navController.navigate("gallery/trim/$id") }
@@ -406,7 +419,16 @@ fun MenuScreen(
                 MyButton(text = "Wiki", modifier = Modifier.weight(1f), height = buttonHeight) { onNavigate("wikipedia") }
             }
             Spacer(modifier = Modifier.height(spaceHeight))
-            MyButton(text = "Galerie", height = buttonHeight) { onNavigate("gallery") }
+            val pinDao = remember { AppDatabase.get(context).pinnedMediaItemDao() }
+            val pinnedRows by pinDao.observePinned().collectAsState(initial = emptyList())
+            SplitMyButton(
+                text = "Galerie",
+                rightIcon = Icons.Default.PushPin,
+                height = buttonHeight,
+                rightEnabled = pinnedRows.isNotEmpty(),
+                onMainClick = { onNavigate("gallery") },
+                onRightClick = { onNavigate("galleryPinned") }
+            )
         }
 
         IconButton(

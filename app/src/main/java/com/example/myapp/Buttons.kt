@@ -152,6 +152,7 @@ fun SplitMyButton(
     modifier: Modifier = Modifier,
     height: Dp = 90.dp,
     rightLoading: Boolean = false,
+    rightEnabled: Boolean = true,
     onMainClick: () -> Unit,
     onRightClick: () -> Unit
 ) {
@@ -175,6 +176,7 @@ fun SplitMyButton(
         SplitButtonHalf(
             modifier = Modifier.width(80.dp),
             height = height,
+            enabled = rightEnabled,
             onClick = onRightClick
         ) { textColor ->
             if (rightLoading) {
@@ -199,25 +201,26 @@ fun SplitMyButton(
 private fun SplitButtonHalf(
     modifier: Modifier = Modifier,
     height: Dp = 90.dp,
+    enabled: Boolean = true,
     onClick: () -> Unit,
     content: @Composable (textColor: Color) -> Unit
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     val isDarkMode = LocalIsDarkMode.current
-    val style = remember(isPressed, isDarkMode) {
-        buttonStyle(isPressed, enabled = true, isDarkMode = isDarkMode)
+    val style = remember(isPressed, enabled, isDarkMode) {
+        buttonStyle(isPressed, enabled = enabled, isDarkMode = isDarkMode)
     }
 
     RaisedSurface(
         style = style,
         isPressed = isPressed,
         modifier = modifier.height(height),
-        clickModifier = Modifier.clickable(
+        clickModifier = if (enabled) Modifier.clickable(
             interactionSource = interactionSource,
             indication = null,
             onClick = onClick
-        )
+        ) else Modifier
     ) {
         content(style.text)
     }

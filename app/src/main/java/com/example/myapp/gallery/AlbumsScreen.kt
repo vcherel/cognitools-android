@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -43,17 +44,27 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.myapp.MyButton
 import com.example.myapp.ScreenTopBar
+import com.example.myapp.flashcards.AppDatabase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 @Composable
-fun GalleryAlbumsScreen(onBack: () -> Unit, onOpenAlbum: (Long) -> Unit, onOpenTrash: () -> Unit) {
+fun GalleryAlbumsScreen(
+    onBack: () -> Unit,
+    onOpenAlbum: (Long) -> Unit,
+    onOpenTrash: () -> Unit,
+    onOpenPinned: () -> Unit
+) {
     val context = LocalContext.current
     var hasPermission by remember { mutableStateOf(hasReadMediaPermission(context)) }
     var hasAllFiles by remember { mutableStateOf(hasAllFilesAccess()) }
     var albums by remember { mutableStateOf<List<Album>?>(null) }
     var trashCount by remember { mutableStateOf(0) }
     val refreshVersion by GalleryRefresh.version.collectAsState()
+    val pinDao = remember { AppDatabase.get(context).pinnedMediaItemDao() }
+    val pinnedRows by pinDao.observePinned().collectAsState(initial = emptyList())
+    var heroItem by remember { mutableStateOf<MediaItem?>(null) }
+    var pinnedCount by remember { mutableStateOf(0) }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -72,6 +83,14 @@ fun GalleryAlbumsScreen(onBack: () -> Unit, onOpenAlbum: (Long) -> Unit, onOpenT
         }
     }
 
+    LaunchedEffect(hasPermission, pinnedRows) {
+        if (hasPermission) {
+            val resolved = resolvedPinnedMediaItems(context, pinnedRows)
+            heroItem = resolved.firstOrNull()
+            pinnedCount = resolved.size
+        }
+    }
+
     BackHandler { onBack() }
 
     Column(modifier = Modifier.fillMaxSize()) {
@@ -79,6 +98,15 @@ fun GalleryAlbumsScreen(onBack: () -> Unit, onOpenAlbum: (Long) -> Unit, onOpenT
 
         if (hasPermission && !hasAllFiles) {
             AllFilesAccessBanner(onGrant = requestAllFiles)
+        }
+
+        heroItem?.let { item ->
+            PinnedHeroCard(
+                item = item,
+                pinnedCount = pinnedCount,
+                onClick = onOpenPinned,
+                modifier = Modifier.padding(horizontal = 16.dp).padding(bottom = 12.dp)
+            )
         }
 
         when {
@@ -173,6 +201,38 @@ private fun TrashCard(itemCount: Int, onClick: () -> Unit) {
             style = MaterialTheme.typography.bodySmall,
             color = Color.Gray
         )
+    }
+}
+
+// The big hero picture at the top: the first pinned picture (or whichever was manually promoted),
+// sized to be quickly tappable without dominating the album list below it.
+@Composable
+private fun PinnedHeroCard(item: MediaItem, pinnedCount: Int, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(220.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .clickable(onClick = onClick)
+    ) {
+        GalleryAsyncImage(
+            uri = item.uri,
+            dateModified = item.dateModified,
+            contentDescription = item.displayName,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize()
+        )
+        if (pinnedCount > 1) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(8.dp)
+                    .background(Color.Black.copy(alpha = 0.55f), RoundedCornerShape(50))
+                    .padding(horizontal = 10.dp, vertical = 4.dp)
+            ) {
+                Text(pinnedCount.toString(), color = Color.White, style = MaterialTheme.typography.labelMedium)
+            }
+        }
     }
 }
 

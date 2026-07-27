@@ -63,6 +63,10 @@ fun queryAlbums(context: Context): List<Album> {
 fun queryMediaItemById(context: Context, id: Long): MediaItem? =
     queryMediaItems(context, itemId = id).firstOrNull()
 
+/** Looks up several items by id in one query. Order is not guaranteed; sort the result yourself. */
+fun queryMediaItemsByIds(context: Context, ids: List<Long>): List<MediaItem> =
+    if (ids.isEmpty()) emptyList() else queryMediaItems(context, itemIds = ids)
+
 /** The trashed items, most recently trashed first. Empty below API 30, where there is no trash. */
 fun queryTrashedItems(context: Context): List<MediaItem> =
     if (trashSupported()) queryMediaItems(context, trashedOnly = true) else emptyList()
@@ -71,6 +75,7 @@ fun queryMediaItems(
     context: Context,
     bucketId: Long? = null,
     itemId: Long? = null,
+    itemIds: List<Long>? = null,
     trashedOnly: Boolean = false
 ): List<MediaItem> {
     val collection = MediaStore.Files.getContentUri("external")
@@ -78,12 +83,16 @@ fun queryMediaItems(
         append("(${MediaStore.Files.FileColumns.MEDIA_TYPE} = ? OR ${MediaStore.Files.FileColumns.MEDIA_TYPE} = ?)")
         if (bucketId != null) append(" AND ${MediaStore.Files.FileColumns.BUCKET_ID} = ?")
         if (itemId != null) append(" AND ${MediaStore.Files.FileColumns._ID} = ?")
+        if (itemIds != null) {
+            append(" AND ${MediaStore.Files.FileColumns._ID} IN (${itemIds.joinToString(",") { "?" }})")
+        }
     }
     val args = buildList {
         add(MediaStore.Files.FileColumns.MEDIA_TYPE_IMAGE.toString())
         add(MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO.toString())
         if (bucketId != null) add(bucketId.toString())
         if (itemId != null) add(itemId.toString())
+        if (itemIds != null) addAll(itemIds.map { it.toString() })
     }.toTypedArray()
     // Trashed rows are excluded from a plain query, so listing them takes the Bundle form with
     // MATCH_ONLY; the newest ones expire last, hence the DATE_EXPIRES sort.

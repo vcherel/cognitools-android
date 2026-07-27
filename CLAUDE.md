@@ -73,9 +73,10 @@ Root package (shared/misc):
 - `GalleryRefresh.kt`: global refresh counter the screens observe after a write
 - `TrashScreen.kt`: the trashed items grid (restore, delete for good) and showTrashedSnackbar
 - `GalleryImage.kt`: GalleryAsyncImage, the Coil loader with a dateModified aware cache key
-- `AlbumsScreen.kt`: album list
+- `AlbumsScreen.kt`: album list, plus the pinned-picture hero card at the top
 - `AlbumGridScreen.kt`: thumbnail grid, multi-select with drag, batch actions
-- `ViewerScreen.kt`: full screen pager, image zoom and video playback, per-item tools
+- `ViewerScreen.kt`: full screen pager (ViewerSource: an album or the pinned set), image zoom and video playback, per-item tools including pin/unpin and set-as-hero
+- `GalleryPins.kt`: PinnedMediaItem Room entity/DAO and pin/unpin/setHero/resolve helpers
 - `CropScreen.kt`: image crop editor
 - `TrimScreen.kt`: video trim editor
 
@@ -106,7 +107,7 @@ Root package (shared/misc):
 ## Cross-cutting things, and where they actually live
 The map above is by feature. These are the ones you won't find by feature name:
 
-- **Room**: one database for the whole app, declared in `flashcards/Database.kt` (version 6). The notes `Note` entity is registered there too, and `NoteDao` sits in `notes/Models.kt`, not in a Database file.
+- **Room**: one database for the whole app, declared in `flashcards/Database.kt` (version 7). The notes `Note` entity is registered there too, and `NoteDao` sits in `notes/Models.kt`, not in a Database file; same for the gallery's `PinnedMediaItem`/`PinnedMediaItemDao`, which live in `gallery/GalleryPins.kt`.
 - **Media notification and lockscreen buttons**: `deezer/DeezerPlaybackService.kt`, `actionButtons()`. Media3 draws the notification; the buttons are `CommandButton`s handled in `SessionCallback.onCustomCommand`, so they act without opening the app.
 - **Icons**: screens use Compose `Icons.*` (material-icons-extended). `res/drawable/` only holds what the framework needs as a real resource: the launcher and the notification action icons. Media3 has no icon constant for most things, so a custom button icon means a vector in `res/drawable/` passed to `setCustomIconResId`.
 - **Singletons**: `MyApplication` holds FlashcardRepository and DeezerRepository. Anything long lived hangs off there, not off an object/DI graph.

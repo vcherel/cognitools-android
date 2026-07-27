@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.outlined.Circle
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -48,6 +49,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import com.example.myapp.AppSnackbar
 import com.example.myapp.ScreenTopBar
 import com.example.myapp.ShowAlertDialog
 import kotlinx.coroutines.Dispatchers
@@ -91,6 +93,16 @@ fun GalleryAlbumGridScreen(bucketId: Long, onBack: () -> Unit, onOpenItem: (Long
                 count = selectedIds.size,
                 onClose = { selectedIds = emptySet() },
                 onMove = { showMoveDialog = true },
+                onPin = {
+                    val toPin = selectedIds.toList()
+                    scope.launch {
+                        pinItems(context, toPin)
+                        selectedIds = emptySet()
+                        AppSnackbar.show(
+                            if (toPin.size > 1) "${toPin.size} photos épinglées" else "Photo épinglée"
+                        )
+                    }
+                },
                 onDelete = {
                     // Straight to the trash, no confirmation: the snackbar undo and the trash
                     // itself are the safety net.
@@ -250,7 +262,13 @@ fun GalleryAlbumGridScreen(bucketId: Long, onBack: () -> Unit, onOpenItem: (Long
 }
 
 @Composable
-private fun SelectionTopBar(count: Int, onClose: () -> Unit, onMove: () -> Unit, onDelete: () -> Unit) {
+private fun SelectionTopBar(
+    count: Int,
+    onClose: () -> Unit,
+    onMove: () -> Unit,
+    onPin: () -> Unit,
+    onDelete: () -> Unit
+) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(16.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -265,6 +283,9 @@ private fun SelectionTopBar(count: Int, onClose: () -> Unit, onMove: () -> Unit,
         )
         IconButton(onClick = onMove) {
             Icon(Icons.AutoMirrored.Filled.DriveFileMove, contentDescription = "Déplacer")
+        }
+        IconButton(onClick = onPin) {
+            Icon(Icons.Default.PushPin, contentDescription = "Épingler")
         }
         IconButton(onClick = onDelete) {
             Icon(Icons.Default.Delete, contentDescription = "Supprimer")
