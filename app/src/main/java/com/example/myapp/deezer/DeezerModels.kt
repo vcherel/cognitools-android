@@ -63,6 +63,16 @@ data class DeezerPlaylist(
         pictureMd5?.let { "https://e-cdns-images.dzcdn.net/images/$pictureType/$it/${size}x$size-000000-80-0-0.jpg" }
 }
 
+/**
+ * Where a queued track came from. Tagged onto each MediaItem so that if its stream turns out to be
+ * broken (a common case for artists who re-released the same song under a different sngId), the
+ * fix found at playback time can be applied back at its actual source.
+ */
+sealed class TrackSource {
+    object Favorites : TrackSource()
+    data class Playlist(val id: String) : TrackSource()
+}
+
 /** Snapshot of the player for the mini bar and full sheet. Position/duration are read live from the controller. */
 data class PlayerUiState(
     val hasItem: Boolean = false,

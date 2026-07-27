@@ -215,19 +215,21 @@ class DeezerPlaybackService : MediaSessionService() {
 
     /**
      * Keeps the queue moving when an item fails to load. A dzr:// item can fail transiently (CDN
-     * resolve hiccup, network drop between two tracks) or permanently (track not streamable): retry
-     * the same one once, then skip to the next. Without this the player just parks in IDLE at the
-     * end of a track and needs a manual next + play.
+     * resolve hiccup, network drop between two tracks) or permanently (an artist who re-released the
+     * same song can leave the specific sngId a favorite/playlist pinned unstreamable): retry the same
+     * one once, then either swap in a working release of the same song (see [findAndApplyReplacement])
+     * or skip to the next queued item. Without this the player just parks in IDLE at the end of a
+     * track and needs a manual next + play.
      */
-    private class ErrorRecovery(private val player: ExoPlayer) : Player.Listener {
+    private inner class ErrorRecovery(private val player: ExoPlayer) : Player.Listener {
 
         private var failedMediaId: String? = null
         private var retriedCurrent = false
         private var consecutiveSkips = 0
 
         override fun onPlayerError(error: PlaybackException) {
-            val mediaId = player.currentMediaItem?.mediaId
-            val title = player.currentMediaItem?.mediaMetadata?.title?.toString()
+            val mediaItem = player.currentMediaItem
+            val mediaId = mediaItem?.mediaId
             if (mediaId != failedMediaId) {
                 failedMediaId = mediaId
                 retriedCurrent = false
@@ -240,15 +242,35 @@ class DeezerPlaybackService : MediaSessionService() {
                 player.play()
                 return
             }
-            if (consecutiveSkips >= MAX_SKIPS || !player.hasNextMediaItem()) {
-                Log.w(TAG, "Giving up after $consecutiveSkips skipped tracks")
-                AppSnackbar.show(
-                    if (title.isNullOrBlank()) "Lecture interrompue, impossible de reprendre"
-                    else "Lecture de « $title » interrompue, impossible de reprendre"
-                )
+
+            val track = currentTrack()
+            if (consecutiveSkips >= MAX_SKIPS) {
+                giveUp(track?.title)
                 return
             }
             consecutiveSkips++
+
+            val source = mediaItem?.let { repo.sourceOf(it) }
+            if (track != null && source != null) {
+                findAndApplyReplacement(track, source)
+            } else {
+                skipToNext(track?.title)
+            }
+        }
+
+        private fun giveUp(title: String?) {
+            Log.w(TAG, "Giving up after $consecutiveSkips skipped tracks")
+            AppSnackbar.show(
+                if (title.isNullOrBlank()) "Lecture interrompue, impossible de reprendre"
+                else "Lecture de « $title » interrompue, impossible de reprendre"
+            )
+        }
+
+        private fun skipToNext(title: String?) {
+            if (!player.hasNextMediaItem()) {
+                giveUp(title)
+                return
+            }
             AppSnackbar.show(
                 if (title.isNullOrBlank()) "Échec du chargement, passage au morceau suivant"
                 else "Échec du chargement de « $title », passage au morceau suivant"
@@ -258,17 +280,40 @@ class DeezerPlaybackService : MediaSessionService() {
             player.play()
         }
 
+        /**
+         * A favorited/playlisted track's pinned sngId can be a release Deezer refuses to serve while a
+         * different release of the same song streams fine. Searches for one and, if it actually
+         * resolves, swaps it into the queue right now so playback isn't interrupted, without touching
+         * favorites/the playlist. The snackbar names both tracks and offers "Corriger" to make it
+         * permanent: only then does the broken release get removed and the working one added in its
+         * place at its source.
+         */
+        private fun findAndApplyReplacement(track: DeezerTrack, source: TrackSource) {
+            scope.launch {
+                val replacement = runCatching { repo.findReplacement(track) }.getOrNull()
+                if (replacement == null || player.currentMediaItem?.mediaId != track.sngId) {
+                    skipToNext(track.title)
+                    return@launch
+                }
+                val index = player.currentMediaItemIndex
+                player.replaceMediaItem(index, repo.mediaItemFor(replacement, source))
+                player.prepare()
+                player.play()
+                AppSnackbar.show(
+                    message = "« ${track.title} » de ${track.artist} indisponible, remplacé par " +
+                        "« ${replacement.title} » de ${replacement.artist} le temps de la lecture",
+                    actionLabel = "Corriger",
+                    onAction = { runCatching { repo.applyReplacement(track, replacement, source) } }
+                )
+            }
+        }
+
         // Audio actually coming out means the queue is healthy again: forget the failure history.
         override fun onIsPlayingChanged(isPlaying: Boolean) {
             if (!isPlaying) return
             failedMediaId = null
             retriedCurrent = false
             consecutiveSkips = 0
-        }
-
-        private companion object {
-            const val TAG = "DeezerPlayback"
-            const val MAX_SKIPS = 5
         }
     }
 
@@ -293,6 +338,8 @@ class DeezerPlaybackService : MediaSessionService() {
     }
 
     companion object {
+        private const val TAG = "DeezerPlayback"
+        private const val MAX_SKIPS = 5
         private const val CMD_TOGGLE_LIKE = "com.example.myapp.deezer.TOGGLE_LIKE"
         private const val CMD_ADD_PEPITES = "com.example.myapp.deezer.ADD_BEST_PEPITES"
 
