@@ -52,6 +52,7 @@ fun GalleryCropScreen(itemId: Long, onBack: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val requestConsent = LocalMediaConsent.current
+    val density = LocalDensity.current
 
     var item by remember { mutableStateOf<MediaItem?>(null) }
     var displayBitmap by remember { mutableStateOf<Bitmap?>(null) }
@@ -90,7 +91,13 @@ fun GalleryCropScreen(itemId: Long, onBack: () -> Unit) {
             ) {
                 val boxWidthPx = constraints.maxWidth.toFloat()
                 val boxHeightPx = constraints.maxHeight.toFloat()
-                val fitScale = minOf(boxWidthPx / bitmap.width, boxHeightPx / bitmap.height)
+                // Leaves room around the image so a crop handle dragged to an image edge still has
+                // touchable Canvas space around it, instead of sitting flush on the box boundary
+                // where an imprecise touch falls through to whatever is laid out below/beside it.
+                val handleMarginPx = with(density) { 32.dp.toPx() }
+                val availWidthPx = (boxWidthPx - handleMarginPx * 2).coerceAtLeast(1f)
+                val availHeightPx = (boxHeightPx - handleMarginPx * 2).coerceAtLeast(1f)
+                val fitScale = minOf(availWidthPx / bitmap.width, availHeightPx / bitmap.height)
                 val displayWidth = bitmap.width * fitScale
                 val displayHeight = bitmap.height * fitScale
                 val computedImageRect = remember(bitmap, boxWidthPx, boxHeightPx) {
