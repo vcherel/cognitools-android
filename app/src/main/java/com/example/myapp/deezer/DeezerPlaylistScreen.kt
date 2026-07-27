@@ -76,7 +76,7 @@ fun DeezerTrackListScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text("${t.size} titres", style = MaterialTheme.typography.bodyMedium, maxLines = 1, modifier = Modifier.weight(1f))
-                        IconButton(onClick = { scope.launch { repo.shuffleTracks(t) } }) {
+                        IconButton(onClick = { scope.launch { repo.shuffleTracks(t, playlistId?.let { TrackSource.Playlist(it) }) } }) {
                             Icon(Icons.Filled.Shuffle, contentDescription = "Lecture aléatoire", tint = MaterialTheme.colorScheme.primary)
                         }
                     }
@@ -84,7 +84,7 @@ fun DeezerTrackListScreen(
                 itemsIndexed(t, key = { _, track -> track.sngId }) { index, track ->
                     TrackRow(
                         track = track,
-                        onClick = { scope.launch { repo.playTracks(t, index) } },
+                        onClick = { scope.launch { repo.playTracks(t, index, playlistId?.let { TrackSource.Playlist(it) }) } },
                         showActions = true,
                         isFavorite = favoriteIds.contains(track.sngId),
                         onToggleFavorite = { scope.launch { runCatching { repo.toggleFavorite(track) } } },

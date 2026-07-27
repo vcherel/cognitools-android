@@ -54,6 +54,8 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
         const val CACHE_LIMIT_LABEL = "2 Go"
         private const val RESOLVE_ATTEMPTS = 3
         private const val QUEUED_NEXT_KEY = "deezer_queued_next"
+        private const val SOURCE_TYPE_KEY = "deezer_source_type"
+        private const val SOURCE_ID_KEY = "deezer_source_id"
     }
 
     private val api = DeezerApi()
@@ -275,6 +277,58 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
         playlistTrackIds[playlistId]?.remove(sngId)
     }
 
+    // ---- Broken release recovery ----
+    // Favorites and playlists pin a specific sngId at the time a track was liked/added. An artist who
+    // re-released the same song under a different sngId can leave that pinned release unstreamable
+    // (get_url refuses it) while a fresh catalog search turns up a working one. This is what lets
+    // playback swap in a working release live, and what the "Corriger" snackbar action applies for real.
+
+    /**
+     * Searches the catalog for a different release of [track] (same normalized title and artist, a
+     * different sngId) and returns the first one that actually resolves a stream, or null if none does.
+     */
+    suspend fun findReplacement(track: DeezerTrack): DeezerTrack? {
+        val artistKey = normalizeName(track.artist)
+        val titleKey = normalizeName(track.title)
+        val candidates = try {
+            search("${track.title} ${track.artist}")
+        } catch (e: Exception) {
+            return null
+        }
+        val matches = candidates.filter {
+            it.sngId != track.sngId && normalizeName(it.artist) == artistKey && normalizeName(it.title) == titleKey
+        }.take(5)
+        for (candidate in matches) {
+            val works = try {
+                resolve(candidate.sngId, DEFAULT_QUALITY.name)
+                true
+            } catch (e: Exception) {
+                false
+            }
+            if (works) return candidate
+        }
+        return null
+    }
+
+    /** Removes [old] from favorites/[source]'s playlist and adds [new] in its place. */
+    suspend fun applyReplacement(old: DeezerTrack, new: DeezerTrack, source: TrackSource) {
+        when (source) {
+            is TrackSource.Favorites -> {
+                withTokenRetry { api.removeFavorite(it, old.sngId); api.addFavorite(it, new.sngId) }
+                val cur = _favorites.value ?: emptyList()
+                setFavorites(listOf(new) + cur.filterNot { it.sngId == old.sngId })
+                persistSnapshot()
+            }
+            is TrackSource.Playlist -> {
+                withTokenRetry {
+                    api.removeSongFromPlaylist(it, source.id, old.sngId)
+                    api.addSongToPlaylist(it, source.id, new.sngId)
+                }
+                playlistTrackIds[source.id]?.let { it.remove(old.sngId); it.add(new.sngId) }
+            }
+        }
+    }
+
     // ---- CDN resolution (called from DeezerDataSource on ExoPlayer's loading thread) ----
 
     /**
@@ -354,11 +408,11 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
     }
 
     /** Sets the queue to [tracks] starting at [startIndex] and plays in order. */
-    suspend fun playTracks(tracks: List<DeezerTrack>, startIndex: Int) {
+    suspend fun playTracks(tracks: List<DeezerTrack>, startIndex: Int, source: TrackSource? = null) {
         if (tracks.isEmpty()) return
         val controller = ensureController()
         queuedTracks.clear()
-        val items = tracks.map { buildMediaItem(it, DEFAULT_QUALITY) }
+        val items = tracks.map { buildMediaItem(it, DEFAULT_QUALITY, source = source) }
         withContext(Dispatchers.Main) {
             controller.shuffleModeEnabled = false
             controller.setMediaItems(items, startIndex, 0L)
@@ -368,17 +422,17 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
     }
 
     /** Queues every favorite and plays them shuffled, starting from a random one. */
-    suspend fun shuffleFavorites() = shuffleTracks(ensureFavorites())
+    suspend fun shuffleFavorites() = shuffleTracks(ensureFavorites(), TrackSource.Favorites)
 
     /** Loads [playlistId]'s tracks and plays them shuffled, starting from a random one. */
-    suspend fun shufflePlaylist(playlistId: String) = shuffleTracks(playlistTracks(playlistId))
+    suspend fun shufflePlaylist(playlistId: String) = shuffleTracks(playlistTracks(playlistId), TrackSource.Playlist(playlistId))
 
     /** Queues [list] with shuffle on and plays from a random position. */
-    suspend fun shuffleTracks(list: List<DeezerTrack>) {
+    suspend fun shuffleTracks(list: List<DeezerTrack>, source: TrackSource? = null) {
         if (list.isEmpty()) return
         val controller = ensureController()
         queuedTracks.clear()
-        val items = list.map { buildMediaItem(it, DEFAULT_QUALITY) }
+        val items = list.map { buildMediaItem(it, DEFAULT_QUALITY, source = source) }
         withContext(Dispatchers.Main) {
             controller.shuffleModeEnabled = true
             controller.setMediaItems(items, Random.nextInt(items.size), 0L)
@@ -443,14 +497,42 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
 
     fun trackById(sngId: String): DeezerTrack? = queuedTracks[sngId]
 
-    private fun buildMediaItem(track: DeezerTrack, quality: DeezerQuality, queuedNext: Boolean = false): MediaItem {
+    /** Builds a queued MediaItem for [track], tagged with [source] so a stream failure can be corrected at its origin. */
+    fun mediaItemFor(track: DeezerTrack, source: TrackSource?): MediaItem = buildMediaItem(track, DEFAULT_QUALITY, source = source)
+
+    /** The [TrackSource] a queued MediaItem was tagged with, if any. */
+    fun sourceOf(mediaItem: MediaItem): TrackSource? {
+        val extras = mediaItem.mediaMetadata.extras ?: return null
+        return when (extras.getString(SOURCE_TYPE_KEY)) {
+            "favorites" -> TrackSource.Favorites
+            "playlist" -> extras.getString(SOURCE_ID_KEY)?.let { TrackSource.Playlist(it) }
+            else -> null
+        }
+    }
+
+    private fun buildMediaItem(
+        track: DeezerTrack,
+        quality: DeezerQuality,
+        queuedNext: Boolean = false,
+        source: TrackSource? = null
+    ): MediaItem {
         queuedTracks[track.sngId] = track
         val metadata = MediaMetadata.Builder()
             .setTitle(track.title)
             .setArtist(track.artist)
             .setAlbumTitle(track.album)
             .setArtworkUri(track.coverUrl()?.let { Uri.parse(it) })
-        if (queuedNext) metadata.setExtras(Bundle().apply { putBoolean(QUEUED_NEXT_KEY, true) })
+        val extras = Bundle()
+        if (queuedNext) extras.putBoolean(QUEUED_NEXT_KEY, true)
+        when (source) {
+            is TrackSource.Favorites -> extras.putString(SOURCE_TYPE_KEY, "favorites")
+            is TrackSource.Playlist -> {
+                extras.putString(SOURCE_TYPE_KEY, "playlist")
+                extras.putString(SOURCE_ID_KEY, source.id)
+            }
+            null -> {}
+        }
+        if (!extras.isEmpty) metadata.setExtras(extras)
         return MediaItem.Builder()
             .setUri(Uri.parse("dzr://${track.sngId}?q=${quality.name}"))
             .setMediaId(track.sngId)
