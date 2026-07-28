@@ -116,9 +116,20 @@ fun String.isCheckboxLine(): Boolean =
 
 fun String.isCheckedLine(): Boolean = startsWith(CHECKED_PREFIX)
 
+// Both prefixes are the same length, which is what lets checkboxText cut a fixed number of
+// characters whichever one the line carries.
+private val prefixLength = UNCHECKED_PREFIX.length.also { check(it == CHECKED_PREFIX.length) }
+
 /** The line without its checkbox prefix, or the line itself for plain lines. */
 fun String.checkboxText(): String =
-    if (isCheckboxLine()) substring(UNCHECKED_PREFIX.length) else this
+    if (isCheckboxLine()) substring(prefixLength) else this
+
+/** The checkbox prefix a line carries, empty for a plain line. */
+fun String.checkboxPrefix(): String = when {
+    isCheckedLine() -> CHECKED_PREFIX
+    isCheckboxLine() -> UNCHECKED_PREFIX
+    else -> ""
+}
 
 // Inline markers within a line: **gras**, *italique*, ***les deux***,
 // __souligné__. The markers stay in the stored text and are hidden when
