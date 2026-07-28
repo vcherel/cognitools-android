@@ -2,7 +2,6 @@ package com.example.myapp.notes
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -13,7 +12,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
@@ -23,7 +21,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -36,7 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
+import com.example.myapp.AppDialog
 import java.text.Collator
 import java.util.Locale
 
@@ -388,77 +385,69 @@ fun IngredientReconcileDialog(
 ) {
     var step by remember(itemName) { mutableStateOf(ReconcileStep.Choose) }
 
-    Dialog(onDismissRequest = onDismiss) {
-        Surface(
-            shape = RoundedCornerShape(16.dp),
-            color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 6.dp
-        ) {
-            Column(modifier = Modifier.fillMaxWidth().padding(20.dp)) {
-                when (step) {
-                    ReconcileStep.Choose -> {
-                        Text("« $itemName »", style = MaterialTheme.typography.titleMedium)
-                        Spacer(Modifier.height(8.dp))
-                        Text(
-                            "Cet article n'est pas reconnu.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(Modifier.height(16.dp))
-                        ChoiceRow("Ajouter au modèle", Icons.Default.Add) {
-                            step = ReconcileStep.Group
-                        }
-                        ChoiceRow("C'est déjà dans le modèle", Icons.Default.Edit) {
-                            step = ReconcileStep.Existing
-                        }
-                        ChoiceRow("Ignorer", Icons.Default.Close, onSkip)
-                    }
+    AppDialog(onDismiss = onDismiss) {
+        when (step) {
+            ReconcileStep.Choose -> {
+                Text("« $itemName »", style = MaterialTheme.typography.titleMedium)
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    "Cet article n'est pas reconnu.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.height(16.dp))
+                ChoiceRow("Ajouter au modèle", Icons.Default.Add) {
+                    step = ReconcileStep.Group
+                }
+                ChoiceRow("C'est déjà dans le modèle", Icons.Default.Edit) {
+                    step = ReconcileStep.Existing
+                }
+                ChoiceRow("Ignorer", Icons.Default.Close, onSkip)
+            }
 
-                    ReconcileStep.Group -> {
-                        Text("Dans quel groupe ?", style = MaterialTheme.typography.titleMedium)
-                        Text(
-                            "« $itemName » sera placé par ordre alphabétique dans le groupe.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(Modifier.height(12.dp))
-                        LazyColumn(modifier = Modifier.heightIn(max = 360.dp)) {
-                            itemsIndexed(groups) { i, g ->
-                                PositionRow(groupLabels?.getOrNull(i)?.ifEmpty { null } ?: g.joinToString(", ")) { onAddNew(i) }
-                                HorizontalDivider()
-                            }
-                            if (allowNewGroup) {
-                                item {
-                                    PositionRow("Nouveau groupe", bold = true) { onAddNew(-1) }
-                                }
-                            }
-                        }
-                        Spacer(Modifier.height(8.dp))
-                        BackRow { step = ReconcileStep.Choose }
+            ReconcileStep.Group -> {
+                Text("Dans quel groupe ?", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    "« $itemName » sera placé par ordre alphabétique dans le groupe.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.height(12.dp))
+                LazyColumn(modifier = Modifier.heightIn(max = 360.dp)) {
+                    itemsIndexed(groups) { i, g ->
+                        PositionRow(groupLabels?.getOrNull(i)?.ifEmpty { null } ?: g.joinToString(", ")) { onAddNew(i) }
+                        HorizontalDivider()
                     }
-
-                    ReconcileStep.Existing -> {
-                        var query by remember { mutableStateOf("") }
-                        Text("Lequel ?", style = MaterialTheme.typography.titleMedium)
-                        Spacer(Modifier.height(8.dp))
-                        OutlinedTextField(
-                            value = query,
-                            onValueChange = { query = it },
-                            placeholder = { Text("Rechercher") },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        Spacer(Modifier.height(8.dp))
-                        val ranked = rankIngredientsByCloseness(groups.flatten(), query.ifBlank { itemName })
-                        LazyColumn(modifier = Modifier.heightIn(max = 320.dp)) {
-                            items(ranked) { ingredient ->
-                                PositionRow(ingredient) { onMapExisting(ingredient) }
-                            }
+                    if (allowNewGroup) {
+                        item {
+                            PositionRow("Nouveau groupe", bold = true) { onAddNew(-1) }
                         }
-                        Spacer(Modifier.height(8.dp))
-                        BackRow { step = ReconcileStep.Choose }
                     }
                 }
+                Spacer(Modifier.height(8.dp))
+                BackRow { step = ReconcileStep.Choose }
+            }
+
+            ReconcileStep.Existing -> {
+                var query by remember { mutableStateOf("") }
+                Text("Lequel ?", style = MaterialTheme.typography.titleMedium)
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = query,
+                    onValueChange = { query = it },
+                    placeholder = { Text("Rechercher") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(Modifier.height(8.dp))
+                val ranked = rankIngredientsByCloseness(groups.flatten(), query.ifBlank { itemName })
+                LazyColumn(modifier = Modifier.heightIn(max = 320.dp)) {
+                    items(ranked) { ingredient ->
+                        PositionRow(ingredient) { onMapExisting(ingredient) }
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
+                BackRow { step = ReconcileStep.Choose }
             }
         }
     }
@@ -472,28 +461,20 @@ fun AddIngredientNameDialog(
     onDismiss: () -> Unit
 ) {
     var text by remember { mutableStateOf("") }
-    Dialog(onDismissRequest = onDismiss) {
-        Surface(
-            shape = RoundedCornerShape(16.dp),
-            color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 6.dp
-        ) {
-            Column(modifier = Modifier.fillMaxWidth().padding(20.dp)) {
-                Text(title, style = MaterialTheme.typography.titleMedium)
-                Spacer(Modifier.height(12.dp))
-                OutlinedTextField(
-                    value = text,
-                    onValueChange = { text = it },
-                    placeholder = { Text("Nom") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(Modifier.height(12.dp))
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                    TextButton(onClick = onDismiss) { Text("Annuler") }
-                    TextButton(onClick = { if (text.isNotBlank()) onConfirm(text.trim()) }) { Text("Ajouter") }
-                }
-            }
+    AppDialog(onDismiss = onDismiss) {
+        Text(title, style = MaterialTheme.typography.titleMedium)
+        Spacer(Modifier.height(12.dp))
+        OutlinedTextField(
+            value = text,
+            onValueChange = { text = it },
+            placeholder = { Text("Nom") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth()
+        )
+        Spacer(Modifier.height(12.dp))
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+            TextButton(onClick = onDismiss) { Text("Annuler") }
+            TextButton(onClick = { if (text.isNotBlank()) onConfirm(text.trim()) }) { Text("Ajouter") }
         }
     }
 }

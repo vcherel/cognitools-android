@@ -137,8 +137,7 @@ fun HandlePlayerSetup(
             // Show warning dialog before revealing word
             var showQuickStartDialog by remember { mutableStateOf(true) }
 
-            ShowAlertDialog(
-                show = showQuickStartDialog,
+            if (showQuickStartDialog) ShowAlertDialog(
                 onDismiss = { },
                 title = "ATTENTION",
                 textContent = {
@@ -279,8 +278,7 @@ fun PlayerSetupScreen(
         }
     }
 
-    ShowAlertDialog(
-        show = showConfirmationDialog,
+    if (showConfirmationDialog) ShowAlertDialog(
         onDismiss = { showConfirmationDialog = false },
         title = if (name == "Valenchien" || name == "Valentin") "Beau gosse" else "Ton nom est moche",
         textContent = { Text("Cache toi tu vas découvrir ton rôle jeune troubadour", fontSize = 20.sp) },

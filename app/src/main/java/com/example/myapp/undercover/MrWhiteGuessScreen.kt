@@ -195,9 +195,7 @@ fun MrWhiteGuessScreen(
         }
     }
 
-    // Confirmation dialog using ShowAlertDialog
-    ShowAlertDialog(
-        show = showConfirmation,
+    if (showConfirmation) ShowAlertDialog(
         onDismiss = { showConfirmation = false },
         title = "Confirmer",
         textContent = { Text("'$guessedWord' est ton dernier mot ?", fontSize = 16.sp) },

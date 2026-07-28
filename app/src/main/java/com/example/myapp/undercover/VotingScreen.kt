@@ -77,8 +77,7 @@ fun VotingScreen(
         }
     }
 
-    ShowAlertDialog(
-        show = showConfirmation,
+    if (showConfirmation) ShowAlertDialog(
         onDismiss = { showConfirmation = false },
         title = "Confirmer assassinat",
         textContent = { Text("Vous êtes sûr de vouloir choisir ${selectedPlayer?.name} ?") },

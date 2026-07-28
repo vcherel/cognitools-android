@@ -14,7 +14,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.example.myapp.MyApplication
+import com.example.myapp.deezerRepository
 
 /**
  * Host for the Deezer tool. A nested NavHost drives library / search / track lists, while the
@@ -24,7 +24,7 @@ import com.example.myapp.MyApplication
 @Composable
 fun DeezerScreen(onBack: () -> Unit) {
     val context = LocalContext.current
-    val repo = (context.applicationContext as MyApplication).deezerRepository
+    val repo = context.deezerRepository
     val nav = rememberNavController()
     val playerState by repo.playerState.collectAsState()
     var showFullPlayer by remember { mutableStateOf(false) }

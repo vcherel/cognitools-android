@@ -58,6 +58,7 @@ import androidx.compose.ui.unit.sp
 import androidx.activity.compose.BackHandler
 import androidx.navigation.NavController
 import com.example.myapp.BackIconButton
+import com.example.myapp.flashcardRepository
 import com.example.myapp.BackupRestoreActions
 import com.example.myapp.BottomFadeOverlay
 import com.example.myapp.MyButton
@@ -70,7 +71,7 @@ import sh.calvin.reorderable.rememberReorderableLazyListState
 fun FlashcardListsScreen(navController: NavController) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val repository = (context.applicationContext as com.example.myapp.MyApplication).flashcardRepository
+    val repository = context.flashcardRepository
 
     var showDialog by remember { mutableStateOf(false) }
     var dialogTitle by remember { mutableStateOf("") }
@@ -320,8 +321,7 @@ fun FlashcardListsScreen(navController: NavController) {
     }
 
     // Dialog for create/rename
-    ShowAlertDialog(
-        show = showDialog,
+    if (showDialog) ShowAlertDialog(
         onDismiss = { showDialog = false },
         title = dialogTitle,
         textContent = {
@@ -448,8 +448,7 @@ fun FlashcardListItem(
         }
     }
 
-    ShowAlertDialog(
-        show = showDeleteDialog,
+    if (showDeleteDialog) ShowAlertDialog(
         onDismiss = { showDeleteDialog = false },
         title = "T'es sûr ??",
         onCancel = { showDeleteDialog = false },

@@ -55,6 +55,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.myapp.BackIconButton
+import com.example.myapp.flashcardRepository
 import com.example.myapp.BottomFadeOverlay
 import com.example.myapp.MyButton
 import com.example.myapp.ShowAlertDialog
@@ -81,7 +82,7 @@ fun FlashcardDetailScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
-    val repository = (context.applicationContext as com.example.myapp.MyApplication).flashcardRepository
+    val repository = context.flashcardRepository
 
     var showEditDialog by remember { mutableStateOf(false) }
     var editingElement by remember { mutableStateOf<FlashcardElement?>(null) }
