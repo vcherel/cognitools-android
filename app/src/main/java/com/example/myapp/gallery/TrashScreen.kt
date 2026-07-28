@@ -230,8 +230,7 @@ fun GalleryTrashScreen(onBack: () -> Unit) {
         }
     }
 
-    ShowAlertDialog(
-        show = showPurgeDialog,
+    if (showPurgeDialog) ShowAlertDialog(
         onDismiss = { showPurgeDialog = false },
         title = if (selectedIds.size > 1) {
             "Supprimer définitivement ${selectedIds.size} fichiers ?"

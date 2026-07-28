@@ -65,6 +65,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.example.myapp.BackIconButton
+import com.example.myapp.flashcardRepository
 import com.example.myapp.LocalIsDarkMode
 import com.example.myapp.MyButton
 import kotlinx.coroutines.launch
@@ -85,7 +86,7 @@ fun FlashcardGameScreen(listId: String, navController: NavController) {
     val greenColor = if (isDarkMode) Color(0xFF2D7516) else Color(0xFF56C92F)
     val redColor = if (isDarkMode) Color(0xFF771212) else Color(0xFFDE1E1E)
 
-    val repository = (context.applicationContext as com.example.myapp.MyApplication).flashcardRepository
+    val repository = context.flashcardRepository
 
     // Check if we're in "all lists" mode
     val isAllListsMode = listId == "all"

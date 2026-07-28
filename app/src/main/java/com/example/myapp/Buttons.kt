@@ -7,6 +7,8 @@ import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -19,6 +21,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -37,6 +41,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 
 private class ButtonStyle(val shadow: Color, val gradient: Brush, val text: Color)
 
@@ -109,35 +114,23 @@ fun MyButton(
     icon: ImageVector? = null,
     onClick: () -> Unit
 ) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-    val isDarkMode = LocalIsDarkMode.current
-
-    val style = remember(isPressed, enabled, isDarkMode) {
-        buttonStyle(isPressed, enabled, isDarkMode)
-    }
-
-    RaisedSurface(
-        style = style,
-        isPressed = isPressed,
-        modifier = modifier.fillMaxWidth().height(height),
-        clickModifier = if (enabled) Modifier.clickable(
-            interactionSource = interactionSource,
-            indication = null,
-            onClick = onClick
-        ) else Modifier
-    ) {
+    RaisedButton(
+        modifier = modifier.fillMaxWidth(),
+        height = height,
+        enabled = enabled,
+        onClick = onClick
+    ) { textColor ->
         if (icon != null) {
             Icon(
                 imageVector = icon,
                 contentDescription = text,
-                tint = style.text,
+                tint = textColor,
                 modifier = Modifier.size(32.dp)
             )
         } else {
             Text(
                 text,
-                color = style.text,
+                color = textColor,
                 fontSize = fontSize,
                 fontWeight = FontWeight.SemiBold
             )
@@ -160,7 +153,7 @@ fun SplitMyButton(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        SplitButtonHalf(
+        RaisedButton(
             modifier = Modifier.weight(1f),
             height = height,
             onClick = onMainClick
@@ -173,7 +166,7 @@ fun SplitMyButton(
             )
         }
 
-        SplitButtonHalf(
+        RaisedButton(
             modifier = Modifier.width(80.dp),
             height = height,
             enabled = rightEnabled,
@@ -197,8 +190,10 @@ fun SplitMyButton(
     }
 }
 
+// A raised surface that behaves as a button: the pressed style and the click handling every
+// button in the app shares, with the caller drawing whatever goes inside.
 @Composable
-private fun SplitButtonHalf(
+private fun RaisedButton(
     modifier: Modifier = Modifier,
     height: Dp = 90.dp,
     enabled: Boolean = true,
@@ -294,39 +289,54 @@ fun MySwitch(
 fun ShowAlertDialog(
     onDismiss: () -> Unit,
     title: String,
-    show: Boolean = true,
     textContent: (@Composable () -> Unit)? = null,
     confirmText: String = "Ok",
     cancelText: String? = "Annuler",
     onConfirm: () -> Unit,
     onCancel: (() -> Unit)? = null
 ) {
-    if (show) {
-        AlertDialog(
-            onDismissRequest = onDismiss,
-            title = { Text(title) },
-            text = textContent,
-            confirmButton = {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    if (onCancel != null && cancelText != null) {
-                        MyButton(
-                            text = cancelText,
-                            onClick = onCancel,
-                            modifier = Modifier.weight(1f).height(50.dp),
-                            fontSize = 14.sp
-                        )
-                    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = textContent,
+        confirmButton = {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                if (onCancel != null && cancelText != null) {
                     MyButton(
-                        text = confirmText,
-                        onClick = onConfirm,
+                        text = cancelText,
+                        onClick = onCancel,
                         modifier = Modifier.weight(1f).height(50.dp),
                         fontSize = 14.sp
                     )
                 }
+                MyButton(
+                    text = confirmText,
+                    onClick = onConfirm,
+                    modifier = Modifier.weight(1f).height(50.dp),
+                    fontSize = 14.sp
+                )
             }
-        )
+        }
+    )
+}
+
+// The shell every custom dialog in the app is built from: a rounded, elevated surface with the
+// standard padding. Callers fill the column.
+@Composable
+fun AppDialog(onDismiss: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(16.dp),
+            color = MaterialTheme.colorScheme.surface,
+            tonalElevation = 6.dp
+        ) {
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(20.dp),
+                content = content
+            )
+        }
     }
 }

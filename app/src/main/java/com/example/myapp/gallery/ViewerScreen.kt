@@ -40,7 +40,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.DriveFileMove
 import androidx.compose.material.icons.filled.Crop
@@ -59,7 +58,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -89,10 +87,10 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.compose.ui.window.Dialog
 import androidx.compose.runtime.DisposableEffect
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
+import com.example.myapp.AppDialog
 import com.example.myapp.AppSnackbar
 import com.example.myapp.ScreenTopBar
 import com.example.myapp.ShowAlertDialog
@@ -449,42 +447,34 @@ private fun ShareDialog(item: MediaItem, onDismiss: () -> Unit, onError: (String
         }
     }
 
-    Dialog(onDismissRequest = onDismiss) {
-        Surface(
-            shape = RoundedCornerShape(16.dp),
-            color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 6.dp
-        ) {
-            Column(modifier = Modifier.fillMaxWidth().padding(20.dp)) {
-                Text("Partager", style = MaterialTheme.typography.titleMedium)
-                Spacer(Modifier.height(16.dp))
-                if (installedTargets.isEmpty()) {
-                    Text("Aucune application compatible installée")
-                } else {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceEvenly
-                    ) {
-                        installedTargets.forEach { target ->
-                            ShareTargetIcon(
-                                target = target,
-                                onClick = {
-                                    onDismiss()
-                                    try {
-                                        shareItemTo(context, item, target.packageName)
-                                    } catch (e: ActivityNotFoundException) {
-                                        onError("Partage impossible")
-                                    }
-                                }
-                            )
+    AppDialog(onDismiss = onDismiss) {
+        Text("Partager", style = MaterialTheme.typography.titleMedium)
+        Spacer(Modifier.height(16.dp))
+        if (installedTargets.isEmpty()) {
+            Text("Aucune application compatible installée")
+        } else {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                installedTargets.forEach { target ->
+                    ShareTargetIcon(
+                        target = target,
+                        onClick = {
+                            onDismiss()
+                            try {
+                                shareItemTo(context, item, target.packageName)
+                            } catch (e: ActivityNotFoundException) {
+                                onError("Partage impossible")
+                            }
                         }
-                    }
-                }
-                Spacer(Modifier.height(8.dp))
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                    TextButton(onClick = onDismiss) { Text("Annuler") }
+                    )
                 }
             }
+        }
+        Spacer(Modifier.height(8.dp))
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+            TextButton(onClick = onDismiss) { Text("Annuler") }
         }
     }
 }
@@ -762,60 +752,52 @@ fun MoveDialog(currentBucketId: Long, onDismiss: () -> Unit, onConfirm: (String)
         }
     }
 
-    Dialog(onDismissRequest = onDismiss) {
-        Surface(
-            shape = RoundedCornerShape(16.dp),
-            color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 6.dp
-        ) {
-            Column(modifier = Modifier.fillMaxWidth().padding(20.dp)) {
-                Text("Déplacer vers", style = MaterialTheme.typography.titleMedium)
-                Spacer(Modifier.height(12.dp))
-                OutlinedTextField(
-                    value = newFolderName,
-                    onValueChange = { newFolderName = it },
-                    placeholder = { Text("Nouveau dossier") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                if (newFolderName.isNotBlank()) {
-                    Spacer(Modifier.height(4.dp))
+    AppDialog(onDismiss = onDismiss) {
+        Text("Déplacer vers", style = MaterialTheme.typography.titleMedium)
+        Spacer(Modifier.height(12.dp))
+        OutlinedTextField(
+            value = newFolderName,
+            onValueChange = { newFolderName = it },
+            placeholder = { Text("Nouveau dossier") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth()
+        )
+        if (newFolderName.isNotBlank()) {
+            Spacer(Modifier.height(4.dp))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onConfirm("Pictures/${newFolderName.trim()}/") }
+                    .padding(vertical = 10.dp)
+            ) {
+                Text("Créer et déplacer dans « ${newFolderName.trim()} »")
+            }
+        }
+        HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+        val currentAlbums = albums
+        when {
+            currentAlbums == null -> Box(
+                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                contentAlignment = Alignment.Center
+            ) { CircularProgressIndicator() }
+            currentAlbums.isEmpty() -> Text("Aucun autre album", modifier = Modifier.padding(vertical = 12.dp))
+            else -> LazyColumn(modifier = Modifier.heightIn(max = 320.dp)) {
+                items(currentAlbums, key = { it.bucketId }) { album ->
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { onConfirm("Pictures/${newFolderName.trim()}/") }
-                            .padding(vertical = 10.dp)
+                            .clickable { onConfirm(album.relativePath) }
+                            .padding(vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("Créer et déplacer dans « ${newFolderName.trim()} »")
+                        Text(album.name, style = MaterialTheme.typography.bodyLarge)
                     }
-                }
-                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-                val currentAlbums = albums
-                when {
-                    currentAlbums == null -> Box(
-                        modifier = Modifier.fillMaxWidth().padding(16.dp),
-                        contentAlignment = Alignment.Center
-                    ) { CircularProgressIndicator() }
-                    currentAlbums.isEmpty() -> Text("Aucun autre album", modifier = Modifier.padding(vertical = 12.dp))
-                    else -> LazyColumn(modifier = Modifier.heightIn(max = 320.dp)) {
-                        items(currentAlbums, key = { it.bucketId }) { album ->
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable { onConfirm(album.relativePath) }
-                                    .padding(vertical = 12.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(album.name, style = MaterialTheme.typography.bodyLarge)
-                            }
-                        }
-                    }
-                }
-                Spacer(Modifier.height(8.dp))
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                    TextButton(onClick = onDismiss) { Text("Annuler") }
                 }
             }
+        }
+        Spacer(Modifier.height(8.dp))
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+            TextButton(onClick = onDismiss) { Text("Annuler") }
         }
     }
 }

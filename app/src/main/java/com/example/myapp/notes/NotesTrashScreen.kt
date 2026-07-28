@@ -125,8 +125,7 @@ fun NotesTrashScreen(onBack: () -> Unit) {
         )
     }
 
-    ShowAlertDialog(
-        show = confirmEmpty,
+    if (confirmEmpty) ShowAlertDialog(
         onDismiss = { confirmEmpty = false },
         title = "Vider la corbeille ?",
         onCancel = { confirmEmpty = false },

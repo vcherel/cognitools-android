@@ -297,9 +297,7 @@ fun SettingsScreen(
         )
     }
 
-    // Delete Player Dialog
-    ShowAlertDialog(
-        show = showDeleteDialog,
+    if (showDeleteDialog) ShowAlertDialog(
         onDismiss = { showDeleteDialog = false },
         title = "Choisissez qui dégager",
         textContent = {

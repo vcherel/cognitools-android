@@ -46,7 +46,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -64,7 +63,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
 import androidx.core.content.ContextCompat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -375,78 +373,71 @@ private fun CitySearchDialog(onCitySelected: (CityLocation?) -> Unit, onDismiss:
         }
     }
 
-    Dialog(onDismissRequest = onDismiss) {
-        Surface(
-            shape = RoundedCornerShape(16.dp),
-            color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 6.dp
-        ) {
-            Column(modifier = Modifier.fillMaxWidth().padding(20.dp)) {
-                Text("Choisir une ville", style = MaterialTheme.typography.titleMedium)
-                Spacer(Modifier.height(12.dp))
-                OutlinedTextField(
-                    value = query,
-                    onValueChange = { query = it },
-                    placeholder = { Text("Nom de la ville") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(Modifier.height(4.dp))
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable {
-                            onCitySelected(null)
-                            onDismiss()
-                        }
-                        .padding(vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    Icon(Icons.Default.MyLocation, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text("Utiliser ma position actuelle", style = MaterialTheme.typography.bodyLarge)
+    AppDialog(onDismiss = onDismiss) {
+        Text("Choisir une ville", style = MaterialTheme.typography.titleMedium)
+        Spacer(Modifier.height(12.dp))
+        OutlinedTextField(
+            value = query,
+            onValueChange = { query = it },
+            placeholder = { Text("Nom de la ville") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth()
+        )
+        Spacer(Modifier.height(4.dp))
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable {
+                    onCitySelected(null)
+                    onDismiss()
                 }
-                HorizontalDivider()
-                when {
-                    isSearching -> Box(modifier = Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator()
-                    }
-                    searchError != null -> Text(
-                        searchError!!,
-                        color = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.padding(vertical = 12.dp)
-                    )
-                    else -> LazyColumn(modifier = Modifier.heightIn(max = 320.dp)) {
-                        items(results, key = { "${it.name}${it.lat}${it.lon}" }) { city ->
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        onCitySelected(city)
-                                        onDismiss()
-                                    }
-                                    .padding(vertical = 10.dp)
-                            ) {
-                                Column {
-                                    Text(city.name, style = MaterialTheme.typography.bodyLarge)
-                                    val subtitle = listOfNotNull(city.admin1, city.country).joinToString(", ")
-                                    if (subtitle.isNotEmpty()) {
-                                        Text(
-                                            subtitle,
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
-                                }
+                .padding(vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Icon(Icons.Default.MyLocation, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("Utiliser ma position actuelle", style = MaterialTheme.typography.bodyLarge)
+        }
+        HorizontalDivider()
+        val currentError = searchError
+        when {
+            isSearching -> Box(modifier = Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
+            }
+            currentError != null -> Text(
+                currentError,
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.padding(vertical = 12.dp)
+            )
+            else -> LazyColumn(modifier = Modifier.heightIn(max = 320.dp)) {
+                items(results, key = { "${it.name}${it.lat}${it.lon}" }) { city ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                onCitySelected(city)
+                                onDismiss()
+                            }
+                            .padding(vertical = 10.dp)
+                    ) {
+                        Column {
+                            Text(city.name, style = MaterialTheme.typography.bodyLarge)
+                            val subtitle = listOfNotNull(city.admin1, city.country).joinToString(", ")
+                            if (subtitle.isNotEmpty()) {
+                                Text(
+                                    subtitle,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
                             }
                         }
                     }
                 }
-                Spacer(Modifier.height(8.dp))
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                    TextButton(onClick = onDismiss) { Text("Fermer") }
-                }
             }
+        }
+        Spacer(Modifier.height(8.dp))
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+            TextButton(onClick = onDismiss) { Text("Fermer") }
         }
     }
 }

@@ -382,7 +382,7 @@ fun MenuScreen(
                 onMainClick = { onNavigate("deezer") },
                 onRightClick = {
                     if (!isShuffleLoading) {
-                        val repo = (context.applicationContext as MyApplication).deezerRepository
+                        val repo = context.deezerRepository
                         val previousSngId = repo.playerState.value.sngId
                         isShuffleLoading = true
                         coroutineScope.launch {
