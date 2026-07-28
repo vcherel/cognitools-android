@@ -53,10 +53,12 @@ import java.util.Locale
 // rather than triggering a full re-render, so manual drag reordering elsewhere survives;
 // only the explicit "reorder" action rebuilds the whole note from the model.
 
+// The note titles the app gives their own behaviour to.
 const val INGREDIENTS_TITLE = "Ingrédients"
 const val INGREDIENT_MODEL_TITLE = "Modèle ingrédients"
 const val COURSES_TITLE = "Courses"
 const val COURSES_MODEL_TITLE = "Modèle courses"
+const val TODO_LIST_TITLE = "Todo list"
 
 enum class SyncKind { INGREDIENT, COURSE }
 

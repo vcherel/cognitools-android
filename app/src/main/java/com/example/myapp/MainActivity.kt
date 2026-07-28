@@ -1,27 +1,28 @@
 package com.example.myapp
 
-import android.animation.ObjectAnimator
 import android.os.Build
 import android.os.Bundle
-import android.view.View
 import android.view.animation.AnticipateInterpolator
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.DarkMode
-import androidx.compose.material.icons.filled.LightMode
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.text.font.FontStyle
-import androidx.compose.ui.text.style.TextAlign
-import androidx.core.animation.doOnEnd
+import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.navigation.NavType
@@ -30,9 +31,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import androidx.datastore.preferences.core.booleanPreferencesKey
-import androidx.datastore.preferences.core.edit
-import androidx.datastore.preferences.preferencesDataStore
+import com.example.myapp.deezer.DeezerScreen
+import com.example.myapp.flashcards.AppDatabase
 import com.example.myapp.flashcards.FlashcardDetailScreen
 import com.example.myapp.flashcards.FlashcardGameScreen
 import com.example.myapp.flashcards.FlashcardListsScreen
@@ -48,37 +48,10 @@ import com.example.myapp.gallery.rememberIntentSenderRequester
 import com.example.myapp.notes.NoteEditorScreen
 import com.example.myapp.notes.NotesListScreen
 import com.example.myapp.notes.NotesTrashScreen
-import com.example.myapp.undercover.UndercoverScreen
-import android.content.Context
-import android.widget.Toast
-import androidx.compose.material.icons.filled.Checklist
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.PushPin
-import androidx.compose.material.icons.filled.Shuffle
-import com.example.myapp.flashcards.AppDatabase
+import com.example.myapp.notes.TODO_LIST_TITLE
 import com.example.myapp.notes.noteTitleAndPreview
-import androidx.compose.ui.platform.LocalContext
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.map
+import com.example.myapp.undercover.UndercoverScreen
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withTimeoutOrNull
-
-val Context.themeDataStore by preferencesDataStore("theme_preferences")
-
-private val DARK_MODE_KEY = booleanPreferencesKey("dark_mode")
-
-class ThemeManager(private val context: Context) {
-    val isDarkMode: Flow<Boolean> = context.themeDataStore.data.map { prefs ->
-        prefs[DARK_MODE_KEY] ?: false
-    }
-
-    suspend fun setDarkMode(enabled: Boolean) {
-        context.themeDataStore.edit { prefs ->
-            prefs[DARK_MODE_KEY] = enabled
-        }
-    }
-}
 
 class MainActivity : ComponentActivity() {
     private val requestPermissionLauncher = registerForActivityResult(
@@ -90,28 +63,13 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         splashScreen.setOnExitAnimationListener { splashScreenView ->
-            try {
-                val icon = splashScreenView.iconView
-                val scaleX = ObjectAnimator.ofFloat(icon, View.SCALE_X, 1f, 1.5f)
-                val scaleY = ObjectAnimator.ofFloat(icon, View.SCALE_Y, 1f, 1.5f)
-                val alpha = ObjectAnimator.ofFloat(icon, View.ALPHA, 1f, 0f)
-
-                scaleX.interpolator = AnticipateInterpolator()
-                scaleY.interpolator = AnticipateInterpolator()
-                alpha.interpolator = AnticipateInterpolator()
-
-                scaleX.duration = 500L
-                scaleY.duration = 500L
-                alpha.duration = 500L
-
-                alpha.doOnEnd { splashScreenView.remove() }
-
-                scaleX.start()
-                scaleY.start()
-                alpha.start()
-            } catch (_: NullPointerException) {
-                splashScreenView.remove()
-            }
+            splashScreenView.iconView.animate()
+                .scaleX(1.5f)
+                .scaleY(1.5f)
+                .alpha(0f)
+                .setInterpolator(AnticipateInterpolator())
+                .setDuration(500L)
+                .withEndAction { splashScreenView.remove() }
         }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -129,34 +87,13 @@ class MainActivity : ComponentActivity() {
             val themeManager = remember { ThemeManager(applicationContext) }
             val isDarkMode by themeManager.isDarkMode.collectAsState(initial = false)
 
-            MaterialTheme(
-                colorScheme = if (isDarkMode) {
-                    darkColorScheme(
-                        primary = Color.White,
-                        secondary = Color.White,
-                        tertiary = Color.White,
-                        background = Color.Black,
-                        surface = Color(0xFF1C1C1C),
-                        onPrimary = Color.Black,
-                        onSecondary = Color.Black,
-                        onBackground = Color.White,
-                        onSurface = Color.White
-                    )
-                } else {
-                    lightColorScheme(
-                        primary = Color.Black,
-                        secondary = Color.Black,
-                        tertiary = Color.Black,
-                    )
-                }
-            ) {
+            AppTheme(isDarkMode = isDarkMode) {
                 MainScreen(themeManager = themeManager, isDarkMode = isDarkMode)
             }
         }
     }
 }
 
-val LocalIsDarkMode = compositionLocalOf { false }
 @Composable
 fun MainScreen(themeManager: ThemeManager, isDarkMode: Boolean) {
     val navController = rememberNavController()
@@ -196,29 +133,35 @@ fun MainScreen(themeManager: ThemeManager, isDarkMode: Boolean) {
                 NavHost(navController = navController, startDestination = "menu") {
                     composable("menu") {
                         MenuScreen(
-                            onNavigate = { route ->
-                                when (route) {
-                                    "flashcardsPlay" -> {
-                                        navController.navigate("lists")
-                                        navController.navigate("game/all")
-                                    }
-                                    "galleryPinned" -> navController.navigate("gallery/pinned")
-                                    "todoNote" -> coroutineScope.launch {
-                                        val todo = AppDatabase.get(context).noteDao().getNotes()
-                                            .firstOrNull {
-                                                noteTitleAndPreview(it).first
-                                                    .equals("Todo list", ignoreCase = true)
-                                            }
-                                        navController.navigate("notes")
-                                        if (todo != null) {
-                                            navController.navigate("note/${todo.id}")
+                            isDarkMode = isDarkMode,
+                            onToggleDarkMode = {
+                                coroutineScope.launch { themeManager.setDarkMode(!isDarkMode) }
+                            },
+                            onOpenNotes = { navController.navigate("notes") },
+                            onOpenTodoNote = {
+                                coroutineScope.launch {
+                                    val todo = AppDatabase.get(context).noteDao().getNotes()
+                                        .firstOrNull {
+                                            noteTitleAndPreview(it).first
+                                                .equals(TODO_LIST_TITLE, ignoreCase = true)
                                         }
-                                    }
-                                    else -> navController.navigate(route)
+                                    navController.navigate("notes")
+                                    if (todo != null) navController.navigate("note/${todo.id}")
                                 }
                             },
-                            themeManager = themeManager,
-                            isDarkMode = isDarkMode
+                            onOpenDeezer = { navController.navigate("deezer") },
+                            onOpenFlashcards = { navController.navigate("flashcards") },
+                            onPlayFlashcards = {
+                                navController.navigate("lists")
+                                navController.navigate("game/all")
+                            },
+                            onOpenWeather = { navController.navigate("weather") },
+                            onOpenUndercover = { navController.navigate("undercover") },
+                            onOpenVolume = { navController.navigate("volumeBooster") },
+                            onOpenRandom = { navController.navigate("randomGenerator") },
+                            onOpenWikipedia = { navController.navigate("wikipedia") },
+                            onOpenGallery = { navController.navigate("gallery") },
+                            onOpenPinnedPictures = { navController.navigate("gallery/pinned") }
                         )
                     }
                     composable("randomGenerator") {
@@ -237,7 +180,7 @@ fun MainScreen(themeManager: ThemeManager, isDarkMode: Boolean) {
                         WeatherScreen(onBack = { navController.popBackStack() })
                     }
                     composable("deezer") {
-                        com.example.myapp.deezer.DeezerScreen(onBack = { navController.popBackStack() })
+                        DeezerScreen(onBack = { navController.popBackStack() })
                     }
                     composable("gallery") {
                         GalleryAlbumsScreen(
@@ -326,125 +269,6 @@ fun MainScreen(themeManager: ThemeManager, isDarkMode: Boolean) {
                     }
                 }
             }
-        }
-    }
-}
-
-@Composable
-fun MenuScreen(
-    onNavigate: (String) -> Unit,
-    themeManager: ThemeManager,
-    isDarkMode: Boolean
-) {
-    val spaceHeight = 20.dp
-    val buttonHeight = 84.dp
-    val coroutineScope = rememberCoroutineScope()
-    val context = LocalContext.current
-
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(12.dp)
-    ) {
-        Column(
-            modifier = Modifier
-                .align(Alignment.Center)
-                .fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                text = "Bienvenue !",
-                style = MaterialTheme.typography.headlineLarge,
-                textAlign = TextAlign.Center
-            )
-            Spacer(modifier = Modifier.height(25.dp))
-            Text(
-                text = "Choisis une option pour commencer :",
-                style = MaterialTheme.typography.titleMedium,
-                fontStyle = FontStyle.Italic,
-                textAlign = TextAlign.Center
-            )
-            Spacer(modifier = Modifier.height(20.dp))
-            SplitMyButton(
-                text = "Notes",
-                rightIcon = Icons.Default.Checklist,
-                height = buttonHeight,
-                onMainClick = { onNavigate("notes") },
-                onRightClick = { onNavigate("todoNote") }
-            )
-            Spacer(modifier = Modifier.height(spaceHeight))
-            var isShuffleLoading by remember { mutableStateOf(false) }
-            SplitMyButton(
-                text = "Deezer",
-                rightIcon = Icons.Default.Shuffle,
-                height = buttonHeight,
-                rightLoading = isShuffleLoading,
-                onMainClick = { onNavigate("deezer") },
-                onRightClick = {
-                    if (!isShuffleLoading) {
-                        val repo = context.deezerRepository
-                        val previousSngId = repo.playerState.value.sngId
-                        isShuffleLoading = true
-                        coroutineScope.launch {
-                            runCatching {
-                                repo.shuffleFavorites()
-                                withTimeoutOrNull(15_000) {
-                                    repo.playerState.first { it.isPlaying && it.sngId != previousSngId }
-                                }
-                            }.onFailure {
-                                Toast.makeText(context, "Erreur: ${it.message}", Toast.LENGTH_SHORT).show()
-                            }
-                            isShuffleLoading = false
-                        }
-                    }
-                }
-            )
-            Spacer(modifier = Modifier.height(spaceHeight))
-            SplitMyButton(
-                text = "Flashcards",
-                rightIcon = Icons.Default.PlayArrow,
-                height = buttonHeight,
-                onMainClick = { onNavigate("flashcards") },
-                onRightClick = { onNavigate("flashcardsPlay") }
-            )
-            Spacer(modifier = Modifier.height(spaceHeight))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                MyButton(text = "Météo", modifier = Modifier.weight(1f), height = buttonHeight) { onNavigate("weather") }
-                MyButton(text = "Undercover", modifier = Modifier.weight(1f), height = buttonHeight) { onNavigate("undercover") }
-            }
-            Spacer(modifier = Modifier.height(spaceHeight))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                MyButton(text = "Volume", modifier = Modifier.weight(1f), height = buttonHeight) { onNavigate("volumeBooster") }
-                MyButton(text = "Random", modifier = Modifier.weight(1f), height = buttonHeight) { onNavigate("randomGenerator") }
-                MyButton(text = "Wiki", modifier = Modifier.weight(1f), height = buttonHeight) { onNavigate("wikipedia") }
-            }
-            Spacer(modifier = Modifier.height(spaceHeight))
-            val pinDao = remember { AppDatabase.get(context).pinnedMediaItemDao() }
-            val pinnedRows by pinDao.observePinned().collectAsState(initial = emptyList())
-            SplitMyButton(
-                text = "Galerie",
-                rightIcon = Icons.Default.PushPin,
-                height = buttonHeight,
-                rightEnabled = pinnedRows.isNotEmpty(),
-                onMainClick = { onNavigate("gallery") },
-                onRightClick = { onNavigate("galleryPinned") }
-            )
-        }
-
-        IconButton(
-            onClick = {
-                coroutineScope.launch {
-                    themeManager.setDarkMode(!isDarkMode)
-                }
-            },
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .offset(y = 8.dp)
-        ) {
-            Icon(
-                imageVector = if (isDarkMode) Icons.Default.LightMode else Icons.Default.DarkMode,
-                contentDescription = if (isDarkMode) "Mode clair" else "Mode sombre"
-            )
         }
     }
 }
