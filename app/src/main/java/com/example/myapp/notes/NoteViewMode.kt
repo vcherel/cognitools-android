@@ -34,6 +34,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateMapOf
@@ -43,6 +44,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.text.TextLayoutResult
@@ -52,25 +54,31 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import kotlin.math.roundToInt
 
+/** Everything a rendered line can ask the editor to do, by line index. */
+@Immutable
+data class NoteLineActions(
+    val onToggleLine: (Int) -> Unit,
+    val onDeleteLine: (Int) -> Unit,
+    val onMoveToCourses: (Int) -> Unit,
+    val onChangeQuantity: (index: Int, delta: Int) -> Unit,
+    val onAdvanceMuscu: (Int) -> Unit,
+    val onRemoveDateSuffix: (Int) -> Unit,
+    val onToggleLineMarker: (index: Int, marker: String) -> Unit,
+    val onEnterEditAt: (offset: Int) -> Unit,
+    val onReorder: (newContent: String) -> Unit
+)
+
 // The read-only rendering of a note: each line drawn as a checkbox, separator, or plain text,
 // with long-press drag to reorder, double-tap to edit, and per-line action buttons.
 @Composable
 fun NoteViewMode(
     textFieldState: TextFieldState,
     title: String,
-    onSaveContent: (String) -> Unit,
-    onToggleLine: (Int) -> Unit,
-    onDeleteLine: (Int) -> Unit,
-    onMoveToCourses: (Int) -> Unit,
-    onChangeQuantity: (Int, Int) -> Unit,
-    onAdvanceMuscu: (Int) -> Unit,
-    onRemoveDateSuffix: (Int) -> Unit,
-    onToggleLineMarker: (Int, String) -> Unit,
-    onEnterEditAt: (Int) -> Unit
+    actions: NoteLineActions
 ) {
-    val isIngredientsNote = title.equals("Ingrédients", ignoreCase = true)
-    val isCoursesNote = title.equals("Courses", ignoreCase = true)
-    val isTodoListNote = title.equals("Todo list", ignoreCase = true)
+    val isIngredientsNote = title.equals(INGREDIENTS_TITLE, ignoreCase = true)
+    val isCoursesNote = title.equals(COURSES_TITLE, ignoreCase = true)
+    val isTodoListNote = title.equals(TODO_LIST_TITLE, ignoreCase = true)
     // Computed once per recomposition and reused below, instead of re-converting
     // the whole note's text to a String for every line.
     val fullText = textFieldState.text.toString()
@@ -103,7 +111,7 @@ fun NoteViewMode(
             val current = textFieldState.text.toString().split("\n")
             if (order.size == current.size) {
                 val newText = order.joinToString("\n") { current[it] }
-                if (newText != textFieldState.text.toString()) onSaveContent(newText)
+                if (newText != textFieldState.text.toString()) actions.onReorder(newText)
             }
         }
         displayOrder = null
@@ -149,7 +157,7 @@ fun NoteViewMode(
             .pointerInput(Unit) {
                 detectTapGestures(
                     onTap = { selectedLine = -1 },
-                    onDoubleTap = { onEnterEditAt(textFieldState.text.length) }
+                    onDoubleTap = { actions.onEnterEditAt(textFieldState.text.length) }
                 )
             }
     ) {
@@ -165,6 +173,7 @@ fun NoteViewMode(
                     isIngredientsNote = isIngredientsNote,
                     isCoursesNote = isCoursesNote,
                     isTodoListNote = isTodoListNote,
+                    actions = actions,
                     onSizeChanged = { lineHeights[lineIndex] = it },
                     onDragStart = {
                         draggedLine = lineIndex
@@ -175,15 +184,7 @@ fun NoteViewMode(
                     onDragEnd = { endDrag(commit = true) },
                     onDragCancel = { endDrag(commit = false) },
                     onToggleSelected = { selectedLine = if (lineIndex == selectedLine) -1 else lineIndex },
-                    onDeselect = { selectedLine = -1 },
-                    onToggleLine = { onToggleLine(lineIndex) },
-                    onDeleteLine = { onDeleteLine(lineIndex) },
-                    onMoveToCourses = { onMoveToCourses(lineIndex) },
-                    onChangeQuantity = { delta -> onChangeQuantity(lineIndex, delta) },
-                    onAdvanceMuscu = { onAdvanceMuscu(lineIndex) },
-                    onRemoveDateSuffix = { onRemoveDateSuffix(lineIndex) },
-                    onToggleLineMarker = { marker -> onToggleLineMarker(lineIndex, marker) },
-                    onEnterEditAt = onEnterEditAt
+                    onDeselect = { selectedLine = -1 }
                 )
             }
         }
@@ -204,24 +205,17 @@ private fun NoteLine(
     isIngredientsNote: Boolean,
     isCoursesNote: Boolean,
     isTodoListNote: Boolean,
+    actions: NoteLineActions,
     onSizeChanged: (Int) -> Unit,
     onDragStart: () -> Unit,
     onDrag: (Float) -> Unit,
     onDragEnd: () -> Unit,
     onDragCancel: () -> Unit,
     onToggleSelected: () -> Unit,
-    onDeselect: () -> Unit,
-    onToggleLine: () -> Unit,
-    onDeleteLine: () -> Unit,
-    onMoveToCourses: () -> Unit,
-    onChangeQuantity: (Int) -> Unit,
-    onAdvanceMuscu: () -> Unit,
-    onRemoveDateSuffix: () -> Unit,
-    onToggleLineMarker: (String) -> Unit,
-    onEnterEditAt: (Int) -> Unit
+    onDeselect: () -> Unit
 ) {
     // Text layout of the line, to map a double tap to a cursor position
-    val textLayout = remember { arrayOfNulls<TextLayoutResult>(1) }
+    var textLayout by remember { mutableStateOf<TextLayoutResult?>(null) }
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -253,7 +247,7 @@ private fun NoteLine(
                     .padding(vertical = 4.dp)
                     .pointerInput(lineStart, line) {
                         detectTapGestures(onDoubleTap = {
-                            onEnterEditAt(lineStart + line.length)
+                            actions.onEnterEditAt(lineStart + line.length)
                         })
                     }
             ) {
@@ -267,124 +261,70 @@ private fun NoteLine(
                     )
                     HorizontalDivider(modifier = Modifier.weight(1f))
                 }
-                IconButton(
-                    onClick = onDeleteLine,
-                    modifier = Modifier.size(36.dp)
-                ) {
-                    Icon(
-                        Icons.Default.Delete,
-                        contentDescription = "Supprimer la ligne",
-                        tint = Color.Gray
-                    )
-                }
+                LineIconButton(Icons.Default.Delete, "Supprimer la ligne") { actions.onDeleteLine(lineIndex) }
             }
         } else if (line.isCheckboxLine()) {
             val checked = line.isCheckedLine()
+            val text = line.checkboxText()
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { onToggleLine() }
+                    .clickable { actions.onToggleLine(lineIndex) }
             ) {
-                Checkbox(checked = checked, onCheckedChange = { onToggleLine() })
+                Checkbox(checked = checked, onCheckedChange = { actions.onToggleLine(lineIndex) })
                 Text(
-                    line.checkboxText().formatInline(),
+                    text.formatInline(),
                     style = MaterialTheme.typography.bodyLarge,
                     textDecoration = if (checked) TextDecoration.LineThrough else TextDecoration.None,
                     color = if (checked) Color.Gray else MaterialTheme.colorScheme.onBackground,
-                    onTextLayout = { textLayout[0] = it },
+                    onTextLayout = { textLayout = it },
                     modifier = Modifier
                         .weight(1f)
                         .pointerInput(lineStart, line) {
                             detectTapGestures(
-                                onTap = { onToggleLine() },
+                                onTap = { actions.onToggleLine(lineIndex) },
                                 onDoubleTap = { pos ->
-                                    val inLine = textLayout[0]?.getOffsetForPosition(pos)
-                                        ?: line.checkboxText().length
-                                    onEnterEditAt(
-                                        lineStart + UNCHECKED_PREFIX.length +
-                                            inLine.coerceIn(0, line.checkboxText().length)
+                                    val inLine = textLayout?.getOffsetForPosition(pos) ?: text.length
+                                    actions.onEnterEditAt(
+                                        lineStart + UNCHECKED_PREFIX.length + inLine.coerceIn(0, text.length)
                                     )
                                 }
                             )
                         }
                 )
                 if (isCoursesNote) {
-                    if (line.checkboxText().itemQuantity() > 1) {
-                        IconButton(
-                            onClick = { onChangeQuantity(-1) },
-                            modifier = Modifier.size(36.dp)
-                        ) {
-                            Icon(
-                                Icons.Default.Remove,
-                                contentDescription = "Diminuer la quantité",
-                                tint = Color.Gray
-                            )
+                    if (text.itemQuantity() > 1) {
+                        LineIconButton(Icons.Default.Remove, "Diminuer la quantité") {
+                            actions.onChangeQuantity(lineIndex, -1)
                         }
                     }
-                    IconButton(
-                        onClick = { onChangeQuantity(1) },
-                        modifier = Modifier.size(36.dp)
-                    ) {
-                        Icon(
-                            Icons.Default.Add,
-                            contentDescription = "Augmenter la quantité",
-                            tint = Color.Gray
-                        )
+                    LineIconButton(Icons.Default.Add, "Augmenter la quantité") {
+                        actions.onChangeQuantity(lineIndex, 1)
                     }
                 }
                 if (isIngredientsNote) {
-                    IconButton(
-                        onClick = onMoveToCourses,
-                        modifier = Modifier.size(36.dp)
-                    ) {
-                        Icon(
-                            Icons.Default.ShoppingCart,
-                            contentDescription = "Déplacer vers Courses",
-                            tint = Color.Gray
-                        )
+                    LineIconButton(Icons.Default.ShoppingCart, "Déplacer vers Courses") {
+                        actions.onMoveToCourses(lineIndex)
                     }
                 }
-                if (isTodoListNote && muscuDayMatch(line.checkboxText()) != null) {
-                    IconButton(
-                        onClick = onAdvanceMuscu,
-                        modifier = Modifier.size(36.dp)
-                    ) {
-                        Icon(
-                            Icons.Default.FitnessCenter,
-                            contentDescription = "Jour suivant",
-                            tint = Color.Gray
-                        )
+                if (isTodoListNote && muscuDayMatch(text) != null) {
+                    LineIconButton(Icons.Default.FitnessCenter, "Jour suivant") {
+                        actions.onAdvanceMuscu(lineIndex)
                     }
-                } else if (isTodoListNote && line.checkboxText().hasDateSuffix()) {
-                    IconButton(
-                        onClick = onRemoveDateSuffix,
-                        modifier = Modifier.size(36.dp)
-                    ) {
-                        Icon(
-                            Icons.Default.EventBusy,
-                            contentDescription = "Retirer la date",
-                            tint = Color.Gray
-                        )
+                } else if (isTodoListNote && text.hasDateSuffix()) {
+                    LineIconButton(Icons.Default.EventBusy, "Retirer la date") {
+                        actions.onRemoveDateSuffix(lineIndex)
                     }
                 }
-                IconButton(
-                    onClick = onDeleteLine,
-                    modifier = Modifier.size(36.dp)
-                ) {
-                    Icon(
-                        Icons.Default.Delete,
-                        contentDescription = "Supprimer la ligne",
-                        tint = Color.Gray
-                    )
-                }
+                LineIconButton(Icons.Default.Delete, "Supprimer la ligne") { actions.onDeleteLine(lineIndex) }
             }
         } else {
             Column(modifier = Modifier.fillMaxWidth()) {
                 Text(
                     (if (line.isEmpty()) " " else line).formatInline(),
                     style = MaterialTheme.typography.bodyLarge,
-                    onTextLayout = { textLayout[0] = it },
+                    onTextLayout = { textLayout = it },
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(
@@ -397,62 +337,48 @@ private fun NoteLine(
                                 onTap = { onToggleSelected() },
                                 onDoubleTap = { pos ->
                                     onDeselect()
-                                    val inLine = textLayout[0]?.getOffsetForPosition(pos) ?: line.length
-                                    onEnterEditAt(lineStart + inLine.coerceIn(0, line.length))
+                                    val inLine = textLayout?.getOffsetForPosition(pos) ?: line.length
+                                    actions.onEnterEditAt(lineStart + inLine.coerceIn(0, line.length))
                                 }
                             )
                         }
                 )
                 if (selected) {
                     Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        IconButton(
-                            onClick = { onToggleLineMarker("**") },
-                            modifier = Modifier.size(36.dp)
-                        ) {
-                            Icon(Icons.Default.FormatBold, contentDescription = "Gras", tint = Color.Gray)
+                        LineIconButton(Icons.Default.FormatBold, "Gras") {
+                            actions.onToggleLineMarker(lineIndex, "**")
                         }
-                        IconButton(
-                            onClick = { onToggleLineMarker("*") },
-                            modifier = Modifier.size(36.dp)
-                        ) {
-                            Icon(Icons.Default.FormatItalic, contentDescription = "Italique", tint = Color.Gray)
+                        LineIconButton(Icons.Default.FormatItalic, "Italique") {
+                            actions.onToggleLineMarker(lineIndex, "*")
                         }
-                        IconButton(
-                            onClick = { onToggleLineMarker("__") },
-                            modifier = Modifier.size(36.dp)
-                        ) {
-                            Icon(Icons.Default.FormatUnderlined, contentDescription = "Souligné", tint = Color.Gray)
+                        LineIconButton(Icons.Default.FormatUnderlined, "Souligné") {
+                            actions.onToggleLineMarker(lineIndex, "__")
                         }
                         if (isIngredientsNote) {
-                            IconButton(
-                                onClick = { onMoveToCourses(); onDeselect() },
-                                modifier = Modifier.size(36.dp)
-                            ) {
-                                Icon(
-                                    Icons.Default.ShoppingCart,
-                                    contentDescription = "Déplacer vers Courses",
-                                    tint = Color.Gray
-                                )
+                            LineIconButton(Icons.Default.ShoppingCart, "Déplacer vers Courses") {
+                                actions.onMoveToCourses(lineIndex)
+                                onDeselect()
                             }
                         }
-                        IconButton(
-                            onClick = { onDeleteLine(); onDeselect() },
-                            modifier = Modifier.size(36.dp)
-                        ) {
-                            Icon(Icons.Default.Delete, contentDescription = "Supprimer la ligne", tint = Color.Gray)
+                        LineIconButton(Icons.Default.Delete, "Supprimer la ligne") {
+                            actions.onDeleteLine(lineIndex)
+                            onDeselect()
                         }
-                        IconButton(
-                            onClick = {
-                                onDeselect()
-                                onEnterEditAt(lineStart + line.length)
-                            },
-                            modifier = Modifier.size(36.dp)
-                        ) {
-                            Icon(Icons.Default.Edit, contentDescription = "Éditer", tint = Color.Gray)
+                        LineIconButton(Icons.Default.Edit, "Éditer") {
+                            onDeselect()
+                            actions.onEnterEditAt(lineStart + line.length)
                         }
                     }
                 }
             }
         }
+    }
+}
+
+// The small gray action button every line trailing control is made of.
+@Composable
+private fun LineIconButton(icon: ImageVector, description: String, onClick: () -> Unit) {
+    IconButton(onClick = onClick, modifier = Modifier.size(36.dp)) {
+        Icon(icon, contentDescription = description, tint = Color.Gray)
     }
 }
