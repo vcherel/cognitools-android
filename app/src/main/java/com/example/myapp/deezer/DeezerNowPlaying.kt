@@ -22,6 +22,7 @@ import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material3.CircularProgressIndicator
@@ -47,6 +48,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import android.content.Context
+import android.content.Intent
 import android.widget.Toast
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -59,6 +62,22 @@ import java.util.Locale
 private fun currentTrack(repo: DeezerRepository, state: PlayerUiState): DeezerTrack? {
     val id = state.sngId ?: return null
     return repo.trackById(id) ?: DeezerTrack(id, state.title, state.artist, "", 0, null)
+}
+
+/**
+ * Send a track to the system share sheet. The link goes through song.link (Odesli) so it lands on a
+ * page offering Spotify / Apple Music / YouTube / Deezer, rather than forcing a Deezer account on the
+ * person receiving it.
+ */
+private fun shareTrack(context: Context, track: DeezerTrack) {
+    val link = "https://song.link/https://www.deezer.com/track/${track.sngId}"
+    val text = if (track.artist.isBlank()) "${track.title}\n$link" else "${track.title} par ${track.artist}\n$link"
+    val send = Intent(Intent.ACTION_SEND).apply {
+        type = "text/plain"
+        putExtra(Intent.EXTRA_TEXT, text)
+        putExtra(Intent.EXTRA_SUBJECT, track.title)
+    }
+    context.startActivity(Intent.createChooser(send, "Partager le titre"))
 }
 
 /** Slim bar pinned above nothing (it sits at the bottom of the Deezer tool), tap to expand. */
@@ -192,6 +211,12 @@ fun FullPlayerSheet(
                     }
                 }) {
                     Icon(Icons.Filled.Diamond, contentDescription = "Ajouter à Best pépites", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                IconButton(onClick = {
+                    val track = currentTrack(repo, state) ?: return@IconButton
+                    shareTrack(context, track)
+                }) {
+                    Icon(Icons.Filled.Share, contentDescription = "Partager", tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
 
