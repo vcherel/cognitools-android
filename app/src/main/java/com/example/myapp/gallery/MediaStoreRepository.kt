@@ -61,7 +61,7 @@ fun queryAlbums(context: Context): List<Album> {
 }
 
 fun queryMediaItemById(context: Context, id: Long): MediaItem? =
-    queryMediaItems(context, itemId = id).firstOrNull()
+    queryMediaItems(context, itemIds = listOf(id)).firstOrNull()
 
 /** Looks up several items by id in one query. Order is not guaranteed; sort the result yourself. */
 fun queryMediaItemsByIds(context: Context, ids: List<Long>): List<MediaItem> =
@@ -74,7 +74,6 @@ fun queryTrashedItems(context: Context): List<MediaItem> =
 fun queryMediaItems(
     context: Context,
     bucketId: Long? = null,
-    itemId: Long? = null,
     itemIds: List<Long>? = null,
     trashedOnly: Boolean = false
 ): List<MediaItem> {
@@ -82,7 +81,6 @@ fun queryMediaItems(
     val selection = buildString {
         append("(${MediaStore.Files.FileColumns.MEDIA_TYPE} = ? OR ${MediaStore.Files.FileColumns.MEDIA_TYPE} = ?)")
         if (bucketId != null) append(" AND ${MediaStore.Files.FileColumns.BUCKET_ID} = ?")
-        if (itemId != null) append(" AND ${MediaStore.Files.FileColumns._ID} = ?")
         if (itemIds != null) {
             append(" AND ${MediaStore.Files.FileColumns._ID} IN (${itemIds.joinToString(",") { "?" }})")
         }
@@ -91,7 +89,6 @@ fun queryMediaItems(
         add(MediaStore.Files.FileColumns.MEDIA_TYPE_IMAGE.toString())
         add(MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO.toString())
         if (bucketId != null) add(bucketId.toString())
-        if (itemId != null) add(itemId.toString())
         if (itemIds != null) addAll(itemIds.map { it.toString() })
     }.toTypedArray()
     // Trashed rows are excluded from a plain query, so listing them takes the Bundle form with
@@ -101,7 +98,7 @@ fun queryMediaItems(
     } else {
         "${MediaStore.Files.FileColumns.DATE_ADDED} DESC"
     }
-    val cursor = if (trashedOnly && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+    val cursor = if (trashedOnly && trashSupported()) {
         val queryArgs = Bundle().apply {
             putString(ContentResolver.QUERY_ARG_SQL_SELECTION, selection)
             putStringArray(ContentResolver.QUERY_ARG_SQL_SELECTION_ARGS, args)
@@ -175,25 +172,47 @@ private fun relativeFolderFromData(data: String): String {
     return if (folder.isEmpty()) "" else "$folder/"
 }
 
+// Every MediaStore write ends the same three ways: it went through, Android wants the user to
+// consent first, or it failed. This is where that gets decided once.
+private inline fun writeOutcome(failureMessage: String, write: () -> Boolean): WriteOutcome =
+    try {
+        if (write()) WriteOutcome.Done else WriteOutcome.Error(failureMessage)
+    } catch (e: RecoverableSecurityException) {
+        WriteOutcome.NeedsConsent(e.userAction.actionIntent.intentSender)
+    } catch (e: Exception) {
+        WriteOutcome.Error(e.message ?: "Erreur")
+    }
+
+// Asks for consent and runs the write again when Android demands it (API 29 raises it as a
+// RecoverableSecurityException from the write itself).
+private suspend fun WriteOutcome.orConsentThenRetry(
+    requestConsent: suspend (IntentSender) -> Boolean,
+    write: () -> WriteOutcome
+): Boolean = when (this) {
+    WriteOutcome.Done -> true
+    is WriteOutcome.NeedsConsent -> requestConsent(intentSender) && write() == WriteOutcome.Done
+    is WriteOutcome.Error -> false
+}
+
+// True when MediaProvider will refuse a write to items this app doesn't own until the user has
+// approved them, which is what the up-front createWriteRequest dialogs are for.
+private fun needsUpfrontConsent(): Boolean =
+    Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && !hasAllFilesAccess()
+
 // Grants write access for uris not owned by this app (API 30+ shows a one-time system consent
-// dialog via requestConsent), then runs `write`. On API 29, `write` itself may fail with a
-// RecoverableSecurityException, in which case we ask for consent and retry once. Below API 29,
-// legacy full storage access means `write` just succeeds directly.
+// dialog via requestConsent), then runs `write`. Below API 29, legacy full storage access means
+// `write` just succeeds directly.
 private suspend fun performMediaWrite(
     context: Context,
     uris: List<Uri>,
     requestConsent: suspend (IntentSender) -> Boolean,
     write: () -> WriteOutcome
 ): Boolean {
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && !hasAllFilesAccess()) {
+    if (needsUpfrontConsent()) {
         val pending = MediaStore.createWriteRequest(context.contentResolver, uris)
         if (!requestConsent(pending.intentSender)) return false
     }
-    return when (val outcome = write()) {
-        WriteOutcome.Done -> true
-        is WriteOutcome.NeedsConsent -> requestConsent(outcome.intentSender) && write() == WriteOutcome.Done
-        is WriteOutcome.Error -> false
-    }
+    return write().orConsentThenRetry(requestConsent, write)
 }
 
 suspend fun performRename(
@@ -205,17 +224,11 @@ suspend fun performRename(
     renameMediaItem(context, item, newName)
 }
 
-private fun renameMediaItem(context: Context, item: MediaItem, newName: String): WriteOutcome {
-    val values = ContentValues().apply { put(MediaStore.Files.FileColumns.DISPLAY_NAME, newName) }
-    return try {
-        val rows = context.contentResolver.update(item.uri, values, null, null)
-        if (rows > 0) WriteOutcome.Done else WriteOutcome.Error("Renommage impossible")
-    } catch (e: RecoverableSecurityException) {
-        WriteOutcome.NeedsConsent(e.userAction.actionIntent.intentSender)
-    } catch (e: Exception) {
-        WriteOutcome.Error(e.message ?: "Erreur")
+private fun renameMediaItem(context: Context, item: MediaItem, newName: String): WriteOutcome =
+    writeOutcome("Renommage impossible") {
+        val values = ContentValues().apply { put(MediaStore.Files.FileColumns.DISPLAY_NAME, newName) }
+        context.contentResolver.update(item.uri, values, null, null) > 0
     }
-}
 
 suspend fun performMove(
     context: Context,
@@ -239,17 +252,11 @@ suspend fun performMove(
     return copyThenDeleteMove(context, item, targetRelativePath, requestConsent)
 }
 
-private fun updateRelativePath(context: Context, item: MediaItem, targetRelativePath: String): WriteOutcome {
-    val values = ContentValues().apply { put(MediaStore.Files.FileColumns.RELATIVE_PATH, targetRelativePath) }
-    return try {
-        val rows = context.contentResolver.update(item.uri, values, null, null)
-        if (rows > 0) WriteOutcome.Done else WriteOutcome.Error("Déplacement impossible")
-    } catch (e: RecoverableSecurityException) {
-        WriteOutcome.NeedsConsent(e.userAction.actionIntent.intentSender)
-    } catch (e: Exception) {
-        WriteOutcome.Error(e.message ?: "Erreur")
+private fun updateRelativePath(context: Context, item: MediaItem, targetRelativePath: String): WriteOutcome =
+    writeOutcome("Déplacement impossible") {
+        val values = ContentValues().apply { put(MediaStore.Files.FileColumns.RELATIVE_PATH, targetRelativePath) }
+        context.contentResolver.update(item.uri, values, null, null) > 0
     }
-}
 
 private suspend fun copyThenDeleteMove(
     context: Context,
@@ -286,7 +293,11 @@ private suspend fun copyThenDeleteMove(
         null,
         null
     )
-    return performDelete(context, item, requestConsent)
+    if (performDelete(context, item, requestConsent)) return true
+    // The original survived (refused consent, or MediaProvider said no): drop the copy we just
+    // made rather than leaving the same picture in two albums.
+    context.contentResolver.delete(newUri, null, null)
+    return false
 }
 
 @Suppress("DEPRECATION")
@@ -311,15 +322,12 @@ suspend fun performDelete(
     item: MediaItem,
     requestConsent: suspend (IntentSender) -> Boolean
 ): Boolean {
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && !hasAllFilesAccess()) {
+    if (needsUpfrontConsent()) {
         val pending = MediaStore.createDeleteRequest(context.contentResolver, listOf(item.uri))
         return requestConsent(pending.intentSender)
     }
-    return when (val outcome = deleteMediaItem(context, item)) {
-        WriteOutcome.Done -> true
-        is WriteOutcome.NeedsConsent -> requestConsent(outcome.intentSender) && deleteMediaItem(context, item) == WriteOutcome.Done
-        is WriteOutcome.Error -> false
-    }
+    val delete = { deleteMediaItem(context, item) }
+    return delete().orConsentThenRetry(requestConsent, delete)
 }
 
 // Deletes several items in one shot. On API 30+ MediaStore shows a single system consent dialog
@@ -330,7 +338,7 @@ suspend fun performDeleteBatch(
     requestConsent: suspend (IntentSender) -> Boolean
 ): Boolean {
     if (items.isEmpty()) return true
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && !hasAllFilesAccess()) {
+    if (needsUpfrontConsent()) {
         val pending = MediaStore.createDeleteRequest(context.contentResolver, items.map { it.uri })
         return requestConsent(pending.intentSender)
     }
@@ -356,15 +364,15 @@ suspend fun performMoveBatch(
         for (item in items) if (!performMove(context, item, targetRelativePath, requestConsent)) ok = false
         return ok
     }
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && !hasAllFilesAccess()) {
+    if (needsUpfrontConsent()) {
         val pending = MediaStore.createWriteRequest(context.contentResolver, items.map { it.uri })
         if (!requestConsent(pending.intentSender)) return false
     }
     var allOk = true
     for (item in items) {
-        if (updateRelativePath(context, item, targetRelativePath) != WriteOutcome.Done) {
-            if (!copyThenDeleteMove(context, item, targetRelativePath, requestConsent)) allOk = false
-        }
+        val move = { updateRelativePath(context, item, targetRelativePath) }
+        val moved = move().orConsentThenRetry(requestConsent, move)
+        if (!moved && !copyThenDeleteMove(context, item, targetRelativePath, requestConsent)) allOk = false
     }
     return allOk
 }
@@ -393,7 +401,7 @@ private suspend fun setTrashed(
     requestConsent: suspend (IntentSender) -> Boolean
 ): Boolean {
     if (items.isEmpty()) return true
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return false
+    if (!trashSupported()) return false
     val values = ContentValues().apply {
         put(MediaStore.Files.FileColumns.IS_TRASHED, if (trashed) 1 else 0)
     }
@@ -411,16 +419,10 @@ private suspend fun setTrashed(
     return requestConsent(pending.intentSender)
 }
 
-private fun deleteMediaItem(context: Context, item: MediaItem): WriteOutcome {
-    return try {
-        val rows = context.contentResolver.delete(item.uri, null, null)
-        if (rows > 0) WriteOutcome.Done else WriteOutcome.Error("Suppression impossible")
-    } catch (e: RecoverableSecurityException) {
-        WriteOutcome.NeedsConsent(e.userAction.actionIntent.intentSender)
-    } catch (e: Exception) {
-        WriteOutcome.Error(e.message ?: "Erreur")
+private fun deleteMediaItem(context: Context, item: MediaItem): WriteOutcome =
+    writeOutcome("Suppression impossible") {
+        context.contentResolver.delete(item.uri, null, null) > 0
     }
-}
 
 // Used to save a crop or a video trim back into the original file (overwrite in place).
 suspend fun performOverwrite(
@@ -432,18 +434,13 @@ suspend fun performOverwrite(
     overwriteMediaItemBytes(context, item, writeBytes)
 }
 
-private fun overwriteMediaItemBytes(context: Context, item: MediaItem, writeBytes: (OutputStream) -> Unit): WriteOutcome {
-    return try {
-        context.contentResolver.openOutputStream(item.uri, "wt")?.use(writeBytes)
-            ?: return WriteOutcome.Error("Impossible d'ouvrir le fichier")
+private fun overwriteMediaItemBytes(context: Context, item: MediaItem, writeBytes: (OutputStream) -> Unit): WriteOutcome =
+    writeOutcome("Impossible d'ouvrir le fichier") {
+        val output = context.contentResolver.openOutputStream(item.uri, "wt") ?: return@writeOutcome false
+        output.use(writeBytes)
         val values = ContentValues().apply {
             put(MediaStore.Files.FileColumns.DATE_MODIFIED, System.currentTimeMillis() / 1000)
         }
         context.contentResolver.update(item.uri, values, null, null)
-        WriteOutcome.Done
-    } catch (e: RecoverableSecurityException) {
-        WriteOutcome.NeedsConsent(e.userAction.actionIntent.intentSender)
-    } catch (e: Exception) {
-        WriteOutcome.Error(e.message ?: "Erreur")
+        true
     }
-}
