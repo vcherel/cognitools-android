@@ -1,5 +1,8 @@
 package com.example.myapp
 
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.view.animation.AnticipateInterpolator
@@ -44,7 +47,9 @@ import com.example.myapp.gallery.GalleryTrimScreen
 import com.example.myapp.gallery.GalleryViewerScreen
 import com.example.myapp.gallery.LocalMediaConsent
 import com.example.myapp.gallery.ViewerSource
+import com.example.myapp.gallery.hasReadMediaPermission
 import com.example.myapp.gallery.rememberIntentSenderRequester
+import com.example.myapp.gallery.resolveMediaTarget
 import com.example.myapp.notes.NoteEditorScreen
 import com.example.myapp.notes.NotesListScreen
 import com.example.myapp.notes.NotesTrashScreen
@@ -63,13 +68,20 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         splashScreen.setOnExitAnimationListener { splashScreenView ->
-            splashScreenView.iconView.animate()
-                .scaleX(1.5f)
-                .scaleY(1.5f)
-                .alpha(0f)
-                .setInterpolator(AnticipateInterpolator())
-                .setDuration(500L)
-                .withEndAction { splashScreenView.remove() }
+            // Some launch paths (e.g. "open with" from another app) hand back a splash view with
+            // no icon view; the compat library's getter throws instead of returning null there.
+            val iconView = try { splashScreenView.iconView } catch (e: NullPointerException) { null }
+            if (iconView != null) {
+                iconView.animate()
+                    .scaleX(1.5f)
+                    .scaleY(1.5f)
+                    .alpha(0f)
+                    .setInterpolator(AnticipateInterpolator())
+                    .setDuration(500L)
+                    .withEndAction { splashScreenView.remove() }
+            } else {
+                splashScreenView.remove()
+            }
         }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -82,20 +94,56 @@ class MainActivity : ComponentActivity() {
             }
         }
 
+        // Resolved up front, synchronously: a single indexed-row query, fast enough to do before
+        // the first frame so the menu is never the destination Compose actually starts on (which
+        // would otherwise flash on screen for the frame or two before a post-composition navigate
+        // could react to it).
+        val initialGalleryRoute = resolveInitialGalleryRoute(this, viewMediaUriFrom(intent))
+
         enableEdgeToEdge()
         setContent {
             val themeManager = remember { ThemeManager(applicationContext) }
             val isDarkMode by themeManager.isDarkMode.collectAsState(initial = false)
 
             AppTheme(isDarkMode = isDarkMode) {
-                MainScreen(themeManager = themeManager, isDarkMode = isDarkMode)
+                MainScreen(
+                    themeManager = themeManager,
+                    isDarkMode = isDarkMode,
+                    initialGalleryRoute = initialGalleryRoute?.first,
+                    initialGalleryMessage = initialGalleryRoute?.second
+                )
             }
         }
     }
 }
 
+// Set when the app was launched to open a picture or video from another app ("Open with" /
+// default handler).
+private fun viewMediaUriFrom(intent: Intent): Uri? {
+    val type = intent.type ?: return null
+    val isMedia = type.startsWith("image/") || type.startsWith("video/")
+    return if (intent.action == Intent.ACTION_VIEW && isMedia) intent.data else null
+}
+
+// The nav route to jump to once the app starts, plus an optional snackbar to explain a fallback,
+// e.g. when the item couldn't be resolved or media permission hasn't been granted yet.
+private fun resolveInitialGalleryRoute(context: Context, viewMediaUri: Uri?): Pair<String, String?>? {
+    if (viewMediaUri == null) return null
+    if (!hasReadMediaPermission(context)) {
+        return "gallery" to "Autorisez l'accès aux photos et vidéos pour l'ouvrir directement"
+    }
+    val target = resolveMediaTarget(context, viewMediaUri) ?: return "gallery" to "Impossible d'ouvrir ce fichier"
+    val (itemId, bucketId) = target
+    return "gallery/viewer/$bucketId/$itemId" to null
+}
+
 @Composable
-fun MainScreen(themeManager: ThemeManager, isDarkMode: Boolean) {
+fun MainScreen(
+    themeManager: ThemeManager,
+    isDarkMode: Boolean,
+    initialGalleryRoute: String? = null,
+    initialGalleryMessage: String? = null
+) {
     val navController = rememberNavController()
     val idleGuard = remember { IdleResetGuard() }
     val goHome: () -> Unit = { navController.popBackStack("menu", inclusive = false) }
@@ -115,6 +163,12 @@ fun MainScreen(themeManager: ThemeManager, isDarkMode: Boolean) {
     ) {
         val context = LocalContext.current
         val coroutineScope = rememberCoroutineScope()
+
+        LaunchedEffect(initialGalleryRoute) {
+            val route = initialGalleryRoute ?: return@LaunchedEffect
+            navController.navigate(route)
+            initialGalleryMessage?.let { AppSnackbar.show(it) }
+        }
 
         val snackbarHostState = remember { SnackbarHostState() }
         LaunchedEffect(Unit) {

@@ -67,6 +67,27 @@ fun queryMediaItemById(context: Context, id: Long): MediaItem? =
 fun queryMediaItemsByIds(context: Context, ids: List<Long>): List<MediaItem> =
     if (ids.isEmpty()) emptyList() else queryMediaItems(context, itemIds = ids)
 
+/**
+ * Resolves a content Uri handed to us by another app (e.g. an ACTION_VIEW "open with" intent) to
+ * the (itemId, bucketId) pair the gallery's own screens navigate with. Queries the Uri directly
+ * rather than going through the Files collection, since a single-Uri intent grant covers this even
+ * when the app hasn't been given the broad READ_MEDIA_IMAGES permission.
+ */
+fun resolveMediaTarget(context: Context, uri: Uri): Pair<Long, Long>? = try {
+    context.contentResolver.query(
+        uri,
+        arrayOf(MediaStore.MediaColumns._ID, MediaStore.MediaColumns.BUCKET_ID),
+        null, null, null
+    )?.use { cursor ->
+        if (!cursor.moveToFirst()) return@use null
+        val idCol = cursor.getColumnIndex(MediaStore.MediaColumns._ID)
+        val bucketCol = cursor.getColumnIndex(MediaStore.MediaColumns.BUCKET_ID)
+        if (idCol < 0 || bucketCol < 0) null else cursor.getLong(idCol) to cursor.getLong(bucketCol)
+    }
+} catch (e: SecurityException) {
+    null
+}
+
 /** The trashed items, most recently trashed first. Empty below API 30, where there is no trash. */
 fun queryTrashedItems(context: Context): List<MediaItem> =
     if (trashSupported()) queryMediaItems(context, trashedOnly = true) else emptyList()
