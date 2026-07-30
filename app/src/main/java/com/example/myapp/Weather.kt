@@ -1,14 +1,8 @@
 package com.example.myapp
 
 import android.Manifest
-import android.annotation.SuppressLint
 import android.content.Context
 import android.content.pm.PackageManager
-import android.location.Location
-import android.location.LocationListener
-import android.location.LocationManager
-import android.os.Handler
-import android.os.Looper
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.ExitTransition
@@ -66,15 +60,11 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
-import org.json.JSONObject
-import java.net.URLEncoder
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.format.TextStyle
 import java.util.Locale
-import kotlin.coroutines.resume
 import kotlin.math.roundToInt
 
 @Composable
@@ -120,6 +110,9 @@ fun WeatherScreen(onBack: () -> Unit) {
                 }
             }
         } catch (e: Exception) {
+            // Drop what was on screen: a stale forecast shown as if it were current is worse
+            // than the error, and it would hide the message below.
+            forecast = null
             error = "Erreur de chargement: ${e.message}"
         } finally {
             isLoading = false
@@ -147,9 +140,11 @@ fun WeatherScreen(onBack: () -> Unit) {
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
         )
 
-        if (forecast != null) {
+        val currentForecast = forecast
+        val currentError = error
+        if (currentForecast != null) {
             WeatherContent(
-                forecast = forecast!!,
+                forecast = currentForecast,
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(16.dp)
@@ -163,12 +158,21 @@ fun WeatherScreen(onBack: () -> Unit) {
             ) {
                 when {
                     isLoading -> CircularProgressIndicator(modifier = Modifier.padding(32.dp))
-                    !hasPermission -> Text(
-                        "L'accès à la position est nécessaire pour afficher la météo locale.",
-                        modifier = Modifier.padding(16.dp)
-                    )
-                    error != null -> Text(
-                        error!!,
+                    !hasPermission -> {
+                        Text(
+                            "L'accès à la position est nécessaire pour afficher la météo locale, " +
+                                "ou choisis une ville ci-dessus.",
+                            modifier = Modifier.padding(16.dp)
+                        )
+                        TextButton(
+                            onClick = { permissionLauncher.launch(Manifest.permission.ACCESS_COARSE_LOCATION) },
+                            modifier = Modifier.padding(horizontal = 16.dp)
+                        ) {
+                            Text("Réessayer")
+                        }
+                    }
+                    currentError != null -> Text(
+                        currentError,
                         color = MaterialTheme.colorScheme.error,
                         modifier = Modifier.padding(16.dp)
                     )
@@ -540,162 +544,5 @@ private fun daySummary(hours: List<HourlyPoint>, date: LocalDate): String {
         if (isToday) "🌧️ Pluie en cours ou imminente" else "🌧️ Pluie dès le matin"
     } else {
         "🌧️ Pluie prévue vers ${rainHour.time.hour}h"
-    }
-}
-
-data class HourlyPoint(val time: LocalDateTime, val temp: Double, val rainProb: Int, val rainAmount: Double, val weatherCode: Int)
-data class DailyPoint(val date: LocalDate, val tempMax: Double, val tempMin: Double, val rainProb: Int, val rainAmount: Double, val weatherCode: Int)
-data class WeatherForecast(val hourly: List<HourlyPoint>, val daily: List<DailyPoint>)
-data class CityLocation(val name: String, val admin1: String?, val country: String?, val lat: Double, val lon: Double)
-
-private const val WEATHER_PREFS = "weather_prefs"
-private const val KEY_SELECTED_CITY = "selected_city"
-
-private fun loadSavedCity(context: Context): CityLocation? {
-    val json = context.getSharedPreferences(WEATHER_PREFS, Context.MODE_PRIVATE)
-        .getString(KEY_SELECTED_CITY, null) ?: return null
-    return runCatching {
-        val obj = JSONObject(json)
-        CityLocation(
-            name = obj.getString("name"),
-            admin1 = obj.optString("admin1").ifBlank { null },
-            country = obj.optString("country").ifBlank { null },
-            lat = obj.getDouble("lat"),
-            lon = obj.getDouble("lon")
-        )
-    }.getOrNull()
-}
-
-private fun saveCity(context: Context, city: CityLocation?) {
-    val prefs = context.getSharedPreferences(WEATHER_PREFS, Context.MODE_PRIVATE)
-    if (city == null) {
-        prefs.edit().remove(KEY_SELECTED_CITY).apply()
-        return
-    }
-    val json = JSONObject().apply {
-        put("name", city.name)
-        put("admin1", city.admin1 ?: "")
-        put("country", city.country ?: "")
-        put("lat", city.lat)
-        put("lon", city.lon)
-    }
-    prefs.edit().putString(KEY_SELECTED_CITY, json.toString()).apply()
-}
-
-private fun searchCities(query: String): List<CityLocation> {
-    val encoded = URLEncoder.encode(query, "UTF-8")
-    val url = "https://geocoding-api.open-meteo.com/v1/search?name=$encoded&count=8&language=fr&format=json"
-    val json = JSONObject(httpGet(url))
-    val results = json.optJSONArray("results") ?: return emptyList()
-    return (0 until results.length()).map { i ->
-        val obj = results.getJSONObject(i)
-        CityLocation(
-            name = obj.getString("name"),
-            admin1 = obj.optString("admin1").ifBlank { null },
-            country = obj.optString("country").ifBlank { null },
-            lat = obj.getDouble("latitude"),
-            lon = obj.getDouble("longitude")
-        )
-    }
-}
-
-// Temperature, weather code and rain amount come from Météo-France (AROME over France, seamlessly
-// falling back to their coarser global ARPEGE model elsewhere, all within this one call). Rain
-// probability comes from Open-Meteo's best_match blend instead, since Météo-France's deterministic
-// model doesn't expose a probability, only an amount. Météo-France's own forecast horizon is much
-// shorter than best_match's (a few days vs 16), so past that horizon every field falls back to
-// best_match instead of leaving the rest of the 16 days empty.
-private fun fetchWeatherForecast(lat: Double, lon: Double): WeatherForecast {
-    val url = "https://api.open-meteo.com/v1/forecast?latitude=$lat&longitude=$lon" +
-            "&hourly=temperature_2m,precipitation_probability,precipitation,weathercode" +
-            "&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum,weathercode" +
-            "&timezone=auto&forecast_days=16&models=meteofrance_seamless,best_match"
-    val json = JSONObject(httpGet(url))
-
-    val hourlyJson = json.getJSONObject("hourly")
-    val hourlyTimes = hourlyJson.getJSONArray("time")
-    val hourlyTemps = hourlyJson.getJSONArray("temperature_2m_meteofrance_seamless")
-    val hourlyTempsFallback = hourlyJson.getJSONArray("temperature_2m_best_match")
-    val hourlyRain = hourlyJson.getJSONArray("precipitation_probability_best_match")
-    val hourlyAmount = hourlyJson.getJSONArray("precipitation_meteofrance_seamless")
-    val hourlyAmountFallback = hourlyJson.getJSONArray("precipitation_best_match")
-    val hourlyCodes = hourlyJson.getJSONArray("weathercode_meteofrance_seamless")
-    val hourlyCodesFallback = hourlyJson.getJSONArray("weathercode_best_match")
-    // Temperature is null once Météo-France's own forecast horizon ends; fall back to best_match
-    // rather than dropping the rest of the 16 requested days.
-    val hourly = (0 until hourlyTimes.length()).mapNotNull { i ->
-        val mfTemp = hourlyTemps.optDouble(i, Double.NaN)
-        val temp = if (mfTemp.isNaN()) hourlyTempsFallback.optDouble(i, Double.NaN) else mfTemp
-        if (temp.isNaN()) return@mapNotNull null
-        HourlyPoint(
-            time = LocalDateTime.parse(hourlyTimes.getString(i)),
-            temp = temp,
-            rainProb = hourlyRain.optInt(i, 0),
-            rainAmount = if (mfTemp.isNaN()) hourlyAmountFallback.optDouble(i, 0.0) else hourlyAmount.optDouble(i, 0.0),
-            weatherCode = if (mfTemp.isNaN()) hourlyCodesFallback.optInt(i, 0) else hourlyCodes.optInt(i, 0)
-        )
-    }
-
-    val dailyJson = json.getJSONObject("daily")
-    val dailyDates = dailyJson.getJSONArray("time")
-    val dailyMax = dailyJson.getJSONArray("temperature_2m_max_meteofrance_seamless")
-    val dailyMaxFallback = dailyJson.getJSONArray("temperature_2m_max_best_match")
-    val dailyMin = dailyJson.getJSONArray("temperature_2m_min_meteofrance_seamless")
-    val dailyMinFallback = dailyJson.getJSONArray("temperature_2m_min_best_match")
-    val dailyRain = dailyJson.getJSONArray("precipitation_probability_max_best_match")
-    val dailyAmount = dailyJson.getJSONArray("precipitation_sum_meteofrance_seamless")
-    val dailyAmountFallback = dailyJson.getJSONArray("precipitation_sum_best_match")
-    val dailyCodes = dailyJson.getJSONArray("weathercode_meteofrance_seamless")
-    val dailyCodesFallback = dailyJson.getJSONArray("weathercode_best_match")
-    val daily = (0 until dailyDates.length()).mapNotNull { i ->
-        val mfTempMax = dailyMax.optDouble(i, Double.NaN)
-        val mfTempMin = dailyMin.optDouble(i, Double.NaN)
-        val usesFallback = mfTempMax.isNaN() || mfTempMin.isNaN()
-        val tempMax = if (usesFallback) dailyMaxFallback.optDouble(i, Double.NaN) else mfTempMax
-        val tempMin = if (usesFallback) dailyMinFallback.optDouble(i, Double.NaN) else mfTempMin
-        if (tempMax.isNaN() || tempMin.isNaN()) return@mapNotNull null
-        DailyPoint(
-            date = LocalDate.parse(dailyDates.getString(i)),
-            tempMax = tempMax,
-            tempMin = tempMin,
-            rainProb = dailyRain.optInt(i, 0),
-            rainAmount = if (usesFallback) dailyAmountFallback.optDouble(i, 0.0) else dailyAmount.optDouble(i, 0.0),
-            weatherCode = if (usesFallback) dailyCodesFallback.optInt(i, 0) else dailyCodes.optInt(i, 0)
-        )
-    }
-
-    return WeatherForecast(hourly, daily)
-}
-
-// Caller must have already checked/requested ACCESS_COARSE_LOCATION.
-@SuppressLint("MissingPermission")
-private suspend fun getCurrentLocation(context: Context): Location? = withContext(Dispatchers.IO) {
-    val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
-    val providers = listOf(LocationManager.NETWORK_PROVIDER, LocationManager.GPS_PROVIDER)
-        .filter { locationManager.isProviderEnabled(it) }
-
-    // A cached fix is instant and precise enough for weather.
-    providers.mapNotNull { runCatching { locationManager.getLastKnownLocation(it) }.getOrNull() }
-        .maxByOrNull { it.time }
-        ?.let { return@withContext it }
-
-    // No cached fix: ask for a fresh one, with a timeout so the screen doesn't hang forever.
-    val provider = providers.firstOrNull() ?: return@withContext null
-    suspendCancellableCoroutine { cont ->
-        val listener = object : LocationListener {
-            override fun onLocationChanged(location: Location) {
-                locationManager.removeUpdates(this)
-                if (cont.isActive) cont.resume(location)
-            }
-        }
-        val mainHandler = Handler(Looper.getMainLooper())
-        mainHandler.post {
-            locationManager.requestSingleUpdate(provider, listener, Looper.getMainLooper())
-        }
-        cont.invokeOnCancellation { locationManager.removeUpdates(listener) }
-        mainHandler.postDelayed({
-            locationManager.removeUpdates(listener)
-            if (cont.isActive) cont.resume(null)
-        }, 10_000)
     }
 }
