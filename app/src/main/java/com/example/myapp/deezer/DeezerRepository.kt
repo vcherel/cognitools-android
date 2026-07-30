@@ -300,7 +300,7 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
         }.take(5)
         for (candidate in matches) {
             val works = try {
-                resolve(candidate.sngId, DEFAULT_QUALITY.name)
+                resolveStream(candidate.sngId, DEFAULT_QUALITY)
                 true
             } catch (e: Exception) {
                 false
@@ -332,18 +332,24 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
     // ---- CDN resolution (called from DeezerDataSource on ExoPlayer's loading thread) ----
 
     /**
-     * Called on ExoPlayer's loading thread, once per track (and again on seek). Retries a few times
-     * with a fresh session, because a single failure here kills the whole queue: the failure must
-     * also surface as an IOException, the only kind Media3 considers retriable.
+     * Called on ExoPlayer's loading thread, once per track (and again on seek), which is why this
+     * one blocks. Anything already inside a coroutine calls [resolveStream] instead.
      */
-    override fun resolve(sngId: String, quality: String): String = runBlocking {
-        val q = DeezerQuality.fromName(quality)
+    override fun resolve(sngId: String, quality: String): String =
+        runBlocking { resolveStream(sngId, DeezerQuality.fromName(quality)) }
+
+    /**
+     * Retries a few times with a fresh session, because a single failure here kills the whole
+     * queue: the failure must also surface as an IOException, the only kind Media3 considers
+     * retriable.
+     */
+    private suspend fun resolveStream(sngId: String, quality: DeezerQuality): String {
         var last: Exception? = null
         repeat(RESOLVE_ATTEMPTS) { attempt ->
             try {
                 // Any retry re-bootstraps the session: a stale sid is the most common cause here.
-                val s = ensureSession(forceRefresh = attempt > 0)
-                return@runBlocking api.resolveStream(s, sngId, q).cdnUrl
+                val session = ensureSession(forceRefresh = attempt > 0)
+                return api.resolveStream(session, sngId, quality).cdnUrl
             } catch (e: Exception) {
                 last = e
                 if (attempt < RESOLVE_ATTEMPTS - 1) delay(500L * (attempt + 1))
@@ -407,18 +413,28 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
         )
     }
 
-    /** Sets the queue to [tracks] starting at [startIndex] and plays in order. */
-    suspend fun playTracks(tracks: List<DeezerTrack>, startIndex: Int, source: TrackSource? = null) {
-        if (tracks.isEmpty()) return
+    /** Replaces the queue with [tracks] and starts playing at [startIndex]. */
+    private suspend fun setQueue(
+        tracks: List<DeezerTrack>,
+        startIndex: Int,
+        shuffle: Boolean,
+        source: TrackSource?
+    ) {
         val controller = ensureController()
         queuedTracks.clear()
         val items = tracks.map { buildMediaItem(it, DEFAULT_QUALITY, source = source) }
         withContext(Dispatchers.Main) {
-            controller.shuffleModeEnabled = false
+            controller.shuffleModeEnabled = shuffle
             controller.setMediaItems(items, startIndex, 0L)
             controller.prepare()
             controller.play()
         }
+    }
+
+    /** Sets the queue to [tracks] starting at [startIndex] and plays in order. */
+    suspend fun playTracks(tracks: List<DeezerTrack>, startIndex: Int, source: TrackSource? = null) {
+        if (tracks.isEmpty()) return
+        setQueue(tracks, startIndex, shuffle = false, source = source)
     }
 
     /** Queues every favorite and plays them shuffled, starting from a random one. */
@@ -430,15 +446,7 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
     /** Queues [list] with shuffle on and plays from a random position. */
     suspend fun shuffleTracks(list: List<DeezerTrack>, source: TrackSource? = null) {
         if (list.isEmpty()) return
-        val controller = ensureController()
-        queuedTracks.clear()
-        val items = list.map { buildMediaItem(it, DEFAULT_QUALITY, source = source) }
-        withContext(Dispatchers.Main) {
-            controller.shuffleModeEnabled = true
-            controller.setMediaItems(items, Random.nextInt(items.size), 0L)
-            controller.prepare()
-            controller.play()
-        }
+        setQueue(list, Random.nextInt(list.size), shuffle = true, source = source)
     }
 
     /**
