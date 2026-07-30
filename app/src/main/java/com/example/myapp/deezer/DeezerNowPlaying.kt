@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
+import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -51,6 +52,7 @@ import androidx.compose.ui.unit.dp
 import android.content.Context
 import android.content.Intent
 import android.widget.Toast
+import com.example.myapp.LocalGoHome
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.Locale
@@ -139,6 +141,7 @@ fun FullPlayerSheet(
 
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val goHome = LocalGoHome.current
     val favoriteIds by repo.favoriteIds.collectAsState()
     val isFav = state.sngId != null && favoriteIds.contains(state.sngId)
 
@@ -169,6 +172,12 @@ fun FullPlayerSheet(
     ) {
         IconButton(onClick = onCollapse, modifier = Modifier.align(Alignment.TopStart)) {
             Icon(Icons.Filled.KeyboardArrowDown, contentDescription = "Réduire")
+        }
+        IconButton(
+            onClick = { repo.stopAll(); goHome() },
+            modifier = Modifier.align(Alignment.TopEnd)
+        ) {
+            Icon(Icons.Filled.Stop, contentDescription = "Tout arrêter")
         }
 
         Column(

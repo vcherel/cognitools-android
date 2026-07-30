@@ -22,6 +22,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
@@ -63,6 +64,10 @@ class MainActivity : ComponentActivity() {
         ActivityResultContracts.RequestPermission()
     ) { }
 
+    // Set when the app is already running and a new intent (e.g. tapping the Deezer notification)
+    // asks it to jump somewhere. Compose observes this and navigates once it fires.
+    private val pendingRoute = mutableStateOf<String?>(null)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         val splashScreen = installSplashScreen()
         super.onCreate(savedInstanceState)
@@ -98,24 +103,44 @@ class MainActivity : ComponentActivity() {
         // the first frame so the menu is never the destination Compose actually starts on (which
         // would otherwise flash on screen for the frame or two before a post-composition navigate
         // could react to it).
-        val initialGalleryRoute = resolveInitialGalleryRoute(this, viewMediaUriFrom(intent))
+        val initialRoute = resolveInitialGalleryRoute(this, viewMediaUriFrom(intent))
+            ?: routeFromIntent(intent)?.let { it to null }
 
         enableEdgeToEdge()
         setContent {
             val themeManager = remember { ThemeManager(applicationContext) }
             val isDarkMode by themeManager.isDarkMode.collectAsState(initial = false)
+            val pendingRoute by pendingRoute
 
             AppTheme(isDarkMode = isDarkMode) {
                 MainScreen(
                     themeManager = themeManager,
                     isDarkMode = isDarkMode,
-                    initialGalleryRoute = initialGalleryRoute?.first,
-                    initialGalleryMessage = initialGalleryRoute?.second
+                    initialRoute = initialRoute?.first,
+                    initialRouteMessage = initialRoute?.second,
+                    pendingRoute = pendingRoute,
+                    onPendingRouteConsumed = { this.pendingRoute.value = null }
                 )
             }
         }
     }
+
+    // The Deezer notification's PendingIntent reuses this activity (singleTask) instead of stacking
+    // a new instance, so a route asked for while the app is already running arrives here.
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        routeFromIntent(intent)?.let { pendingRoute.value = it }
+    }
+
+    companion object {
+        const val EXTRA_OPEN_ROUTE = "com.example.myapp.OPEN_ROUTE"
+        const val ROUTE_DEEZER_NOW_PLAYING = "deezer?openPlayer=true"
+    }
 }
+
+private fun routeFromIntent(intent: Intent): String? =
+    intent.getStringExtra(MainActivity.EXTRA_OPEN_ROUTE)
 
 // Set when the app was launched to open a picture or video from another app ("Open with" /
 // default handler).
@@ -141,8 +166,10 @@ private fun resolveInitialGalleryRoute(context: Context, viewMediaUri: Uri?): Pa
 fun MainScreen(
     themeManager: ThemeManager,
     isDarkMode: Boolean,
-    initialGalleryRoute: String? = null,
-    initialGalleryMessage: String? = null
+    initialRoute: String? = null,
+    initialRouteMessage: String? = null,
+    pendingRoute: String? = null,
+    onPendingRouteConsumed: () -> Unit = {}
 ) {
     val navController = rememberNavController()
     val idleGuard = remember { IdleResetGuard() }
@@ -164,10 +191,16 @@ fun MainScreen(
         val context = LocalContext.current
         val coroutineScope = rememberCoroutineScope()
 
-        LaunchedEffect(initialGalleryRoute) {
-            val route = initialGalleryRoute ?: return@LaunchedEffect
+        LaunchedEffect(initialRoute) {
+            val route = initialRoute ?: return@LaunchedEffect
             navController.navigate(route)
-            initialGalleryMessage?.let { AppSnackbar.show(it) }
+            initialRouteMessage?.let { AppSnackbar.show(it) }
+        }
+
+        LaunchedEffect(pendingRoute) {
+            val route = pendingRoute ?: return@LaunchedEffect
+            navController.navigate(route) { launchSingleTop = true }
+            onPendingRouteConsumed()
         }
 
         val snackbarHostState = remember { SnackbarHostState() }
@@ -233,8 +266,15 @@ fun MainScreen(
                     composable("weather") {
                         WeatherScreen(onBack = { navController.popBackStack() })
                     }
-                    composable("deezer") {
-                        DeezerScreen(onBack = { navController.popBackStack() })
+                    composable(
+                        "deezer?openPlayer={openPlayer}",
+                        arguments = listOf(navArgument("openPlayer") { type = NavType.BoolType; defaultValue = false })
+                    ) { backStackEntry ->
+                        val openPlayer = backStackEntry.arguments?.getBoolean("openPlayer") ?: false
+                        DeezerScreen(
+                            onBack = { navController.popBackStack() },
+                            openFullPlayerInitially = openPlayer
+                        )
                     }
                     composable("gallery") {
                         GalleryAlbumsScreen(

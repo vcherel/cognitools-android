@@ -57,6 +57,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
+import com.example.myapp.LocalGoHome
 import com.example.myapp.ScreenTopBar
 import kotlinx.coroutines.launch
 
@@ -69,6 +70,7 @@ fun DeezerLibraryScreen(
     onOpenPlaylist: (DeezerPlaylist) -> Unit
 ) {
     val scope = rememberCoroutineScope()
+    val goHome = LocalGoHome.current
     val favorites by repo.favorites.collectAsState()
     val playlists by repo.playlists.collectAsState()
     val offlineState by repo.offline.state.collectAsState()
@@ -85,7 +87,7 @@ fun DeezerLibraryScreen(
     Column(Modifier.fillMaxSize()) {
         ScreenTopBar(title = "Deezer", onBack = onBack) {
             Spacer(Modifier.weight(1f))
-            IconButton(onClick = { repo.stopAll() }) {
+            IconButton(onClick = { repo.stopAll(); goHome() }) {
                 Icon(Icons.Filled.Stop, contentDescription = "Tout arrêter")
             }
             IconButton(onClick = { showSettings = true }) {

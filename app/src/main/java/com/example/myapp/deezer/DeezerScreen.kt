@@ -22,12 +22,12 @@ import com.example.myapp.deezerRepository
  * every sub-screen.
  */
 @Composable
-fun DeezerScreen(onBack: () -> Unit) {
+fun DeezerScreen(onBack: () -> Unit, openFullPlayerInitially: Boolean = false) {
     val context = LocalContext.current
     val repo = context.deezerRepository
     val nav = rememberNavController()
     val playerState by repo.playerState.collectAsState()
-    var showFullPlayer by remember { mutableStateOf(false) }
+    var showFullPlayer by remember { mutableStateOf(openFullPlayerInitially) }
 
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
@@ -69,7 +69,10 @@ fun DeezerScreen(onBack: () -> Unit) {
             }
         }
 
-        if (showFullPlayer && playerState.hasItem) {
+        // Gated on showFullPlayer alone, not playerState.hasItem: stopping playback from the sheet
+        // clears the player state right away, and if hasItem also hid the sheet the library screen
+        // behind would flash for a frame while the pop back to the main menu catches up.
+        if (showFullPlayer) {
             FullPlayerSheet(
                 repo = repo,
                 state = playerState,
