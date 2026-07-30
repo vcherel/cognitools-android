@@ -75,6 +75,9 @@ import androidx.core.view.WindowInsetsControllerCompat
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.runtime.DisposableEffect
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import com.example.myapp.AppSnackbar
@@ -502,6 +505,17 @@ private fun VideoPlayer(
     }
     DisposableEffect(exoPlayer) {
         onDispose { exoPlayer.release() }
+    }
+
+    // Locking the phone stops the activity but doesn't stop ExoPlayer on its own,
+    // so a video would keep playing audio behind the lock screen.
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner, exoPlayer) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_STOP) exoPlayer.pause()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
     // The player's own controller is the only tap target on a video page, so it drives the viewer
