@@ -35,8 +35,10 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import com.example.myapp.MyButton
 import com.example.myapp.ScreenTopBar
@@ -94,7 +96,7 @@ fun GalleryCropScreen(itemId: Long, onBack: () -> Unit) {
                 // Leaves room around the image so a crop handle dragged to an image edge still has
                 // touchable Canvas space around it, instead of sitting flush on the box boundary
                 // where an imprecise touch falls through to whatever is laid out below/beside it.
-                val handleMarginPx = with(density) { 32.dp.toPx() }
+                val handleMarginPx = with(density) { 12.dp.toPx() }
                 val availWidthPx = (boxWidthPx - handleMarginPx * 2).coerceAtLeast(1f)
                 val availHeightPx = (boxHeightPx - handleMarginPx * 2).coerceAtLeast(1f)
                 val fitScale = minOf(availWidthPx / bitmap.width, availHeightPx / bitmap.height)
@@ -114,8 +116,18 @@ fun GalleryCropScreen(itemId: Long, onBack: () -> Unit) {
                     Image(
                         bitmap = bitmap.asImageBitmap(),
                         contentDescription = currentItem.displayName,
-                        contentScale = ContentScale.Fit,
-                        modifier = Modifier.fillMaxSize()
+                        contentScale = ContentScale.FillBounds,
+                        modifier = Modifier.layout { measurable, _ ->
+                            val placeable = measurable.measure(
+                                Constraints.fixed(
+                                    computedImageRect.width.toInt(),
+                                    computedImageRect.height.toInt()
+                                )
+                            )
+                            layout(boxWidthPx.toInt(), boxHeightPx.toInt()) {
+                                placeable.place(computedImageRect.left.toInt(), computedImageRect.top.toInt())
+                            }
+                        }
                     )
                     CropOverlay(
                         imageRect = computedImageRect,
@@ -178,7 +190,7 @@ private fun CropOverlay(imageRect: Rect, cropRect: Rect, onCropRectChange: (Rect
             .fillMaxSize()
             .pointerInputDragCrop(handleRadiusPx, { currentCropRect }, { currentImageRect }, onCropRectChange)
     ) {
-        val scrim = Color.Black.copy(alpha = 0.55f)
+        val scrim = Color.White.copy(alpha = 0.55f)
         drawRect(scrim, topLeft = Offset.Zero, size = Size(size.width, cropRect.top))
         drawRect(scrim, topLeft = Offset(0f, cropRect.bottom), size = Size(size.width, size.height - cropRect.bottom))
         drawRect(scrim, topLeft = Offset(0f, cropRect.top), size = Size(cropRect.left, cropRect.height))
@@ -187,12 +199,12 @@ private fun CropOverlay(imageRect: Rect, cropRect: Rect, onCropRectChange: (Rect
             topLeft = Offset(cropRect.right, cropRect.top),
             size = Size((size.width - cropRect.right).coerceAtLeast(0f), cropRect.height)
         )
-        drawRect(Color.White, topLeft = cropRect.topLeft, size = cropRect.size, style = Stroke(width = 2.dp.toPx()))
+        drawRect(Color.Black, topLeft = cropRect.topLeft, size = cropRect.size, style = Stroke(width = 2.dp.toPx()))
         val handleSize = 8.dp.toPx()
         listOf(cropRect.topLeft, Offset(cropRect.right, cropRect.top), Offset(cropRect.left, cropRect.bottom), cropRect.bottomRight)
             .forEach { corner ->
                 drawRect(
-                    Color.White,
+                    Color.Black,
                     topLeft = Offset(corner.x - handleSize / 2, corner.y - handleSize / 2),
                     size = Size(handleSize, handleSize)
                 )
