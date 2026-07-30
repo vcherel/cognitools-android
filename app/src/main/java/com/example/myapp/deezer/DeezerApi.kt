@@ -106,11 +106,11 @@ class DeezerApi {
                 }
         }
 
-    /** All tracks of a playlist, in order. Pages until exhausted, so 3000+ track playlists load fully. */
+    /** All tracks of a playlist, most recently added first. Pages until exhausted, so 3000+ track playlists load fully. */
     suspend fun getPlaylistTracks(session: DeezerSession, playlistId: String): List<DeezerTrack> =
         withContext(Dispatchers.IO) {
             val page = 2000
-            val out = ArrayList<DeezerTrack>()
+            val objs = ArrayList<kotlinx.serialization.json.JsonObject>()
             var start = 0
             var iter = 0
             while (iter++ < 50) {
@@ -118,11 +118,12 @@ class DeezerApi {
                 val data = gw("playlist.getSongs", body, session.apiToken)
                     .jsonObject["results"]?.jsonObject?.get("data")?.jsonArray.orEmpty()
                 if (data.isEmpty()) break
-                data.forEach { out += parseGwTrack(it.jsonObject, it.jsonObject["SNG_ID"]?.jsonPrimitive?.content.orEmpty()) }
+                data.forEach { objs += it.jsonObject }
                 start += data.size
                 if (data.size < page) break
             }
-            out
+            objs.sortedByDescending { it["DATE_ADD"]?.jsonPrimitive?.content?.toLongOrNull() ?: 0L }
+                .map { parseGwTrack(it, it["SNG_ID"]?.jsonPrimitive?.content.orEmpty()) }
         }
 
     // ---- Mutations (like/unlike, add/remove from a playlist) ----
