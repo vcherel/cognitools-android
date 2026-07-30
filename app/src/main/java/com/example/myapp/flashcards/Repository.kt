@@ -2,18 +2,12 @@ package com.example.myapp.flashcards
 
 import android.content.Context
 import android.util.Log
-import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
-import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -21,34 +15,25 @@ class FlashcardRepository(private val context: Context) {
 
     private val dao = AppDatabase.get(context).flashcardDao()
 
-    fun observeLists(): Flow<List<FlashcardList>> = flow {
-        ensureMigrated()
-        emitAll(dao.observeLists())
-    }
+    fun observeLists(): Flow<List<FlashcardList>> = dao.observeLists()
 
-    fun observeListsWithCounts(): Flow<Pair<List<FlashcardList>, Map<String, Pair<Int, Int>>>> = flow {
-        ensureMigrated()
+    fun observeListsWithCounts(): Flow<Pair<List<FlashcardList>, Map<String, Pair<Int, Int>>>> {
         val now = System.currentTimeMillis()
-        emitAll(
-            combine(
-                dao.observeLists(),
-                dao.observeTotalCounts(),
-                dao.observeDueCounts(now)
-            ) { lists, totals, dues ->
-                val totalById = totals.associate { it.listId to it.c }
-                val dueById = dues.associate { it.listId to it.c }
-                val counts = lists.associate { list ->
-                    list.id to ((totalById[list.id] ?: 0) to (dueById[list.id] ?: 0))
-                }
-                lists to counts
+        return combine(
+            dao.observeLists(),
+            dao.observeTotalCounts(),
+            dao.observeDueCounts(now)
+        ) { lists, totals, dues ->
+            val totalById = totals.associate { it.listId to it.c }
+            val dueById = dues.associate { it.listId to it.c }
+            val counts = lists.associate { list ->
+                list.id to ((totalById[list.id] ?: 0) to (dueById[list.id] ?: 0))
             }
-        )
+            lists to counts
+        }
     }
 
-    suspend fun getLists(): List<FlashcardList> {
-        ensureMigrated()
-        return dao.getLists()
-    }
+    suspend fun getLists(): List<FlashcardList> = dao.getLists()
 
     suspend fun addList(list: FlashcardList) {
         val current = getLists()
@@ -57,57 +42,34 @@ class FlashcardRepository(private val context: Context) {
     }
 
     suspend fun reorderLists(newOrder: List<FlashcardList>) {
-        ensureMigrated()
         dao.upsertLists(newOrder.mapIndexed { index, list -> list.copy(order = index) })
     }
 
     suspend fun updateList(listId: String, newName: String) {
-        ensureMigrated()
         dao.getList(listId)?.let { dao.upsertList(it.copy(name = newName)) }
     }
 
-    suspend fun deleteList(listId: String) {
-        ensureMigrated()
-        dao.deleteList(listId)
-    }
+    suspend fun deleteList(listId: String) = dao.deleteList(listId)
 
-    fun observeElements(listId: String): Flow<List<FlashcardElement>> = flow {
-        ensureMigrated()
-        emitAll(dao.observeElements(listId))
-    }
+    fun observeElements(listId: String): Flow<List<FlashcardElement>> = dao.observeElements(listId)
 
     suspend fun addElement(listId: String, element: FlashcardElement) {
-        ensureMigrated()
         dao.upsertElement(element.copy(listId = listId))
     }
 
     suspend fun addElements(listId: String, elements: List<FlashcardElement>) {
-        ensureMigrated()
         dao.upsertElements(elements.map { it.copy(listId = listId) })
     }
 
-    suspend fun updateElement(element: FlashcardElement) {
-        ensureMigrated()
-        dao.upsertElement(element)
-    }
+    suspend fun updateElement(element: FlashcardElement) = dao.upsertElement(element)
 
-    suspend fun deleteElement(elementId: String) {
-        ensureMigrated()
-        dao.deleteElement(elementId)
-    }
+    suspend fun deleteElement(elementId: String) = dao.deleteElement(elementId)
 
-    fun observeAllElements(): Flow<List<FlashcardElement>> = flow {
-        ensureMigrated()
-        emitAll(dao.observeAllElements())
-    }
+    fun observeAllElements(): Flow<List<FlashcardElement>> = dao.observeAllElements()
 
-    suspend fun getAllElements(): List<FlashcardElement> {
-        ensureMigrated()
-        return dao.getAllElements()
-    }
+    suspend fun getAllElements(): List<FlashcardElement> = dao.getAllElements()
 
     suspend fun getStats(listId: String? = null): FlashcardStats {
-        ensureMigrated()
         val elements = if (listId != null) dao.getElements(listId) else dao.getAllElements()
         val now = System.currentTimeMillis()
         val waitTimes = elements.map { maxOf(0L, it.nextReviewAt - now) }
@@ -125,7 +87,6 @@ class FlashcardRepository(private val context: Context) {
     }
 
     suspend fun createBackupJson(): String {
-        ensureMigrated()
         val lists = dao.getLists()
         val cards = dao.getAllElements()
         val jsonLists = JSONArray().also { arr -> lists.forEach { arr.put(it.toJson()) } }
@@ -137,10 +98,7 @@ class FlashcardRepository(private val context: Context) {
         }.toString(2)
     }
 
-    suspend fun importFromJson(json: String) {
-        ensureMigrated()
-        upsertBundle(JSONObject(json))
-    }
+    suspend fun importFromJson(json: String) = upsertBundle(JSONObject(json))
 
     // Parses a { "lists": [...], "cards": [...] } bundle into the DB, dropping any
     // card whose list isn't part of the same bundle.
@@ -154,60 +112,22 @@ class FlashcardRepository(private val context: Context) {
     }
 
     suspend fun resetElement(elementId: String) {
-        ensureMigrated()
         dao.getElement(elementId)?.let { dao.upsertElement(it.resetProgress()) }
     }
 
-    suspend fun getListNameById(listId: String): String {
-        ensureMigrated()
-        return dao.getList(listId)?.name ?: ""
-    }
+    suspend fun getListNameById(listId: String): String = dao.getList(listId)?.name ?: ""
 
     /**
-     * One-time copy of the old JSON-in-DataStore data into Room. Idempotent: guarded by a
-     * flag and a non-empty check, so it runs at most once. The old DataStore file is left
-     * untouched so the first run stays reversible.
+     * Brings the card library up to date at app start: seeds the builtin lists a fresh install
+     * doesn't have yet, then drops mastered cards outside them (interval above 6 months).
      */
-    private suspend fun ensureMigrated() {
-        if (migrated) return
-        migrationLock.withLock {
-            if (migrated) return
-            val prefs = context.flashcardDataStore.data.first()
-            val alreadyDone = prefs[migratedKey] == true || dao.listCount() > 0
-            if (!alreadyDone) {
-                val lists = FlashcardList.listFromJsonString(prefs[listsKey] ?: "[]")
-                if (lists.isNotEmpty()) {
-                    dao.upsertLists(lists)
-                    val allCards = lists.flatMap { list ->
-                        val key = stringPreferencesKey("elements_${list.id}")
-                        FlashcardElement.listFromJsonString(prefs[key] ?: "[]")
-                    }
-                    if (allCards.isNotEmpty()) dao.upsertElements(allCards)
-                }
-            }
-            context.flashcardDataStore.edit { it[migratedKey] = true }
-            applyBuiltinSeedMigrations()
-            // Cards outside the builtin lists are dropped once mastered (interval above 6 months)
-            dao.purgeMasteredCards(SIX_MONTHS_MINUTES, builtinListIds)
-            migrated = true
-        }
+    suspend fun seedAndPurge() {
+        applyBuiltinSeedMigrations()
+        dao.purgeMasteredCards(SIX_MONTHS_MINUTES, builtinListIds)
     }
 
     private suspend fun applyBuiltinSeedMigrations() {
-        val prefs = context.flashcardDataStore.data.first()
-
-        // Infer version from legacy boolean flags on first upgrade, then persist it
-        val currentVersion = prefs[seedVersionKey] ?: run {
-            val inferred = when {
-                prefs[legacyRenamedV3Key] == true -> 3
-                prefs[legacySeededV2Key] == true -> 2
-                prefs[legacySeededKey] == true -> 1
-                else -> 0
-            }
-            context.flashcardDataStore.edit { it[seedVersionKey] = inferred }
-            inferred
-        }
-
+        val currentVersion = context.flashcardDataStore.data.first()[seedVersionKey] ?: 0
         if (currentVersion >= SEED_VERSION) return
 
         if (currentVersion < 1) seedAssets("seed_capitals.json")
@@ -239,20 +159,12 @@ class FlashcardRepository(private val context: Context) {
     }
 
     companion object {
-        private val listsKey = stringPreferencesKey("lists")
-        private val migratedKey = booleanPreferencesKey("migrated_to_room")
         private val seedVersionKey = intPreferencesKey("seed_version")
-        // Legacy keys — read-only, used only to infer the seed version on first upgrade
-        private val legacySeededKey = booleanPreferencesKey("seeded_builtin_v1")
-        private val legacySeededV2Key = booleanPreferencesKey("seeded_builtin_v2")
-        private val legacyRenamedV3Key = booleanPreferencesKey("renamed_builtin_v3")
         private const val SEED_VERSION = 3
         private const val SIX_MONTHS_MINUTES = 6 * 30 * 24 * 60
         private val builtinListIds = listOf(
             "builtin-capitals-v1", "builtin-prefectures-v1", "builtin-dept-numbers-v1"
         )
-        private val migrationLock = Mutex()
-        @Volatile private var migrated = false
     }
 }
 

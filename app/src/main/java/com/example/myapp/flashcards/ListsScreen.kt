@@ -67,16 +67,16 @@ import kotlinx.coroutines.launch
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 
+// An open name prompt: what it is titled, the name being typed, and what to do with it.
+private data class NamePrompt(val title: String, val value: String, val onConfirm: (String) -> Unit)
+
 @Composable
 fun FlashcardListsScreen(navController: NavController) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val repository = context.flashcardRepository
 
-    var showDialog by remember { mutableStateOf(false) }
-    var dialogTitle by remember { mutableStateOf("") }
-    var dialogValue by remember { mutableStateOf("") }
-    var dialogAction by remember { mutableStateOf<(String) -> Unit>({}) }
+    var namePrompt by remember { mutableStateOf<NamePrompt?>(null) }
     var showBulkImportDialog by remember { mutableStateOf(false) }
     var bulkImportText by remember { mutableStateOf("") }
     var selectedListId by remember { mutableStateOf("") }
@@ -126,7 +126,6 @@ fun FlashcardListsScreen(navController: NavController) {
         ) {
             Spacer(Modifier.height(16.dp))
 
-            // Top bar
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
@@ -152,14 +151,12 @@ fun FlashcardListsScreen(navController: NavController) {
                 }
 
                 Row {
-                    // Search All button
                     IconButton(onClick = {
                         navController.navigate("elements/all")
                     }) {
                         Icon(Icons.Default.Search, contentDescription = "Rechercher dans tout")
                     }
 
-                    // Play All button
                     IconButton(onClick = {
                         navController.navigate("game/all")
                     }) {
@@ -214,14 +211,12 @@ fun FlashcardListsScreen(navController: NavController) {
                                                 bulkImportText = ""
                                             },
                                             onRename = {
-                                                dialogTitle = "Renommer la liste"
-                                                dialogValue = flashcardList.name
-                                                dialogAction = { newName ->
-                                                    scope.launch {
-                                                        repository.updateList(flashcardList.id, newName)
-                                                    }
+                                                namePrompt = NamePrompt(
+                                                    title = "Renommer la liste",
+                                                    value = flashcardList.name
+                                                ) { newName ->
+                                                    scope.launch { repository.updateList(flashcardList.id, newName) }
                                                 }
-                                                showDialog = true
                                             },
                                             onDelete = {
                                                 scope.launch {
@@ -243,7 +238,6 @@ fun FlashcardListsScreen(navController: NavController) {
             Spacer(Modifier.height(16.dp))
         }
 
-        // Floating button at the bottom
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -254,20 +248,14 @@ fun FlashcardListsScreen(navController: NavController) {
                 text = "Créer une nouvelle liste",
                 modifier = Modifier.fillMaxWidth().height(100.dp),
                 onClick = {
-                    dialogTitle = "Nouvelle liste"
-                    dialogValue = ""
-                    dialogAction = { newName ->
-                        scope.launch {
-                            repository.addList(FlashcardList(name = newName))
-                        }
+                    namePrompt = NamePrompt(title = "Nouvelle liste", value = "") { newName ->
+                        scope.launch { repository.addList(FlashcardList(name = newName)) }
                     }
-                    showDialog = true
                 }
             )
         }
     }
 
-    // Bulk import dialog
     if (showBulkImportDialog) {
         BulkImportDialog(
             bulkImportText = bulkImportText,
@@ -320,25 +308,26 @@ fun FlashcardListsScreen(navController: NavController) {
         )
     }
 
-    // Dialog for create/rename
-    if (showDialog) ShowAlertDialog(
-        onDismiss = { showDialog = false },
-        title = dialogTitle,
-        textContent = {
-            TextField(
-                value = dialogValue,
-                onValueChange = { dialogValue = it },
-                label = { Text("Nom de la liste") }
-            )
-        },
-        onCancel = { showDialog = false },
-        onConfirm = {
-            if (dialogValue.isNotBlank()) {
-                dialogAction(dialogValue)
-                showDialog = false
+    namePrompt?.let { prompt ->
+        ShowAlertDialog(
+            onDismiss = { namePrompt = null },
+            title = prompt.title,
+            textContent = {
+                TextField(
+                    value = prompt.value,
+                    onValueChange = { namePrompt = prompt.copy(value = it) },
+                    label = { Text("Nom de la liste") }
+                )
+            },
+            onCancel = { namePrompt = null },
+            onConfirm = {
+                if (prompt.value.isNotBlank()) {
+                    prompt.onConfirm(prompt.value)
+                    namePrompt = null
+                }
             }
-        }
-    )
+        )
+    }
 
     if (showGlobalStats) {
         StatsSheet(

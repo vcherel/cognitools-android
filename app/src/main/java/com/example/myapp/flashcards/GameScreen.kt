@@ -88,12 +88,10 @@ fun FlashcardGameScreen(listId: String, navController: NavController) {
 
     val repository = context.flashcardRepository
 
-    // Check if we're in "all lists" mode
     val isAllListsMode = listId == "all"
 
     val sessionRandom = remember { Random(System.currentTimeMillis()) }
 
-    // Observe elements from repository
     val allElements by if (isAllListsMode) {
         repository.observeAllElements().collectAsState(initial = emptyList())
     } else {
@@ -120,11 +118,8 @@ fun FlashcardGameScreen(listId: String, navController: NavController) {
     var hasNavigatedBack by remember { mutableStateOf(false) }
 
     LaunchedEffect(currentCard) {
-        listName = if (isAllListsMode && currentCard != null) {
-            repository.getListNameById(currentCard!!.listId)
-        } else {
-            ""
-        }
+        val card = currentCard
+        listName = if (isAllListsMode && card != null) repository.getListNameById(card.listId) else ""
     }
 
     val dueState by remember {
@@ -141,7 +136,6 @@ fun FlashcardGameScreen(listId: String, navController: NavController) {
         }
     }
 
-    // Load and filter due cards
     LaunchedEffect(allElements) {
         if (allElements.isEmpty()) return@LaunchedEffect
 
@@ -163,14 +157,10 @@ fun FlashcardGameScreen(listId: String, navController: NavController) {
                     availableToAdd.take(needed).map { it.id }).toSet()
         }
 
-        // Pick a random current card if none is selected yet
         if (currentCard == null && dueState.cards.isNotEmpty()) {
-            currentCard = dueState.cards.random(sessionRandom)
-            showFront = if (currentCard!!.randomSide) {
-                sessionRandom.nextBoolean()
-            } else {
-                true
-            }
+            val picked = dueState.cards.random(sessionRandom)
+            currentCard = picked
+            showFront = if (picked.randomSide) sessionRandom.nextBoolean() else true
         }
     }
 
@@ -332,7 +322,7 @@ fun FlashcardGameScreen(listId: String, navController: NavController) {
 
             Spacer(Modifier.height(32.dp))
 
-            // Main content
+            val card = currentCard
             if (isLoading) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
@@ -341,7 +331,7 @@ fun FlashcardGameScreen(listId: String, navController: NavController) {
                     CircularProgressIndicator()
                 }
             }
-            else if (currentCard != null) {
+            else if (card != null) {
                 Box(
                     modifier = Modifier
                         .weight(1f)
@@ -349,7 +339,6 @@ fun FlashcardGameScreen(listId: String, navController: NavController) {
                         .padding(horizontal = 16.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    // Card
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -379,17 +368,17 @@ fun FlashcardGameScreen(listId: String, navController: NavController) {
                             },
                         elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
                     ) {
-                        val scoreColor = scoreColor(currentCard?.score?.toInt() ?: 0)
+                        val score = card.score.toInt()
+                        val scoreColor = scoreColor(score)
 
                         Box(modifier = Modifier.fillMaxSize()) {
-                            // Text on the card
                             Column(
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.Center,
                                 modifier = Modifier.align(Alignment.Center)
                             ) {
                                 Text(
-                                    text = if (showFront != showDefinition) currentCard!!.name else currentCard!!.definition,
+                                    text = if (showFront != showDefinition) card.name else card.definition,
                                     style = MaterialTheme.typography.headlineMedium,
                                     textAlign = TextAlign.Center,
                                     fontWeight = FontWeight.Bold
@@ -398,7 +387,7 @@ fun FlashcardGameScreen(listId: String, navController: NavController) {
                                 if (showDefinition) {
                                     Spacer(Modifier.height(24.dp))
                                     Text(
-                                        text = if (showFront) currentCard!!.name else currentCard!!.definition,
+                                        text = if (showFront) card.name else card.definition,
                                         style = MaterialTheme.typography.bodyLarge,
                                         textAlign = TextAlign.Center
                                     )
@@ -415,10 +404,9 @@ fun FlashcardGameScreen(listId: String, navController: NavController) {
                                     .border(width = 3.dp, color = scoreColor, shape = CircleShape)
                             ) {
                                 Text(
-                                    "${currentCard?.score?.toInt() ?: 0}",
+                                    "$score",
                                     style = MaterialTheme.typography.bodyLarge.copy(
-                                        shadow = if ((currentCard?.score?.toInt() ?: 0) <= 3 ||
-                                            currentCard?.score?.toInt() == 10) null
+                                        shadow = if (score <= 3 || score == 10) null
                                         else Shadow(
                                             offset = Offset(0f, 0f),
                                             blurRadius = 4f
