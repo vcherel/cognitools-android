@@ -1,5 +1,7 @@
 package com.example.myapp.deezer
 
+import android.app.PendingIntent
+import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
@@ -17,6 +19,7 @@ import androidx.media3.session.MediaSessionService
 import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionResult
 import com.example.myapp.AppSnackbar
+import com.example.myapp.MainActivity
 import com.example.myapp.MyApplication
 import com.example.myapp.R
 import com.google.common.util.concurrent.Futures
@@ -75,6 +78,7 @@ class DeezerPlaybackService : MediaSessionService() {
         mediaSession = MediaSession.Builder(this, player)
             .setCallback(SessionCallback())
             .setMediaButtonPreferences(actionButtons(liked = false, inPepites = false))
+            .setSessionActivity(openDeezerPendingIntent())
             .build()
 
         // The heart also flips when the track is liked from the app itself.
@@ -134,6 +138,16 @@ class DeezerPlaybackService : MediaSessionService() {
     }
 
     private fun toast(message: String) = Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+
+    /** Tapping the notification body opens the app straight into the Deezer tool, not the main menu. */
+    private fun openDeezerPendingIntent(): PendingIntent {
+        val intent = Intent(this, MainActivity::class.java)
+            .putExtra(MainActivity.EXTRA_OPEN_ROUTE, MainActivity.ROUTE_DEEZER_NOW_PLAYING)
+        return PendingIntent.getActivity(
+            this, 0, intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+    }
 
     /** Keeps the two buttons in sync with the current track, warming the caches they read. */
     private inner class TrackWatcher : Player.Listener {
