@@ -6,6 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -109,6 +110,18 @@ fun NotesListScreen(navController: NavController) {
         dao.observeTrashedNotes().collect { trashedCount = it.size }
     }
 
+    // Rewrites a note's lines and saves it, for the edits the pinned Todo widget makes in place.
+    fun updateNoteLines(note: Note, onSaved: () -> Unit = {}, transform: (MutableList<String>) -> Unit) {
+        val lines = note.content.split("\n").toMutableList()
+        transform(lines)
+        scope.launch {
+            dao.upsertNote(
+                note.copy(content = lines.joinToString("\n"), updatedAt = System.currentTimeMillis())
+            )
+            onSaved()
+        }
+    }
+
     var searchActive by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
     val searchFocusRequester = remember { FocusRequester() }
@@ -206,7 +219,7 @@ fun NotesListScreen(navController: NavController) {
                 }
                 val todoNote = remember(currentNotes) {
                     currentNotes?.firstOrNull {
-                        noteTitleAndPreview(it).first.equals("Todo list", ignoreCase = true)
+                        noteTitleAndPreview(it).first.equals(TODO_LIST_TITLE, ignoreCase = true)
                     }
                 }
                 // Pinned above the grid while browsing; excluded from the grid itself to
@@ -239,50 +252,27 @@ fun NotesListScreen(navController: NavController) {
                                         note = pinnedTodo,
                                         onNavigate = { navController.navigate("note/${pinnedTodo.id}") },
                                         onToggleLine = { index ->
-                                            val lines = pinnedTodo.content.split("\n").toMutableList()
-                                            val line = lines[index]
-                                            lines[index] = if (line.isCheckedLine()) {
-                                                UNCHECKED_PREFIX + line.checkboxText()
-                                            } else {
-                                                CHECKED_PREFIX + line.checkboxText()
-                                            }
-                                            scope.launch {
-                                                dao.upsertNote(
-                                                    pinnedTodo.copy(
-                                                        content = lines.joinToString("\n"),
-                                                        updatedAt = System.currentTimeMillis()
-                                                    )
-                                                )
+                                            updateNoteLines(pinnedTodo) { lines ->
+                                                val line = lines[index]
+                                                val prefix = if (line.isCheckedLine()) UNCHECKED_PREFIX else CHECKED_PREFIX
+                                                lines[index] = prefix + line.checkboxText()
                                             }
                                         },
                                         onDeleteLine = { index ->
-                                            val lines = pinnedTodo.content.split("\n").toMutableList()
-                                            lines.removeAt(index)
-                                            scope.launch {
-                                                dao.upsertNote(
-                                                    pinnedTodo.copy(
-                                                        content = lines.joinToString("\n"),
-                                                        updatedAt = System.currentTimeMillis()
-                                                    )
-                                                )
-                                            }
+                                            updateNoteLines(pinnedTodo) { lines -> lines.removeAt(index) }
                                         },
                                         onAddItem = {
-                                            val lines = pinnedTodo.content.split("\n").toMutableList()
+                                            // The new item goes at the end of the active block, above the
+                                            // first separator; the editor then opens with the caret on it.
+                                            val lines = pinnedTodo.content.split("\n")
                                             val insertAt = lines.indexOfFirst { it.isSeparatorLine() }
                                                 .let { if (it == -1) lines.size else it }
                                             val offset = lines.take(insertAt).sumOf { it.length + 1 } +
                                                 UNCHECKED_PREFIX.length
-                                            lines.add(insertAt, UNCHECKED_PREFIX)
-                                            scope.launch {
-                                                dao.upsertNote(
-                                                    pinnedTodo.copy(
-                                                        content = lines.joinToString("\n"),
-                                                        updatedAt = System.currentTimeMillis()
-                                                    )
-                                                )
-                                                navController.navigate("note/${pinnedTodo.id}?editAt=$offset")
-                                            }
+                                            updateNoteLines(
+                                                note = pinnedTodo,
+                                                onSaved = { navController.navigate("note/${pinnedTodo.id}?editAt=$offset") }
+                                            ) { it.add(insertAt, UNCHECKED_PREFIX) }
                                         }
                                     )
                                 }
@@ -365,6 +355,53 @@ private fun TrashEntryRow(count: Int, onClick: () -> Unit) {
     }
 }
 
+// The colored, raised card both the grid items and the pinned Todo widget are drawn on.
+@Composable
+private fun NoteCard(note: Note, onClick: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
+    val isDarkMode = LocalIsDarkMode.current
+    val cardColor = noteCardColor(note.color, isDarkMode)
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        colors = if (cardColor != null) {
+            CardDefaults.cardColors(
+                containerColor = cardColor,
+                contentColor = if (isDarkMode) Color(0xFFE8EAED) else Color(0xFF1F1F1F)
+            )
+        } else {
+            CardDefaults.cardColors()
+        },
+        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(12.dp),
+            content = content
+        )
+    }
+}
+
+/** All a locked note ever shows on the list: a padlock and its title. */
+@Composable
+private fun LockedNoteTitle(note: Note) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Icon(
+            Icons.Default.Lock,
+            contentDescription = null,
+            modifier = Modifier.size(18.dp)
+        )
+        Spacer(Modifier.size(8.dp))
+        Text(
+            note.title.ifBlank { "Note verrouillée" },
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+
 /** Pinned preview of the "Todo list" note: only the lines before its first separator, checkboxes toggle in place. */
 @Composable
 private fun TodoWidgetCard(
@@ -374,8 +411,6 @@ private fun TodoWidgetCard(
     onDeleteLine: (Int) -> Unit,
     onAddItem: () -> Unit
 ) {
-    val isDarkMode = LocalIsDarkMode.current
-    val cardColor = noteCardColor(note.color, isDarkMode)
     val (title, _) = remember(note) { noteTitleAndPreview(note) }
     val contentLines = remember(note.content) { note.content.split("\n") }
     // When the title field is blank, noteTitleAndPreview falls back to the first
@@ -390,93 +425,66 @@ private fun TodoWidgetCard(
             .filter { it.index != titleLineIndex && it.value.isNotBlank() }
     }
 
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onNavigate() },
-        colors = if (cardColor != null) {
-            CardDefaults.cardColors(
-                containerColor = cardColor,
-                contentColor = if (isDarkMode) Color(0xFFE8EAED) else Color(0xFF1F1F1F)
-            )
-        } else {
-            CardDefaults.cardColors()
-        },
-        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
-    ) {
-        Column(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
-            if (note.locked) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        Icons.Default.Lock,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(Modifier.size(8.dp))
-                    Text(
-                        note.title.ifBlank { "Note verrouillée" },
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            } else {
-                Text(
-                    title,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-                Spacer(Modifier.height(4.dp))
-                bodyLines.forEach { (index, line) ->
-                    if (line.isCheckboxLine()) {
-                        val checked = line.isCheckedLine()
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { onToggleLine(index) }
-                        ) {
-                            Checkbox(checked = checked, onCheckedChange = { onToggleLine(index) })
-                            Text(
-                                line.checkboxText().formatInline(),
-                                style = MaterialTheme.typography.bodyMedium,
-                                textDecoration = if (checked) TextDecoration.LineThrough else TextDecoration.None,
-                                color = if (checked) Color.Gray else MaterialTheme.colorScheme.onBackground,
-                                modifier = Modifier.weight(1f)
-                            )
-                            DeleteLineButton(onClick = { onDeleteLine(index) })
-                        }
-                    } else {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(
-                                line.formatInline(),
-                                style = MaterialTheme.typography.bodyMedium,
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .padding(vertical = 8.dp)
-                            )
-                            DeleteLineButton(onClick = { onDeleteLine(index) })
-                        }
-                    }
-                }
+    NoteCard(note = note, onClick = onNavigate) {
+        if (note.locked) {
+            LockedNoteTitle(note)
+            return@NoteCard
+        }
+        Text(
+            title,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold
+        )
+        Spacer(Modifier.height(4.dp))
+        bodyLines.forEach { (index, line) ->
+            if (line.isCheckboxLine()) {
+                val checked = line.isCheckedLine()
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable { onAddItem() }
+                        .clickable { onToggleLine(index) }
                 ) {
-                    IconButton(onClick = onAddItem, modifier = Modifier.size(40.dp)) {
-                        Icon(Icons.Default.Add, contentDescription = null, tint = Color.Gray)
-                    }
+                    Checkbox(checked = checked, onCheckedChange = { onToggleLine(index) })
                     Text(
-                        "Nouvel élément",
+                        line.checkboxText().formatInline(),
                         style = MaterialTheme.typography.bodyMedium,
-                        color = Color.Gray
+                        textDecoration = if (checked) TextDecoration.LineThrough else TextDecoration.None,
+                        color = if (checked) Color.Gray else MaterialTheme.colorScheme.onBackground,
+                        modifier = Modifier.weight(1f)
                     )
+                    DeleteLineButton(onClick = { onDeleteLine(index) })
+                }
+            } else {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        line.formatInline(),
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(vertical = 8.dp)
+                    )
+                    DeleteLineButton(onClick = { onDeleteLine(index) })
                 }
             }
+        }
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { onAddItem() }
+        ) {
+            IconButton(onClick = onAddItem, modifier = Modifier.size(40.dp)) {
+                Icon(Icons.Default.Add, contentDescription = null, tint = Color.Gray)
+            }
+            Text(
+                "Nouvel élément",
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color.Gray
+            )
         }
     }
 }
@@ -505,98 +513,67 @@ private fun NoteItem(
     onDelete: () -> Unit
 ) {
     val (title, preview) = remember(note) { noteTitleAndPreview(note) }
-    val isDarkMode = LocalIsDarkMode.current
-    val cardColor = noteCardColor(note.color, isDarkMode)
 
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onNavigate() },
-        colors = if (cardColor != null) {
-            CardDefaults.cardColors(
-                containerColor = cardColor,
-                contentColor = if (isDarkMode) Color(0xFFE8EAED) else Color(0xFF1F1F1F)
-            )
+    NoteCard(note = note, onClick = onNavigate) {
+        if (note.locked) {
+            LockedNoteTitle(note)
         } else {
-            CardDefaults.cardColors()
-        },
-        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
-    ) {
-        Column(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
-            if (note.locked) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        Icons.Default.Lock,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(Modifier.size(8.dp))
-                    Text(
-                        note.title.ifBlank { "Note verrouillée" },
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-            } else {
+            Text(
+                title,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            if (preview.isNotEmpty()) {
+                Spacer(Modifier.height(4.dp))
                 Text(
-                    title,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
+                    preview,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color.Gray,
+                    maxLines = 3,
                     overflow = TextOverflow.Ellipsis
                 )
-                if (preview.isNotEmpty()) {
-                    Spacer(Modifier.height(4.dp))
-                    Text(
-                        preview,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = Color.Gray,
-                        maxLines = 3,
-                        overflow = TextOverflow.Ellipsis
-                    )
+            }
+        }
+        Spacer(Modifier.height(4.dp))
+        Text(
+            formatNoteDate(note.updatedAt),
+            style = MaterialTheme.typography.bodySmall,
+            color = Color.Gray
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End
+        ) {
+            IconButton(
+                onClick = onRecolor,
+                modifier = Modifier.size(36.dp)
+            ) {
+                Icon(Icons.Default.Palette, contentDescription = "Couleur aléatoire")
+            }
+            if (!note.locked) {
+                Spacer(Modifier.size(4.dp))
+                val clipboard = LocalClipboardManager.current
+                val context = LocalContext.current
+                IconButton(
+                    onClick = {
+                        clipboard.setText(AnnotatedString(note.content))
+                        if (note.title.trim().equals(INGREDIENTS_TITLE, ignoreCase = true)) {
+                            Toast.makeText(context, "${(1..15).random()}", Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(Icons.Default.ContentCopy, contentDescription = "Copier le contenu")
                 }
             }
-            Spacer(Modifier.height(4.dp))
-            Text(
-                formatNoteDate(note.updatedAt),
-                style = MaterialTheme.typography.bodySmall,
-                color = Color.Gray
-            )
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End
+            Spacer(Modifier.size(4.dp))
+            IconButton(
+                onClick = onDelete,
+                modifier = Modifier.size(36.dp)
             ) {
-                IconButton(
-                    onClick = onRecolor,
-                    modifier = Modifier.size(36.dp)
-                ) {
-                    Icon(Icons.Default.Palette, contentDescription = "Couleur aléatoire")
-                }
-                if (!note.locked) {
-                    Spacer(Modifier.size(4.dp))
-                    val clipboard = LocalClipboardManager.current
-                    val context = LocalContext.current
-                    IconButton(
-                        onClick = {
-                            clipboard.setText(AnnotatedString(note.content))
-                            if (note.title.trim().equals(INGREDIENTS_TITLE, ignoreCase = true)) {
-                                Toast.makeText(context, "${(1..15).random()}", Toast.LENGTH_SHORT).show()
-                            }
-                        },
-                        modifier = Modifier.size(36.dp)
-                    ) {
-                        Icon(Icons.Default.ContentCopy, contentDescription = "Copier le contenu")
-                    }
-                }
-                Spacer(Modifier.size(4.dp))
-                IconButton(
-                    onClick = onDelete,
-                    modifier = Modifier.size(36.dp)
-                ) {
-                    Icon(Icons.Default.Delete, contentDescription = "Supprimer")
-                }
+                Icon(Icons.Default.Delete, contentDescription = "Supprimer")
             }
         }
     }
