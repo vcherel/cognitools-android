@@ -43,9 +43,6 @@ interface FlashcardDao {
     @Query("SELECT * FROM cards")
     suspend fun getAllElements(): List<FlashcardElement>
 
-    @Query("SELECT COUNT(*) FROM lists")
-    suspend fun listCount(): Int
-
     // total count per list
     @Query("SELECT listId, COUNT(*) AS c FROM cards GROUP BY listId")
     fun observeTotalCounts(): Flow<List<CountRow>>

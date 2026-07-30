@@ -27,6 +27,7 @@ class MyApplication : Application(), SingletonImageLoader.Factory {
             val cutoff = System.currentTimeMillis() -
                 NOTES_TRASH_RETENTION_DAYS * 24L * 60L * 60L * 1000L
             AppDatabase.get(this@MyApplication).noteDao().purgeExpiredTrashedNotes(cutoff)
+            flashcardRepository.seedAndPurge()
         }
     }
 
