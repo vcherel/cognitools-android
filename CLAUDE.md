@@ -24,9 +24,11 @@ Always install release builds, never debug (performance matters on device). Debu
 Five independent tools live under `app/src/main/java/com/example/myapp/`. Use this map to jump straight to the right file with Read/Grep instead of spawning an exploration agent.
 
 Root package (shared/misc):
-- `MainActivity.kt`: app entry point, theme manager, main menu screen, nav host
-- `MyApplication.kt`: Application class, holds the FlashcardRepository and DeezerRepository singletons
-- `Buttons.kt`: shared composables, MyButton, SplitMyButton, MySwitch, ShowAlertDialog (all built on RaisedSurface)
+- `MainActivity.kt`: app entry point and the whole nav host
+- `MenuScreen.kt`: the main menu, one explicit callback per destination
+- `Theme.kt`: ThemeManager (dark mode DataStore), AppTheme, LocalIsDarkMode
+- `MyApplication.kt`: Application class, holds the FlashcardRepository and DeezerRepository singletons plus the `Context.flashcardRepository` / `Context.deezerRepository` extensions, and the app start housekeeping
+- `Buttons.kt`: shared composables, MyButton, SplitMyButton, MySwitch, ShowAlertDialog, AppDialog (the buttons all built on RaisedSurface, the custom dialogs all on AppDialog)
 - `ScreenTopBar.kt`: shared back-arrow + title header used by the tool screens
 - `Home.kt`: BackIconButton (tap = back, long press = main menu), the LocalGoHome hook, and the idle-return-to-menu lifecycle watcher with its IdleResetGuard
 - `Http.kt`: shared httpGet helper and User-Agent (Weather + Wikipedia)
@@ -36,7 +38,8 @@ Root package (shared/misc):
 - `Random.kt`: random number generator tool screen
 - `Volume.kt`: volume booster foreground service and its screen
 - `Wikipedia.kt`: random Wikipedia article tool screen
-- `Weather.kt`: GPS-based weather forecast tool screen (Open-Meteo)
+- `Weather.kt`: GPS-based weather forecast tool screen
+- `WeatherApi.kt`: the Open-Meteo forecast/geocoding calls, the saved city, and the device position
 
 `deezer/` (Deezer streaming client: library, playback, offline mirror):
 - `DeezerModels.kt`: DeezerTrack/DeezerPlaylist/DeezerQuality data classes
@@ -76,20 +79,23 @@ Root package (shared/misc):
 - `AlbumsScreen.kt`: album list, plus the pinned-picture hero card at the top
 - `AlbumGridScreen.kt`: thumbnail grid, multi-select with drag, batch actions
 - `ViewerScreen.kt`: full screen pager (ViewerSource: an album or the pinned set), image zoom and video playback, per-item tools including pin/unpin and set-as-hero
+- `ViewerDialogs.kt`: the viewer's share, rename and move dialogs (MoveDialog is also used by the album grid)
 - `GalleryPins.kt`: PinnedMediaItem Room entity/DAO and pin/unpin/setHero/resolve helpers
 - `CropScreen.kt`: image crop editor
 - `TrimScreen.kt`: video trim editor
 
 `notes/` (notes tool, the biggest one):
-- `Models.kt`: Note data class, checkbox/separator line parsing helpers, quantity suffix parsing, formatInline
-- `NoteDao`: Room DAO, defined in `Models.kt`
-- `NotesListScreen.kt`: list of notes screen
-- `NoteEditorScreen.kt`: the note editor shell; load/save, autosave, undo, edit-mode text field, menus
+- `Models.kt`: the Note entity, its JSON (de)serialization, and NoteDao (the Room DAO)
+- `NoteText.kt`: everything a note's plain text encodes; the special note titles, checkbox/separator prefixes, formatInline, quantity and waiting-date suffixes, noteTitleAndPreview
+- `NotesListScreen.kt`: list of notes screen, with the pinned Todo widget
+- `NoteEditorScreen.kt`: the note editor shell; load/save, autosave, undo, edit-mode text field, menus, per-line actions
 - `NoteEditing.kt`: pure text helpers; input transformations, slash commands, inline/line marker toggling, muscu day
-- `NoteViewMode.kt`: the read-only note rendering; per-line checkbox/separator/text, drag reorder, double-tap to edit
+- `NoteViewMode.kt`: the read-only note rendering; per-line checkbox/separator/text, drag reorder, double-tap to edit. Takes one NoteLineActions from the editor
 - `NoteLock.kt`: PIN lock for notes, PinDialog
 - `NotesTrashScreen.kt`: the trashed notes screen (restore, delete for good, empty the trash)
-- `IngredientSync.kt`: Courses <-> Ingrédients sync and model-driven ordering for both; NoteSyncBatch/ReconcileItem, group parsing and rendering (Ingrédients: `Modèle ingrédients`, anonymous blank-line groups; Courses: `Modèle courses`, named "--- Nom" sections), the reconcile dialog
+- `NoteSyncActions.kt`: the flows the editor triggers across the Courses/Ingrédients/model notes (move, add, re-sort, reconcile) and the batch state behind the reconcile dialog
+- `IngredientSync.kt`: the pure text side of that sync: group parsing and rendering (Ingrédients: `Modèle ingrédients`, anonymous blank-line groups; Courses: `Modèle courses`, named "--- Nom" sections), NoteSyncBatch/ReconcileItem, closeness ranking
+- `IngredientDialogs.kt`: the reconcile dialog and the add-an-item name prompt
 
 `undercover/` (party game tool):
 - `Data.kt`: Player, GameSettings, GameState, MrWhiteScenario, ScoreValues data model
@@ -107,10 +113,11 @@ Root package (shared/misc):
 ## Cross-cutting things, and where they actually live
 The map above is by feature. These are the ones you won't find by feature name:
 
-- **Room**: one database for the whole app, declared in `flashcards/Database.kt` (version 7). The notes `Note` entity is registered there too, and `NoteDao` sits in `notes/Models.kt`, not in a Database file; same for the gallery's `PinnedMediaItem`/`PinnedMediaItemDao`, which live in `gallery/GalleryPins.kt`.
+- **Room**: one database for the whole app, declared in `flashcards/Database.kt` (version 7). The notes `Note` entity and `NoteDao` are registered there too but defined in `notes/Models.kt`; same for the gallery's `PinnedMediaItem`/`PinnedMediaItemDao`, which live in `gallery/GalleryPins.kt`.
 - **Media notification and lockscreen buttons**: `deezer/DeezerPlaybackService.kt`, `actionButtons()`. Media3 draws the notification; the buttons are `CommandButton`s handled in `SessionCallback.onCustomCommand`, so they act without opening the app.
 - **Icons**: screens use Compose `Icons.*` (material-icons-extended). `res/drawable/` only holds what the framework needs as a real resource: the launcher and the notification action icons. Media3 has no icon constant for most things, so a custom button icon means a vector in `res/drawable/` passed to `setCustomIconResId`.
-- **Singletons**: `MyApplication` holds FlashcardRepository and DeezerRepository. Anything long lived hangs off there, not off an object/DI graph.
+- **Singletons**: `MyApplication` holds FlashcardRepository and DeezerRepository. Screens reach them as `context.flashcardRepository` / `context.deezerRepository` (extensions declared in `MyApplication.kt`), never by casting. Anything long lived hangs off there, not off an object/DI graph.
+- **App start work**: `MyApplication.onCreate` purges the expired trashed notes and calls `FlashcardRepository.seedAndPurge()` (seeds the builtin flashcard lists on a fresh install, drops mastered cards outside them). The repositories themselves assume this has been kicked off.
 - **HTTP**: `Http.kt`'s `httpGet` serves Weather and Wikipedia only. Deezer has its own client in `deezer/DeezerApi.kt`, Gallery does no networking.
 - **Foreground services**: `Volume.kt` (volume booster) and `deezer/DeezerPlaybackService.kt`. The Deezer offline sync deliberately has none.
 - **30 day trash**: two different mechanisms. Notes carry a `deletedAt` timestamp and are purged by `MyApplication.onCreate`. The gallery uses MediaStore's own trash (`IS_TRASHED`, `performTrashBatch`/`performRestoreBatch`), which Android empties by itself; it only exists from API 30 on, below that a delete stays permanent.
