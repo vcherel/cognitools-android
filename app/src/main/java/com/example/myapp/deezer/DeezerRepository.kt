@@ -40,7 +40,6 @@ import java.io.File
 import java.io.IOException
 import java.text.Normalizer
 import java.util.concurrent.ConcurrentHashMap
-import kotlin.random.Random
 
 /** Outcome of adding a track to a playlist: it was added, it was already there, or the playlist doesn't exist. */
 enum class PlaylistAddResult { ADDED, DUPLICATE, NO_PLAYLIST }
@@ -459,18 +458,18 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
         )
     }
 
-    /** Replaces the queue with [tracks] and starts playing at [startIndex]. */
-    private suspend fun setQueue(
-        tracks: List<DeezerTrack>,
-        startIndex: Int,
-        shuffle: Boolean,
-        source: TrackSource?
-    ) {
+    /**
+     * Replaces the queue with [tracks] and starts playing at [startIndex]. Never touches
+     * shuffleModeEnabled: ExoPlayer's own shuffle order assigns newly inserted/replaced items a random
+     * slot (see [addToQueue] and the playback service's error recovery), which breaks "play next" and
+     * makes "previous" lose tracks whenever the queue changes after the fact. A shuffled play is instead
+     * a plain queue whose order was already randomized in Kotlin before it gets here.
+     */
+    private suspend fun setQueue(tracks: List<DeezerTrack>, startIndex: Int, source: TrackSource?) {
         val controller = ensureController()
         queuedTracks.clear()
         val items = tracks.map { buildMediaItem(it, source = source) }
         withContext(Dispatchers.Main) {
-            controller.shuffleModeEnabled = shuffle
             controller.setMediaItems(items, startIndex, 0L)
             controller.prepare()
             controller.play()
@@ -480,7 +479,7 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
     /** Sets the queue to [tracks] starting at [startIndex] and plays in order. */
     suspend fun playTracks(tracks: List<DeezerTrack>, startIndex: Int, source: TrackSource? = null) {
         if (tracks.isEmpty()) return
-        setQueue(tracks, startIndex, shuffle = false, source = source)
+        setQueue(tracks, startIndex, source)
     }
 
     /** Queues every favorite and plays them shuffled, starting from a random one. */
@@ -489,10 +488,10 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
     /** Loads [playlistId]'s tracks and plays them shuffled, starting from a random one. */
     suspend fun shufflePlaylist(playlistId: String) = shuffleTracks(playlistTracks(playlistId), TrackSource.Playlist(playlistId))
 
-    /** Queues [list] with shuffle on and plays from a random position. */
+    /** Shuffles [list] in Kotlin and queues the result, so the whole queue's order is fixed from the start. */
     suspend fun shuffleTracks(list: List<DeezerTrack>, source: TrackSource? = null) {
         if (list.isEmpty()) return
-        setQueue(list, Random.nextInt(list.size), shuffle = true, source = source)
+        setQueue(list.shuffled(), 0, source)
     }
 
     /**
