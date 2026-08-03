@@ -151,6 +151,16 @@ fun DeezerLibraryScreen(
             }
 
             OfflineStatusLine(offlineState)
+
+            // Least important entry point on the screen: a plain track count is enough here, the
+            // Playlists row above already names it and shows its cover.
+            if (offlineState.downloaded > 0) {
+                Spacer(Modifier.height(24.dp))
+                OfflineLibraryCard(
+                    count = offlineState.downloaded,
+                    onShuffle = { scope.launch { runCatching { repo.shuffleOffline() }.onFailure { error = it.message } } }
+                )
+            }
             Spacer(Modifier.height(16.dp))
         }
     }
@@ -205,6 +215,35 @@ private fun FavoritesCard(count: Int?, onShuffle: () -> Unit) {
         Spacer(Modifier.width(12.dp))
         Text(
             count?.let { "$it titres" } ?: "…",
+            style = MaterialTheme.typography.bodyLarge,
+            modifier = Modifier.weight(1f)
+        )
+        Icon(Icons.Filled.Shuffle, contentDescription = "Lecture aléatoire", tint = MaterialTheme.colorScheme.primary)
+        Spacer(Modifier.width(6.dp))
+        Text("Aléatoire", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
+    }
+}
+
+/**
+ * Everything currently mirrored offline (Best pépites, downloaded), ready to shuffle with zero network:
+ * the whole card taps to play, same layout as [FavoritesCard]. Hidden until at least one track is down.
+ */
+@Composable
+private fun OfflineLibraryCard(count: Int, onShuffle: () -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .clickable(onClick = onShuffle)
+            .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(Icons.Filled.Diamond, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+        Spacer(Modifier.width(12.dp))
+        Text(
+            "$count titres · disponible hors ligne",
             style = MaterialTheme.typography.bodyLarge,
             modifier = Modifier.weight(1f)
         )
