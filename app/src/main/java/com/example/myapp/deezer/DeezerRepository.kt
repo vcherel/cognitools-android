@@ -2,6 +2,8 @@ package com.example.myapp.deezer
 
 import android.content.ComponentName
 import android.content.Context
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.net.Uri
 import android.os.Bundle
 import androidx.media3.common.MediaItem
@@ -82,6 +84,17 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
 
     suspend fun hasArl(): Boolean = settings.arl.first().isNotBlank()
 
+    /**
+     * Whether the device currently has validated internet access. Checked before a network call
+     * that would otherwise hang for its whole timeout while offline, so the Best pépites mirror
+     * (fully downloaded) opens and plays instantly with no connection instead of waiting it out.
+     */
+    private fun hasNetwork(): Boolean {
+        val cm = appContext.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager ?: return true
+        val caps = cm.getNetworkCapabilities(cm.activeNetwork) ?: return false
+        return caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+    }
+
     suspend fun ensureSession(forceRefresh: Boolean = false): DeezerSession = sessionMutex.withLock {
         val current = session
         if (!forceRefresh && current != null && !current.isStale()) return current
@@ -108,12 +121,14 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
      * The playlist's tracks, from the network. Falls back to the offline mirror when the network is
      * gone, which is what lets Best pépites be opened, shuffled and played with no connection.
      */
-    suspend fun playlistTracks(playlistId: String): List<DeezerTrack> =
-        try {
+    suspend fun playlistTracks(playlistId: String): List<DeezerTrack> {
+        if (!hasNetwork()) offline.tracksFor(playlistId)?.let { return it }
+        return try {
             withTokenRetry { api.getPlaylistTracks(it, playlistId) }.also { rememberMembership(playlistId, it) }
         } catch (e: Exception) {
             offline.tracksFor(playlistId) ?: throw e
         }
+    }
     suspend fun search(query: String): List<DeezerTrack> = api.searchTracks(query)
 
     // ---- Library snapshot (stale-while-revalidate) ----
@@ -140,8 +155,13 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
         refreshLibrary()
     }
 
-    /** Fetches favorites and playlists concurrently, updates the flows, and persists the fresh snapshot. */
+    /**
+     * Fetches favorites and playlists concurrently, updates the flows, and persists the fresh snapshot.
+     * A no-op while offline: the screen keeps showing whatever was last seeded from disk instead of
+     * hanging on a doomed network call and surfacing an error for a state that is expected.
+     */
     suspend fun refreshLibrary(): Unit = libraryMutex.withLock {
+        if (!hasNetwork()) return@withLock
         withTokenRetry { session ->
             coroutineScope {
                 val favsDeferred = async { api.getFavorites(session) }
@@ -409,7 +429,8 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
             title = m.title?.toString().orEmpty(),
             artist = m.artist?.toString().orEmpty(),
             coverUrl = m.artworkUri?.toString(),
-            sngId = c.currentMediaItem?.mediaId
+            sngId = c.currentMediaItem?.mediaId,
+            source = c.currentMediaItem?.let { sourceOf(it) }
         )
     }
 

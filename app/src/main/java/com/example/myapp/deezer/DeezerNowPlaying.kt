@@ -86,6 +86,7 @@ private fun shareTrack(context: Context, track: DeezerTrack) {
 @Composable
 fun MiniPlayerBar(
     state: PlayerUiState,
+    sourceLabel: String? = null,
     onExpand: () -> Unit,
     onTogglePlay: () -> Unit
 ) {
@@ -115,6 +116,15 @@ fun MiniPlayerBar(
                         overflow = TextOverflow.Ellipsis
                     )
                 }
+                if (sourceLabel != null) {
+                    Text(
+                        "Lecture depuis : $sourceLabel",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
             }
             IconButton(onClick = onTogglePlay) {
                 if (state.isBuffering) {
@@ -135,6 +145,7 @@ fun MiniPlayerBar(
 fun FullPlayerSheet(
     repo: DeezerRepository,
     state: PlayerUiState,
+    sourceLabel: String? = null,
     onCollapse: () -> Unit
 ) {
     BackHandler(enabled = true, onBack = onCollapse)
@@ -200,6 +211,13 @@ fun FullPlayerSheet(
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+            if (sourceLabel != null) {
+                Text(
+                    "Lecture depuis : $sourceLabel",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
 
             Spacer(Modifier.height(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {

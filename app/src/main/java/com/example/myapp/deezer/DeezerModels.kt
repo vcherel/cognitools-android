@@ -81,5 +81,6 @@ data class PlayerUiState(
     val title: String = "",
     val artist: String = "",
     val coverUrl: String? = null,
-    val sngId: String? = null
+    val sngId: String? = null,
+    val source: TrackSource? = null
 )
