@@ -21,7 +21,7 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
-/** Paste the ARL. Saving validates it by bootstrapping a session. Quality is fixed (MP3 320, repli 128). */
+/** Paste the ARL. Saving validates it by bootstrapping a session. Quality is fixed (MP3 128, everywhere). */
 @Composable
 fun DeezerSettingsDialog(
     repo: DeezerRepository,
@@ -49,7 +49,7 @@ fun DeezerSettingsDialog(
                     modifier = Modifier.fillMaxWidth()
                 )
                 Text(
-                    "Qualité : MP3 320 (repli 128) · Cache : ${DeezerRepository.CACHE_LIMIT_LABEL} max",
+                    "Qualité : MP3 128 partout · Cache : ${DeezerRepository.CACHE_LIMIT_LABEL} max",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 12.dp)

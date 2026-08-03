@@ -50,10 +50,14 @@ enum class PlaylistAddResult { ADDED, DUPLICATE, NO_PLAYLIST }
 class DeezerRepository(private val appContext: Context) : CdnResolver {
 
     companion object {
-        // Fixed quality: MP3 320, with automatic fallback to 128 inside resolveStream.
-        val DEFAULT_QUALITY = DeezerQuality.MP3_320
-        const val CACHE_LIMIT_BYTES = 2L * 1024 * 1024 * 1024 // 2 GB
-        const val CACHE_LIMIT_LABEL = "2 Go"
+        // Fixed low quality everywhere, streaming and offline downloads alike: on a Bluetooth speaker
+        // or earbuds the codec on the wire recompresses the audio anyway, so 320 bought nothing audible
+        // while costing 2.5x the cache space and struggling harder on a weak connection. One quality
+        // also means the offline mirror and live playback always share the same cache key, so a
+        // downloaded track is always a guaranteed cache hit, never a silent miss.
+        val DEFAULT_QUALITY = DeezerQuality.MP3_128
+        const val CACHE_LIMIT_BYTES = 3L * 1024 * 1024 * 1024 // 3 GB
+        const val CACHE_LIMIT_LABEL = "3 Go"
         private const val RESOLVE_ATTEMPTS = 3
         private const val QUEUED_NEXT_KEY = "deezer_queued_next"
         private const val SOURCE_TYPE_KEY = "deezer_source_type"
@@ -443,7 +447,7 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
     ) {
         val controller = ensureController()
         queuedTracks.clear()
-        val items = tracks.map { buildMediaItem(it, DEFAULT_QUALITY, source = source) }
+        val items = tracks.map { buildMediaItem(it, source = source) }
         withContext(Dispatchers.Main) {
             controller.shuffleModeEnabled = shuffle
             controller.setMediaItems(items, startIndex, 0L)
@@ -471,6 +475,16 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
     }
 
     /**
+     * Shuffles everything currently mirrored offline, read straight off disk: no network call involved,
+     * so this is what the "listen offline" entry point uses. Tags the queue with Best pépites as its
+     * source, same as playing it from the playlist screen, so likes/queueing/quality all behave the same.
+     */
+    suspend fun shuffleOffline() {
+        val id = offline.playlistId() ?: return
+        shuffleTracks(offline.allTracks(), TrackSource.Playlist(id))
+    }
+
+    /**
      * Inserts [track] right after the currently playing item, ahead of whatever the active playlist
      * had queued there. Ignores that playlist entirely otherwise: repeated calls stack up in the order
      * they were tapped, right after the last one already inserted this way. Starts playback if nothing
@@ -480,7 +494,7 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
         val controller = ensureController()
         withContext(Dispatchers.Main) {
             if (controller.mediaItemCount == 0) {
-                controller.setMediaItem(buildMediaItem(track, DEFAULT_QUALITY))
+                controller.setMediaItem(buildMediaItem(track))
                 controller.prepare()
                 controller.play()
                 return@withContext
@@ -489,7 +503,7 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
             while (insertIndex < controller.mediaItemCount && controller.getMediaItemAt(insertIndex).isQueuedNext) {
                 insertIndex++
             }
-            controller.addMediaItem(insertIndex, buildMediaItem(track, DEFAULT_QUALITY, queuedNext = true))
+            controller.addMediaItem(insertIndex, buildMediaItem(track, queuedNext = true))
         }
     }
 
@@ -527,7 +541,7 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
     fun trackById(sngId: String): DeezerTrack? = queuedTracks[sngId]
 
     /** Builds a queued MediaItem for [track], tagged with [source] so a stream failure can be corrected at its origin. */
-    fun mediaItemFor(track: DeezerTrack, source: TrackSource?): MediaItem = buildMediaItem(track, DEFAULT_QUALITY, source = source)
+    fun mediaItemFor(track: DeezerTrack, source: TrackSource?): MediaItem = buildMediaItem(track, source = source)
 
     /** The [TrackSource] a queued MediaItem was tagged with, if any. */
     fun sourceOf(mediaItem: MediaItem): TrackSource? {
@@ -541,7 +555,6 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
 
     private fun buildMediaItem(
         track: DeezerTrack,
-        quality: DeezerQuality,
         queuedNext: Boolean = false,
         source: TrackSource? = null
     ): MediaItem {
@@ -563,7 +576,7 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
         }
         if (!extras.isEmpty) metadata.setExtras(extras)
         return MediaItem.Builder()
-            .setUri(Uri.parse("dzr://${track.sngId}?q=${quality.name}"))
+            .setUri(Uri.parse("dzr://${track.sngId}?q=${DEFAULT_QUALITY.name}"))
             .setMediaId(track.sngId)
             .setMediaMetadata(metadata.build())
             .build()
