@@ -100,7 +100,7 @@ fun DeezerSearchScreen(repo: DeezerRepository, onBack: () -> Unit) {
                     Spacer(Modifier.padding(4.dp))
                 }
             }
-            itemsIndexed(results) { index, track ->
+            itemsIndexed(results, key = { _, track -> track.sngId }) { index, track ->
                 TrackRow(
                     track = track,
                     onClick = { scope.launch { repo.playTracks(results, index) } },
