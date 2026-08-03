@@ -101,6 +101,12 @@ class DeezerOfflineLibrary(private val appContext: Context, private val repo: De
     fun tracksFor(playlistId: String): List<DeezerTrack>? =
         readSnapshot()?.takeIf { it.playlistId == playlistId }?.tracks
 
+    /** Every track currently mirrored offline, regardless of playlist id. Empty until the first sync. */
+    fun allTracks(): List<DeezerTrack> = readSnapshot()?.tracks.orEmpty()
+
+    /** The id of the playlist backing the offline mirror (Best pépites), or null before the first sync. */
+    fun playlistId(): String? = readSnapshot()?.playlistId
+
     /**
      * Mirrors Best pépites: refreshes the track list, drops what left the playlist, downloads what is
      * missing. A network failure falls back to the last known list, so a sync with no connection just
