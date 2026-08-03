@@ -157,18 +157,44 @@ class DeezerApi {
         val conn = open(url, "GET")
         if (conn.responseCode !in 200..299) return@withContext emptyList()
         val data = json.parseToJsonElement(readBody(conn)).jsonObject["data"]?.jsonArray.orEmpty()
+        data.mapNotNull { parsePublicTrack(it.jsonObject) }
+    }
+
+    /** Best matching artists for [query] via the public API (no auth), most relevant first. */
+    suspend fun searchArtists(query: String, limit: Int = 10): List<DeezerArtist> = withContext(Dispatchers.IO) {
+        if (query.isBlank()) return@withContext emptyList()
+        val url = "https://api.deezer.com/search/artist?q=${enc(query)}&limit=$limit"
+        val conn = open(url, "GET")
+        if (conn.responseCode !in 200..299) return@withContext emptyList()
+        val data = json.parseToJsonElement(readBody(conn)).jsonObject["data"]?.jsonArray.orEmpty()
         data.mapNotNull { el ->
             val o = el.jsonObject
             val id = o["id"]?.jsonPrimitive?.content ?: return@mapNotNull null
-            DeezerTrack(
-                sngId = id,
-                title = o["title"]?.jsonPrimitive?.content.orEmpty(),
-                artist = o["artist"]?.jsonObject?.get("name")?.jsonPrimitive?.content.orEmpty(),
-                album = o["album"]?.jsonObject?.get("title")?.jsonPrimitive?.content.orEmpty(),
-                durationSec = o["duration"]?.jsonPrimitive?.content?.toIntOrNull() ?: 0,
-                coverMd5 = o["md5_image"]?.jsonPrimitive?.content?.ifBlank { null }
-            )
+            val name = o["name"]?.jsonPrimitive?.content?.ifBlank { null } ?: return@mapNotNull null
+            DeezerArtist(id = id, name = name, pictureUrl = o["picture_medium"]?.jsonPrimitive?.content?.ifBlank { null })
         }
+    }
+
+    /** An artist's most popular tracks (their "Top" chart), enough to shuffle a representative sample. */
+    suspend fun artistTopTracks(artistId: String, limit: Int = 50): List<DeezerTrack> = withContext(Dispatchers.IO) {
+        val url = "https://api.deezer.com/artist/$artistId/top?limit=$limit"
+        val conn = open(url, "GET")
+        if (conn.responseCode !in 200..299) return@withContext emptyList()
+        val data = json.parseToJsonElement(readBody(conn)).jsonObject["data"]?.jsonArray.orEmpty()
+        data.mapNotNull { parsePublicTrack(it.jsonObject) }
+    }
+
+    /** Builds a DeezerTrack from a public api.deezer.com track object (search and artist/top share these keys). */
+    private fun parsePublicTrack(o: kotlinx.serialization.json.JsonObject): DeezerTrack? {
+        val id = o["id"]?.jsonPrimitive?.content ?: return null
+        return DeezerTrack(
+            sngId = id,
+            title = o["title"]?.jsonPrimitive?.content.orEmpty(),
+            artist = o["artist"]?.jsonObject?.get("name")?.jsonPrimitive?.content.orEmpty(),
+            album = o["album"]?.jsonObject?.get("title")?.jsonPrimitive?.content.orEmpty(),
+            durationSec = o["duration"]?.jsonPrimitive?.content?.toIntOrNull() ?: 0,
+            coverMd5 = o["md5_image"]?.jsonPrimitive?.content?.ifBlank { null }
+        )
     }
 
     /** Builds a DeezerTrack from a gw song object (favorites / playlist / song.getData all share these keys). */

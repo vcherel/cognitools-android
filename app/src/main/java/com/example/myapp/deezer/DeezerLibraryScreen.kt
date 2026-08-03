@@ -29,6 +29,7 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.OfflinePin
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.Search
@@ -79,12 +80,19 @@ fun DeezerLibraryScreen(
     val playingPlaylistId = (playerState.source as? TrackSource.Playlist)?.id
     var error by remember { mutableStateOf<String?>(null) }
     var showSettings by remember { mutableStateOf(false) }
+    var downloadedCount by remember { mutableStateOf(0) }
 
     LaunchedEffect(Unit) {
         if (!repo.hasArl()) { showSettings = true; return@LaunchedEffect }
         runCatching { repo.ensureLibrary() }.onFailure { error = it.message }
         // Incremental: after the first run this downloads only what was added to Best pépites since.
         repo.offline.syncInBackground()
+        downloadedCount = runCatching { repo.downloadedTracks().size }.getOrDefault(0)
+    }
+    // Recomputed as the Best pépites sync progresses, so newly finished downloads show up without
+    // needing to leave and re-enter the screen.
+    LaunchedEffect(offlineState.downloaded, offlineState.syncing) {
+        downloadedCount = runCatching { repo.downloadedTracks().size }.getOrDefault(downloadedCount)
     }
 
     Column(Modifier.fillMaxSize()) {
@@ -154,11 +162,11 @@ fun DeezerLibraryScreen(
 
             // Least important entry point on the screen: a plain track count is enough here, the
             // Playlists row above already names it and shows its cover.
-            if (offlineState.downloaded > 0) {
+            if (downloadedCount > 0) {
                 Spacer(Modifier.height(24.dp))
                 OfflineLibraryCard(
-                    count = offlineState.downloaded,
-                    onShuffle = { scope.launch { runCatching { repo.shuffleOffline() }.onFailure { error = it.message } } }
+                    count = downloadedCount,
+                    onShuffle = { scope.launch { runCatching { repo.shuffleDownloaded() }.onFailure { error = it.message } } }
                 )
             }
             Spacer(Modifier.height(16.dp))
@@ -225,8 +233,10 @@ private fun FavoritesCard(count: Int?, onShuffle: () -> Unit) {
 }
 
 /**
- * Everything currently mirrored offline (Best pépites, downloaded), ready to shuffle with zero network:
- * the whole card taps to play, same layout as [FavoritesCard]. Hidden until at least one track is down.
+ * Every track currently fully downloaded from anywhere (Best pépites plus whatever ordinary playback
+ * has cached), ready to shuffle with zero network: the whole card taps to play, same layout as
+ * [FavoritesCard]. Hidden until at least one track is down. Deliberately not the pépites diamond: this
+ * card is broader than that one playlist.
  */
 @Composable
 private fun OfflineLibraryCard(count: Int, onShuffle: () -> Unit) {
@@ -240,7 +250,7 @@ private fun OfflineLibraryCard(count: Int, onShuffle: () -> Unit) {
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(Icons.Filled.Diamond, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+        Icon(Icons.Filled.OfflinePin, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
         Spacer(Modifier.width(12.dp))
         Text(
             "$count titres · disponible hors ligne",

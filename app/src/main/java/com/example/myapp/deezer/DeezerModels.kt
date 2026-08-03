@@ -44,6 +44,9 @@ data class DeezerTrack(
         coverMd5?.let { "https://e-cdns-images.dzcdn.net/images/cover/$it/${size}x$size-000000-80-0-0.jpg" }
 }
 
+/** One artist from the public catalog search, enough to show a card and shuffle their top tracks. */
+data class DeezerArtist(val id: String, val name: String, val pictureUrl: String?)
+
 /** A resolved, playable stream: fresh CDN URL plus the SNG_ID needed to derive the decrypt key. */
 data class DeezerStream(
     val track: DeezerTrack,
