@@ -29,6 +29,7 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
@@ -74,6 +75,8 @@ fun DeezerLibraryScreen(
     val favorites by repo.favorites.collectAsState()
     val playlists by repo.playlists.collectAsState()
     val offlineState by repo.offline.state.collectAsState()
+    val playerState by repo.playerState.collectAsState()
+    val playingPlaylistId = (playerState.source as? TrackSource.Playlist)?.id
     var error by remember { mutableStateOf<String?>(null) }
     var showSettings by remember { mutableStateOf(false) }
 
@@ -135,6 +138,7 @@ fun DeezerLibraryScreen(
                     p.forEach { pl ->
                         PlaylistRow(
                             playlist = pl,
+                            isPlaying = pl.id == playingPlaylistId,
                             onOpen = { onOpenPlaylist(pl) },
                             onShuffle = {
                                 scope.launch {
@@ -250,22 +254,38 @@ private fun LoadingRow() {
     }
 }
 
-/** One stacked playlist row: cover + name + count, tap to open, shuffle button on the right. */
+/** One stacked playlist row: cover + name + count, tap to open, shuffle button on the right. Tinted when it is the one currently playing. */
 @Composable
-private fun PlaylistRow(playlist: DeezerPlaylist, onOpen: () -> Unit, onShuffle: () -> Unit) {
+private fun PlaylistRow(playlist: DeezerPlaylist, isPlaying: Boolean, onOpen: () -> Unit, onShuffle: () -> Unit) {
     Row(
-        Modifier.fillMaxWidth().clickable(onClick = onOpen).padding(vertical = 8.dp),
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .background(if (isPlaying) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface)
+            .clickable(onClick = onOpen)
+            .padding(vertical = 8.dp, horizontal = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         CoverArt(playlist.coverUrl(), Modifier.size(56.dp).clip(RoundedCornerShape(8.dp)))
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
-            Text(
-                playlist.title,
-                style = MaterialTheme.typography.bodyLarge,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (isPlaying) {
+                    Icon(
+                        Icons.Filled.PlayArrow,
+                        contentDescription = "En cours de lecture",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(Modifier.width(4.dp))
+                }
+                Text(
+                    playlist.title,
+                    style = MaterialTheme.typography.bodyLarge,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
             Text(
                 "${playlist.trackCount} titres",
                 style = MaterialTheme.typography.bodySmall,
@@ -283,7 +303,7 @@ private fun PlaylistRow(playlist: DeezerPlaylist, onOpen: () -> Unit, onShuffle:
  * Shared: one tappable track line. Tap plays. When [showActions] is on, a heart (like/unlike, filled
  * when [isFavorite]) sits on the right, plus a three dot menu with the rest: add to queue, add to Best
  * pépites, add to a playlist, and, only if [onRemoveFromPlaylist] is provided, remove from the current
- * playlist.
+ * playlist. [isPlaying] tints the row and adds a playing icon for the track currently loaded in the player.
  */
 @Composable
 fun TrackRow(
@@ -291,6 +311,7 @@ fun TrackRow(
     onClick: () -> Unit,
     showActions: Boolean = false,
     isFavorite: Boolean = false,
+    isPlaying: Boolean = false,
     onToggleFavorite: (() -> Unit)? = null,
     onAddToQueue: (() -> Unit)? = null,
     onAddToBestPepites: (() -> Unit)? = null,
@@ -301,14 +322,27 @@ fun TrackRow(
     Row(
         Modifier
             .fillMaxWidth()
+            .clip(RoundedCornerShape(6.dp))
+            .background(if (isPlaying) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface)
             .clickable(onClick = onClick)
-            .padding(vertical = 6.dp),
+            .padding(vertical = 6.dp, horizontal = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         CoverArt(track.coverUrl(), Modifier.size(48.dp).clip(RoundedCornerShape(6.dp)))
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
-            Text(track.title, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (isPlaying) {
+                    Icon(
+                        Icons.Filled.PlayArrow,
+                        contentDescription = "En cours de lecture",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(Modifier.width(4.dp))
+                }
+                Text(track.title, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
             Text(
                 track.artist,
                 style = MaterialTheme.typography.bodySmall,

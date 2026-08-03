@@ -54,6 +54,7 @@ fun DeezerTrackListScreen(
     var isBestPepites by remember { mutableStateOf(false) }
     var pickerTrack by remember { mutableStateOf<DeezerTrack?>(null) }
     val favoriteIds by repo.favoriteIds.collectAsState()
+    val playerState by repo.playerState.collectAsState()
 
     LaunchedEffect(title) {
         runCatching { tracks = loader() }.onFailure { error = it.message }
@@ -87,6 +88,7 @@ fun DeezerTrackListScreen(
                         onClick = { scope.launch { repo.playTracks(t, index, playlistId?.let { TrackSource.Playlist(it) }) } },
                         showActions = true,
                         isFavorite = favoriteIds.contains(track.sngId),
+                        isPlaying = playerState.hasItem && playerState.sngId == track.sngId,
                         onToggleFavorite = { scope.launch { runCatching { repo.toggleFavorite(track) } } },
                         onAddToQueue = {
                             scope.launch {

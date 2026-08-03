@@ -27,6 +27,12 @@ fun DeezerScreen(onBack: () -> Unit, openFullPlayerInitially: Boolean = false) {
     val repo = context.deezerRepository
     val nav = rememberNavController()
     val playerState by repo.playerState.collectAsState()
+    val playlists by repo.playlists.collectAsState()
+    val sourceLabel = when (val source = playerState.source) {
+        is TrackSource.Favorites -> "Favoris"
+        is TrackSource.Playlist -> playlists?.firstOrNull { it.id == source.id }?.title
+        null -> null
+    }
     var showFullPlayer by remember { mutableStateOf(openFullPlayerInitially) }
 
     Box(Modifier.fillMaxSize()) {
@@ -63,6 +69,7 @@ fun DeezerScreen(onBack: () -> Unit, openFullPlayerInitially: Boolean = false) {
             if (playerState.hasItem) {
                 MiniPlayerBar(
                     state = playerState,
+                    sourceLabel = sourceLabel,
                     onExpand = { showFullPlayer = true },
                     onTogglePlay = { repo.togglePlay() }
                 )
@@ -76,6 +83,7 @@ fun DeezerScreen(onBack: () -> Unit, openFullPlayerInitially: Boolean = false) {
             FullPlayerSheet(
                 repo = repo,
                 state = playerState,
+                sourceLabel = sourceLabel,
                 onCollapse = { showFullPlayer = false }
             )
         }
