@@ -10,6 +10,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
 import androidx.media3.database.StandaloneDatabaseProvider
+import androidx.media3.datasource.cache.ContentMetadata
 import androidx.media3.datasource.cache.LeastRecentlyUsedCacheEvictor
 import androidx.media3.datasource.cache.SimpleCache
 import androidx.media3.session.MediaController
@@ -17,17 +18,24 @@ import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.MoreExecutors
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.add
+import kotlinx.serialization.json.buildJsonArray
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
 import java.io.File
 import java.io.IOException
 import java.text.Normalizer
@@ -84,6 +92,13 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
     /** The permanent Best pépites mirror: its own uncapped cache, read before [streamCache] on playback. */
     val offline: DeezerOfflineLibrary by lazy { DeezerOfflineLibrary(appContext, this) }
 
+    // Fire and forget IO work that must survive the screen that started it (played-track metadata writes).
+    private val ioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    init {
+        loadPlayedTracksAsync()
+    }
+
     // ---- Session ----
 
     suspend fun hasArl(): Boolean = settings.arl.first().isNotBlank()
@@ -134,6 +149,12 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
         }
     }
     suspend fun search(query: String): List<DeezerTrack> = api.searchTracks(query)
+
+    /** The catalog's best matching artist for [query], or null. Powers the search screen's artist shortcut. */
+    suspend fun searchArtist(query: String): DeezerArtist? = api.searchArtists(query, limit = 1).firstOrNull()
+
+    /** Shuffles [artist]'s most popular tracks. Untagged: not a favorites/playlist source. */
+    suspend fun shuffleArtist(artist: DeezerArtist) = shuffleTracks(api.artistTopTracks(artist.id))
 
     // ---- Library snapshot (stale-while-revalidate) ----
     // The landing screen reads favorites + playlists from these flows. On launch we seed them from the
@@ -475,14 +496,32 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
     }
 
     /**
-     * Shuffles everything currently mirrored offline, read straight off disk: no network call involved,
-     * so this is what the "listen offline" entry point uses. Tags the queue with Best pépites as its
-     * source, same as playing it from the playlist screen, so likes/queueing/quality all behave the same.
+     * Every track fully present on disk right now, from anywhere: the Best pépites mirror and the
+     * general LRU stream cache ordinary playback fills up. A track only counts once it is completely
+     * downloaded, so a few seconds of buffering from a quick listen does not count, and a track that
+     * has aged out of the 3 GB LRU cache silently drops off this list.
      */
-    suspend fun shuffleOffline() {
-        val id = offline.playlistId() ?: return
-        shuffleTracks(offline.allTracks(), TrackSource.Playlist(id))
+    suspend fun downloadedTracks(): List<DeezerTrack> = withContext(Dispatchers.IO) {
+        val seen = HashSet<String>()
+        val result = ArrayList<DeezerTrack>()
+        fun tryAdd(sngId: String, track: DeezerTrack?, cache: SimpleCache) {
+            if (track == null || !seen.add(sngId)) return
+            val key = cacheKeyFor(sngId)
+            val length = ContentMetadata.getContentLength(cache.getContentMetadata(key))
+            if (length > 0 && cache.isCached(key, 0, length)) result += track
+        }
+        offline.allTracks().forEach { tryAdd(it.sngId, it, offline.cache) }
+        streamCache.keys.forEach { key -> sngIdFromCacheKey(key)?.let { tryAdd(it, queuedTracks[it], streamCache) } }
+        result
     }
+
+    /** Shuffles everything currently downloaded (see [downloadedTracks]), read straight off disk with no network call. */
+    suspend fun shuffleDownloaded() = shuffleTracks(downloadedTracks())
+
+    private fun cacheKeyFor(sngId: String): String = "dzr://$sngId?q=${DEFAULT_QUALITY.name}"
+
+    private fun sngIdFromCacheKey(key: String): String? =
+        key.takeIf { it.startsWith("dzr://") }?.removePrefix("dzr://")?.substringBefore("?")?.ifBlank { null }
 
     /**
      * Inserts [track] right after the currently playing item, ahead of whatever the active playlist
@@ -534,11 +573,53 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
     /**
      * The tracks of the current queue, by SNG_ID. A MediaItem only carries title/artist/cover, so this
      * is how the notification actions and the now playing sheet recover the full track (album, cover
-     * md5) they need to like it or push it into a playlist.
+     * md5) they need to like it or push it into a playlist. Also doubles as the metadata behind
+     * [downloadedTracks]: every track ever queued lands here, persisted to disk (see below) so a track
+     * fully cached by the general LRU stream cache is still identifiable after the app process dies.
      */
     private val queuedTracks = ConcurrentHashMap<String, DeezerTrack>()
 
     fun trackById(sngId: String): DeezerTrack? = queuedTracks[sngId]
+
+    // ---- Played-track metadata persistence ----
+    // Bounded by the cache itself at write time (only sngIds still present in a cache are kept), so
+    // this file tracks the 3 GB LRU cache's contents without growing forever.
+
+    private val playedTracksFile: File by lazy { File(appContext.filesDir, "deezer_played_tracks.json") }
+    private val playedTracksWriteMutex = Mutex()
+    @Volatile private var playedTracksWritePending = false
+
+    private fun loadPlayedTracksAsync() {
+        ioScope.launch {
+            runCatching {
+                if (!playedTracksFile.exists()) return@launch
+                val arr = DeezerLibraryCache.json.parseToJsonElement(playedTracksFile.readText()).jsonArray
+                arr.forEach {
+                    val t = DeezerLibraryCache.trackFromJson(it.jsonObject)
+                    if (t.sngId.isNotBlank()) queuedTracks.putIfAbsent(t.sngId, t)
+                }
+            }
+        }
+    }
+
+    /** Debounced so queuing a whole playlist doesn't trigger one disk write per track. */
+    private fun persistPlayedTracksAsync() {
+        if (playedTracksWritePending) return
+        playedTracksWritePending = true
+        ioScope.launch {
+            delay(2_000L)
+            playedTracksWritePending = false
+            playedTracksWriteMutex.withLock {
+                val cachedIds = HashSet<String>()
+                streamCache.keys.forEach { sngIdFromCacheKey(it)?.let(cachedIds::add) }
+                offline.cache.keys.forEach { sngIdFromCacheKey(it)?.let(cachedIds::add) }
+                val arr = buildJsonArray {
+                    queuedTracks.values.filter { it.sngId in cachedIds }.forEach { add(DeezerLibraryCache.trackToJson(it)) }
+                }
+                runCatching { playedTracksFile.writeText(arr.toString()) }
+            }
+        }
+    }
 
     /** Builds a queued MediaItem for [track], tagged with [source] so a stream failure can be corrected at its origin. */
     fun mediaItemFor(track: DeezerTrack, source: TrackSource?): MediaItem = buildMediaItem(track, source = source)
@@ -559,6 +640,7 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
         source: TrackSource? = null
     ): MediaItem {
         queuedTracks[track.sngId] = track
+        persistPlayedTracksAsync()
         val metadata = MediaMetadata.Builder()
             .setTitle(track.title)
             .setArtist(track.artist)
