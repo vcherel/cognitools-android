@@ -17,6 +17,14 @@ const val INGREDIENT_MODEL_TITLE = "Modèle ingrédients"
 const val COURSES_TITLE = "Courses"
 const val COURSES_MODEL_TITLE = "Modèle courses"
 const val TODO_LIST_TITLE = "Todo list"
+const val CLAUDE_NOTE_TITLE = "Claude"
+
+// The marker line right after a category title in the Claude note, flagging that
+// category as having an unfinished Claude session to resume.
+const val RESUME_LINE = "Resume"
+
+/** True for a line wrapped in the bold+underline markers the /titre slash command inserts. */
+fun String.isTitleLine(): Boolean = startsWith("**__") && endsWith("__**") && length > 8
 
 // A line starting with one of these prefixes renders as a checkbox.
 const val UNCHECKED_PREFIX = "[ ] "

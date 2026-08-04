@@ -18,6 +18,8 @@ import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.EventBusy
@@ -64,6 +66,7 @@ data class NoteLineActions(
     val onAdvanceMuscu: (Int) -> Unit,
     val onRemoveDateSuffix: (Int) -> Unit,
     val onToggleLineMarker: (index: Int, marker: String) -> Unit,
+    val onToggleResume: (Int) -> Unit,
     val onEnterEditAt: (offset: Int) -> Unit,
     val onReorder: (newContent: String) -> Unit
 )
@@ -79,6 +82,7 @@ fun NoteViewMode(
     val isIngredientsNote = title.equals(INGREDIENTS_TITLE, ignoreCase = true)
     val isCoursesNote = title.equals(COURSES_TITLE, ignoreCase = true)
     val isTodoListNote = title.equals(TODO_LIST_TITLE, ignoreCase = true)
+    val isClaudeNote = title.equals(CLAUDE_NOTE_TITLE, ignoreCase = true)
     // Computed once per recomposition and reused below, instead of re-converting
     // the whole note's text to a String for every line.
     val fullText = textFieldState.text.toString()
@@ -173,6 +177,8 @@ fun NoteViewMode(
                     isIngredientsNote = isIngredientsNote,
                     isCoursesNote = isCoursesNote,
                     isTodoListNote = isTodoListNote,
+                    isClaudeNote = isClaudeNote,
+                    hasResumeAfter = lines.getOrNull(lineIndex + 1) == RESUME_LINE,
                     actions = actions,
                     onSizeChanged = { lineHeights[lineIndex] = it },
                     onDragStart = {
@@ -205,6 +211,8 @@ private fun NoteLine(
     isIngredientsNote: Boolean,
     isCoursesNote: Boolean,
     isTodoListNote: Boolean,
+    isClaudeNote: Boolean,
+    hasResumeAfter: Boolean,
     actions: NoteLineActions,
     onSizeChanged: (Int) -> Unit,
     onDragStart: () -> Unit,
@@ -320,29 +328,38 @@ private fun NoteLine(
                 LineIconButton(Icons.Default.Delete, "Supprimer la ligne") { actions.onDeleteLine(lineIndex) }
             }
         } else {
+            val isTitle = isClaudeNote && line.isTitleLine()
             Column(modifier = Modifier.fillMaxWidth()) {
-                Text(
-                    (if (line.isEmpty()) " " else line).formatInline(),
-                    style = MaterialTheme.typography.bodyLarge,
-                    onTextLayout = { textLayout = it },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(
-                            if (selected) MaterialTheme.colorScheme.surfaceVariant
-                            else Color.Transparent
-                        )
-                        .padding(vertical = 4.dp)
-                        .pointerInput(lineStart, line) {
-                            detectTapGestures(
-                                onTap = { onToggleSelected() },
-                                onDoubleTap = { pos ->
-                                    onDeselect()
-                                    val inLine = textLayout?.getOffsetForPosition(pos) ?: line.length
-                                    actions.onEnterEditAt(lineStart + inLine.coerceIn(0, line.length))
-                                }
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        (if (line.isEmpty()) " " else line).formatInline(),
+                        style = MaterialTheme.typography.bodyLarge,
+                        onTextLayout = { textLayout = it },
+                        modifier = Modifier
+                            .weight(1f)
+                            .background(
+                                if (selected) MaterialTheme.colorScheme.surfaceVariant
+                                else Color.Transparent
                             )
-                        }
-                )
+                            .padding(vertical = 4.dp)
+                            .pointerInput(lineStart, line) {
+                                detectTapGestures(
+                                    onTap = { onToggleSelected() },
+                                    onDoubleTap = { pos ->
+                                        onDeselect()
+                                        val inLine = textLayout?.getOffsetForPosition(pos) ?: line.length
+                                        actions.onEnterEditAt(lineStart + inLine.coerceIn(0, line.length))
+                                    }
+                                )
+                            }
+                    )
+                    if (isTitle) {
+                        LineIconButton(
+                            if (hasResumeAfter) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
+                            if (hasResumeAfter) "Retirer Reprendre" else "Marquer à reprendre"
+                        ) { actions.onToggleResume(lineIndex) }
+                    }
+                }
                 if (selected) {
                     Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                         LineIconButton(Icons.Default.FormatBold, "Gras") {
