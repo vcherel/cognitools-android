@@ -36,8 +36,11 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.add
 import kotlinx.serialization.json.buildJsonArray
+import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.put
 import java.io.File
 import java.io.IOException
 import java.text.Normalizer
@@ -203,6 +206,7 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
      */
     suspend fun refreshLibrary(): Unit = libraryMutex.withLock {
         if (!hasNetwork()) return@withLock
+        flushPendingFavorites()
         withTokenRetry { session ->
             coroutineScope {
                 val favsDeferred = async { api.getFavorites(session) }
@@ -250,6 +254,7 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
 
     /** Ensures the favorites cache is populated. Re-fetches only when [force] or not yet loaded. */
     suspend fun ensureFavorites(force: Boolean = false): List<DeezerTrack> = favoritesMutex.withLock {
+        flushPendingFavorites()
         if (!force) _favorites.value?.let { return it }
         val list = withTokenRetry { api.getFavorites(it) }
         setFavorites(list)
@@ -278,13 +283,99 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
 
     fun isFavorite(sngId: String): Boolean = _favoriteIds.value.contains(sngId)
 
-    /** Likes or unlikes [track], updating both Deezer and the local cache. */
+    /**
+     * Likes or unlikes [track]. The local cache always updates right away, online or not, so the heart
+     * responds instantly. When there is no connection (or the call drops mid flight), the change is
+     * queued to disk instead of sent, and [flushPendingFavorites] retries it the next time a Deezer
+     * screen is opened with a connection.
+     */
     suspend fun toggleFavorite(track: DeezerTrack) {
         val liked = isFavorite(track.sngId)
-        withTokenRetry { if (liked) api.removeFavorite(it, track.sngId) else api.addFavorite(it, track.sngId) }
         val cur = _favorites.value ?: emptyList()
         setFavorites(if (liked) cur.filterNot { it.sngId == track.sngId } else listOf(track) + cur)
         persistSnapshot()
+
+        val add = !liked
+        if (!hasNetwork()) {
+            queuePendingFavorite(track.sngId, add)
+            return
+        }
+        try {
+            withTokenRetry { if (add) api.addFavorite(it, track.sngId) else api.removeFavorite(it, track.sngId) }
+            clearPendingFavorite(track.sngId)
+        } catch (e: IOException) {
+            queuePendingFavorite(track.sngId, add)
+        }
+    }
+
+    // ---- Pending favorites (offline like/unlike) ----
+    // A like/unlike made with no connection is applied locally right away and its intent (add or
+    // remove) recorded here, keyed by sngId, so the app can resend it later without the user having to
+    // redo anything. Persisted to disk so it survives the app being killed while still offline.
+
+    private val pendingFavoritesFile: File by lazy { File(appContext.filesDir, "deezer_pending_favorites.json") }
+    private val pendingFavoritesMutex = Mutex()
+    private var pendingFavoritesCache: LinkedHashMap<String, Boolean>? = null
+
+    private suspend fun pendingFavoritesMap(): LinkedHashMap<String, Boolean> {
+        pendingFavoritesCache?.let { return it }
+        val loaded = withContext(Dispatchers.IO) {
+            runCatching {
+                val map = LinkedHashMap<String, Boolean>()
+                if (pendingFavoritesFile.exists()) {
+                    val root = DeezerLibraryCache.json.parseToJsonElement(pendingFavoritesFile.readText()).jsonObject
+                    root.forEach { (sngId, add) -> map[sngId] = add.jsonPrimitive.content == "add" }
+                }
+                map
+            }.getOrDefault(LinkedHashMap())
+        }
+        pendingFavoritesCache = loaded
+        return loaded
+    }
+
+    private suspend fun writePendingFavorites(map: Map<String, Boolean>) = withContext(Dispatchers.IO) {
+        runCatching {
+            if (map.isEmpty()) pendingFavoritesFile.delete()
+            else pendingFavoritesFile.writeText(
+                buildJsonObject { map.forEach { (sngId, add) -> put(sngId, if (add) "add" else "remove") } }.toString()
+            )
+        }
+    }
+
+    private suspend fun queuePendingFavorite(sngId: String, add: Boolean): Unit = pendingFavoritesMutex.withLock {
+        val map = pendingFavoritesMap()
+        map[sngId] = add
+        writePendingFavorites(map)
+    }
+
+    private suspend fun clearPendingFavorite(sngId: String): Unit = pendingFavoritesMutex.withLock {
+        val map = pendingFavoritesMap()
+        if (map.remove(sngId) != null) writePendingFavorites(map)
+    }
+
+    /**
+     * Resends every queued like/unlike. Called opportunistically whenever a Deezer screen refreshes
+     * the library or the favorites cache, so a change made offline reaches Deezer the next time the
+     * tool is opened with a connection. Stops at the first network failure so the rest stays queued.
+     */
+    suspend fun flushPendingFavorites(): Unit = pendingFavoritesMutex.withLock {
+        if (!hasNetwork()) return@withLock
+        val map = pendingFavoritesMap()
+        if (map.isEmpty()) return@withLock
+        val iter = map.entries.iterator()
+        while (iter.hasNext()) {
+            val (sngId, add) = iter.next()
+            try {
+                withTokenRetry { if (add) api.addFavorite(it, sngId) else api.removeFavorite(it, sngId) }
+                iter.remove()
+            } catch (e: IOException) {
+                break
+            } catch (e: DeezerApiException) {
+                Log.w(TAG, "Dropping pending favorite $sngId after API error", e)
+                iter.remove()
+            }
+        }
+        writePendingFavorites(map)
     }
 
     // ---- Playlist membership ----
