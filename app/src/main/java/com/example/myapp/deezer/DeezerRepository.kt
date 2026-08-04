@@ -6,6 +6,7 @@ import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.net.Uri
 import android.os.Bundle
+import android.util.Log
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
@@ -23,6 +24,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -69,6 +71,7 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
         private const val QUEUED_NEXT_KEY = "deezer_queued_next"
         private const val SOURCE_TYPE_KEY = "deezer_source_type"
         private const val SOURCE_ID_KEY = "deezer_source_id"
+        private const val TAG = "DeezerRepository"
     }
 
     private val api = DeezerApi()
@@ -94,8 +97,17 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
     // Fire and forget IO work that must survive the screen that started it (played-track metadata writes).
     private val ioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-    init {
-        loadPlayedTracksAsync()
+    private val playedTracksLoaded: Job
+
+    /** Drops stream cache entries left over from a previous default quality: they can never be served
+     *  again since playback always requests the current quality, so they are just dead weight. */
+    private fun purgeStaleQualityCacheAsync() {
+        ioScope.launch {
+            runCatching {
+                val suffix = "?q=${DEFAULT_QUALITY.name}"
+                streamCache.keys.filterNot { it.endsWith(suffix) }.forEach { streamCache.removeResource(it) }
+            }
+        }
     }
 
     // ---- Session ----
@@ -500,18 +512,23 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
      * downloaded, so a few seconds of buffering from a quick listen does not count, and a track that
      * has aged out of the 3 GB LRU cache silently drops off this list.
      */
-    suspend fun downloadedTracks(): List<DeezerTrack> = withContext(Dispatchers.IO) {
-        val seen = HashSet<String>()
-        val result = ArrayList<DeezerTrack>()
-        fun tryAdd(sngId: String, track: DeezerTrack?, cache: SimpleCache) {
-            if (track == null || !seen.add(sngId)) return
-            val key = cacheKeyFor(sngId)
-            val length = ContentMetadata.getContentLength(cache.getContentMetadata(key))
-            if (length > 0 && cache.isCached(key, 0, length)) result += track
+    suspend fun downloadedTracks(): List<DeezerTrack> {
+        // queuedTracks must hold last session's persisted plays before the stream cache scan below means anything.
+        playedTracksLoaded.join()
+        return withContext(Dispatchers.IO) {
+            val seen = HashSet<String>()
+            val result = ArrayList<DeezerTrack>()
+            // Checks the key actually present in the cache, not one rebuilt from DEFAULT_QUALITY: a track
+            // cached before the quality changed (or under a different quality in general) must still match.
+            fun tryAdd(sngId: String, key: String, track: DeezerTrack?, cache: SimpleCache) {
+                if (track == null || !seen.add(sngId)) return
+                val length = ContentMetadata.getContentLength(cache.getContentMetadata(key))
+                if (length > 0 && cache.isCached(key, 0, length)) result += track
+            }
+            offline.allTracks().forEach { tryAdd(it.sngId, cacheKeyFor(it.sngId), it, offline.cache) }
+            streamCache.keys.forEach { key -> sngIdFromCacheKey(key)?.let { tryAdd(it, key, queuedTracks[it], streamCache) } }
+            result
         }
-        offline.allTracks().forEach { tryAdd(it.sngId, it, offline.cache) }
-        streamCache.keys.forEach { key -> sngIdFromCacheKey(key)?.let { tryAdd(it, queuedTracks[it], streamCache) } }
-        result
     }
 
     /** Shuffles everything currently downloaded (see [downloadedTracks]), read straight off disk with no network call. */
@@ -588,17 +605,24 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
     private val playedTracksWriteMutex = Mutex()
     @Volatile private var playedTracksWritePending = false
 
-    private fun loadPlayedTracksAsync() {
-        ioScope.launch {
-            runCatching {
-                if (!playedTracksFile.exists()) return@launch
-                val arr = DeezerLibraryCache.json.parseToJsonElement(playedTracksFile.readText()).jsonArray
-                arr.forEach {
-                    val t = DeezerLibraryCache.trackFromJson(it.jsonObject)
-                    if (t.sngId.isNotBlank()) queuedTracks.putIfAbsent(t.sngId, t)
-                }
+    // Runs last in the constructor: loadPlayedTracksAsync and purgeStaleQualityCacheAsync are launched
+    // onto the IO dispatcher here and can start running on another thread before this constructor
+    // returns, so every property they touch (playedTracksFile, streamCache, ...) must already be
+    // assigned by this point, not just declared further down the file.
+    init {
+        playedTracksLoaded = loadPlayedTracksAsync()
+        purgeStaleQualityCacheAsync()
+    }
+
+    private fun loadPlayedTracksAsync(): Job = ioScope.launch {
+        runCatching {
+            if (!playedTracksFile.exists()) return@launch
+            val arr = DeezerLibraryCache.json.parseToJsonElement(playedTracksFile.readText()).jsonArray
+            arr.forEach {
+                val t = DeezerLibraryCache.trackFromJson(it.jsonObject)
+                if (t.sngId.isNotBlank()) queuedTracks.putIfAbsent(t.sngId, t)
             }
-        }
+        }.onFailure { Log.w(TAG, "Failed to load played-track metadata", it) }
     }
 
     /** Debounced so queuing a whole playlist doesn't trigger one disk write per track. */
