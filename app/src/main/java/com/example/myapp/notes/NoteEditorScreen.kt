@@ -341,6 +341,12 @@ fun NoteEditorScreen(noteId: String, initialEditOffset: Int = -1, onBack: () -> 
         saveContent(textFieldState.text.toString().withLineMarkerToggled(index, marker))
     }
 
+    // Adds/removes the "Resume" marker right after a category title, in the Claude note
+    fun toggleResumeAfter(index: Int) = editLines { lines ->
+        if (lines.getOrNull(index + 1) == RESUME_LINE) lines.removeAt(index + 1)
+        else lines.add(index + 1, RESUME_LINE)
+    }
+
     // Enters edit mode with the caret at the given content offset, padding the note
     // first so there's room to type before the first line or after the last.
     fun enterEditAt(offset: Int) {
@@ -603,6 +609,7 @@ fun NoteEditorScreen(noteId: String, initialEditOffset: Int = -1, onBack: () -> 
                             onAdvanceMuscu = { advanceMuscuLineDay(it) },
                             onRemoveDateSuffix = { removeLineDateSuffix(it) },
                             onToggleLineMarker = { index, marker -> toggleLineMarker(index, marker) },
+                            onToggleResume = { toggleResumeAfter(it) },
                             onEnterEditAt = { enterEditAt(it) },
                             onReorder = { saveContent(it) }
                         )
