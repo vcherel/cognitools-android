@@ -233,8 +233,8 @@ private fun FavoritesCard(count: Int?, onShuffle: () -> Unit) {
 }
 
 /**
- * Every track currently fully downloaded from anywhere (Best pépites plus whatever ordinary playback
- * has cached), ready to shuffle with zero network: the whole card taps to play, same layout as
+ * Every track currently fully downloaded from anywhere (Best pépites plus whatever liked track
+ * ordinary playback has cached), ready to shuffle with zero network: the whole card taps to play, same layout as
  * [FavoritesCard]. Hidden until at least one track is down. Deliberately not the pépites diamond: this
  * card is broader than that one playlist.
  */

@@ -65,8 +65,8 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
         // also means the offline mirror and live playback always share the same cache key, so a
         // downloaded track is always a guaranteed cache hit, never a silent miss.
         val DEFAULT_QUALITY = DeezerQuality.MP3_128
-        const val CACHE_LIMIT_BYTES = 3L * 1024 * 1024 * 1024 // 3 GB
-        const val CACHE_LIMIT_LABEL = "3 Go"
+        const val CACHE_LIMIT_BYTES = 5L * 1024 * 1024 * 1024 // 5 GB
+        const val CACHE_LIMIT_LABEL = "5 Go"
         private const val RESOLVE_ATTEMPTS = 3
         private const val QUEUED_NEXT_KEY = "deezer_queued_next"
         private const val SOURCE_TYPE_KEY = "deezer_source_type"
@@ -82,7 +82,12 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
 
     private val cacheDir: File by lazy { File(appContext.cacheDir, "deezer").apply { mkdirs() } }
 
-    /** One SimpleCache per process for the decrypted audio. Keyed by the stable dzr:// URI (SNG_ID + quality). */
+    /**
+     * One SimpleCache per process for the decrypted audio, keyed by the stable dzr:// URI (SNG_ID +
+     * quality). Only ever holds liked tracks: DeezerPlaybackService's write sink checks [isFavorite]
+     * before persisting anything, and [setFavorites] purges whatever the cache holds that isn't liked
+     * whenever the favorites list changes. The 5 GB LRU cap is therefore just a safety net.
+     */
     val streamCache: SimpleCache by lazy {
         SimpleCache(
             File(cacheDir, "media"),
@@ -254,6 +259,21 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
     private fun setFavorites(list: List<DeezerTrack>) {
         _favorites.value = list
         _favoriteIds.value = list.mapTo(HashSet()) { it.sngId }
+        purgeCacheOfNonFavoritesAsync()
+    }
+
+    /** The stream cache only holds liked tracks: whenever the favorites list changes (a toggle, or a
+     *  fresh fetch), anything cached under a sngId that isn't liked anymore gets dropped right away. */
+    private fun purgeCacheOfNonFavoritesAsync() {
+        val liked = _favoriteIds.value
+        ioScope.launch {
+            runCatching {
+                streamCache.keys.forEach { key ->
+                    val sngId = sngIdFromCacheKey(key) ?: return@forEach
+                    if (sngId !in liked) streamCache.removeResource(key)
+                }
+            }
+        }
     }
 
     fun isFavorite(sngId: String): Boolean = _favoriteIds.value.contains(sngId)
@@ -508,9 +528,9 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
 
     /**
      * Every track fully present on disk right now, from anywhere: the Best pépites mirror and the
-     * general LRU stream cache ordinary playback fills up. A track only counts once it is completely
-     * downloaded, so a few seconds of buffering from a quick listen does not count, and a track that
-     * has aged out of the 3 GB LRU cache silently drops off this list.
+     * general stream cache, which only ever holds liked tracks that ordinary playback has fetched. A
+     * track only counts once it is completely downloaded, so a few seconds of buffering from a quick
+     * listen does not count, and one unliked (or aged out of the 5 GB LRU cap) silently drops off this list.
      */
     suspend fun downloadedTracks(): List<DeezerTrack> {
         // queuedTracks must hold last session's persisted plays before the stream cache scan below means anything.
@@ -536,7 +556,8 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
 
     private fun cacheKeyFor(sngId: String): String = "dzr://$sngId?q=${DEFAULT_QUALITY.name}"
 
-    private fun sngIdFromCacheKey(key: String): String? =
+    /** Not private: DeezerPlaybackService's write sink needs this to gate caching on [isFavorite]. */
+    internal fun sngIdFromCacheKey(key: String): String? =
         key.takeIf { it.startsWith("dzr://") }?.removePrefix("dzr://")?.substringBefore("?")?.ifBlank { null }
 
     /**
@@ -599,7 +620,7 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
 
     // ---- Played-track metadata persistence ----
     // Bounded by the cache itself at write time (only sngIds still present in a cache are kept), so
-    // this file tracks the 3 GB LRU cache's contents without growing forever.
+    // this file tracks the 5 GB LRU cache's contents without growing forever.
 
     private val playedTracksFile: File by lazy { File(appContext.filesDir, "deezer_played_tracks.json") }
     private val playedTracksWriteMutex = Mutex()
