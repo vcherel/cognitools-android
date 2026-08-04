@@ -235,6 +235,7 @@ fun GalleryViewerScreen(
             HorizontalPager(
                 state = pagerState,
                 userScrollEnabled = !isZoomed,
+                key = { page -> items[page].id },
                 modifier = Modifier.fillMaxSize().padding(top = topInset, bottom = bottomInset)
             ) { page ->
                 val item = items[page]
@@ -248,7 +249,8 @@ fun GalleryViewerScreen(
                         VideoPlayer(
                             uri = item.uri,
                             chromeVisible = chromeVisible,
-                            onChromeVisibleChange = { chromeVisible = it }
+                            onChromeVisibleChange = { chromeVisible = it },
+                            onZoomChanged = { isZoomed = it }
                         )
                     } else {
                         GalleryAsyncImage(
@@ -335,6 +337,7 @@ fun GalleryViewerScreen(
                     // MediaStore requery triggered by GalleryRefresh: that one lands late enough
                     // that the pager was snapping back to the album grid in the meantime.
                     val toTrash = listOf(currentItem)
+                    val deletedItem = currentItem
                     val deletedIndex = items.indexOfFirst { it.id == currentItem.id }
                     scope.launch {
                         if (performTrashBatch(context, toTrash, requestConsent)) {
@@ -346,7 +349,18 @@ fun GalleryViewerScreen(
                                 pagerState.scrollToPage(deletedIndex.coerceIn(0, remaining.size - 1))
                             }
                             GalleryRefresh.bump()
-                            showTrashedSnackbar(context, toTrash, requestConsent)
+                            showTrashedSnackbar(
+                                context, toTrash, requestConsent,
+                                // Undo puts the item back where it was and returns the pager to it,
+                                // instead of leaving the view on whatever it advanced to.
+                                onRestored = {
+                                    if (!hasLeft) {
+                                        val restoreIndex = deletedIndex.coerceIn(0, items.size)
+                                        items = items.toMutableList().apply { add(restoreIndex, deletedItem) }
+                                        pagerState.scrollToPage(restoreIndex)
+                                    }
+                                }
+                            )
                         } else {
                             errorMessage = "Suppression impossible"
                         }
@@ -493,7 +507,8 @@ private fun ZoomableImage(
 private fun VideoPlayer(
     uri: Uri,
     chromeVisible: Boolean,
-    onChromeVisibleChange: (Boolean) -> Unit
+    onChromeVisibleChange: (Boolean) -> Unit,
+    onZoomChanged: (Boolean) -> Unit
 ) {
     val context = LocalContext.current
     val exoPlayer = remember(uri) {
@@ -544,7 +559,44 @@ private fun VideoPlayer(
         if (chromeVisible) playerView.showController() else playerView.hideController()
     }
 
-    AndroidView(factory = { playerView }, modifier = Modifier.fillMaxSize())
+    // Pinch to zoom into the current frame, playing or paused. Only an actual pinch (two pointers)
+    // or a pan while already zoomed in claims the gesture, exactly like the photo viewer, so a plain
+    // single-finger tap is left unconsumed and still reaches the player's own controller underneath
+    // (play/pause, seek, show/hide controls).
+    var scale by remember(uri) { mutableStateOf(1f) }
+    var offset by remember(uri) { mutableStateOf(Offset.Zero) }
+    LaunchedEffect(scale) { onZoomChanged(scale > 1.01f) }
+
+    AndroidView(
+        factory = { playerView },
+        modifier = Modifier
+            .fillMaxSize()
+            .pointerInput(uri) {
+                awaitEachGesture {
+                    awaitFirstDown(requireUnconsumed = false)
+                    do {
+                        val event = awaitPointerEvent()
+                        val pinching = event.changes.count { it.pressed } >= 2
+                        if (pinching || scale > 1f) {
+                            val zoom = event.calculateZoom()
+                            val pan = event.calculatePan()
+                            if (zoom != 1f || pan != Offset.Zero) {
+                                val newScale = (scale * zoom).coerceIn(1f, 5f)
+                                scale = newScale
+                                offset = if (newScale <= 1f) Offset.Zero else offset + pan
+                                event.changes.forEach { it.consume() }
+                            }
+                        }
+                    } while (event.changes.any { it.pressed })
+                }
+            }
+            .graphicsLayer(
+                scaleX = scale,
+                scaleY = scale,
+                translationX = offset.x,
+                translationY = offset.y
+            )
+    )
 }
 
 @Composable
