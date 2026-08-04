@@ -10,6 +10,10 @@ import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
+import androidx.media3.datasource.DataSink
+import androidx.media3.datasource.DataSpec
+import androidx.media3.datasource.cache.Cache
+import androidx.media3.datasource.cache.CacheDataSink
 import androidx.media3.datasource.cache.CacheDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
@@ -51,9 +55,11 @@ class DeezerPlaybackService : MediaSessionService() {
         // Read order: offline mirror -> LRU stream cache -> DeezerDataSource (resolve CDN + decrypt).
         // A track downloaded by DeezerOfflineLibrary is therefore served from disk with no network at
         // all. The offline layer is read-only here: only the sync writes into it, so ordinary playback
-        // can't fill the uncapped store with tracks nobody asked to keep.
+        // can't fill the uncapped store with tracks nobody asked to keep. The stream cache's write sink
+        // is gated the same way, on being liked rather than being in Best pépites (see LikedOnlyCacheDataSink).
         val streamFactory = CacheDataSource.Factory()
             .setCache(repo.streamCache)
+            .setCacheWriteDataSinkFactory(LikedOnlyCacheDataSinkFactory(repo.streamCache, repo))
             .setUpstreamDataSourceFactory(DeezerDataSource.Factory(repo))
             .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
         val cacheFactory = CacheDataSource.Factory()
@@ -361,4 +367,32 @@ class DeezerPlaybackService : MediaSessionService() {
         // needs the same action string the session was told to accept above.
         const val CMD_STOP_ALL = "com.example.myapp.deezer.STOP_ALL"
     }
+}
+
+/**
+ * Wraps a real [CacheDataSink] but only actually writes when the track being fetched is currently
+ * liked, so a track played once out of curiosity never eats into the stream cache's 5 GB cap. Reads
+ * are unaffected: CacheDataSource still serves a cache hit regardless of who wrote it.
+ */
+private class LikedOnlyCacheDataSink(private val delegate: DataSink, private val repo: DeezerRepository) : DataSink {
+    private var writing = false
+
+    override fun open(dataSpec: DataSpec) {
+        val sngId = repo.sngIdFromCacheKey(dataSpec.key ?: dataSpec.uri.toString())
+        writing = sngId != null && repo.isFavorite(sngId)
+        if (writing) delegate.open(dataSpec)
+    }
+
+    override fun write(buffer: ByteArray, offset: Int, length: Int) {
+        if (writing) delegate.write(buffer, offset, length)
+    }
+
+    override fun close() {
+        if (writing) delegate.close()
+    }
+}
+
+private class LikedOnlyCacheDataSinkFactory(cache: Cache, private val repo: DeezerRepository) : DataSink.Factory {
+    private val delegateFactory = CacheDataSink.Factory().setCache(cache)
+    override fun createDataSink(): DataSink = LikedOnlyCacheDataSink(delegateFactory.createDataSink(), repo)
 }

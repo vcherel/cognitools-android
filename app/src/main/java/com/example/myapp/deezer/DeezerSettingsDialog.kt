@@ -48,12 +48,6 @@ fun DeezerSettingsDialog(
                     visualTransformation = PasswordVisualTransformation(),
                     modifier = Modifier.fillMaxWidth()
                 )
-                Text(
-                    "Qualité : MP3 128 partout · Cache : ${DeezerRepository.CACHE_LIMIT_LABEL} max",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = 12.dp)
-                )
                 status?.let { Text(it, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 8.dp)) }
             }
         },
