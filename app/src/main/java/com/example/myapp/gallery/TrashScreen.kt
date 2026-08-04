@@ -268,7 +268,8 @@ fun GalleryTrashScreen(onBack: () -> Unit) {
 fun showTrashedSnackbar(
     context: Context,
     items: List<MediaItem>,
-    requestConsent: suspend (IntentSender) -> Boolean
+    requestConsent: suspend (IntentSender) -> Boolean,
+    onRestored: suspend () -> Unit = {}
 ) {
     if (items.isEmpty()) return
     val plural = items.size > 1
@@ -280,7 +281,10 @@ fun showTrashedSnackbar(
         message = if (plural) "${items.size} fichiers dans la corbeille" else "Fichier dans la corbeille",
         actionLabel = "Annuler",
         onAction = {
-            if (performRestoreBatch(context, items, requestConsent)) GalleryRefresh.bump()
+            if (performRestoreBatch(context, items, requestConsent)) {
+                GalleryRefresh.bump()
+                onRestored()
+            }
         }
     )
 }
