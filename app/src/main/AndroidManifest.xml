@@ -71,6 +71,15 @@
                 <action android:name="androidx.media3.session.MediaSessionService" />
             </intent-filter>
         </service>
+        <service
+            android:name=".podcasts.PodcastPlaybackService"
+            android:enabled="true"
+            android:exported="true"
+            android:foregroundServiceType="mediaPlayback">
+            <intent-filter>
+                <action android:name="androidx.media3.session.MediaSessionService" />
+            </intent-filter>
+        </service>
         <!-- Media3 does not merge this in, the app has to declare it. Without it the platform has
              no target for a media button once the session is gone (the service stops on pause), so
              a play/pause from a Bluetooth speaker or a headset is simply dropped. The receiver

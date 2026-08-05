@@ -11,6 +11,7 @@ import com.example.myapp.deezer.DeezerRepository
 import com.example.myapp.flashcards.AppDatabase
 import com.example.myapp.flashcards.FlashcardRepository
 import com.example.myapp.notes.NOTES_TRASH_RETENTION_DAYS
+import com.example.myapp.podcasts.PodcastRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -18,6 +19,7 @@ import kotlinx.coroutines.launch
 class MyApplication : Application(), SingletonImageLoader.Factory {
     val flashcardRepository: FlashcardRepository by lazy { FlashcardRepository(this) }
     val deezerRepository: DeezerRepository by lazy { DeezerRepository(this) }
+    val podcastRepository: PodcastRepository by lazy { PodcastRepository(this) }
 
     // The notes trash keeps its own retention window; the gallery trash is MediaStore's, which
     // Android empties on its own.
@@ -48,3 +50,6 @@ val Context.flashcardRepository: FlashcardRepository
 
 val Context.deezerRepository: DeezerRepository
     get() = (applicationContext as MyApplication).deezerRepository
+
+val Context.podcastRepository: PodcastRepository
+    get() = (applicationContext as MyApplication).podcastRepository
