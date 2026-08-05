@@ -31,6 +31,7 @@ import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.OfflinePin
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Podcasts
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
@@ -59,9 +60,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
+import androidx.compose.ui.platform.LocalContext
 import com.example.myapp.ErrorText
 import com.example.myapp.LocalGoHome
 import com.example.myapp.ScreenTopBar
+import com.example.myapp.podcastRepository
 import kotlinx.coroutines.launch
 
 /** Landing screen: search entry, a Favoris card (count + shuffle), and a Playlists preview row. */
@@ -70,10 +73,14 @@ fun DeezerLibraryScreen(
     repo: DeezerRepository,
     onBack: () -> Unit,
     onOpenSearch: () -> Unit,
-    onOpenPlaylist: (DeezerPlaylist) -> Unit
+    onOpenPlaylist: (DeezerPlaylist) -> Unit,
+    onOpenPodcasts: () -> Unit
 ) {
     val scope = rememberCoroutineScope()
     val goHome = LocalGoHome.current
+    val context = LocalContext.current
+    val podcastEpisodes by context.podcastRepository.episodes.collectAsState()
+    val unseenPodcastCount = podcastEpisodes.count { !it.seen }
     val favorites by repo.favorites.collectAsState()
     val playlists by repo.playlists.collectAsState()
     val offlineState by repo.offline.state.collectAsState()
@@ -142,6 +149,9 @@ fun DeezerLibraryScreen(
                 count = favorites?.size,
                 onShuffle = { scope.launch { runCatching { repo.shuffleFavorites() }.onFailure { error = it.message } } }
             )
+
+            Spacer(Modifier.height(16.dp))
+            PodcastsCard(unseenCount = unseenPodcastCount, onClick = onOpenPodcasts)
 
             Spacer(Modifier.height(16.dp))
             SectionHeader(title = "Playlists", onSeeAll = null)
@@ -265,6 +275,33 @@ private fun OfflineLibraryCard(count: Int, onShuffle: () -> Unit) {
         Icon(Icons.Filled.Shuffle, contentDescription = "Lecture aléatoire", tint = MaterialTheme.colorScheme.primary)
         Spacer(Modifier.width(6.dp))
         Text("Aléatoire", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
+    }
+}
+
+/**
+ * Entry point into the separate Podcasts tool, styled like [FavoritesCard]. Shows the unseen episode
+ * count when there is one; the count comes from whatever the podcast repository already has loaded
+ * (no refresh triggered here), so it reads 0 until Podcasts has been opened at least once this session.
+ */
+@Composable
+private fun PodcastsCard(unseenCount: Int, onClick: () -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .clickable(onClick = onClick)
+            .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(Icons.Filled.Podcasts, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+        Spacer(Modifier.width(12.dp))
+        Text(
+            if (unseenCount > 0) "$unseenCount épisode${if (unseenCount > 1) "s" else ""} non écouté${if (unseenCount > 1) "s" else ""}" else "Podcasts",
+            style = MaterialTheme.typography.bodyLarge,
+            modifier = Modifier.weight(1f)
+        )
     }
 }
 

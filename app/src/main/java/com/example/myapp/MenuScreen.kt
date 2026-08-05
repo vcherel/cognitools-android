@@ -56,7 +56,6 @@ fun MenuScreen(
     onOpenVolume: () -> Unit,
     onOpenRandom: () -> Unit,
     onOpenWikipedia: () -> Unit,
-    onOpenPodcasts: () -> Unit,
     onOpenGallery: () -> Unit,
     onOpenWallet: () -> Unit,
     onOpenPinnedPictures: () -> Unit
@@ -116,8 +115,6 @@ fun MenuScreen(
                 MyButton(text = "Random", modifier = Modifier.weight(1f), height = buttonHeight, onClick = onOpenRandom)
                 MyButton(text = "Wiki", modifier = Modifier.weight(1f), height = buttonHeight, onClick = onOpenWikipedia)
             }
-            Spacer(modifier = Modifier.height(spaceHeight))
-            MyButton(text = "Podcasts", height = buttonHeight, onClick = onOpenPodcasts)
             Spacer(modifier = Modifier.height(spaceHeight))
             val context = LocalContext.current
             val pinDao = remember { AppDatabase.get(context).pinnedMediaItemDao() }

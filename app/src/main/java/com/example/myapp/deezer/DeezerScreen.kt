@@ -15,6 +15,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.myapp.deezerRepository
+import com.example.myapp.podcasts.PodcastScreen
 
 /**
  * Host for the Deezer tool. A nested NavHost drives library / search / track lists, while the
@@ -47,11 +48,15 @@ fun DeezerScreen(onBack: () -> Unit, openFullPlayerInitially: Boolean = false) {
                         repo = repo,
                         onBack = onBack,
                         onOpenSearch = { nav.navigate("search") },
-                        onOpenPlaylist = { pl -> nav.navigate("playlist/${pl.id}/${java.net.URLEncoder.encode(pl.title, "UTF-8")}") }
+                        onOpenPlaylist = { pl -> nav.navigate("playlist/${pl.id}/${java.net.URLEncoder.encode(pl.title, "UTF-8")}") },
+                        onOpenPodcasts = { nav.navigate("podcasts") }
                     )
                 }
                 composable("search") {
                     DeezerSearchScreen(repo = repo, onBack = { nav.popBackStack() })
+                }
+                composable("podcasts") {
+                    PodcastScreen(onBack = { nav.popBackStack() })
                 }
                 composable("playlist/{id}/{title}") { entry ->
                     val id = entry.arguments?.getString("id").orEmpty()
