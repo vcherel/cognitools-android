@@ -128,19 +128,26 @@ fun GalleryAlbumsScreen(
             ) {
                 Text("Aucune photo ou vidéo trouvée")
             }
-            else -> LazyVerticalGrid(
-                columns = GridCells.Fixed(2),
-                contentPadding = PaddingValues(16.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-                modifier = Modifier.fillMaxSize()
-            ) {
-                items(albums!!, key = { it.bucketId }) { album ->
-                    AlbumCard(album = album, onClick = { onOpenAlbum(album.bucketId) })
-                }
-                // Last, after every album: deleting a photo shouldn't push the albums down.
-                if (trashCount > 0) {
-                    item(key = "trash") { TrashCard(itemCount = trashCount, onClick = onOpenTrash) }
+            else -> {
+                val walletAlbum = albums!!.firstOrNull { it.name.equals(WALLET_ALBUM_NAME, ignoreCase = true) }
+                val regularAlbums = if (walletAlbum != null) albums!! - walletAlbum else albums!!
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(2),
+                    contentPadding = PaddingValues(16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    items(regularAlbums, key = { it.bucketId }) { album ->
+                        AlbumCard(album = album, onClick = { onOpenAlbum(album.bucketId) })
+                    }
+                    // Wallet next to last, then trash last: neither should push the regular albums down.
+                    if (walletAlbum != null) {
+                        item(key = "wallet") { AlbumCard(album = walletAlbum, onClick = { onOpenAlbum(walletAlbum.bucketId) }) }
+                    }
+                    if (trashCount > 0) {
+                        item(key = "trash") { TrashCard(itemCount = trashCount, onClick = onOpenTrash) }
+                    }
                 }
             }
         }
