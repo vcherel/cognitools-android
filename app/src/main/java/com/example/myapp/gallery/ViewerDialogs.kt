@@ -32,8 +32,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.drawable.toBitmap
 import com.example.myapp.AppDialog
@@ -140,22 +144,27 @@ fun RenameDialog(item: MediaItem, onDismiss: () -> Unit, onConfirm: (String) -> 
     val dotIndex = item.displayName.lastIndexOf('.')
     val baseName = if (dotIndex > 0) item.displayName.substring(0, dotIndex) else item.displayName
     val extension = if (dotIndex > 0) item.displayName.substring(dotIndex) else ""
-    var text by remember { mutableStateOf(baseName) }
+    var textFieldValue by remember {
+        mutableStateOf(TextFieldValue(baseName, selection = TextRange(0, baseName.length)))
+    }
+    val focusRequester = remember { FocusRequester() }
 
     ShowAlertDialog(
         onDismiss = onDismiss,
         title = "Renommer",
         textContent = {
             OutlinedTextField(
-                value = text,
-                onValueChange = { text = it },
+                value = textFieldValue,
+                onValueChange = { textFieldValue = it },
                 singleLine = true,
-                suffix = { if (extension.isNotEmpty()) Text(extension) }
+                suffix = { if (extension.isNotEmpty()) Text(extension) },
+                modifier = Modifier.focusRequester(focusRequester)
             )
+            LaunchedEffect(Unit) { focusRequester.requestFocus() }
         },
         onCancel = onDismiss,
         onConfirm = {
-            val trimmed = text.trim()
+            val trimmed = textFieldValue.text.trim()
             if (trimmed.isNotEmpty()) onConfirm("$trimmed$extension")
         }
     )

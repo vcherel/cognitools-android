@@ -49,10 +49,14 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.activity.compose.BackHandler
@@ -67,8 +71,8 @@ import kotlinx.coroutines.launch
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 
-// An open name prompt: what it is titled, the name being typed, and what to do with it.
-private data class NamePrompt(val title: String, val value: String, val onConfirm: (String) -> Unit)
+// An open name prompt: what it is titled, the name it starts with, and what to do with it.
+private data class NamePrompt(val title: String, val initialValue: String, val onConfirm: (String) -> Unit)
 
 @Composable
 fun FlashcardListsScreen(navController: NavController) {
@@ -213,7 +217,7 @@ fun FlashcardListsScreen(navController: NavController) {
                                             onRename = {
                                                 namePrompt = NamePrompt(
                                                     title = "Renommer la liste",
-                                                    value = flashcardList.name
+                                                    initialValue = flashcardList.name
                                                 ) { newName ->
                                                     scope.launch { repository.updateList(flashcardList.id, newName) }
                                                 }
@@ -248,7 +252,7 @@ fun FlashcardListsScreen(navController: NavController) {
                 text = "Créer une nouvelle liste",
                 modifier = Modifier.fillMaxWidth().height(100.dp),
                 onClick = {
-                    namePrompt = NamePrompt(title = "Nouvelle liste", value = "") { newName ->
+                    namePrompt = NamePrompt(title = "Nouvelle liste", initialValue = "") { newName ->
                         scope.launch { repository.addList(FlashcardList(name = newName)) }
                     }
                 }
@@ -309,20 +313,26 @@ fun FlashcardListsScreen(navController: NavController) {
     }
 
     namePrompt?.let { prompt ->
+        var promptText by remember(prompt) {
+            mutableStateOf(TextFieldValue(prompt.initialValue, selection = TextRange(0, prompt.initialValue.length)))
+        }
+        val focusRequester = remember(prompt) { FocusRequester() }
         ShowAlertDialog(
             onDismiss = { namePrompt = null },
             title = prompt.title,
             textContent = {
                 TextField(
-                    value = prompt.value,
-                    onValueChange = { namePrompt = prompt.copy(value = it) },
-                    label = { Text("Nom de la liste") }
+                    value = promptText,
+                    onValueChange = { promptText = it },
+                    label = { Text("Nom de la liste") },
+                    modifier = Modifier.focusRequester(focusRequester)
                 )
+                LaunchedEffect(Unit) { focusRequester.requestFocus() }
             },
             onCancel = { namePrompt = null },
             onConfirm = {
-                if (prompt.value.isNotBlank()) {
-                    prompt.onConfirm(prompt.value)
+                if (promptText.text.isNotBlank()) {
+                    prompt.onConfirm(promptText.text)
                     namePrompt = null
                 }
             }
