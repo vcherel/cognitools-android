@@ -97,7 +97,7 @@ sealed interface ViewerSource {
     data object Wallet : ViewerSource
 }
 
-private const val WALLET_ALBUM_NAME = "Wallet"
+const val WALLET_ALBUM_NAME = "Wallet"
 
 @Composable
 fun GalleryViewerScreen(
