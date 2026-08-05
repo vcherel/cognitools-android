@@ -209,6 +209,7 @@ fun MainScreen(
                 val result = snackbarHostState.showSnackbar(
                     message = request.message,
                     actionLabel = request.actionLabel,
+                    withDismissAction = true,
                     duration = SnackbarDuration.Short
                 )
                 if (result == SnackbarResult.ActionPerformed) request.onAction?.invoke()
@@ -248,7 +249,8 @@ fun MainScreen(
                             onOpenRandom = { navController.navigate("randomGenerator") },
                             onOpenWikipedia = { navController.navigate("wikipedia") },
                             onOpenGallery = { navController.navigate("gallery") },
-                            onOpenWallet = { navController.navigate("gallery/wallet") }
+                            onOpenWallet = { navController.navigate("gallery/wallet") },
+                            onOpenPinnedPictures = { navController.navigate("gallery/pinned") }
                         )
                     }
                     composable("randomGenerator") {
