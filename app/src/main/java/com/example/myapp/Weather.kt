@@ -171,9 +171,9 @@ fun WeatherScreen(onBack: () -> Unit) {
                             Text("Réessayer")
                         }
                     }
-                    currentError != null -> Text(
-                        currentError,
-                        color = MaterialTheme.colorScheme.error,
+                    currentError != null -> ErrorText(
+                        message = currentError,
+                        onDismiss = { error = null },
                         modifier = Modifier.padding(16.dp)
                     )
                 }
@@ -408,9 +408,9 @@ private fun CitySearchDialog(onCitySelected: (CityLocation?) -> Unit, onDismiss:
             isSearching -> Box(modifier = Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator()
             }
-            currentError != null -> Text(
-                currentError,
-                color = MaterialTheme.colorScheme.error,
+            currentError != null -> ErrorText(
+                message = currentError,
+                onDismiss = { searchError = null },
                 modifier = Modifier.padding(vertical = 12.dp)
             )
             else -> LazyColumn(modifier = Modifier.heightIn(max = 320.dp)) {

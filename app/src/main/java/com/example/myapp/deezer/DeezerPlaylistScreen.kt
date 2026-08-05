@@ -31,6 +31,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import android.widget.Toast
+import com.example.myapp.ErrorText
 import com.example.myapp.ScreenTopBar
 import kotlinx.coroutines.launch
 
@@ -51,6 +52,7 @@ fun DeezerTrackListScreen(
     val context = LocalContext.current
     var tracks by remember { mutableStateOf<List<DeezerTrack>?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
+    var isLoading by remember { mutableStateOf(true) }
     var isBestPepites by remember { mutableStateOf(false) }
     var pickerTrack by remember { mutableStateOf<DeezerTrack?>(null) }
     val favoriteIds by repo.favoriteIds.collectAsState()
@@ -58,6 +60,7 @@ fun DeezerTrackListScreen(
 
     LaunchedEffect(title) {
         runCatching { tracks = loader() }.onFailure { error = it.message }
+        isLoading = false
         // Warm the favorites cache so the hearts show the correct filled/empty state.
         runCatching { repo.ensureFavorites() }
         // Hide the "add to Best pépites" action when this very playlist is Best pépites.
@@ -68,7 +71,11 @@ fun DeezerTrackListScreen(
         ScreenTopBar(title = title, onBack = onBack)
         when (val t = tracks) {
             null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                error?.let { Text("Erreur: $it", color = MaterialTheme.colorScheme.error) } ?: CircularProgressIndicator()
+                val currentError = error
+                when {
+                    currentError != null -> ErrorText(message = "Erreur: $currentError", onDismiss = { error = null })
+                    isLoading -> CircularProgressIndicator()
+                }
             }
             else -> LazyColumn(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
                 item {
