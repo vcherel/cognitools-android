@@ -31,7 +31,6 @@ import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.OfflinePin
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Podcasts
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
@@ -65,22 +64,25 @@ import com.example.myapp.ErrorText
 import com.example.myapp.LocalGoHome
 import com.example.myapp.ScreenTopBar
 import com.example.myapp.podcastRepository
+import com.example.myapp.podcasts.PodcastFavorite
 import kotlinx.coroutines.launch
 
-/** Landing screen: search entry, a Favoris card (count + shuffle), and a Playlists preview row. */
+/** Landing screen: search entry, a Favoris card (count + shuffle), a Playlists preview row, and followed podcasts. */
 @Composable
 fun DeezerLibraryScreen(
     repo: DeezerRepository,
     onBack: () -> Unit,
     onOpenSearch: () -> Unit,
     onOpenPlaylist: (DeezerPlaylist) -> Unit,
-    onOpenPodcasts: () -> Unit
+    onOpenPodcast: (PodcastFavorite) -> Unit
 ) {
     val scope = rememberCoroutineScope()
     val goHome = LocalGoHome.current
     val context = LocalContext.current
-    val podcastEpisodes by context.podcastRepository.episodes.collectAsState()
-    val unseenPodcastCount = podcastEpisodes.count { !it.seen }
+    val podcastRepo = context.podcastRepository
+    val podcastFavorites by podcastRepo.favorites.collectAsState(initial = emptyList())
+    val podcastEpisodes by podcastRepo.episodes.collectAsState()
+    val podcastPlayerState by podcastRepo.playerState.collectAsState()
     val favorites by repo.favorites.collectAsState()
     val playlists by repo.playlists.collectAsState()
     val offlineState by repo.offline.state.collectAsState()
@@ -96,6 +98,8 @@ fun DeezerLibraryScreen(
         // Incremental: after the first run this downloads only what was added to Best pépites since.
         repo.offline.syncInBackground()
         downloadedCount = runCatching { repo.downloadedTracks().size }.getOrDefault(0)
+        // Keeps each podcast row's unseen count fresh without the user having to open it first.
+        runCatching { podcastRepo.refreshEpisodes() }
     }
     // Recomputed as the Best pépites sync progresses, so newly finished downloads show up without
     // needing to leave and re-enter the screen.
@@ -104,9 +108,9 @@ fun DeezerLibraryScreen(
     }
 
     Column(Modifier.fillMaxSize()) {
-        ScreenTopBar(title = "Deezer", onBack = onBack) {
+        ScreenTopBar(title = "Musique", onBack = onBack) {
             Spacer(Modifier.weight(1f))
-            IconButton(onClick = { repo.stopAll(); goHome() }) {
+            IconButton(onClick = { repo.stopAll(); podcastRepo.stopAll(); goHome() }) {
                 Icon(Icons.Filled.Stop, contentDescription = "Tout arrêter")
             }
             IconButton(onClick = { showSettings = true }) {
@@ -133,7 +137,7 @@ fun DeezerLibraryScreen(
             ) {
                 Icon(Icons.Filled.Search, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(Modifier.width(10.dp))
-                Text("Rechercher un titre, un artiste…", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Rechercher un titre, un artiste, un podcast…", color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
 
             error?.let {
@@ -151,9 +155,6 @@ fun DeezerLibraryScreen(
             )
 
             Spacer(Modifier.height(16.dp))
-            PodcastsCard(unseenCount = unseenPodcastCount, onClick = onOpenPodcasts)
-
-            Spacer(Modifier.height(16.dp))
             SectionHeader(title = "Playlists", onSeeAll = null)
             when (val p = playlists) {
                 null -> LoadingRow()
@@ -166,6 +167,29 @@ fun DeezerLibraryScreen(
                             onShuffle = {
                                 scope.launch {
                                     runCatching { repo.shufflePlaylist(pl.id) }.onFailure { error = it.message }
+                                }
+                            }
+                        )
+                    }
+                }
+            }
+
+            if (podcastFavorites.isNotEmpty()) {
+                Spacer(Modifier.height(16.dp))
+                SectionHeader(title = "Podcasts", onSeeAll = null)
+                Column(Modifier.padding(vertical = 4.dp)) {
+                    podcastFavorites.forEach { fav ->
+                        val latestEpisode = podcastEpisodes.filter { it.podcastId == fav.id }.maxByOrNull { it.pubDate }
+                        PodcastRow(
+                            favorite = fav,
+                            unseenCount = podcastEpisodes.count { it.podcastId == fav.id && !it.seen },
+                            isPlaying = podcastEpisodes.any { it.podcastId == fav.id && it.id == podcastPlayerState.episodeId },
+                            onOpen = { onOpenPodcast(fav) },
+                            onPlayLatest = latestEpisode?.let { ep ->
+                                {
+                                    scope.launch {
+                                        runCatching { podcastRepo.playEpisode(ep) }.onFailure { error = it.message }
+                                    }
                                 }
                             }
                         )
@@ -278,30 +302,64 @@ private fun OfflineLibraryCard(count: Int, onShuffle: () -> Unit) {
     }
 }
 
-/**
- * Entry point into the separate Podcasts tool, styled like [FavoritesCard]. Shows the unseen episode
- * count when there is one; the count comes from whatever the podcast repository already has loaded
- * (no refresh triggered here), so it reads 0 until Podcasts has been opened at least once this session.
- */
+/** One followed podcast row: artwork + title + unseen count, tap to open its episode list, trailing
+ *  button plays its most recent episode directly (hidden until at least one episode is known). */
 @Composable
-private fun PodcastsCard(unseenCount: Int, onClick: () -> Unit) {
+private fun PodcastRow(
+    favorite: PodcastFavorite,
+    unseenCount: Int,
+    isPlaying: Boolean,
+    onOpen: () -> Unit,
+    onPlayLatest: (() -> Unit)?
+) {
     Row(
         Modifier
             .fillMaxWidth()
-            .padding(vertical = 8.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant)
-            .clickable(onClick = onClick)
-            .padding(16.dp),
+            .clip(RoundedCornerShape(8.dp))
+            .background(if (isPlaying) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface)
+            .clickable(onClick = onOpen)
+            .padding(vertical = 8.dp, horizontal = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(Icons.Filled.Podcasts, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+        PodcastArtPlaceholder(favorite.artworkUrl, Modifier.size(56.dp).clip(RoundedCornerShape(8.dp)))
         Spacer(Modifier.width(12.dp))
-        Text(
-            if (unseenCount > 0) "$unseenCount épisode${if (unseenCount > 1) "s" else ""} non écouté${if (unseenCount > 1) "s" else ""}" else "Podcasts",
-            style = MaterialTheme.typography.bodyLarge,
-            modifier = Modifier.weight(1f)
-        )
+        Column(Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (isPlaying) {
+                    Icon(
+                        Icons.Filled.PlayArrow,
+                        contentDescription = "En cours de lecture",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(Modifier.width(4.dp))
+                }
+                Text(favorite.title, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            if (unseenCount > 0) {
+                Text(
+                    "$unseenCount épisode${if (unseenCount > 1) "s" else ""} non écouté${if (unseenCount > 1) "s" else ""}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1
+                )
+            }
+        }
+        if (onPlayLatest != null) {
+            IconButton(onClick = onPlayLatest) {
+                Icon(Icons.Filled.PlayArrow, contentDescription = "Lire le dernier épisode", tint = MaterialTheme.colorScheme.primary)
+            }
+        }
+    }
+}
+
+/** Same shape as [CoverArt], for a podcast's artwork URL (avoids importing the podcasts package's own PodcastArt here). */
+@Composable
+private fun PodcastArtPlaceholder(url: String?, modifier: Modifier = Modifier) {
+    Box(modifier.aspectRatio(1f).background(MaterialTheme.colorScheme.surfaceVariant)) {
+        if (url != null) {
+            AsyncImage(model = url, contentDescription = null, modifier = Modifier.fillMaxSize())
+        }
     }
 }
 

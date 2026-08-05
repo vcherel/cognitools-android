@@ -75,7 +75,7 @@ interface FlashcardDao {
         FlashcardList::class, FlashcardElement::class, Note::class, PinnedMediaItem::class,
         PodcastFavorite::class, PodcastSeenEpisode::class
     ],
-    version = 8
+    version = 9
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun flashcardDao(): FlashcardDao
@@ -154,6 +154,12 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_8_9 = object : Migration(8, 9) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `podcast_favorites` ADD COLUMN `source` TEXT NOT NULL DEFAULT 'RSS'")
+            }
+        }
+
         fun get(context: Context): AppDatabase =
             instance ?: synchronized(this) {
                 instance ?: Room.databaseBuilder(
@@ -162,7 +168,7 @@ abstract class AppDatabase : RoomDatabase() {
                     "flashcards.db"
                 ).addMigrations(
                     MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7,
-                    MIGRATION_7_8
+                    MIGRATION_7_8, MIGRATION_8_9
                 )
                     .build().also { instance = it }
             }

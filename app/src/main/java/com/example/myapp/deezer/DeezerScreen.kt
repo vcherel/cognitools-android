@@ -15,19 +15,25 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.myapp.deezerRepository
-import com.example.myapp.podcasts.PodcastScreen
+import com.example.myapp.podcastRepository
+import com.example.myapp.podcasts.PodcastEpisodesScreen
+import com.example.myapp.podcasts.PodcastFullPlayerSheet
+import com.example.myapp.podcasts.PodcastMiniPlayerBar
 
 /**
- * Host for the Deezer tool. A nested NavHost drives library / search / track lists, while the
- * mini-player bar and the expandable full-player sheet live at this level so they persist across
- * every sub-screen.
+ * Host for the Musique tool. A nested NavHost drives library / search / track lists / podcast
+ * episodes, while the mini-player bars and expandable full-player sheets live at this level so they
+ * persist across every sub-screen. Two independent players can both have something queued (a Deezer
+ * track/podcast episode, and an RSS podcast episode), so both sets are shown side by side here.
  */
 @Composable
 fun DeezerScreen(onBack: () -> Unit, openFullPlayerInitially: Boolean = false) {
     val context = LocalContext.current
     val repo = context.deezerRepository
+    val podcastRepo = context.podcastRepository
     val nav = rememberNavController()
     val playerState by repo.playerState.collectAsState()
+    val podcastPlayerState by podcastRepo.playerState.collectAsState()
     val playlists by repo.playlists.collectAsState()
     val sourceLabel = when (val source = playerState.source) {
         is TrackSource.Favorites -> "Favoris"
@@ -35,6 +41,7 @@ fun DeezerScreen(onBack: () -> Unit, openFullPlayerInitially: Boolean = false) {
         null -> null
     }
     var showFullPlayer by remember { mutableStateOf(openFullPlayerInitially) }
+    var showFullPodcastPlayer by remember { mutableStateOf(false) }
 
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
@@ -49,14 +56,16 @@ fun DeezerScreen(onBack: () -> Unit, openFullPlayerInitially: Boolean = false) {
                         onBack = onBack,
                         onOpenSearch = { nav.navigate("search") },
                         onOpenPlaylist = { pl -> nav.navigate("playlist/${pl.id}/${java.net.URLEncoder.encode(pl.title, "UTF-8")}") },
-                        onOpenPodcasts = { nav.navigate("podcasts") }
+                        onOpenPodcast = { fav -> nav.navigate("podcast/${java.net.URLEncoder.encode(fav.id, "UTF-8")}") }
                     )
                 }
                 composable("search") {
                     DeezerSearchScreen(repo = repo, onBack = { nav.popBackStack() })
                 }
-                composable("podcasts") {
-                    PodcastScreen(onBack = { nav.popBackStack() })
+                composable("podcast/{favoriteId}") { entry ->
+                    val favoriteId = entry.arguments?.getString("favoriteId")
+                        ?.let { java.net.URLDecoder.decode(it, "UTF-8") }.orEmpty()
+                    PodcastEpisodesScreen(repo = podcastRepo, favoriteId = favoriteId, onBack = { nav.popBackStack() })
                 }
                 composable("playlist/{id}/{title}") { entry ->
                     val id = entry.arguments?.getString("id").orEmpty()
@@ -79,6 +88,13 @@ fun DeezerScreen(onBack: () -> Unit, openFullPlayerInitially: Boolean = false) {
                     onTogglePlay = { repo.togglePlay() }
                 )
             }
+            if (podcastPlayerState.hasItem) {
+                PodcastMiniPlayerBar(
+                    state = podcastPlayerState,
+                    onExpand = { showFullPodcastPlayer = true },
+                    onTogglePlay = { podcastRepo.togglePlay() }
+                )
+            }
         }
 
         // Gated on showFullPlayer alone, not playerState.hasItem: stopping playback from the sheet
@@ -90,6 +106,13 @@ fun DeezerScreen(onBack: () -> Unit, openFullPlayerInitially: Boolean = false) {
                 state = playerState,
                 sourceLabel = sourceLabel,
                 onCollapse = { showFullPlayer = false }
+            )
+        }
+        if (showFullPodcastPlayer) {
+            PodcastFullPlayerSheet(
+                repo = podcastRepo,
+                state = podcastPlayerState,
+                onCollapse = { showFullPodcastPlayer = false }
             )
         }
     }

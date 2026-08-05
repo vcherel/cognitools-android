@@ -175,6 +175,14 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
     /** Shuffles [artist]'s most popular tracks. Untagged: not a favorites/playlist source. */
     suspend fun shuffleArtist(artist: DeezerArtist) = shuffleTracks(api.artistTopTracks(artist.id))
 
+    // ---- Podcast catalog (public, no auth) ----
+    // Browsing Deezer's podcast catalog needs no session at all; only actually streaming an
+    // episode (below, in the player section) requires the authenticated get_url pipeline.
+
+    suspend fun searchPodcastShows(query: String): List<DeezerPodcastShow> = api.searchPodcastShows(query)
+    suspend fun podcastChart(): List<DeezerPodcastShow> = api.podcastChart()
+    suspend fun podcastEpisodes(showId: String): List<DeezerPodcastEpisode> = api.podcastEpisodes(showId)
+
     // ---- Library snapshot (stale-while-revalidate) ----
     // The landing screen reads favorites + playlists from these flows. On launch we seed them from the
     // last on-disk snapshot (instant), then revalidate over the network and persist the fresh result.

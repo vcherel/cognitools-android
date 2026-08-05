@@ -3,6 +3,7 @@ package com.example.myapp.podcasts
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,22 +15,28 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Bedtime
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Forward30
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Replay10
 import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -112,6 +119,17 @@ fun PodcastFullPlayerSheet(
     val goHome = LocalGoHome.current
     val episodes by repo.episodes.collectAsState()
     val isSeen = episodes.firstOrNull { it.id == state.episodeId }?.seen == true
+    val sleepTimerEndAt by repo.sleepTimerEndAt.collectAsState()
+    var showSleepTimerDialog by remember { mutableStateOf(false) }
+    var sleepTimerRemainingMin by remember { mutableStateOf<Int?>(null) }
+
+    LaunchedEffect(sleepTimerEndAt) {
+        while (sleepTimerEndAt != null) {
+            sleepTimerRemainingMin = ((sleepTimerEndAt!! - System.currentTimeMillis()) / 60_000L + 1).toInt().coerceAtLeast(0)
+            delay(1000)
+        }
+        sleepTimerRemainingMin = null
+    }
 
     var positionMs by remember { mutableLongStateOf(0L) }
     var durationMs by remember { mutableLongStateOf(0L) }
@@ -137,11 +155,24 @@ fun PodcastFullPlayerSheet(
         IconButton(onClick = onCollapse, modifier = Modifier.align(Alignment.TopStart)) {
             Icon(Icons.Filled.KeyboardArrowDown, contentDescription = "Réduire")
         }
-        IconButton(
-            onClick = { repo.stopAll(); goHome() },
-            modifier = Modifier.align(Alignment.TopEnd)
-        ) {
-            Icon(Icons.Filled.Stop, contentDescription = "Tout arrêter")
+        Row(modifier = Modifier.align(Alignment.TopEnd), verticalAlignment = Alignment.CenterVertically) {
+            sleepTimerRemainingMin?.let {
+                Text(
+                    "$it min",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+            IconButton(onClick = { showSleepTimerDialog = true }) {
+                Icon(
+                    Icons.Filled.Bedtime,
+                    contentDescription = "Minuterie de veille",
+                    tint = if (sleepTimerRemainingMin != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            IconButton(onClick = { repo.stopAll(); goHome() }) {
+                Icon(Icons.Filled.Stop, contentDescription = "Tout arrêter")
+            }
         }
 
         Column(
@@ -166,14 +197,30 @@ fun PodcastFullPlayerSheet(
             )
 
             Spacer(Modifier.height(8.dp))
-            IconButton(onClick = {
-                val id = state.episodeId ?: return@IconButton
-                scope.launch { if (isSeen) repo.markUnseen(id) else repo.markSeen(id) }
-            }) {
-                Icon(
-                    Icons.Filled.CheckCircle,
-                    contentDescription = if (isSeen) "Marquer comme non écouté" else "Marquer comme écouté",
-                    tint = if (isSeen) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.clickable {
+                    val id = state.episodeId ?: return@clickable
+                    scope.launch { if (isSeen) repo.markUnseen(id) else repo.markSeen(id) }
+                }
+            ) {
+                Box(
+                    Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(if (isSeen) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Filled.Check,
+                        contentDescription = null,
+                        tint = if (isSeen) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Text(
+                    if (isSeen) "Écouté" else "Marquer comme écouté",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (isSeen) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
 
@@ -214,6 +261,74 @@ fun PodcastFullPlayerSheet(
             }
         }
     }
+
+    if (showSleepTimerDialog) {
+        SleepTimerDialog(
+            isRunning = sleepTimerEndAt != null,
+            onDismiss = { showSleepTimerDialog = false },
+            onStart = { minutes -> repo.startSleepTimer(minutes); showSleepTimerDialog = false },
+            onCancel = { repo.cancelSleepTimer(); showSleepTimerDialog = false }
+        )
+    }
+}
+
+private val SLEEP_TIMER_PRESETS_MIN = listOf(5, 10, 15, 20, 30, 45, 60)
+
+/** Minute presets (20 selected by default) plus a custom field; "Arrêter la minuterie" only shows while one is running. */
+@Composable
+private fun SleepTimerDialog(isRunning: Boolean, onDismiss: () -> Unit, onStart: (Int) -> Unit, onCancel: () -> Unit) {
+    var minutes by remember { mutableStateOf(20) }
+    var customText by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Minuterie de veille") },
+        text = {
+            Column {
+                Row(
+                    Modifier.horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    SLEEP_TIMER_PRESETS_MIN.forEach { preset ->
+                        val selected = customText.isBlank() && minutes == preset
+                        Box(
+                            Modifier
+                                .clip(RoundedCornerShape(16.dp))
+                                .background(if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant)
+                                .clickable { minutes = preset; customText = "" }
+                                .padding(horizontal = 14.dp, vertical = 8.dp)
+                        ) {
+                            Text(
+                                "$preset min",
+                                color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+                Spacer(Modifier.height(12.dp))
+                OutlinedTextField(
+                    value = customText,
+                    onValueChange = { customText = it.filter(Char::isDigit).take(3) },
+                    label = { Text("Ou une durée personnalisée (min)") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onStart(customText.toIntOrNull()?.takeIf { it > 0 } ?: minutes) }) {
+                Text("Démarrer")
+            }
+        },
+        dismissButton = {
+            Row {
+                if (isRunning) {
+                    TextButton(onClick = onCancel) { Text("Arrêter la minuterie") }
+                }
+                TextButton(onClick = onDismiss) { Text("Annuler") }
+            }
+        }
+    )
 }
 
 private fun formatTime(ms: Long): String {

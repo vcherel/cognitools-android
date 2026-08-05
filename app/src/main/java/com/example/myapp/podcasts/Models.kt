@@ -7,18 +7,26 @@ import androidx.room.Query
 import androidx.room.Upsert
 import kotlinx.coroutines.flow.Flow
 
-/** A podcast the user chose to follow. [id] is the RSS feed URL, stable and unique per podcast. */
+/** Where a podcast/episode comes from: a plain RSS feed (via the iTunes directory), or Deezer's own catalog. */
+enum class PodcastSource { RSS, DEEZER }
+
+/**
+ * A podcast the user chose to follow. [id] is the RSS feed URL for [PodcastSource.RSS], or the
+ * numeric Deezer show id (as a string) for [PodcastSource.DEEZER]; either way it is stable and
+ * unique per podcast (Deezer's numeric ids never collide with an "http…" feed URL).
+ */
 @Entity(tableName = "podcast_favorites")
 data class PodcastFavorite(
     @PrimaryKey val id: String,
     val title: String,
     val author: String,
     val artworkUrl: String?,
-    val addedAt: Long
+    val addedAt: Long,
+    val source: PodcastSource = PodcastSource.RSS
 )
 
-/** One episode marked heard. Episodes themselves aren't persisted: they're re-read from the RSS
- *  feed each time and joined against this table, keyed by the episode's audio URL. */
+/** One episode marked heard. Episodes themselves aren't persisted: they're re-read from their
+ *  source (RSS feed or Deezer's API) each time and joined against this table, keyed by episode id. */
 @Entity(tableName = "podcast_seen_episodes")
 data class PodcastSeenEpisode(
     @PrimaryKey val episodeId: String,
@@ -47,15 +55,16 @@ interface PodcastDao {
     suspend fun unmarkSeen(id: String)
 }
 
-/** A podcast search result from the directory, not yet (or already) a favorite. */
-data class PodcastSearchResult(
-    val feedUrl: String,
+/** A podcast from either directory, not yet (or already) a favorite. Powers both search results and recommendations. */
+data class PodcastCatalogItem(
+    val id: String,
+    val source: PodcastSource,
     val title: String,
     val author: String,
     val artworkUrl: String?
 )
 
-/** One episode, joined from a favorite's RSS feed. [id] is the enclosure (audio file) URL. */
+/** One episode, joined from a favorite's source (RSS feed or Deezer's API). */
 data class PodcastEpisode(
     val id: String,
     val podcastId: String,
@@ -65,5 +74,6 @@ data class PodcastEpisode(
     val pubDate: Long,
     val audioUrl: String,
     val durationSec: Int?,
-    val seen: Boolean
+    val seen: Boolean,
+    val source: PodcastSource = PodcastSource.RSS
 )
