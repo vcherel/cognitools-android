@@ -89,11 +89,15 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import androidx.media3.common.MediaItem as Media3Item
 
-// Where GalleryViewerScreen gets its items from: a normal album, or the pinned set (hero first).
+// Where GalleryViewerScreen gets its items from: a normal album, the pinned set (hero first),
+// or the Wallet shortcut (the album named "Wallet", opened straight to its first item).
 sealed interface ViewerSource {
     data class Album(val bucketId: Long) : ViewerSource
     data object Pinned : ViewerSource
+    data object Wallet : ViewerSource
 }
+
+private const val WALLET_ALBUM_NAME = "Wallet"
 
 @Composable
 fun GalleryViewerScreen(
@@ -123,6 +127,10 @@ fun GalleryViewerScreen(
         items = when (source) {
             is ViewerSource.Album -> withContext(Dispatchers.IO) { queryMediaItems(context, bucketId = source.bucketId) }
             ViewerSource.Pinned -> resolvedPinnedMediaItems(context, pinnedRows)
+            ViewerSource.Wallet -> withContext(Dispatchers.IO) {
+                val wallet = queryAlbums(context).firstOrNull { it.name.equals(WALLET_ALBUM_NAME, ignoreCase = true) }
+                if (wallet != null) queryMediaItems(context, bucketId = wallet.bucketId) else emptyList()
+            }
         }
         loaded = true
     }
@@ -154,7 +162,8 @@ fun GalleryViewerScreen(
     }
 
     val initialIndex = remember(source) {
-        if (source is ViewerSource.Pinned) 0 else items.indexOfFirst { it.id == initialItemId }.coerceAtLeast(0)
+        if (source is ViewerSource.Pinned || source is ViewerSource.Wallet) 0
+        else items.indexOfFirst { it.id == initialItemId }.coerceAtLeast(0)
     }
     val pagerState = rememberPagerState(initialPage = initialIndex) { items.size }
     var isZoomed by remember { mutableStateOf(false) }

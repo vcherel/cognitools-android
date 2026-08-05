@@ -248,7 +248,7 @@ fun MainScreen(
                             onOpenRandom = { navController.navigate("randomGenerator") },
                             onOpenWikipedia = { navController.navigate("wikipedia") },
                             onOpenGallery = { navController.navigate("gallery") },
-                            onOpenPinnedPictures = { navController.navigate("gallery/pinned") }
+                            onOpenWallet = { navController.navigate("gallery/wallet") }
                         )
                     }
                     composable("randomGenerator") {
@@ -309,6 +309,15 @@ fun MainScreen(
                     composable("gallery/pinned") {
                         GalleryViewerScreen(
                             source = ViewerSource.Pinned,
+                            initialItemId = -1L,
+                            onBack = { navController.popBackStack() },
+                            onCrop = { id -> navController.navigate("gallery/crop/$id") },
+                            onTrim = { id -> navController.navigate("gallery/trim/$id") }
+                        )
+                    }
+                    composable("gallery/wallet") {
+                        GalleryViewerScreen(
+                            source = ViewerSource.Wallet,
                             initialItemId = -1L,
                             onBack = { navController.popBackStack() },
                             onCrop = { id -> navController.navigate("gallery/crop/$id") },

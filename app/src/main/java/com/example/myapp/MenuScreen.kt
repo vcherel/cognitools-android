@@ -12,18 +12,17 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -36,7 +35,6 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import com.example.myapp.flashcards.AppDatabase
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
@@ -56,7 +54,7 @@ fun MenuScreen(
     onOpenRandom: () -> Unit,
     onOpenWikipedia: () -> Unit,
     onOpenGallery: () -> Unit,
-    onOpenPinnedPictures: () -> Unit
+    onOpenWallet: () -> Unit
 ) {
     val spaceHeight = 20.dp
     val buttonHeight = 84.dp
@@ -114,16 +112,12 @@ fun MenuScreen(
                 MyButton(text = "Wiki", modifier = Modifier.weight(1f), height = buttonHeight, onClick = onOpenWikipedia)
             }
             Spacer(modifier = Modifier.height(spaceHeight))
-            val context = LocalContext.current
-            val pinDao = remember { AppDatabase.get(context).pinnedMediaItemDao() }
-            val pinnedRows by pinDao.observePinned().collectAsState(initial = emptyList())
             SplitMyButton(
                 text = "Galerie",
-                rightIcon = Icons.Default.PushPin,
+                rightIcon = Icons.Default.AccountBalanceWallet,
                 height = buttonHeight,
-                rightEnabled = pinnedRows.isNotEmpty(),
                 onMainClick = onOpenGallery,
-                onRightClick = onOpenPinnedPictures
+                onRightClick = onOpenWallet
             )
         }
 
