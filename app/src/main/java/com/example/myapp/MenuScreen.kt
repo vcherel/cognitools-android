@@ -152,7 +152,7 @@ private fun DeezerMenuButton(height: Dp, onOpenDeezer: () -> Unit) {
     var isShuffleLoading by remember { mutableStateOf(false) }
 
     SplitMyButton(
-        text = "Deezer",
+        text = "Musique",
         rightIcon = Icons.Default.Shuffle,
         height = height,
         rightLoading = isShuffleLoading,

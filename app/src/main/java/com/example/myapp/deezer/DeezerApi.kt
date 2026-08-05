@@ -184,6 +184,64 @@ class DeezerApi {
         data.mapNotNull { parsePublicTrack(it.jsonObject) }
     }
 
+    /** Podcast shows matching [query], via the public API (no auth). */
+    suspend fun searchPodcastShows(query: String, limit: Int = 25): List<DeezerPodcastShow> = withContext(Dispatchers.IO) {
+        if (query.isBlank()) return@withContext emptyList()
+        val url = "https://api.deezer.com/search/podcast?q=${enc(query)}&limit=$limit"
+        val conn = open(url, "GET")
+        if (conn.responseCode !in 200..299) return@withContext emptyList()
+        val data = json.parseToJsonElement(readBody(conn)).jsonObject["data"]?.jsonArray.orEmpty()
+        data.mapNotNull { parsePodcastShow(it.jsonObject) }
+    }
+
+    /** Deezer's global trending podcast shows, via the public API (no auth). Powers podcast recommendations. */
+    suspend fun podcastChart(limit: Int = 20): List<DeezerPodcastShow> = withContext(Dispatchers.IO) {
+        val url = "https://api.deezer.com/chart/0/podcasts?limit=$limit"
+        val conn = open(url, "GET")
+        if (conn.responseCode !in 200..299) return@withContext emptyList()
+        val data = json.parseToJsonElement(readBody(conn)).jsonObject["data"]?.jsonArray.orEmpty()
+        data.mapNotNull { parsePodcastShow(it.jsonObject) }
+    }
+
+    /** A show's episodes, most recent first, via the public API (no auth). First page only (up to [limit]). */
+    suspend fun podcastEpisodes(showId: String, limit: Int = 100): List<DeezerPodcastEpisode> = withContext(Dispatchers.IO) {
+        val url = "https://api.deezer.com/podcast/$showId/episodes?limit=$limit"
+        val conn = open(url, "GET")
+        if (conn.responseCode !in 200..299) return@withContext emptyList()
+        val data = json.parseToJsonElement(readBody(conn)).jsonObject["data"]?.jsonArray.orEmpty()
+        data.mapNotNull { el ->
+            val o = el.jsonObject
+            val id = o["id"]?.jsonPrimitive?.content ?: return@mapNotNull null
+            DeezerPodcastEpisode(
+                id = id,
+                title = o["title"]?.jsonPrimitive?.content.orEmpty(),
+                releaseDateMs = parseDeezerDate(o["release_date"]?.jsonPrimitive?.content),
+                durationSec = o["duration"]?.jsonPrimitive?.content?.toIntOrNull(),
+                artworkUrl = o["picture"]?.jsonPrimitive?.content?.ifBlank { null }
+            )
+        }
+    }
+
+    /** Deezer's podcast objects (search/chart) carry no distinct author field, only title + description. */
+    private fun parsePodcastShow(o: kotlinx.serialization.json.JsonObject): DeezerPodcastShow? {
+        val id = o["id"]?.jsonPrimitive?.content ?: return null
+        return DeezerPodcastShow(
+            id = id,
+            title = o["title"]?.jsonPrimitive?.content.orEmpty(),
+            author = "",
+            artworkUrl = o["picture_medium"]?.jsonPrimitive?.content?.ifBlank { null }
+                ?: o["picture"]?.jsonPrimitive?.content?.ifBlank { null }
+        )
+    }
+
+    /** Parses a Deezer "yyyy-MM-dd HH:mm:ss" date into epoch millis. Falls back to 0 (unknown). */
+    private fun parseDeezerDate(raw: String?): Long {
+        if (raw.isNullOrBlank()) return 0L
+        return runCatching {
+            java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.US).parse(raw.trim())?.time ?: 0L
+        }.getOrDefault(0L)
+    }
+
     /** Builds a DeezerTrack from a public api.deezer.com track object (search and artist/top share these keys). */
     private fun parsePublicTrack(o: kotlinx.serialization.json.JsonObject): DeezerTrack? {
         val id = o["id"]?.jsonPrimitive?.content ?: return null

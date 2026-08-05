@@ -16,7 +16,7 @@ import java.util.Locale
 private val json = Json { ignoreUnknownKeys = true; isLenient = true }
 
 /** Searches Apple's public podcast directory (no key required) for [query]. */
-fun searchPodcasts(query: String): List<PodcastSearchResult> {
+fun searchPodcasts(query: String): List<PodcastCatalogItem> {
     val url = "https://itunes.apple.com/search?media=podcast&limit=25&term=" +
         URLEncoder.encode(query, "UTF-8")
     val root = json.parseToJsonElement(httpGet(url)).jsonObject
@@ -24,8 +24,9 @@ fun searchPodcasts(query: String): List<PodcastSearchResult> {
     return results.mapNotNull { el ->
         val o = el.jsonObject
         val feedUrl = o["feedUrl"]?.jsonPrimitive?.contentOrNull ?: return@mapNotNull null
-        PodcastSearchResult(
-            feedUrl = feedUrl,
+        PodcastCatalogItem(
+            id = feedUrl,
+            source = PodcastSource.RSS,
             title = o["collectionName"]?.jsonPrimitive?.contentOrNull.orEmpty(),
             author = o["artistName"]?.jsonPrimitive?.contentOrNull.orEmpty(),
             artworkUrl = o["artworkUrl600"]?.jsonPrimitive?.contentOrNull

@@ -10,19 +10,26 @@ import androidx.media3.common.Player
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionToken
+import com.example.myapp.deezerRepository
 import com.example.myapp.flashcards.AppDatabase
+import com.example.myapp.httpGet
 import com.google.common.util.concurrent.MoreExecutors
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+
+private val RADIO_FRANCE_STATIONS = listOf("franceinter", "franceculture", "franceinfo", "francemusique", "mouv", "fip")
 
 data class PodcastPlayerUiState(
     val hasItem: Boolean = false,
@@ -58,14 +65,33 @@ class PodcastRepository(private val appContext: Context) {
 
     private val refreshMutex = Mutex()
 
-    /** Re-fetches every favorite's RSS feed and rebuilds the merged, seen-tagged episode list. */
+    /** Fetches one favorite's episodes from its actual source: its RSS feed, or Deezer's API. */
+    private suspend fun fetchEpisodesFor(fav: PodcastFavorite): List<PodcastEpisode> = when (fav.source) {
+        PodcastSource.RSS -> fetchEpisodes(fav)
+        PodcastSource.DEEZER -> appContext.deezerRepository.podcastEpisodes(fav.id).map { ep ->
+            PodcastEpisode(
+                id = ep.id,
+                podcastId = fav.id,
+                podcastTitle = fav.title,
+                podcastArtworkUrl = fav.artworkUrl,
+                title = ep.title,
+                pubDate = ep.releaseDateMs,
+                audioUrl = "", // Deezer episodes stream through DeezerRepository's resolve pipeline, not a plain URL.
+                durationSec = ep.durationSec,
+                seen = false,
+                source = PodcastSource.DEEZER
+            )
+        }
+    }
+
+    /** Re-fetches every favorite's feed/API and rebuilds the merged, seen-tagged episode list. */
     suspend fun refreshEpisodes(): Unit = refreshMutex.withLock {
         _loading.value = true
         try {
             val favs = dao().getFavorites()
             val seen = dao().getSeenIds().toSet()
             val raw = withContext(Dispatchers.IO) {
-                favs.map { fav -> async { runCatching { fetchEpisodes(fav) }.getOrDefault(emptyList()) } }
+                favs.map { fav -> async { runCatching { fetchEpisodesFor(fav) }.getOrDefault(emptyList()) } }
                     .awaitAll()
                     .flatten()
             }
@@ -75,25 +101,114 @@ class PodcastRepository(private val appContext: Context) {
         }
     }
 
-    suspend fun search(query: String): List<PodcastSearchResult> =
-        withContext(Dispatchers.IO) { searchPodcasts(query) }
+    /** Re-fetches just [favoriteId]'s episodes and patches them into the merged list. Used by the
+     *  per-podcast screen, which doesn't need every other followed show re-fetched to open fast. */
+    suspend fun refreshFavorite(favoriteId: String) {
+        val fav = dao().getFavorites().firstOrNull { it.id == favoriteId } ?: return
+        val seen = dao().getSeenIds().toSet()
+        val fresh = withContext(Dispatchers.IO) {
+            runCatching { fetchEpisodesFor(fav) }.getOrDefault(emptyList())
+        }.map { it.copy(seen = it.id in seen) }
+        _episodes.value = (_episodes.value.filterNot { it.podcastId == favoriteId } + fresh)
+            .sortedByDescending { it.pubDate }
+    }
 
-    /** Follows [result] and merges its episodes into the list right away, without a full refresh. */
-    suspend fun addFavorite(result: PodcastSearchResult) {
+    /** Merges search results from the RSS/iTunes directory and Deezer's own podcast catalog. */
+    suspend fun searchCatalog(query: String): List<PodcastCatalogItem> = withContext(Dispatchers.IO) {
+        val rssDeferred = async { runCatching { searchPodcasts(query) }.getOrDefault(emptyList()) }
+        val deezerDeferred = async {
+            runCatching { appContext.deezerRepository.searchPodcastShows(query) }.getOrDefault(emptyList())
+        }
+        rssDeferred.await() + deezerDeferred.await().map {
+            PodcastCatalogItem(id = it.id, source = PodcastSource.DEEZER, title = it.title, author = it.author, artworkUrl = it.artworkUrl)
+        }
+    }
+
+    /** Deezer's trending podcasts, for the "recommendations" surface on an empty podcast search. */
+    suspend fun recommendations(): List<PodcastCatalogItem> = withContext(Dispatchers.IO) {
+        runCatching { appContext.deezerRepository.podcastChart() }.getOrDefault(emptyList()).map {
+            PodcastCatalogItem(id = it.id, source = PodcastSource.DEEZER, title = it.title, author = it.author, artworkUrl = it.artworkUrl)
+        }
+    }
+
+    /** Lowercases, strips accents and punctuation, for exact-ish title matching. */
+    private fun normalizeTitle(s: String): String =
+        java.text.Normalizer.normalize(s, java.text.Normalizer.Form.NFD)
+            .replace(Regex("\\p{M}+"), "")
+            .lowercase()
+            .replace(Regex("[^a-z0-9]"), "")
+
+    /**
+     * Deezer aggregates podcasts from their original external hosts (Acast, Audiomeans, Radio
+     * France…) and, contrary to what its API's track_token field suggests, doesn't actually expose
+     * a way to stream episode audio itself (confirmed: get_url returns empty media for every
+     * format/cipher tried). So a Deezer-catalog show can only be followed by finding its real RSS
+     * feed: first via an exact (accent/case/punctuation insensitive) title match in the iTunes
+     * directory, then, for a big French public broadcaster show iTunes doesn't expose a feedUrl for
+     * at all (confirmed for France Inter's own flagship shows), via [resolveRadioFranceFeed].
+     */
+    private suspend fun resolveDeezerShowToRss(item: PodcastCatalogItem): PodcastCatalogItem? {
+        val target = normalizeTitle(item.title)
+        val candidates = runCatching { searchPodcasts(item.title) }.getOrDefault(emptyList())
+        candidates.firstOrNull { normalizeTitle(it.title) == target }?.let { return it }
+        return resolveRadioFranceFeed(item)
+    }
+
+    /**
+     * Radio France no longer links its shows' RSS feeds from its own site, but the feeds still
+     * exist and are still embedded (as a radiofrance-podcast.net URL) in each show's own page HTML.
+     * The page URL itself is a predictable slug of the title under one of Radio France's stations,
+     * so this guesses it rather than needing a show-specific lookup.
+     */
+    private suspend fun resolveRadioFranceFeed(item: PodcastCatalogItem): PodcastCatalogItem? =
+        withContext(Dispatchers.IO) {
+            val slug = slugify(item.title)
+            val feedPattern = Regex("""https://radiofrance-podcast\.net/podcast09/[^"'\s]+\.xml""")
+            for (station in RADIO_FRANCE_STATIONS) {
+                val html = runCatching {
+                    httpGet("https://www.radiofrance.fr/$station/podcasts/$slug", accept = "text/html")
+                }.getOrNull() ?: continue
+                val feedUrl = feedPattern.find(html)?.value ?: continue
+                return@withContext PodcastCatalogItem(
+                    id = feedUrl, source = PodcastSource.RSS, title = item.title, author = item.author, artworkUrl = item.artworkUrl
+                )
+            }
+            null
+        }
+
+    private fun slugify(s: String): String =
+        java.text.Normalizer.normalize(s, java.text.Normalizer.Form.NFD)
+            .replace(Regex("\\p{M}+"), "")
+            .lowercase()
+            .replace(Regex("[^a-z0-9]+"), "-")
+            .trim('-')
+
+    /**
+     * Follows [item] and merges its episodes into the list right away, without a full refresh.
+     * Returns false, with nothing followed, if [item] is a Deezer-catalog show with no matching RSS
+     * feed we could resolve (see [resolveDeezerShowToRss]): better to say no than to add a show that
+     * can never actually play.
+     */
+    suspend fun addFavorite(item: PodcastCatalogItem): Boolean {
+        val resolved = if (item.source == PodcastSource.DEEZER) {
+            resolveDeezerShowToRss(item) ?: return false
+        } else item
         val fav = PodcastFavorite(
-            id = result.feedUrl,
-            title = result.title,
-            author = result.author,
-            artworkUrl = result.artworkUrl,
-            addedAt = System.currentTimeMillis()
+            id = resolved.id,
+            title = resolved.title,
+            author = resolved.author,
+            artworkUrl = resolved.artworkUrl,
+            addedAt = System.currentTimeMillis(),
+            source = resolved.source
         )
         dao().upsertFavorite(fav)
         val seen = dao().getSeenIds().toSet()
         val newEpisodes = withContext(Dispatchers.IO) {
-            runCatching { fetchEpisodes(fav) }.getOrDefault(emptyList())
+            runCatching { fetchEpisodesFor(fav) }.getOrDefault(emptyList())
         }.map { it.copy(seen = it.id in seen) }
         _episodes.value = (_episodes.value.filterNot { it.podcastId == fav.id } + newEpisodes)
             .sortedByDescending { it.pubDate }
+        return true
     }
 
     /** Unfollows the podcast [id] and drops its episodes from the merged list. */
@@ -167,8 +282,16 @@ class PodcastRepository(private val appContext: Context) {
         )
     }
 
-    /** Plays [episode], queuing the rest of [queue] (defaults to just this episode) right after it. */
+    /**
+     * Plays [episode], queuing the rest of [queue] (defaults to just this episode) right after it.
+     * A DEEZER-sourced episode can't actually play (Deezer doesn't expose episode audio itself; see
+     * [resolveDeezerShowToRss]): addFavorite no longer creates these, but a favorite followed before
+     * that fix still has this source on disk until re-followed, so this fails clearly instead of crashing.
+     */
     suspend fun playEpisode(episode: PodcastEpisode, queue: List<PodcastEpisode> = listOf(episode)) {
+        if (episode.source == PodcastSource.DEEZER) {
+            throw IllegalStateException("Ce podcast doit être réajouté depuis la recherche pour pouvoir être lu")
+        }
         val startIndex = queue.indexOfFirst { it.id == episode.id }.coerceAtLeast(0)
         val controller = ensureController()
         val items = queue.map { buildMediaItem(it) }
@@ -189,12 +312,38 @@ class PodcastRepository(private val appContext: Context) {
 
     /** Pauses, drops the notification, and stops the playback service entirely. */
     fun stopAll() {
+        cancelSleepTimer()
         val c = controller ?: return
         c.sendCustomCommand(SessionCommand(PodcastPlaybackService.CMD_STOP_ALL, Bundle.EMPTY), Bundle.EMPTY)
         c.release()
         controller = null
         controllerDeferred = null
         _playerState.value = PodcastPlayerUiState()
+    }
+
+    // ---- Sleep timer ----
+
+    private val timerScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private var sleepTimerJob: Job? = null
+
+    private val _sleepTimerEndAt = MutableStateFlow<Long?>(null)
+    val sleepTimerEndAt: StateFlow<Long?> = _sleepTimerEndAt
+
+    /** Pauses playback in [minutes]. Replaces any timer already running. */
+    fun startSleepTimer(minutes: Int) {
+        sleepTimerJob?.cancel()
+        _sleepTimerEndAt.value = System.currentTimeMillis() + minutes * 60_000L
+        sleepTimerJob = timerScope.launch {
+            delay(minutes * 60_000L)
+            withContext(Dispatchers.Main) { controller?.pause() }
+            _sleepTimerEndAt.value = null
+        }
+    }
+
+    fun cancelSleepTimer() {
+        sleepTimerJob?.cancel()
+        sleepTimerJob = null
+        _sleepTimerEndAt.value = null
     }
 
     private fun buildMediaItem(episode: PodcastEpisode): MediaItem {

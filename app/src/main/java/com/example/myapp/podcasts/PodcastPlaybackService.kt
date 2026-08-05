@@ -41,9 +41,11 @@ class PodcastPlaybackService : MediaSessionService() {
             .build()
     }
 
+    // Podcasts no longer has its own top-level route: it lives inside the Musique tool (followed
+    // shows under Favoris, episodes nested there), so the notification opens that instead.
     private fun openPodcastsPendingIntent(): PendingIntent {
         val intent = Intent(this, MainActivity::class.java)
-            .putExtra(MainActivity.EXTRA_OPEN_ROUTE, "podcasts")
+            .putExtra(MainActivity.EXTRA_OPEN_ROUTE, "deezer")
         return PendingIntent.getActivity(
             this, 0, intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
