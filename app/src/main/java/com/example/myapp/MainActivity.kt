@@ -56,7 +56,6 @@ import com.example.myapp.notes.NotesListScreen
 import com.example.myapp.notes.NotesTrashScreen
 import com.example.myapp.notes.TODO_LIST_TITLE
 import com.example.myapp.notes.noteTitleAndPreview
-import com.example.myapp.podcasts.PodcastScreen
 import com.example.myapp.undercover.UndercoverScreen
 import kotlinx.coroutines.launch
 
@@ -249,7 +248,6 @@ fun MainScreen(
                             onOpenVolume = { navController.navigate("volumeBooster") },
                             onOpenRandom = { navController.navigate("randomGenerator") },
                             onOpenWikipedia = { navController.navigate("wikipedia") },
-                            onOpenPodcasts = { navController.navigate("podcasts") },
                             onOpenGallery = { navController.navigate("gallery") },
                             onOpenWallet = { navController.navigate("gallery/wallet") },
                             onOpenPinnedPictures = { navController.navigate("gallery/pinned") }
@@ -269,9 +267,6 @@ fun MainScreen(
                     }
                     composable("weather") {
                         WeatherScreen(onBack = { navController.popBackStack() })
-                    }
-                    composable("podcasts") {
-                        PodcastScreen(onBack = { navController.popBackStack() })
                     }
                     composable(
                         "deezer?openPlayer={openPlayer}",
