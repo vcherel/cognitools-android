@@ -59,6 +59,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
+import com.example.myapp.ErrorText
 import com.example.myapp.LocalGoHome
 import com.example.myapp.ScreenTopBar
 import kotlinx.coroutines.launch
@@ -129,7 +130,11 @@ fun DeezerLibraryScreen(
             }
 
             error?.let {
-                Text("Erreur: $it", color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(vertical = 8.dp))
+                ErrorText(
+                    message = "Erreur: $it",
+                    onDismiss = { error = null },
+                    modifier = Modifier.padding(vertical = 8.dp)
+                )
             }
 
             SectionHeader(title = "Favoris", onSeeAll = null)

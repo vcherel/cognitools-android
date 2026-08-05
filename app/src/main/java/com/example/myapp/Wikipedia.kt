@@ -142,9 +142,9 @@ fun WikipediaScreen(onBack: () -> Unit) {
             }
 
             error?.let {
-                Text(
-                    text = it,
-                    color = MaterialTheme.colorScheme.error,
+                ErrorText(
+                    message = it,
+                    onDismiss = { error = null },
                     modifier = Modifier.padding(16.dp)
                 )
             }
