@@ -17,12 +17,14 @@ import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -35,6 +37,7 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.example.myapp.flashcards.AppDatabase
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
@@ -53,8 +56,10 @@ fun MenuScreen(
     onOpenVolume: () -> Unit,
     onOpenRandom: () -> Unit,
     onOpenWikipedia: () -> Unit,
+    onOpenPodcasts: () -> Unit,
     onOpenGallery: () -> Unit,
-    onOpenWallet: () -> Unit
+    onOpenWallet: () -> Unit,
+    onOpenPinnedPictures: () -> Unit
 ) {
     val spaceHeight = 20.dp
     val buttonHeight = 84.dp
@@ -112,12 +117,18 @@ fun MenuScreen(
                 MyButton(text = "Wiki", modifier = Modifier.weight(1f), height = buttonHeight, onClick = onOpenWikipedia)
             }
             Spacer(modifier = Modifier.height(spaceHeight))
+            MyButton(text = "Podcasts", height = buttonHeight, onClick = onOpenPodcasts)
+            Spacer(modifier = Modifier.height(spaceHeight))
+            val context = LocalContext.current
+            val pinDao = remember { AppDatabase.get(context).pinnedMediaItemDao() }
+            val pinnedRows by pinDao.observePinned().collectAsState(initial = emptyList())
+            val somethingPinned = pinnedRows.isNotEmpty()
             SplitMyButton(
                 text = "Galerie",
-                rightIcon = Icons.Default.AccountBalanceWallet,
+                rightIcon = if (somethingPinned) Icons.Default.PushPin else Icons.Default.AccountBalanceWallet,
                 height = buttonHeight,
                 onMainClick = onOpenGallery,
-                onRightClick = onOpenWallet
+                onRightClick = if (somethingPinned) onOpenPinnedPictures else onOpenWallet
             )
         }
 

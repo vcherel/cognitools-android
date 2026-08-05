@@ -10,14 +10,14 @@ const val USER_AGENT = "CognitoolsAndroid/1.0 (https://github.com/valentincherel
 private const val CONNECT_TIMEOUT_MS = 10_000
 private const val READ_TIMEOUT_MS = 10_000
 
-fun httpGet(url: String): String {
+fun httpGet(url: String, accept: String = "application/json"): String {
     val conn = URL(url).openConnection() as HttpURLConnection
     try {
         conn.requestMethod = "GET"
         conn.connectTimeout = CONNECT_TIMEOUT_MS
         conn.readTimeout = READ_TIMEOUT_MS
         conn.setRequestProperty("User-Agent", USER_AGENT)
-        conn.setRequestProperty("Accept", "application/json")
+        conn.setRequestProperty("Accept", accept)
         val code = conn.responseCode
         if (code !in 200..299) {
             val body = (conn.errorStream ?: conn.inputStream)?.bufferedReader()?.readText().orEmpty()
