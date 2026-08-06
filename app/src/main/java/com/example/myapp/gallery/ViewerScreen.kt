@@ -70,6 +70,7 @@ import com.example.myapp.ScreenTopBar
 import com.example.myapp.ShowAlertDialog
 import com.example.myapp.flashcards.AppDatabase
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -203,6 +204,13 @@ fun GalleryViewerScreen(
         // translates and fades the content for feedback; releasing past the threshold goes back,
         // otherwise it springs back to place.
         val dismissOffset = remember { Animatable(0f) }
+        // Raw drag deltas arrive on nearly every pointer-move frame; funnel them through a
+        // conflated channel into one long-lived collector instead of launching a fresh
+        // coroutine per event, which would otherwise allocate a Job on every move.
+        val dragChannel = remember { Channel<Float>(Channel.CONFLATED) }
+        LaunchedEffect(dragChannel) {
+            for (next in dragChannel) dismissOffset.snapTo(next)
+        }
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -220,7 +228,7 @@ fun GalleryViewerScreen(
                         onDragCancel = { scope.launch { dismissOffset.animateTo(0f) } },
                         onVerticalDrag = { change, delta ->
                             val next = (dismissOffset.value + delta).coerceAtLeast(0f)
-                            scope.launch { dismissOffset.snapTo(next) }
+                            dragChannel.trySend(next)
                             if (next > 0f) change.consume()
                         }
                     )

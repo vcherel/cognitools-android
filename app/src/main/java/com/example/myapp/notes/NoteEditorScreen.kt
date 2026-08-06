@@ -383,11 +383,14 @@ fun NoteEditorScreen(noteId: String, initialEditOffset: Int = -1, onBack: () -> 
                 onBack = onBack
             )
         } else {
-            val title = titleFieldState.text.toString().trim()
-            val content = textFieldState.text.toString()
-            val isCoursesNote = title.equals(COURSES_TITLE, ignoreCase = true)
-            val isIngredientsNote = title.equals(INGREDIENTS_TITLE, ignoreCase = true)
-            val isIngredientModelNote = title.equals(INGREDIENT_MODEL_TITLE, ignoreCase = true)
+            // Only read while not editing: every use below is gated on !isEditing, and reading
+            // the field states here unconditionally would resubscribe this whole screen to them,
+            // recomposing everything (top bar, menus...) on every keystroke while typing.
+            val title = if (isEditing) "" else titleFieldState.text.toString().trim()
+            val content = if (isEditing) "" else textFieldState.text.toString()
+            val isCoursesNote = !isEditing && title.equals(COURSES_TITLE, ignoreCase = true)
+            val isIngredientsNote = !isEditing && title.equals(INGREDIENTS_TITLE, ignoreCase = true)
+            val isIngredientModelNote = !isEditing && title.equals(INGREDIENT_MODEL_TITLE, ignoreCase = true)
 
             Column(
                 modifier = Modifier
