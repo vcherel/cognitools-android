@@ -164,14 +164,19 @@ fun FullPlayerSheet(
     var scrubbing by remember { mutableStateOf(false) }
     var scrubValue by remember { mutableFloatStateOf(0f) }
 
-    // Poll position while the sheet is open.
-    LaunchedEffect(state.sngId) {
-        while (true) {
+    // Poll position only while actually playing; paused position doesn't move on its own, so
+    // there's no point ticking (and recomposing the slider/time text) every 500ms for nothing.
+    LaunchedEffect(state.sngId, state.isPlaying) {
+        if (!scrubbing) {
+            positionMs = repo.positionMs()
+            durationMs = repo.durationMs()
+        }
+        while (state.isPlaying) {
+            delay(500)
             if (!scrubbing) {
                 positionMs = repo.positionMs()
                 durationMs = repo.durationMs()
             }
-            delay(500)
         }
     }
 

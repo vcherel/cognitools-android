@@ -210,11 +210,13 @@ fun NotesListScreen(navController: NavController) {
                 contentAlignment = Alignment.Center
             ) {
                 val currentNotes = notes
-                val displayedNotes = currentNotes.orEmpty().let { list ->
-                    if (searchQuery.isBlank()) list
-                    else list.filter { note ->
-                        note.title.contains(searchQuery, ignoreCase = true) ||
-                                note.content.contains(searchQuery, ignoreCase = true)
+                val displayedNotes = remember(currentNotes, searchQuery) {
+                    currentNotes.orEmpty().let { list ->
+                        if (searchQuery.isBlank()) list
+                        else list.filter { note ->
+                            note.title.contains(searchQuery, ignoreCase = true) ||
+                                    note.content.contains(searchQuery, ignoreCase = true)
+                        }
                     }
                 }
                 val todoNote = remember(currentNotes) {

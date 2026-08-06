@@ -43,22 +43,93 @@ fun trashSupported(): Boolean = Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
 
 const val TRASH_RETENTION_DAYS = 30
 
+// Bucket accumulator for queryAlbums: only the cover row (the most recent item in the bucket)
+// needs its Uri/relativePath worked out, the rest just bump the count.
+private class AlbumBuilding(
+    var dateAdded: Long,
+    var name: String,
+    var coverId: Long,
+    var coverType: MediaType,
+    var coverDateModified: Long,
+    var relativePath: String,
+    var count: Int
+)
+
+// Deliberately doesn't reuse queryMediaItems: building a full MediaItem (Uri, mime type,
+// relativePath parsing) for every single photo/video just to derive per-album covers and counts
+// is a lot of avoidable work on a big library. This scans the same rows but only pays that cost
+// once per album, for whichever item ends up as its cover.
 fun queryAlbums(context: Context): List<Album> {
-    val items = queryMediaItems(context)
-    return items.groupBy { it.bucketId }
-        .map { (_, group) ->
-            val cover = group.first()
-            cover.dateAdded to Album(
-                bucketId = cover.bucketId,
-                name = cover.bucketName,
-                relativePath = cover.relativePath,
-                coverUri = cover.uri,
-                coverDateModified = cover.dateModified,
-                itemCount = group.size
+    val collection = MediaStore.Files.getContentUri("external")
+    val projection = arrayOf(
+        MediaStore.Files.FileColumns._ID,
+        MediaStore.Files.FileColumns.MEDIA_TYPE,
+        MediaStore.Files.FileColumns.DATE_ADDED,
+        MediaStore.Files.FileColumns.DATE_MODIFIED,
+        MediaStore.Files.FileColumns.BUCKET_ID,
+        MediaStore.Files.FileColumns.BUCKET_DISPLAY_NAME,
+        MediaStore.Files.FileColumns.DATA
+    )
+    val selection = "(${MediaStore.Files.FileColumns.MEDIA_TYPE} = ? OR ${MediaStore.Files.FileColumns.MEDIA_TYPE} = ?)"
+    val args = arrayOf(
+        MediaStore.Files.FileColumns.MEDIA_TYPE_IMAGE.toString(),
+        MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO.toString()
+    )
+    // Newest first, so the first row seen per bucket during the scan is that bucket's cover.
+    val sortOrder = "${MediaStore.Files.FileColumns.DATE_ADDED} DESC"
+
+    val buckets = LinkedHashMap<Long, AlbumBuilding>()
+    context.contentResolver.query(collection, projection, selection, args, sortOrder)?.use { cursor ->
+        val idCol = cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns._ID)
+        val typeCol = cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns.MEDIA_TYPE)
+        val dateCol = cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns.DATE_ADDED)
+        val dateModifiedCol = cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns.DATE_MODIFIED)
+        val bucketIdCol = cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns.BUCKET_ID)
+        val bucketNameCol = cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns.BUCKET_DISPLAY_NAME)
+        @Suppress("DEPRECATION")
+        val dataCol = cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns.DATA)
+
+        while (cursor.moveToNext()) {
+            val bucketId = cursor.getLong(bucketIdCol)
+            val existing = buckets[bucketId]
+            if (existing == null) {
+                val mediaType = if (cursor.getInt(typeCol) == MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO) {
+                    MediaType.VIDEO
+                } else {
+                    MediaType.IMAGE
+                }
+                buckets[bucketId] = AlbumBuilding(
+                    dateAdded = cursor.getLong(dateCol),
+                    name = cursor.getString(bucketNameCol) ?: "Autres",
+                    coverId = cursor.getLong(idCol),
+                    coverType = mediaType,
+                    coverDateModified = cursor.getLong(dateModifiedCol),
+                    relativePath = relativeFolderFromData(cursor.getString(dataCol) ?: ""),
+                    count = 1
+                )
+            } else {
+                existing.count++
+            }
+        }
+    }
+
+    return buckets.entries
+        .sortedByDescending { it.value.dateAdded }
+        .map { (bucketId, b) ->
+            val typedCollection = if (b.coverType == MediaType.VIDEO) {
+                MediaStore.Video.Media.EXTERNAL_CONTENT_URI
+            } else {
+                MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+            }
+            Album(
+                bucketId = bucketId,
+                name = b.name,
+                relativePath = b.relativePath,
+                coverUri = ContentUris.withAppendedId(typedCollection, b.coverId),
+                coverDateModified = b.coverDateModified,
+                itemCount = b.count
             )
         }
-        .sortedByDescending { it.first }
-        .map { it.second }
 }
 
 fun queryMediaItemById(context: Context, id: Long): MediaItem? =
