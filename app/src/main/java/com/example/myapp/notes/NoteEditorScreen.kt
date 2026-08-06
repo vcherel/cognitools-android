@@ -77,6 +77,10 @@ private data class EditPadding(val top: Boolean = false, val bottom: Boolean = f
     val any: Boolean get() = top || bottom
 }
 
+private data class NoteSnapshot(val title: String, val content: String)
+
+private enum class AddItemTarget { INGREDIENT, COURSE }
+
 @Composable
 fun NoteEditorScreen(noteId: String, initialEditOffset: Int = -1, onBack: () -> Unit) {
     val context = LocalContext.current
@@ -98,12 +102,11 @@ fun NoteEditorScreen(noteId: String, initialEditOffset: Int = -1, onBack: () -> 
     var showFormatMenu by remember { mutableStateOf(false) }
     var showMoreMenu by remember { mutableStateOf(false) }
     // null until the note is loaded; guards the autosave against saving too early
-    var lastSaved by remember { mutableStateOf<Pair<String, String>?>(if (isNew) "" to "" else null) }
-    // Snapshots of (title, content) to step back through with the undo button
-    val undoStack = remember { mutableStateListOf<Pair<String, String>>() }
+    var lastSaved by remember { mutableStateOf<NoteSnapshot?>(if (isNew) NoteSnapshot("", "") else null) }
+    // Snapshots to step back through with the undo button
+    val undoStack = remember { mutableStateListOf<NoteSnapshot>() }
     val snackbarHostState = remember { SnackbarHostState() }
-    var showAddIngredientDialog by remember { mutableStateOf(false) }
-    var showAddCourseDialog by remember { mutableStateOf(false) }
+    var addItemTarget by remember { mutableStateOf<AddItemTarget?>(null) }
 
     // Snapshot of the note as currently edited
     fun currentNote() = Note(
@@ -124,7 +127,7 @@ fun NoteEditorScreen(noteId: String, initialEditOffset: Int = -1, onBack: () -> 
             locked = note?.locked ?: false
             unlocked = !(note?.locked ?: false)
             textFieldState.setTextAndPlaceCursorAtEnd(content)
-            lastSaved = titleFieldState.text.toString() to content
+            lastSaved = NoteSnapshot(titleFieldState.text.toString(), content)
             if (initialEditOffset >= 0) {
                 textFieldState.edit { selection = TextRange(initialEditOffset.coerceIn(0, length)) }
                 isEditing = true
@@ -143,12 +146,12 @@ fun NoteEditorScreen(noteId: String, initialEditOffset: Int = -1, onBack: () -> 
     // LaunchedEffect key so typing doesn't force this whole screen to recompose
     // just to keep the key up to date.
     LaunchedEffect(Unit) {
-        snapshotFlow { titleFieldState.text.toString() to textFieldState.text.toString() }
+        snapshotFlow { NoteSnapshot(titleFieldState.text.toString(), textFieldState.text.toString()) }
             .distinctUntilChanged()
             .collectLatest { current ->
                 if (lastSaved == null || current == lastSaved) return@collectLatest
                 delay(600)
-                if (current.first.isNotBlank() || current.second.isNotBlank()) {
+                if (current.title.isNotBlank() || current.content.isNotBlank()) {
                     pushUndo()
                     dao.upsertNote(currentNote())
                     lastSaved = current
@@ -159,9 +162,9 @@ fun NoteEditorScreen(noteId: String, initialEditOffset: Int = -1, onBack: () -> 
     // Saves pending changes right away, e.g. when leaving the edit mode
     fun saveNow() {
         if (lastSaved == null) return
-        val current = titleFieldState.text.toString() to textFieldState.text.toString()
+        val current = NoteSnapshot(titleFieldState.text.toString(), textFieldState.text.toString())
         if (current == lastSaved) return
-        if (current.first.isNotBlank() || current.second.isNotBlank()) {
+        if (current.title.isNotBlank() || current.content.isNotBlank()) {
             pushUndo()
             lastSaved = current
             val note = currentNote()
@@ -173,8 +176,8 @@ fun NoteEditorScreen(noteId: String, initialEditOffset: Int = -1, onBack: () -> 
     fun performUndo() {
         if (undoStack.isEmpty()) return
         val previous = undoStack.removeAt(undoStack.size - 1)
-        titleFieldState.edit { replace(0, length, previous.first) }
-        textFieldState.edit { replace(0, length, previous.second) }
+        titleFieldState.edit { replace(0, length, previous.title) }
+        textFieldState.edit { replace(0, length, previous.content) }
         lastSaved = previous
         scope.launch { dao.upsertNote(currentNote()) }
     }
@@ -182,8 +185,8 @@ fun NoteEditorScreen(noteId: String, initialEditOffset: Int = -1, onBack: () -> 
     fun finish() {
         scope.launch {
             if (lastSaved != null) {
-                val current = titleFieldState.text.toString() to textFieldState.text.toString()
-                if (current.first.isBlank() && current.second.isBlank()) {
+                val current = NoteSnapshot(titleFieldState.text.toString(), textFieldState.text.toString())
+                if (current.title.isBlank() && current.content.isBlank()) {
                     dao.deleteNote(id)
                 } else if (current != lastSaved) {
                     dao.upsertNote(currentNote())
@@ -197,7 +200,7 @@ fun NoteEditorScreen(noteId: String, initialEditOffset: Int = -1, onBack: () -> 
     fun saveContent(newText: String) {
         textFieldState.edit { replace(0, length, newText) }
         pushUndo()
-        lastSaved = titleFieldState.text.toString() to newText
+        lastSaved = NoteSnapshot(titleFieldState.text.toString(), newText)
         val note = currentNote()
         scope.launch { dao.upsertNote(note) }
     }
@@ -238,7 +241,7 @@ fun NoteEditorScreen(noteId: String, initialEditOffset: Int = -1, onBack: () -> 
         editPadding = padding
         // The padding isn't a real edit; keep lastSaved in sync so it doesn't
         // get autosaved or land on the undo stack on its own
-        lastSaved?.let { lastSaved = it.first to textFieldState.text.toString() }
+        lastSaved?.let { lastSaved = it.copy(content = textFieldState.text.toString()) }
         return offset
     }
 
@@ -263,10 +266,10 @@ fun NoteEditorScreen(noteId: String, initialEditOffset: Int = -1, onBack: () -> 
         // (enter edit mode, leave without typing) doesn't look like an edit
         if (strippedBottom || strippedTop) {
             lastSaved?.let { saved ->
-                var content = saved.second
+                var content = saved.content
                 if (strippedBottom && content.endsWith("\n")) content = content.dropLast(1)
                 if (strippedTop && content.startsWith("\n")) content = content.drop(1)
-                lastSaved = saved.first to content
+                lastSaved = saved.copy(content = content)
             }
         }
         editPadding = EditPadding()
@@ -277,7 +280,7 @@ fun NoteEditorScreen(noteId: String, initialEditOffset: Int = -1, onBack: () -> 
     fun persistLock(newLocked: Boolean) {
         locked = newLocked
         if (lastSaved != null && (titleFieldState.text.isNotBlank() || textFieldState.text.isNotBlank())) {
-            lastSaved = titleFieldState.text.toString() to textFieldState.text.toString()
+            lastSaved = NoteSnapshot(titleFieldState.text.toString(), textFieldState.text.toString())
             val note = currentNote()
             scope.launch { dao.upsertNote(note) }
         }
@@ -430,29 +433,31 @@ fun NoteEditorScreen(noteId: String, initialEditOffset: Int = -1, onBack: () -> 
                         }
                     )
                     if (!titleFocused) {
-                        if (!isEditing && content != content.trimBlankEdgeLines()) {
-                            IconButton(onClick = { saveContent(content.trimBlankEdgeLines()) }) {
-                                Icon(Icons.Default.VerticalAlignCenter, contentDescription = "Supprimer les lignes vides en haut/bas")
+                        if (!isEditing) {
+                            if (content != content.trimBlankEdgeLines()) {
+                                IconButton(onClick = { saveContent(content.trimBlankEdgeLines()) }) {
+                                    Icon(Icons.Default.VerticalAlignCenter, contentDescription = "Supprimer les lignes vides en haut/bas")
+                                }
                             }
-                        }
-                        if (!isEditing && isCoursesNote && content.hasCheckedLine()) {
-                            IconButton(onClick = { sync.sendCheckedToIngredients() }) {
-                                Icon(Icons.Default.Kitchen, contentDescription = "Ranger les articles cochés dans les Ingrédients")
+                            if (isCoursesNote && content.hasCheckedLine()) {
+                                IconButton(onClick = { sync.sendCheckedToIngredients() }) {
+                                    Icon(Icons.Default.Kitchen, contentDescription = "Ranger les articles cochés dans les Ingrédients")
+                                }
                             }
-                        }
-                        if (!isEditing && isIngredientsNote) {
-                            IconButton(onClick = { showAddIngredientDialog = true }) {
-                                Icon(Icons.Default.Add, contentDescription = "Ajouter un ingrédient")
+                            if (isIngredientsNote) {
+                                IconButton(onClick = { addItemTarget = AddItemTarget.INGREDIENT }) {
+                                    Icon(Icons.Default.Add, contentDescription = "Ajouter un ingrédient")
+                                }
                             }
-                        }
-                        if (!isEditing && isIngredientModelNote) {
-                            IconButton(onClick = { sync.resortIngredients() }) {
-                                Icon(Icons.AutoMirrored.Filled.Sort, contentDescription = "Réordonner les ingrédients présents")
+                            if (isIngredientModelNote) {
+                                IconButton(onClick = { sync.resortIngredients() }) {
+                                    Icon(Icons.AutoMirrored.Filled.Sort, contentDescription = "Réordonner les ingrédients présents")
+                                }
                             }
-                        }
-                        if (!isEditing && isCoursesNote) {
-                            IconButton(onClick = { showAddCourseDialog = true }) {
-                                Icon(Icons.Default.Add, contentDescription = "Ajouter un article")
+                            if (isCoursesNote) {
+                                IconButton(onClick = { addItemTarget = AddItemTarget.COURSE }) {
+                                    Icon(Icons.Default.Add, contentDescription = "Ajouter un article")
+                                }
                             }
                         }
                         IconButton(onClick = { performUndo() }, enabled = undoStack.isNotEmpty()) {
@@ -503,43 +508,45 @@ fun NoteEditorScreen(noteId: String, initialEditOffset: Int = -1, onBack: () -> 
                                         }
                                     }
                                 )
-                                if (!isEditing && content.hasCheckboxLine()) {
-                                    DropdownMenuItem(
-                                        text = { Text("Tout cocher") },
-                                        leadingIcon = { Icon(Icons.Default.CheckBox, contentDescription = null) },
-                                        onClick = {
-                                            showMoreMenu = false
-                                            saveContent(setAllCheckboxes(content, true))
-                                        }
-                                    )
-                                    DropdownMenuItem(
-                                        text = { Text("Tout décocher") },
-                                        leadingIcon = { Icon(Icons.Default.CheckBoxOutlineBlank, contentDescription = null) },
-                                        onClick = {
-                                            showMoreMenu = false
-                                            saveContent(setAllCheckboxes(content, false))
-                                        }
-                                    )
-                                    if (content.hasCheckedLine()) {
+                                if (!isEditing) {
+                                    if (content.hasCheckboxLine()) {
                                         DropdownMenuItem(
-                                            text = { Text("Supprimer les cochés") },
-                                            leadingIcon = { Icon(Icons.Default.DeleteSweep, contentDescription = null) },
+                                            text = { Text("Tout cocher") },
+                                            leadingIcon = { Icon(Icons.Default.CheckBox, contentDescription = null) },
                                             onClick = {
                                                 showMoreMenu = false
-                                                saveContent(removeCheckedCheckboxes(content))
+                                                saveContent(setAllCheckboxes(content, true))
+                                            }
+                                        )
+                                        DropdownMenuItem(
+                                            text = { Text("Tout décocher") },
+                                            leadingIcon = { Icon(Icons.Default.CheckBoxOutlineBlank, contentDescription = null) },
+                                            onClick = {
+                                                showMoreMenu = false
+                                                saveContent(setAllCheckboxes(content, false))
+                                            }
+                                        )
+                                        if (content.hasCheckedLine()) {
+                                            DropdownMenuItem(
+                                                text = { Text("Supprimer les cochés") },
+                                                leadingIcon = { Icon(Icons.Default.DeleteSweep, contentDescription = null) },
+                                                onClick = {
+                                                    showMoreMenu = false
+                                                    saveContent(removeCheckedCheckboxes(content))
+                                                }
+                                            )
+                                        }
+                                    }
+                                    if (isCoursesNote) {
+                                        DropdownMenuItem(
+                                            text = { Text("Mettre à jour selon le modèle") },
+                                            leadingIcon = { Icon(Icons.AutoMirrored.Filled.Sort, contentDescription = null) },
+                                            onClick = {
+                                                showMoreMenu = false
+                                                sync.resortCourses()
                                             }
                                         )
                                     }
-                                }
-                                if (!isEditing && isCoursesNote) {
-                                    DropdownMenuItem(
-                                        text = { Text("Mettre à jour selon le modèle") },
-                                        leadingIcon = { Icon(Icons.AutoMirrored.Filled.Sort, contentDescription = null) },
-                                        onClick = {
-                                            showMoreMenu = false
-                                            sync.resortCourses()
-                                        }
-                                    )
                                 }
                             }
                         }
@@ -656,24 +663,14 @@ fun NoteEditorScreen(noteId: String, initialEditOffset: Int = -1, onBack: () -> 
             }
         }
 
-        if (showAddIngredientDialog) {
+        addItemTarget?.let { target ->
             AddIngredientNameDialog(
+                title = if (target == AddItemTarget.COURSE) "Ajouter un article" else "Ajouter un ingrédient",
                 onConfirm = {
-                    showAddIngredientDialog = false
-                    sync.addIngredientDirectly(it)
+                    addItemTarget = null
+                    if (target == AddItemTarget.COURSE) sync.addCourseItem(it) else sync.addIngredientDirectly(it)
                 },
-                onDismiss = { showAddIngredientDialog = false }
-            )
-        }
-
-        if (showAddCourseDialog) {
-            AddIngredientNameDialog(
-                title = "Ajouter un article",
-                onConfirm = {
-                    showAddCourseDialog = false
-                    sync.addCourseItem(it)
-                },
-                onDismiss = { showAddCourseDialog = false }
+                onDismiss = { addItemTarget = null }
             )
         }
     }

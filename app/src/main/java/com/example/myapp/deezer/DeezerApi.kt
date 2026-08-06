@@ -3,6 +3,8 @@ package com.example.myapp.deezer
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
@@ -70,7 +72,7 @@ class DeezerApi {
      */
     suspend fun getFavorites(session: DeezerSession): List<DeezerTrack> = withContext(Dispatchers.IO) {
         val page = 2000
-        val objs = ArrayList<kotlinx.serialization.json.JsonObject>()
+        val objs = ArrayList<JsonObject>()
         var start = 0
         var iter = 0
         while (iter++ < 50) {
@@ -110,7 +112,7 @@ class DeezerApi {
     suspend fun getPlaylistTracks(session: DeezerSession, playlistId: String): List<DeezerTrack> =
         withContext(Dispatchers.IO) {
             val page = 2000
-            val objs = ArrayList<kotlinx.serialization.json.JsonObject>()
+            val objs = ArrayList<JsonObject>()
             var start = 0
             var iter = 0
             while (iter++ < 50) {
@@ -153,20 +155,13 @@ class DeezerApi {
     /** Catalog search via the public API (no auth). Returns tracks. */
     suspend fun searchTracks(query: String, limit: Int = 40): List<DeezerTrack> = withContext(Dispatchers.IO) {
         if (query.isBlank()) return@withContext emptyList()
-        val url = "https://api.deezer.com/search?q=${enc(query)}&limit=$limit"
-        val conn = open(url, "GET")
-        if (conn.responseCode !in 200..299) return@withContext emptyList()
-        val data = json.parseToJsonElement(readBody(conn)).jsonObject["data"]?.jsonArray.orEmpty()
-        data.mapNotNull { parsePublicTrack(it.jsonObject) }
+        fetchDataArray("https://api.deezer.com/search?q=${enc(query)}&limit=$limit").mapNotNull { parsePublicTrack(it.jsonObject) }
     }
 
     /** Best matching artists for [query] via the public API (no auth), most relevant first. */
     suspend fun searchArtists(query: String, limit: Int = 10): List<DeezerArtist> = withContext(Dispatchers.IO) {
         if (query.isBlank()) return@withContext emptyList()
-        val url = "https://api.deezer.com/search/artist?q=${enc(query)}&limit=$limit"
-        val conn = open(url, "GET")
-        if (conn.responseCode !in 200..299) return@withContext emptyList()
-        val data = json.parseToJsonElement(readBody(conn)).jsonObject["data"]?.jsonArray.orEmpty()
+        val data = fetchDataArray("https://api.deezer.com/search/artist?q=${enc(query)}&limit=$limit")
         data.mapNotNull { el ->
             val o = el.jsonObject
             val id = o["id"]?.jsonPrimitive?.content ?: return@mapNotNull null
@@ -177,38 +172,23 @@ class DeezerApi {
 
     /** An artist's most popular tracks (their "Top" chart), enough to shuffle a representative sample. */
     suspend fun artistTopTracks(artistId: String, limit: Int = 50): List<DeezerTrack> = withContext(Dispatchers.IO) {
-        val url = "https://api.deezer.com/artist/$artistId/top?limit=$limit"
-        val conn = open(url, "GET")
-        if (conn.responseCode !in 200..299) return@withContext emptyList()
-        val data = json.parseToJsonElement(readBody(conn)).jsonObject["data"]?.jsonArray.orEmpty()
-        data.mapNotNull { parsePublicTrack(it.jsonObject) }
+        fetchDataArray("https://api.deezer.com/artist/$artistId/top?limit=$limit").mapNotNull { parsePublicTrack(it.jsonObject) }
     }
 
     /** Podcast shows matching [query], via the public API (no auth). */
     suspend fun searchPodcastShows(query: String, limit: Int = 25): List<DeezerPodcastShow> = withContext(Dispatchers.IO) {
         if (query.isBlank()) return@withContext emptyList()
-        val url = "https://api.deezer.com/search/podcast?q=${enc(query)}&limit=$limit"
-        val conn = open(url, "GET")
-        if (conn.responseCode !in 200..299) return@withContext emptyList()
-        val data = json.parseToJsonElement(readBody(conn)).jsonObject["data"]?.jsonArray.orEmpty()
-        data.mapNotNull { parsePodcastShow(it.jsonObject) }
+        fetchDataArray("https://api.deezer.com/search/podcast?q=${enc(query)}&limit=$limit").mapNotNull { parsePodcastShow(it.jsonObject) }
     }
 
     /** Deezer's global trending podcast shows, via the public API (no auth). Powers podcast recommendations. */
     suspend fun podcastChart(limit: Int = 20): List<DeezerPodcastShow> = withContext(Dispatchers.IO) {
-        val url = "https://api.deezer.com/chart/0/podcasts?limit=$limit"
-        val conn = open(url, "GET")
-        if (conn.responseCode !in 200..299) return@withContext emptyList()
-        val data = json.parseToJsonElement(readBody(conn)).jsonObject["data"]?.jsonArray.orEmpty()
-        data.mapNotNull { parsePodcastShow(it.jsonObject) }
+        fetchDataArray("https://api.deezer.com/chart/0/podcasts?limit=$limit").mapNotNull { parsePodcastShow(it.jsonObject) }
     }
 
     /** A show's episodes, most recent first, via the public API (no auth). First page only (up to [limit]). */
     suspend fun podcastEpisodes(showId: String, limit: Int = 100): List<DeezerPodcastEpisode> = withContext(Dispatchers.IO) {
-        val url = "https://api.deezer.com/podcast/$showId/episodes?limit=$limit"
-        val conn = open(url, "GET")
-        if (conn.responseCode !in 200..299) return@withContext emptyList()
-        val data = json.parseToJsonElement(readBody(conn)).jsonObject["data"]?.jsonArray.orEmpty()
+        val data = fetchDataArray("https://api.deezer.com/podcast/$showId/episodes?limit=$limit")
         data.mapNotNull { el ->
             val o = el.jsonObject
             val id = o["id"]?.jsonPrimitive?.content ?: return@mapNotNull null
@@ -223,7 +203,7 @@ class DeezerApi {
     }
 
     /** Deezer's podcast objects (search/chart) carry no distinct author field, only title + description. */
-    private fun parsePodcastShow(o: kotlinx.serialization.json.JsonObject): DeezerPodcastShow? {
+    private fun parsePodcastShow(o: JsonObject): DeezerPodcastShow? {
         val id = o["id"]?.jsonPrimitive?.content ?: return null
         return DeezerPodcastShow(
             id = id,
@@ -243,7 +223,7 @@ class DeezerApi {
     }
 
     /** Builds a DeezerTrack from a public api.deezer.com track object (search and artist/top share these keys). */
-    private fun parsePublicTrack(o: kotlinx.serialization.json.JsonObject): DeezerTrack? {
+    private fun parsePublicTrack(o: JsonObject): DeezerTrack? {
         val id = o["id"]?.jsonPrimitive?.content ?: return null
         return DeezerTrack(
             sngId = id,
@@ -256,7 +236,7 @@ class DeezerApi {
     }
 
     /** Builds a DeezerTrack from a gw song object (favorites / playlist / song.getData all share these keys). */
-    private fun parseGwTrack(o: kotlinx.serialization.json.JsonObject, fallbackId: String) = DeezerTrack(
+    private fun parseGwTrack(o: JsonObject, fallbackId: String) = DeezerTrack(
         sngId = o["SNG_ID"]?.jsonPrimitive?.content ?: fallbackId,
         title = o["SNG_TITLE"]?.jsonPrimitive?.content.orEmpty(),
         artist = o["ART_NAME"]?.jsonPrimitive?.content.orEmpty(),
@@ -297,14 +277,14 @@ class DeezerApi {
     private fun qualityChain(preferred: DeezerQuality): List<DeezerQuality> =
         (listOf(preferred) + DeezerQuality.MP3_128).distinct()
 
-    /** Downloads the raw encrypted bytes from a CDN URL. Caller decrypts with DeezerCrypto. */
-    suspend fun downloadEncrypted(url: String): ByteArray = withContext(Dispatchers.IO) {
-        val conn = open(url, "GET").apply { readTimeout = 30_000 }
-        if (conn.responseCode !in 200..299) throw DeezerApiException("CDN download failed: HTTP ${conn.responseCode}")
-        conn.inputStream.use { it.readBytes() }
-    }
-
     // ---- HTTP ----
+
+    /** GETs [url] and returns the "data" array of a public api.deezer.com JSON response; empty on any non-2xx status. */
+    private fun fetchDataArray(url: String): List<JsonElement> {
+        val conn = open(url, "GET")
+        if (conn.responseCode !in 200..299) return emptyList()
+        return json.parseToJsonElement(readBody(conn)).jsonObject["data"]?.jsonArray.orEmpty()
+    }
 
     private fun gw(method: String, body: String, apiToken: String): kotlinx.serialization.json.JsonElement {
         val url = "$GW_URL?method=${enc(method)}&input=3&api_version=1.0&api_token=${enc(apiToken)}"

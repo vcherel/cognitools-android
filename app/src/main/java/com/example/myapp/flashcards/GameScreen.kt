@@ -22,7 +22,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
@@ -73,9 +72,13 @@ import kotlin.math.abs
 import kotlin.math.min
 import kotlin.random.Random
 
-const val MAX_DIFFICULT_CARDS = 5
+private const val MAX_DIFFICULT_CARDS = 5
 
 private data class DueState(val cards: List<FlashcardElement>, val totalCount: Int)
+
+// A random-side card shows front or back with even odds each draw; a fixed-side one always shows the front.
+private fun randomFrontSide(card: FlashcardElement, random: Random): Boolean =
+    if (card.randomSide) random.nextBoolean() else true
 
 @Composable
 fun FlashcardGameScreen(listId: String, navController: NavController) {
@@ -160,7 +163,7 @@ fun FlashcardGameScreen(listId: String, navController: NavController) {
         if (currentCard == null && dueState.cards.isNotEmpty()) {
             val picked = dueState.cards.random(sessionRandom)
             currentCard = picked
-            showFront = if (picked.randomSide) sessionRandom.nextBoolean() else true
+            showFront = randomFrontSide(picked, sessionRandom)
         }
     }
 
@@ -198,14 +201,9 @@ fun FlashcardGameScreen(listId: String, navController: NavController) {
             val availableCards = dueState.cards.filter { it.id != card.id }
 
             currentCard = if (availableCards.isNotEmpty()) {
-                val card = availableCards.random(sessionRandom)
-
-                showFront = if (card.randomSide) {
-                    sessionRandom.nextBoolean()
-                } else {
-                    true
-                }
-                card
+                val next = availableCards.random(sessionRandom)
+                showFront = randomFrontSide(next, sessionRandom)
+                next
             } else null
             isProcessingSwipe = false
         }
