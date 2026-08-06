@@ -455,7 +455,7 @@ private fun Context.findActivity(): Activity? {
 }
 
 @Composable
-private fun ZoomableImage(
+internal fun ZoomableImage(
     item: MediaItem,
     onZoomChanged: (Boolean) -> Unit,
     onToggleChrome: () -> Unit
@@ -523,7 +523,7 @@ private fun ZoomableImage(
 }
 
 @Composable
-private fun VideoPlayer(
+internal fun VideoPlayer(
     uri: Uri,
     chromeVisible: Boolean,
     onChromeVisibleChange: (Boolean) -> Unit,

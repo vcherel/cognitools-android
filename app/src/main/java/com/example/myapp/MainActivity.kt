@@ -1,10 +1,12 @@
 package com.example.myapp
 
+import android.app.KeyguardManager
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.view.WindowManager
 import android.view.animation.AnticipateInterpolator
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -47,8 +49,11 @@ import com.example.myapp.gallery.GalleryTrashScreen
 import com.example.myapp.gallery.GalleryTrimScreen
 import com.example.myapp.gallery.GalleryViewerScreen
 import com.example.myapp.gallery.LocalMediaConsent
+import com.example.myapp.gallery.LockedQuickView
+import com.example.myapp.gallery.MediaItem
 import com.example.myapp.gallery.ViewerSource
 import com.example.myapp.gallery.hasReadMediaPermission
+import com.example.myapp.gallery.queryMediaItemById
 import com.example.myapp.gallery.rememberIntentSenderRequester
 import com.example.myapp.gallery.resolveMediaTarget
 import com.example.myapp.notes.NoteEditorScreen
@@ -67,6 +72,11 @@ class MainActivity : ComponentActivity() {
     // Set when the app is already running and a new intent (e.g. tapping the Deezer notification)
     // asks it to jump somewhere. Compose observes this and navigates once it fires.
     private val pendingRoute = mutableStateOf<String?>(null)
+
+    // Non-null when a picture/video was opened while the phone is still locked (e.g. the camera's
+    // just-taken-photo thumbnail). Compose renders LockedQuickView instead of the full app in that
+    // case, so the rest of the app (menu, notes, other albums...) stays behind the real lock screen.
+    private val lockedQuickViewItem = mutableStateOf<MediaItem?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         val splashScreen = installSplashScreen()
@@ -89,7 +99,13 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        val quickViewItem = resolveLockedQuickViewItem(intent)
+        lockedQuickViewItem.value = quickViewItem
+        applyShowWhenLocked(quickViewItem != null)
+
+        // Asking for notification permission over the lock screen makes no sense for a quick photo
+        // review that never touches anything notification related.
+        if (quickViewItem == null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (ContextCompat.checkSelfPermission(
                     this,
                     android.Manifest.permission.POST_NOTIFICATIONS
@@ -111,26 +127,68 @@ class MainActivity : ComponentActivity() {
             val themeManager = remember { ThemeManager(applicationContext) }
             val isDarkMode by themeManager.isDarkMode.collectAsState(initial = false)
             val pendingRoute by pendingRoute
+            val lockedQuickViewItem by lockedQuickViewItem
 
             AppTheme(isDarkMode = isDarkMode) {
-                MainScreen(
-                    themeManager = themeManager,
-                    isDarkMode = isDarkMode,
-                    initialRoute = initialRoute?.first,
-                    initialRouteMessage = initialRoute?.second,
-                    pendingRoute = pendingRoute,
-                    onPendingRouteConsumed = { this.pendingRoute.value = null }
-                )
+                val quickView = lockedQuickViewItem
+                if (quickView != null) {
+                    LockedQuickView(item = quickView, onClose = { finish() })
+                } else {
+                    MainScreen(
+                        themeManager = themeManager,
+                        isDarkMode = isDarkMode,
+                        initialRoute = initialRoute?.first,
+                        initialRouteMessage = initialRoute?.second,
+                        pendingRoute = pendingRoute,
+                        onPendingRouteConsumed = { this.pendingRoute.value = null }
+                    )
+                }
             }
         }
     }
 
     // The Deezer notification's PendingIntent reuses this activity (singleTask) instead of stacking
-    // a new instance, so a route asked for while the app is already running arrives here.
+    // a new instance, so a route asked for while the app is already running arrives here. Also the
+    // path a locked-quick-view intent takes when the process was already alive in the background.
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        routeFromIntent(intent)?.let { pendingRoute.value = it }
+        val quickViewItem = resolveLockedQuickViewItem(intent)
+        lockedQuickViewItem.value = quickViewItem
+        applyShowWhenLocked(quickViewItem != null)
+        if (quickViewItem == null) routeFromIntent(intent)?.let { pendingRoute.value = it }
+    }
+
+    // Non-null only when the device is currently locked and this intent points at a single photo
+    // or video the app can already read, i.e. exactly the "camera thumbnail tapped while locked"
+    // case. Anything else (permission not granted yet, item not resolvable, device unlocked) falls
+    // through to the normal full-app flow instead.
+    private fun resolveLockedQuickViewItem(intent: Intent): MediaItem? {
+        val uri = viewMediaUriFrom(intent) ?: return null
+        val keyguardManager = getSystemService(KeyguardManager::class.java) ?: return null
+        if (!keyguardManager.isKeyguardLocked) return null
+        if (!hasReadMediaPermission(this)) return null
+        val (itemId, _) = resolveMediaTarget(this, uri) ?: return null
+        return queryMediaItemById(this, itemId)
+    }
+
+    // Lets this activity draw over the keyguard without dismissing it, only while it is showing
+    // LockedQuickView. Always explicitly set (true or false) rather than only ever turned on, since
+    // a singleTask instance reused via onNewIntent must not keep an earlier "true" around for an
+    // unrelated later intent.
+    private fun applyShowWhenLocked(show: Boolean) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+            setShowWhenLocked(show)
+            setTurnScreenOn(show)
+        } else if (show) {
+            window.addFlags(
+                WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
+            )
+        } else {
+            window.clearFlags(
+                WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
+            )
+        }
     }
 
     companion object {
