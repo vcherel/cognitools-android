@@ -55,7 +55,8 @@ private data class ShareTarget(val packageName: String, val label: String)
 private val shareTargets = listOf(
     ShareTarget("com.whatsapp", "WhatsApp"),
     ShareTarget("com.beeper.android", "Beeper"),
-    ShareTarget("com.facebook.orca", "Messenger")
+    ShareTarget("com.facebook.orca", "Messenger"),
+    ShareTarget("com.instagram.android", "Instagram")
 )
 
 @Composable
