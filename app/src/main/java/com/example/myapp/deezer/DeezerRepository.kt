@@ -292,6 +292,18 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
     fun isFavorite(sngId: String): Boolean = _favoriteIds.value.contains(sngId)
 
     /**
+     * Marks a stream-failure replacement (see [DeezerPlaybackService.findAndApplyReplacement]) as
+     * liked without touching the real favorites list, so the Now Playing heart and the media
+     * notification still read "liked" for what is, in spirit, still the user's favorite song until
+     * they either unlike it or make the swap permanent via "Corriger". Any subsequent real favorites
+     * write (a toggle, a fresh fetch) recomputes [favoriteIds] from the authoritative list and drops
+     * this override on its own.
+     */
+    fun markTemporaryFavorite(sngId: String) {
+        _favoriteIds.value = _favoriteIds.value + sngId
+    }
+
+    /**
      * Likes or unlikes [track]. The local cache always updates right away, online or not, so the heart
      * responds instantly. When there is no connection (or the call drops mid flight), the change is
      * queued to disk instead of sent, and [flushPendingFavorites] retries it the next time a Deezer

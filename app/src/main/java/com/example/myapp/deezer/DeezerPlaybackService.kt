@@ -319,6 +319,10 @@ class DeezerPlaybackService : MediaSessionService() {
                 player.replaceMediaItem(index, repo.mediaItemFor(replacement, source))
                 player.prepare()
                 player.play()
+                // The swapped-in release isn't in the real favorites list until "Corriger" is tapped:
+                // without this the heart (and the notification's like button) would read as "not
+                // liked" for a song the user does like, just under a different sngId.
+                if (source is TrackSource.Favorites) repo.markTemporaryFavorite(replacement.sngId)
                 AppSnackbar.show(
                     message = "« ${track.title} » de ${track.artist} indisponible, remplacé par " +
                         "« ${replacement.title} » de ${replacement.artist} le temps de la lecture",
