@@ -3,8 +3,6 @@ package com.example.myapp.gallery
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
-import android.net.Uri
-import android.view.View
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -13,11 +11,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.calculatePan
-import androidx.compose.foundation.gestures.calculateZoom
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -29,7 +22,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
@@ -57,11 +49,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -74,13 +64,7 @@ import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.runtime.DisposableEffect
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.compose.LocalLifecycleOwner
-import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.ui.PlayerView
 import com.example.myapp.AppSnackbar
 import com.example.myapp.ScreenTopBar
 import com.example.myapp.ShowAlertDialog
@@ -88,7 +72,6 @@ import com.example.myapp.flashcards.AppDatabase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import androidx.media3.common.MediaItem as Media3Item
 
 // Where GalleryViewerScreen gets its items from: a normal album, the pinned set (hero first),
 // or the Wallet shortcut (the album named "Wallet", opened straight to its first item).
@@ -174,7 +157,7 @@ fun GalleryViewerScreen(
     var showInfoDialog by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
-    val currentItem = items.getOrNull(pagerState.currentPage.coerceIn(items.indices)) ?: items.first()
+    val currentItem = items[pagerState.currentPage.coerceIn(items.indices)]
 
     // The photo opens clean (no tools). A single tap toggles the top/bottom bars and, with them,
     // the Android system bars for a true immersive fullscreen view.
@@ -452,170 +435,6 @@ private fun Context.findActivity(): Activity? {
         ctx = ctx.baseContext
     }
     return null
-}
-
-@Composable
-internal fun ZoomableImage(
-    item: MediaItem,
-    onZoomChanged: (Boolean) -> Unit,
-    onToggleChrome: () -> Unit
-) {
-    var scale by remember(item.id) { mutableStateOf(1f) }
-    var offset by remember(item.id) { mutableStateOf(Offset.Zero) }
-    LaunchedEffect(scale) { onZoomChanged(scale > 1.01f) }
-
-    GalleryAsyncImage(
-        uri = item.uri,
-        dateModified = item.dateModified,
-        contentDescription = item.displayName,
-        contentScale = ContentScale.Fit,
-        modifier = Modifier
-            .fillMaxSize()
-            .pointerInput(item.id) {
-                // Single tap toggles the viewer chrome; double tap zooms to 2.5x centered on the
-                // tapped point (or back to fit if already zoomed). Both live in one detector so
-                // they don't fight the pinch handler below over consuming the touch.
-                detectTapGestures(
-                    onTap = { onToggleChrome() },
-                    onDoubleTap = { tapPos ->
-                        if (scale > 1f) {
-                            scale = 1f
-                            offset = Offset.Zero
-                        } else {
-                            val target = 2.5f
-                            val center = Offset(size.width / 2f, size.height / 2f)
-                            offset = (tapPos - center) * (1f - target)
-                            scale = target
-                        }
-                    }
-                )
-            }
-            .pointerInput(item.id) {
-                // Only claim the gesture when it's an actual pinch (two pointers) or a pan while
-                // already zoomed in. Plain taps (no movement) are left unconsumed so the tap
-                // detector above can handle them; a single-finger drag at scale 1 is left for the
-                // enclosing HorizontalPager to swipe to the next item.
-                awaitEachGesture {
-                    awaitFirstDown(requireUnconsumed = false)
-                    do {
-                        val event = awaitPointerEvent()
-                        val pinching = event.changes.count { it.pressed } >= 2
-                        if (pinching || scale > 1f) {
-                            val zoom = event.calculateZoom()
-                            val pan = event.calculatePan()
-                            if (zoom != 1f || pan != Offset.Zero) {
-                                val newScale = (scale * zoom).coerceIn(1f, 5f)
-                                scale = newScale
-                                offset = if (newScale <= 1f) Offset.Zero else offset + pan
-                                event.changes.forEach { it.consume() }
-                            }
-                        }
-                    } while (event.changes.any { it.pressed })
-                }
-            }
-            .graphicsLayer(
-                scaleX = scale,
-                scaleY = scale,
-                translationX = offset.x,
-                translationY = offset.y
-            )
-    )
-}
-
-@Composable
-internal fun VideoPlayer(
-    uri: Uri,
-    chromeVisible: Boolean,
-    onChromeVisibleChange: (Boolean) -> Unit,
-    onZoomChanged: (Boolean) -> Unit
-) {
-    val context = LocalContext.current
-    val exoPlayer = remember(uri) {
-        ExoPlayer.Builder(context).build().apply {
-            setMediaItem(Media3Item.fromUri(uri))
-            prepare()
-            playWhenReady = true
-        }
-    }
-    DisposableEffect(exoPlayer) {
-        onDispose { exoPlayer.release() }
-    }
-
-    // Locking the phone stops the activity but doesn't stop ExoPlayer on its own,
-    // so a video would keep playing audio behind the lock screen.
-    val lifecycleOwner = LocalLifecycleOwner.current
-    DisposableEffect(lifecycleOwner, exoPlayer) {
-        val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_STOP) exoPlayer.pause()
-        }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
-    }
-
-    // The player's own controller is the only tap target on a video page, so it drives the viewer
-    // chrome: showing the transport controls also brings up the filename bar and the action row,
-    // and hiding them (tap again, or the controller's auto-hide) takes everything away.
-    val onVisibilityChange by rememberUpdatedState(onChromeVisibleChange)
-    val playerView = remember(uri) {
-        PlayerView(context).apply {
-            player = exoPlayer
-            // Open clean like a photo does, instead of flashing the controls on load.
-            controllerAutoShow = false
-            setShowSubtitleButton(false)
-            setControllerVisibilityListener(
-                PlayerView.ControllerVisibilityListener { visibility ->
-                    // Track selection and playback speed are useless on a local clip: drop the
-                    // gear every time the controller comes back, since it rebuilds its own row.
-                    findViewById<View>(androidx.media3.ui.R.id.exo_settings)?.visibility = View.GONE
-                    onVisibilityChange(visibility == View.VISIBLE)
-                }
-            )
-        }
-    }
-    // Keep the controller in sync when the chrome was toggled elsewhere, e.g. swiping in from a
-    // photo that had its bars showing.
-    LaunchedEffect(playerView, chromeVisible) {
-        if (chromeVisible) playerView.showController() else playerView.hideController()
-    }
-
-    // Pinch to zoom into the current frame, playing or paused. Only an actual pinch (two pointers)
-    // or a pan while already zoomed in claims the gesture, exactly like the photo viewer, so a plain
-    // single-finger tap is left unconsumed and still reaches the player's own controller underneath
-    // (play/pause, seek, show/hide controls).
-    var scale by remember(uri) { mutableStateOf(1f) }
-    var offset by remember(uri) { mutableStateOf(Offset.Zero) }
-    LaunchedEffect(scale) { onZoomChanged(scale > 1.01f) }
-
-    AndroidView(
-        factory = { playerView },
-        modifier = Modifier
-            .fillMaxSize()
-            .pointerInput(uri) {
-                awaitEachGesture {
-                    awaitFirstDown(requireUnconsumed = false)
-                    do {
-                        val event = awaitPointerEvent()
-                        val pinching = event.changes.count { it.pressed } >= 2
-                        if (pinching || scale > 1f) {
-                            val zoom = event.calculateZoom()
-                            val pan = event.calculatePan()
-                            if (zoom != 1f || pan != Offset.Zero) {
-                                val newScale = (scale * zoom).coerceIn(1f, 5f)
-                                scale = newScale
-                                offset = if (newScale <= 1f) Offset.Zero else offset + pan
-                                event.changes.forEach { it.consume() }
-                            }
-                        }
-                    } while (event.changes.any { it.pressed })
-                }
-            }
-            .graphicsLayer(
-                scaleX = scale,
-                scaleY = scale,
-                translationX = offset.x,
-                translationY = offset.y
-            )
-    )
 }
 
 @Composable
