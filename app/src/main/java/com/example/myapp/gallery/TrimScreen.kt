@@ -146,7 +146,19 @@ private fun VideoPreview(uri: Uri) {
     }
     AndroidView(
         factory = { ctx ->
-            androidx.media3.ui.PlayerView(ctx).apply { player = exoPlayer }
+            androidx.media3.ui.PlayerView(ctx).apply {
+                player = exoPlayer
+                setShowSubtitleButton(false)
+                setControllerVisibilityListener(
+                    androidx.media3.ui.PlayerView.ControllerVisibilityListener {
+                        // Track selection and playback speed are useless when trimming a local
+                        // clip: drop the gear every time the controller comes back, matching the
+                        // main viewer's video player.
+                        findViewById<android.view.View>(androidx.media3.ui.R.id.exo_settings)?.visibility =
+                            android.view.View.GONE
+                    }
+                )
+            }
         },
         modifier = Modifier.fillMaxSize()
     )
