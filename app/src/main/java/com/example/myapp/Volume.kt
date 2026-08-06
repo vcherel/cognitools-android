@@ -157,6 +157,9 @@ class VolumeBoosterService : Service() {
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setOngoing(true)
+            // Every +/- tap reposts this notification; without this it replays the notification
+            // sound on each gain change instead of only on the initial post.
+            .setOnlyAlertOnce(true)
             .addAction(
                 android.R.drawable.ic_media_previous,
                 "-",
