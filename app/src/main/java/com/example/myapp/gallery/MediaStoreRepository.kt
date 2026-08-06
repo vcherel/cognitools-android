@@ -27,6 +27,7 @@ private val PROJECTION = buildList {
     add(MediaStore.Files.FileColumns.MEDIA_TYPE)
     add(MediaStore.Files.FileColumns.DATE_ADDED)
     add(MediaStore.Files.FileColumns.DATE_MODIFIED)
+    add(MediaStore.Files.FileColumns.DATE_TAKEN)
     add(MediaStore.Files.FileColumns.BUCKET_ID)
     add(MediaStore.Files.FileColumns.BUCKET_DISPLAY_NAME)
     add(MediaStore.Files.FileColumns.MIME_TYPE)
@@ -140,6 +141,7 @@ fun queryMediaItems(
         val typeCol = cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns.MEDIA_TYPE)
         val dateCol = cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns.DATE_ADDED)
         val dateModifiedCol = cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns.DATE_MODIFIED)
+        val dateTakenCol = cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns.DATE_TAKEN)
         val bucketIdCol = cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns.BUCKET_ID)
         val bucketNameCol = cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns.BUCKET_DISPLAY_NAME)
         val mimeCol = cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns.MIME_TYPE)
@@ -171,6 +173,7 @@ fun queryMediaItems(
                     type = mediaType,
                     dateAdded = cursor.getLong(dateCol),
                     dateModified = cursor.getLong(dateModifiedCol),
+                    dateTaken = cursor.getLong(dateTakenCol),
                     bucketId = cursor.getLong(bucketIdCol),
                     bucketName = cursor.getString(bucketNameCol) ?: "Autres",
                     relativePath = relativeFolderFromData(data),
