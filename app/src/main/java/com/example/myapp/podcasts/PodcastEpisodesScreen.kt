@@ -19,9 +19,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircleOutline
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.DownloadDone
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -44,6 +47,7 @@ import androidx.compose.ui.unit.dp
 import com.example.myapp.AppSnackbar
 import com.example.myapp.ErrorText
 import com.example.myapp.ScreenTopBar
+import com.example.myapp.ShowAlertDialog
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -60,9 +64,12 @@ fun PodcastEpisodesScreen(repo: PodcastRepository, favoriteId: String, onBack: (
     val favorite = favorites.firstOrNull { it.id == favoriteId }
     val episodes by repo.episodes.collectAsState()
     val podcastPlayerState by repo.playerState.collectAsState()
+    val downloadedIds by repo.downloadedIds.collectAsState()
+    val downloadingIds by repo.downloadingIds.collectAsState()
     var loading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
     var showAll by remember { mutableStateOf(false) }
+    var confirmUnfollow by remember { mutableStateOf(false) }
 
     LaunchedEffect(favoriteId) {
         loading = true
@@ -82,24 +89,37 @@ fun PodcastEpisodesScreen(repo: PodcastRepository, favoriteId: String, onBack: (
                     contentDescription = if (showAll) "Masquer les épisodes écoutés" else "Afficher les épisodes écoutés"
                 )
             }
-            IconButton(onClick = {
-                val fav = favorite ?: return@IconButton
-                scope.launch {
-                    repo.removeFavorite(fav.id)
-                    onBack()
-                    AppSnackbar.show(
-                        message = "« ${fav.title} » retiré",
-                        actionLabel = "Annuler",
-                        onAction = {
-                            scope.launch {
-                                repo.addFavorite(PodcastCatalogItem(fav.id, fav.source, fav.title, fav.author, fav.artworkUrl))
-                            }
-                        }
-                    )
-                }
-            }) {
+            IconButton(onClick = { confirmUnfollow = true }) {
                 Icon(Icons.Filled.Close, contentDescription = "Ne plus suivre ce podcast")
             }
+        }
+
+        if (confirmUnfollow) {
+            val fav = favorite
+            ShowAlertDialog(
+                onDismiss = { confirmUnfollow = false },
+                title = "Ne plus suivre « ${fav?.title ?: "ce podcast"} » ?",
+                onCancel = { confirmUnfollow = false },
+                onConfirm = {
+                    confirmUnfollow = false
+                    if (fav == null) return@ShowAlertDialog
+                    scope.launch {
+                        repo.removeFavorite(fav.id)
+                        onBack()
+                        AppSnackbar.show(
+                            message = "« ${fav.title} » retiré",
+                            actionLabel = "Annuler",
+                            onAction = {
+                                scope.launch {
+                                    repo.addFavorite(PodcastCatalogItem(fav.id, fav.source, fav.title, fav.author, fav.artworkUrl))
+                                }
+                            }
+                        )
+                    }
+                },
+                cancelText = "Annuler",
+                confirmText = "Ne plus suivre"
+            )
         }
 
         if (loading && showEpisodes.isEmpty()) {
@@ -124,10 +144,22 @@ fun PodcastEpisodesScreen(repo: PodcastRepository, favoriteId: String, onBack: (
                     PodcastEpisodeRow(
                         episode = episode,
                         isPlaying = podcastPlayerState.episodeId == episode.id,
+                        isDownloaded = episode.id in downloadedIds,
+                        isDownloading = episode.id in downloadingIds,
                         onClick = {
                             scope.launch {
                                 runCatching { repo.playEpisode(episode, showEpisodes) }
                                     .onFailure { AppSnackbar.show(it.message ?: "Erreur de lecture") }
+                            }
+                        },
+                        onToggleDownload = {
+                            if (episode.id in downloadedIds) {
+                                repo.removeDownload(episode.id)
+                            } else {
+                                scope.launch {
+                                    runCatching { repo.downloadEpisode(episode) }
+                                        .onFailure { AppSnackbar.show("Échec du téléchargement") }
+                                }
                             }
                         },
                         onToggleSeen = {
@@ -158,7 +190,10 @@ private val episodeDateFormat = SimpleDateFormat("d MMM yyyy", Locale.FRENCH)
 fun PodcastEpisodeRow(
     episode: PodcastEpisode,
     isPlaying: Boolean,
+    isDownloaded: Boolean,
+    isDownloading: Boolean,
     onClick: () -> Unit,
+    onToggleDownload: () -> Unit,
     onToggleSeen: () -> Unit
 ) {
     Row(
@@ -191,6 +226,30 @@ fun PodcastEpisodeRow(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1
             )
+        }
+        if (episode.source != PodcastSource.DEEZER) {
+            Box(
+                Modifier
+                    .size(36.dp)
+                    .clip(CircleShape)
+                    .clickable(enabled = !isDownloading, onClick = onToggleDownload),
+                contentAlignment = Alignment.Center
+            ) {
+                when {
+                    isDownloading -> CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                    isDownloaded -> Icon(
+                        Icons.Filled.DownloadDone,
+                        contentDescription = "Téléchargé, appuyer pour supprimer",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    else -> Icon(
+                        Icons.Filled.Download,
+                        contentDescription = "Télécharger l'épisode",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            Spacer(Modifier.width(4.dp))
         }
         Box(
             Modifier

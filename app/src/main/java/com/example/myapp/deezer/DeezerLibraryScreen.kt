@@ -137,7 +137,7 @@ fun DeezerLibraryScreen(
             ) {
                 Icon(Icons.Filled.Search, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(Modifier.width(10.dp))
-                Text("Rechercher un titre, un artiste, un podcast…", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Rechercher…", color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
 
             error?.let {

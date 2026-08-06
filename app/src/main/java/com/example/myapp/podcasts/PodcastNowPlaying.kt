@@ -21,6 +21,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bedtime
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.CloudDownload
+import androidx.compose.material.icons.filled.DownloadDone
 import androidx.compose.material.icons.filled.Forward30
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Pause
@@ -119,6 +121,7 @@ fun PodcastFullPlayerSheet(
     val goHome = LocalGoHome.current
     val episodes by repo.episodes.collectAsState()
     val isSeen = episodes.firstOrNull { it.id == state.episodeId }?.seen == true
+    val downloadedIds by repo.downloadedIds.collectAsState()
     val sleepTimerEndAt by repo.sleepTimerEndAt.collectAsState()
     var showSleepTimerDialog by remember { mutableStateOf(false) }
     var sleepTimerRemainingMin by remember { mutableStateOf<Int?>(null) }
@@ -157,6 +160,16 @@ fun PodcastFullPlayerSheet(
         }
         Row(modifier = Modifier.align(Alignment.TopEnd), verticalAlignment = Alignment.CenterVertically) {
             sleepTimerRemainingMin?.let {
+                // While the timer runs, shows whether this episode is fully downloaded, so it's safe
+                // to switch to airplane mode without the stream cutting out before the timer ends.
+                val isDownloaded = state.episodeId != null && downloadedIds.contains(state.episodeId)
+                Icon(
+                    if (isDownloaded) Icons.Filled.DownloadDone else Icons.Filled.CloudDownload,
+                    contentDescription = if (isDownloaded) "Épisode téléchargé, lecture possible sans connexion" else "Épisode non téléchargé, nécessite une connexion",
+                    tint = if (isDownloaded) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(Modifier.size(4.dp))
                 Text(
                     "$it min",
                     style = MaterialTheme.typography.labelMedium,
@@ -309,7 +322,7 @@ private fun SleepTimerDialog(isRunning: Boolean, onDismiss: () -> Unit, onStart:
                 OutlinedTextField(
                     value = customText,
                     onValueChange = { customText = it.filter(Char::isDigit).take(3) },
-                    label = { Text("Ou une durée personnalisée (min)") },
+                    label = { Text("Durée personnalisée (min)") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -323,7 +336,7 @@ private fun SleepTimerDialog(isRunning: Boolean, onDismiss: () -> Unit, onStart:
         dismissButton = {
             Row {
                 if (isRunning) {
-                    TextButton(onClick = onCancel) { Text("Arrêter la minuterie") }
+                    TextButton(onClick = onCancel) { Text("Arrêter") }
                 }
                 TextButton(onClick = onDismiss) { Text("Annuler") }
             }
