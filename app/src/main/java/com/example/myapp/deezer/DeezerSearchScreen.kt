@@ -48,6 +48,7 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.example.myapp.AppSnackbar
 import com.example.myapp.ScreenTopBar
+import com.example.myapp.ShowAlertDialog
 import com.example.myapp.podcastRepository
 import com.example.myapp.podcasts.PodcastArt
 import com.example.myapp.podcasts.PodcastCatalogItem
@@ -74,7 +75,7 @@ fun DeezerSearchScreen(repo: DeezerRepository, onBack: () -> Unit) {
             value = query,
             onValueChange = { query = it },
             singleLine = true,
-            placeholder = { Text(if (mode == SearchMode.MUSIQUE) "Titre, artiste, album…" else "Rechercher un podcast…") },
+            placeholder = { Text(if (mode == SearchMode.MUSIQUE) "Titre, artiste…" else "Nom du podcast…") },
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
         )
         when (mode) {
@@ -224,6 +225,7 @@ private fun PodcastSearch(podcastRepo: PodcastRepository, query: String, scope: 
     var results by remember { mutableStateOf<List<PodcastCatalogItem>>(emptyList()) }
     var recommendations by remember { mutableStateOf<List<PodcastCatalogItem>>(emptyList()) }
     var loading by remember { mutableStateOf(false) }
+    var pendingUnfollow by remember { mutableStateOf<PodcastCatalogItem?>(null) }
     val favorites by podcastRepo.favorites.collectAsState(initial = emptyList())
     val followedIds = favorites.map { it.id }.toSet()
 
@@ -257,19 +259,35 @@ private fun PodcastSearch(podcastRepo: PodcastRepository, query: String, scope: 
                 item = item,
                 isFollowing = item.id in followedIds,
                 onToggleFollow = {
-                    scope.launch {
-                        if (item.id in followedIds) {
-                            podcastRepo.removeFavorite(item.id)
-                        } else if (podcastRepo.addFavorite(item)) {
-                            AppSnackbar.show("« ${item.title} » ajouté")
-                        } else {
-                            AppSnackbar.show("Impossible d'ajouter ce podcast")
+                    if (item.id in followedIds) {
+                        pendingUnfollow = item
+                    } else {
+                        scope.launch {
+                            if (podcastRepo.addFavorite(item)) {
+                                AppSnackbar.show("« ${item.title} » ajouté")
+                            } else {
+                                AppSnackbar.show("Impossible d'ajouter ce podcast")
+                            }
                         }
                     }
                 }
             )
         }
         item { Spacer(Modifier.padding(8.dp)) }
+    }
+
+    pendingUnfollow?.let { item ->
+        ShowAlertDialog(
+            onDismiss = { pendingUnfollow = null },
+            title = "Ne plus suivre « ${item.title} » ?",
+            onCancel = { pendingUnfollow = null },
+            onConfirm = {
+                pendingUnfollow = null
+                scope.launch { podcastRepo.removeFavorite(item.id) }
+            },
+            cancelText = "Annuler",
+            confirmText = "Ne plus suivre"
+        )
     }
 }
 

@@ -10,6 +10,7 @@ import androidx.media3.common.Player
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionToken
+import com.example.myapp.USER_AGENT
 import com.example.myapp.deezerRepository
 import com.example.myapp.flashcards.AppDatabase
 import com.example.myapp.httpGet
@@ -28,6 +29,10 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import java.io.File
+import java.io.IOException
+import java.net.HttpURLConnection
+import java.net.URL
 
 private val RADIO_FRANCE_STATIONS = listOf("franceinter", "franceculture", "franceinfo", "francemusique", "mouv", "fip")
 
@@ -227,6 +232,59 @@ class PodcastRepository(private val appContext: Context) {
         _episodes.value = _episodes.value.map { if (it.id == episodeId) it.copy(seen = false) else it }
     }
 
+    // ---- Downloads ----
+    // Episodes are downloaded straight to a file keyed by episode id, no separate DB table: "downloaded"
+    // is derived from the file's presence, so it can never drift out of sync with what's actually on disk.
+
+    private val downloadsDir: File by lazy { File(appContext.filesDir, "podcast_downloads").apply { mkdirs() } }
+
+    private fun downloadFile(episodeId: String): File = File(downloadsDir, "$episodeId.audio")
+
+    private val _downloadedIds = MutableStateFlow(
+        downloadsDir.listFiles()?.map { it.nameWithoutExtension }?.toSet() ?: emptySet()
+    )
+    val downloadedIds: StateFlow<Set<String>> = _downloadedIds
+
+    private val _downloadingIds = MutableStateFlow<Set<String>>(emptySet())
+    val downloadingIds: StateFlow<Set<String>> = _downloadingIds
+
+    /** Downloads [episode]'s audio to disk so it can play with no connection. No-op if already downloaded/downloading. */
+    suspend fun downloadEpisode(episode: PodcastEpisode) {
+        if (episode.id in _downloadedIds.value || episode.id in _downloadingIds.value) return
+        if (episode.audioUrl.isBlank()) throw IOException("Pas de flux audio pour cet épisode")
+        _downloadingIds.value = _downloadingIds.value + episode.id
+        try {
+            withContext(Dispatchers.IO) {
+                val tmp = File(downloadsDir, "${episode.id}.tmp")
+                val conn = (URL(episode.audioUrl).openConnection() as HttpURLConnection).apply {
+                    requestMethod = "GET"
+                    connectTimeout = 15_000
+                    readTimeout = 30_000
+                    setRequestProperty("User-Agent", USER_AGENT)
+                }
+                try {
+                    if (conn.responseCode !in 200..299) throw IOException("HTTP ${conn.responseCode}")
+                    conn.inputStream.use { input -> tmp.outputStream().use { output -> input.copyTo(output) } }
+                } finally {
+                    conn.disconnect()
+                }
+                if (!tmp.renameTo(downloadFile(episode.id))) throw IOException("Impossible d'enregistrer le téléchargement")
+            }
+            _downloadedIds.value = _downloadedIds.value + episode.id
+        } catch (e: Exception) {
+            runCatching { File(downloadsDir, "${episode.id}.tmp").delete() }
+            throw e
+        } finally {
+            _downloadingIds.value = _downloadingIds.value - episode.id
+        }
+    }
+
+    /** Deletes [episodeId]'s downloaded file, if any. */
+    fun removeDownload(episodeId: String) {
+        downloadFile(episodeId).delete()
+        _downloadedIds.value = _downloadedIds.value - episodeId
+    }
+
     // ---- Player ----
 
     private val _playerState = MutableStateFlow(PodcastPlayerUiState())
@@ -352,8 +410,10 @@ class PodcastRepository(private val appContext: Context) {
             .setArtist(episode.podcastTitle)
             .setArtworkUri(episode.podcastArtworkUrl?.let { Uri.parse(it) })
             .build()
+        val localFile = downloadFile(episode.id)
+        val uri = if (localFile.exists()) Uri.fromFile(localFile) else Uri.parse(episode.audioUrl)
         return MediaItem.Builder()
-            .setUri(Uri.parse(episode.audioUrl))
+            .setUri(uri)
             .setMediaId(episode.id)
             .setMediaMetadata(metadata)
             .build()
