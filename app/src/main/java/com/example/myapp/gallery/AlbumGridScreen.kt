@@ -1,33 +1,25 @@
 package com.example.myapp.gallery
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.DriveFileMove
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.PushPin
-import androidx.compose.material.icons.outlined.Circle
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -44,9 +36,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.example.myapp.AppSnackbar
@@ -169,64 +159,22 @@ fun GalleryAlbumGridScreen(bucketId: Long, onBack: () -> Unit, onOpenItem: (Long
             ) {
                 items(currentItems, key = { it.id }) { item ->
                     val selected = item.id in selectedIds
-                    Box(
-                        modifier = Modifier
-                            .aspectRatio(1f)
-                            .clickable {
-                                if (suppressClick.value) {
-                                    suppressClick.value = false
-                                    return@clickable
-                                }
-                                if (selectionMode) {
-                                    selectedIds = if (selected) selectedIds - item.id else selectedIds + item.id
-                                } else {
-                                    onOpenItem(item.id)
-                                }
+                    SelectableMediaThumbnail(
+                        item = item,
+                        selected = selected,
+                        showSelectionIndicator = selectionMode,
+                        onClick = {
+                            if (suppressClick.value) {
+                                suppressClick.value = false
+                                return@SelectableMediaThumbnail
                             }
-                    ) {
-                        GalleryAsyncImage(
-                            uri = item.uri,
-                            dateModified = item.dateModified,
-                            contentDescription = item.displayName,
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier.fillMaxSize()
-                        )
-                        if (item.type == MediaType.VIDEO) {
-                            Box(
-                                modifier = Modifier
-                                    .align(Alignment.Center)
-                                    .size(28.dp)
-                                    .background(Color.Black.copy(alpha = 0.45f), CircleShape),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    Icons.Default.PlayArrow,
-                                    contentDescription = null,
-                                    tint = Color.White,
-                                    modifier = Modifier.size(18.dp)
-                                )
+                            if (selectionMode) {
+                                selectedIds = if (selected) selectedIds - item.id else selectedIds + item.id
+                            } else {
+                                onOpenItem(item.id)
                             }
                         }
-                        if (selectionMode) {
-                            if (selected) {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.35f))
-                                )
-                            }
-                            Icon(
-                                imageVector = if (selected) Icons.Default.CheckCircle else Icons.Outlined.Circle,
-                                contentDescription = null,
-                                tint = if (selected) MaterialTheme.colorScheme.primary else Color.White,
-                                modifier = Modifier
-                                    .align(Alignment.TopStart)
-                                    .padding(4.dp)
-                                    .size(22.dp)
-                                    .background(Color.Black.copy(alpha = 0.25f), CircleShape)
-                            )
-                        }
-                    }
+                    )
                 }
             }
         }

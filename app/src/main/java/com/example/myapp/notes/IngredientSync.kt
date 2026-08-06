@@ -110,7 +110,7 @@ fun presentIngredients(noteContent: String): List<String> {
  * group (blank line between blocks), each block sorted alphabetically. Names not found in
  * any model group are kept together in a trailing block so nothing is ever lost.
  */
-fun renderIngredientSection(present: List<String>, groups: List<List<String>>): String {
+private fun renderIngredientSection(present: List<String>, groups: List<List<String>>): String {
     val canonical = HashMap<String, String>()
     for (g in groups) for (n in g) canonical.putIfAbsent(n.trim().lowercase(), n.trim())
     val distinct = present.map { it.trim() }.filter { it.isNotEmpty() }.distinctBy { it.lowercase() }
@@ -281,7 +281,7 @@ fun addNameToModelGroup(modelContent: String, groupIndex: Int, name: String): St
 }
 
 /** Adds `name` as a brand-new group at the bottom of the model. */
-fun appendModelGroup(modelContent: String, name: String): String {
+private fun appendModelGroup(modelContent: String, name: String): String {
     val trimmed = modelContent.trimEnd('\n')
     return if (trimmed.isBlank()) name else "$trimmed\n\n$name"
 }

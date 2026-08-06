@@ -137,7 +137,6 @@ private fun ModeToggleSegment(text: String, icon: androidx.compose.ui.graphics.v
     }
 }
 
-/** Unchanged behavior: debounced track + best matching artist search. */
 @Composable
 private fun MusicSearch(repo: DeezerRepository, query: String, scope: kotlinx.coroutines.CoroutineScope) {
     val context = LocalContext.current

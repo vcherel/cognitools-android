@@ -813,7 +813,7 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
         }
         if (!extras.isEmpty) metadata.setExtras(extras)
         return MediaItem.Builder()
-            .setUri(Uri.parse("dzr://${track.sngId}?q=${DEFAULT_QUALITY.name}"))
+            .setUri(Uri.parse(cacheKeyFor(track.sngId)))
             .setMediaId(track.sngId)
             .setMediaMetadata(metadata.build())
             .build()

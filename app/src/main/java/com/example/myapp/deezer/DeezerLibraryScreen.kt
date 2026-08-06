@@ -56,6 +56,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
@@ -64,6 +65,7 @@ import com.example.myapp.ErrorText
 import com.example.myapp.LocalGoHome
 import com.example.myapp.ScreenTopBar
 import com.example.myapp.podcastRepository
+import com.example.myapp.podcasts.PodcastArt
 import com.example.myapp.podcasts.PodcastFavorite
 import kotlinx.coroutines.launch
 
@@ -148,14 +150,14 @@ fun DeezerLibraryScreen(
                 )
             }
 
-            SectionHeader(title = "Favoris", onSeeAll = null)
+            SectionHeader(title = "Favoris")
             FavoritesCard(
                 count = favorites?.size,
                 onShuffle = { scope.launch { runCatching { repo.shuffleFavorites() }.onFailure { error = it.message } } }
             )
 
             Spacer(Modifier.height(16.dp))
-            SectionHeader(title = "Playlists", onSeeAll = null)
+            SectionHeader(title = "Playlists")
             when (val p = playlists) {
                 null -> LoadingRow()
                 else -> Column(Modifier.padding(vertical = 4.dp)) {
@@ -176,7 +178,7 @@ fun DeezerLibraryScreen(
 
             if (podcastFavorites.isNotEmpty()) {
                 Spacer(Modifier.height(16.dp))
-                SectionHeader(title = "Podcasts", onSeeAll = null)
+                SectionHeader(title = "Podcasts")
                 Column(Modifier.padding(vertical = 4.dp)) {
                     podcastFavorites.forEach { fav ->
                         val latestEpisode = podcastEpisodes.filter { it.podcastId == fav.id }.maxByOrNull { it.pubDate }
@@ -228,26 +230,17 @@ fun DeezerLibraryScreen(
 }
 
 @Composable
-private fun SectionHeader(title: String, onSeeAll: (() -> Unit)?) {
-    Row(
-        Modifier.fillMaxWidth().padding(top = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(title, style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
-        if (onSeeAll != null) {
-            Text(
-                "voir tout",
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.clickable(onClick = onSeeAll).padding(4.dp)
-            )
-        }
-    }
+private fun SectionHeader(title: String) {
+    Text(
+        title,
+        style = MaterialTheme.typography.titleLarge,
+        modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+    )
 }
 
-/** Favoris surface: no track list, just the total count and a shuffle-all entry point (whole card taps to shuffle). */
+/** Shared: a tappable card row with a leading icon and label, whole card taps to shuffle. */
 @Composable
-private fun FavoritesCard(count: Int?, onShuffle: () -> Unit) {
+private fun ShuffleActionCard(icon: ImageVector, label: String, onShuffle: () -> Unit) {
     Row(
         Modifier
             .fillMaxWidth()
@@ -258,48 +251,29 @@ private fun FavoritesCard(count: Int?, onShuffle: () -> Unit) {
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(Icons.Filled.Favorite, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+        Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
         Spacer(Modifier.width(12.dp))
-        Text(
-            count?.let { "$it titres" } ?: "…",
-            style = MaterialTheme.typography.bodyLarge,
-            modifier = Modifier.weight(1f)
-        )
+        Text(label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
         Icon(Icons.Filled.Shuffle, contentDescription = "Lecture aléatoire", tint = MaterialTheme.colorScheme.primary)
         Spacer(Modifier.width(6.dp))
         Text("Aléatoire", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
     }
+}
+
+/** Favoris surface: no track list, just the total count and a shuffle-all entry point. */
+@Composable
+private fun FavoritesCard(count: Int?, onShuffle: () -> Unit) {
+    ShuffleActionCard(Icons.Filled.Favorite, count?.let { "$it titres" } ?: "…", onShuffle)
 }
 
 /**
  * Every track currently fully downloaded from anywhere (Best pépites plus whatever liked track
- * ordinary playback has cached), ready to shuffle with zero network: the whole card taps to play, same layout as
- * [FavoritesCard]. Hidden until at least one track is down. Deliberately not the pépites diamond: this
- * card is broader than that one playlist.
+ * ordinary playback has cached), ready to shuffle with zero network. Hidden until at least one
+ * track is down. Deliberately not the pépites diamond: this card is broader than that one playlist.
  */
 @Composable
 private fun OfflineLibraryCard(count: Int, onShuffle: () -> Unit) {
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant)
-            .clickable(onClick = onShuffle)
-            .padding(16.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(Icons.Filled.OfflinePin, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-        Spacer(Modifier.width(12.dp))
-        Text(
-            "$count titres · disponible hors ligne",
-            style = MaterialTheme.typography.bodyLarge,
-            modifier = Modifier.weight(1f)
-        )
-        Icon(Icons.Filled.Shuffle, contentDescription = "Lecture aléatoire", tint = MaterialTheme.colorScheme.primary)
-        Spacer(Modifier.width(6.dp))
-        Text("Aléatoire", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
-    }
+    ShuffleActionCard(Icons.Filled.OfflinePin, "$count titres · disponible hors ligne", onShuffle)
 }
 
 /** One followed podcast row: artwork + title + unseen count, tap to open its episode list, trailing
@@ -321,7 +295,7 @@ private fun PodcastRow(
             .padding(vertical = 8.dp, horizontal = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        PodcastArtPlaceholder(favorite.artworkUrl, Modifier.size(56.dp).clip(RoundedCornerShape(8.dp)))
+        PodcastArt(favorite.artworkUrl, Modifier.size(56.dp).clip(RoundedCornerShape(8.dp)))
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -349,16 +323,6 @@ private fun PodcastRow(
             IconButton(onClick = onPlayLatest) {
                 Icon(Icons.Filled.PlayArrow, contentDescription = "Lire le dernier épisode", tint = MaterialTheme.colorScheme.primary)
             }
-        }
-    }
-}
-
-/** Same shape as [CoverArt], for a podcast's artwork URL (avoids importing the podcasts package's own PodcastArt here). */
-@Composable
-private fun PodcastArtPlaceholder(url: String?, modifier: Modifier = Modifier) {
-    Box(modifier.aspectRatio(1f).background(MaterialTheme.colorScheme.surfaceVariant)) {
-        if (url != null) {
-            AsyncImage(model = url, contentDescription = null, modifier = Modifier.fillMaxSize())
         }
     }
 }

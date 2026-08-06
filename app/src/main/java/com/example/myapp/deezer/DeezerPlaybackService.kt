@@ -39,8 +39,8 @@ import kotlinx.coroutines.launch
  * MediaSession; Media3 provides the media notification and lockscreen controls for free. The UI
  * drives it through a MediaController (see DeezerScreen).
  *
- * Phase 1 plays a decrypted file:// URI produced by DeezerRepository. The on the fly streaming
- * DataSource and disk cache arrive in Phase 2.
+ * Plays `dzr://` URIs, resolved to a fresh CDN URL and decrypted on the fly by DeezerDataSource,
+ * with a disk cache in front of it.
  */
 class DeezerPlaybackService : MediaSessionService() {
 

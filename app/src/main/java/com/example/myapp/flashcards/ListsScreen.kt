@@ -23,7 +23,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.Delete
@@ -267,34 +266,7 @@ fun FlashcardListsScreen(navController: NavController) {
             onDismiss = { showBulkImportDialog = false },
             onConfirm = {
                 if (bulkImportText.isNotBlank()) {
-                    val lines = bulkImportText.split("\n")
-                        .map { it.trim() }
-                        .filter { it.isNotBlank() }
-
-                    val separators = listOf(" - ", " : ", " ; ")
-                    val newElements = lines.mapNotNull { line ->
-                        var processedLine = line
-                        val randomSide = !processedLine.endsWith("#")
-
-                        if (processedLine.endsWith("#")) {
-                            processedLine = processedLine.dropLast(1).trim()
-                        }
-
-                        val sep = separators.firstOrNull { processedLine.contains(it) } ?: return@mapNotNull null
-                        val index = processedLine.indexOf(sep)
-
-                        val name = processedLine.substring(0, index).trim()
-                        val definition = processedLine.substring(index + sep.length).trim()
-
-                        if (name.isNotBlank() && definition.isNotBlank()) {
-                            FlashcardElement(
-                                listId = selectedListId,
-                                name = name,
-                                definition = definition,
-                                randomSide = randomSide
-                            )
-                        } else null
-                    }
+                    val newElements = parseBulkImportLines(bulkImportText, selectedListId)
 
                     if (newElements.isNotEmpty()) {
                         scope.launch {
@@ -348,8 +320,31 @@ fun FlashcardListsScreen(navController: NavController) {
     }
 }
 
+// Each line is "Name<sep>Definition", one of " - ", " : ", " ; ". A trailing "#" marks the card
+// as fixed-side (shows the front only) instead of the default random side.
+private fun parseBulkImportLines(text: String, listId: String): List<FlashcardElement> {
+    val separators = listOf(" - ", " : ", " ; ")
+    return text.split("\n")
+        .map { it.trim() }
+        .filter { it.isNotBlank() }
+        .mapNotNull { line ->
+            val randomSide = !line.endsWith("#")
+            val processedLine = if (randomSide) line else line.dropLast(1).trim()
+
+            val sep = separators.firstOrNull { processedLine.contains(it) } ?: return@mapNotNull null
+            val index = processedLine.indexOf(sep)
+
+            val name = processedLine.substring(0, index).trim()
+            val definition = processedLine.substring(index + sep.length).trim()
+
+            if (name.isNotBlank() && definition.isNotBlank()) {
+                FlashcardElement(listId = listId, name = name, definition = definition, randomSide = randomSide)
+            } else null
+        }
+}
+
 @Composable
-fun FlashcardListItem(
+private fun FlashcardListItem(
     flashcardList: FlashcardList,
     totalCount: Int,
     dueCount: Int,
@@ -461,7 +456,7 @@ fun FlashcardListItem(
 }
 
 @Composable
-fun BulkImportDialog(
+private fun BulkImportDialog(
     bulkImportText: String,
     onTextChange: (String) -> Unit,
     onDismiss: () -> Unit,

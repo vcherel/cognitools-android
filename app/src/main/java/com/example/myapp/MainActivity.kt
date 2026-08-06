@@ -1,8 +1,10 @@
 package com.example.myapp
 
+import android.Manifest
 import android.app.KeyguardManager
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -106,12 +108,8 @@ class MainActivity : ComponentActivity() {
         // Asking for notification permission over the lock screen makes no sense for a quick photo
         // review that never touches anything notification related.
         if (quickViewItem == null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (ContextCompat.checkSelfPermission(
-                    this,
-                    android.Manifest.permission.POST_NOTIFICATIONS
-                ) != android.content.pm.PackageManager.PERMISSION_GRANTED
-            ) {
-                requestPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
             }
         }
 
@@ -224,10 +222,10 @@ private fun resolveInitialGalleryRoute(context: Context, viewMediaUri: Uri?): Pa
 fun MainScreen(
     themeManager: ThemeManager,
     isDarkMode: Boolean,
-    initialRoute: String? = null,
-    initialRouteMessage: String? = null,
-    pendingRoute: String? = null,
-    onPendingRouteConsumed: () -> Unit = {}
+    initialRoute: String?,
+    initialRouteMessage: String?,
+    pendingRoute: String?,
+    onPendingRouteConsumed: () -> Unit
 ) {
     val navController = rememberNavController()
     val idleGuard = remember { IdleResetGuard() }

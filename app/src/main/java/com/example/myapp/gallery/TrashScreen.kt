@@ -4,29 +4,22 @@ import android.content.Context
 import android.content.IntentSender
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DeleteForever
-import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Restore
-import androidx.compose.material.icons.outlined.Circle
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -44,7 +37,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.example.myapp.AppSnackbar
@@ -161,37 +153,12 @@ fun GalleryTrashScreen(onBack: () -> Unit) {
             ) {
                 items(currentItems, key = { it.id }) { item ->
                     val isSelected = item.id in selectedIds
-                    Box(
-                        modifier = Modifier
-                            .aspectRatio(1f)
-                            .clickable {
-                                selectedIds =
-                                    if (isSelected) selectedIds - item.id else selectedIds + item.id
-                            }
+                    SelectableMediaThumbnail(
+                        item = item,
+                        selected = isSelected,
+                        showSelectionIndicator = true,
+                        onClick = { selectedIds = if (isSelected) selectedIds - item.id else selectedIds + item.id }
                     ) {
-                        GalleryAsyncImage(
-                            uri = item.uri,
-                            dateModified = item.dateModified,
-                            contentDescription = item.displayName,
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier.fillMaxSize()
-                        )
-                        if (item.type == MediaType.VIDEO) {
-                            Box(
-                                modifier = Modifier
-                                    .align(Alignment.Center)
-                                    .size(28.dp)
-                                    .background(Color.Black.copy(alpha = 0.45f), CircleShape),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    Icons.Default.PlayArrow,
-                                    contentDescription = null,
-                                    tint = Color.White,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
-                        }
                         remainingDays(item.dateExpires)?.let { days ->
                             Text(
                                 "${days}j",
@@ -207,23 +174,6 @@ fun GalleryTrashScreen(onBack: () -> Unit) {
                                     .padding(horizontal = 4.dp, vertical = 1.dp)
                             )
                         }
-                        if (isSelected) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.35f))
-                            )
-                        }
-                        Icon(
-                            imageVector = if (isSelected) Icons.Default.CheckCircle else Icons.Outlined.Circle,
-                            contentDescription = null,
-                            tint = if (isSelected) MaterialTheme.colorScheme.primary else Color.White,
-                            modifier = Modifier
-                                .align(Alignment.TopStart)
-                                .padding(4.dp)
-                                .size(22.dp)
-                                .background(Color.Black.copy(alpha = 0.25f), CircleShape)
-                        )
                     }
                 }
             }
