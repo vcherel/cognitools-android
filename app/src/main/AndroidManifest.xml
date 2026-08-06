@@ -26,6 +26,7 @@
         <package android:name="com.whatsapp" />
         <package android:name="com.beeper.android" />
         <package android:name="com.facebook.orca" />
+        <package android:name="com.instagram.android" />
     </queries>
     <application
         android:name=".MyApplication"
