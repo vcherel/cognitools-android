@@ -38,6 +38,7 @@ import androidx.compose.material.icons.filled.Crop
 import androidx.compose.material.icons.filled.ContentCut
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Share
@@ -170,6 +171,7 @@ fun GalleryViewerScreen(
     var showRenameDialog by remember { mutableStateOf(false) }
     var showMoveDialog by remember { mutableStateOf(false) }
     var showShareDialog by remember { mutableStateOf(false) }
+    var showInfoDialog by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
     val currentItem = items.getOrNull(pagerState.currentPage.coerceIn(items.indices)) ?: items.first()
@@ -339,6 +341,7 @@ fun GalleryViewerScreen(
                     }
                 },
                 onShare = { showShareDialog = true },
+                onShowInfo = { showInfoDialog = true },
                 onDelete = {
                     // No confirmation: the item goes to the trash, the pager moves on to the next
                     // one, and the snackbar offers the undo. The item is spliced out of the local
@@ -422,6 +425,13 @@ fun GalleryViewerScreen(
             item = currentItem,
             onDismiss = { showShareDialog = false },
             onError = { errorMessage = it }
+        )
+    }
+
+    if (showInfoDialog) {
+        InfoDialog(
+            item = currentItem,
+            onDismiss = { showInfoDialog = false }
         )
     }
 
@@ -620,6 +630,7 @@ private fun ViewerActionBar(
     onTogglePin: () -> Unit,
     onSetHero: () -> Unit,
     onShare: () -> Unit,
+    onShowInfo: () -> Unit,
     onDelete: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -638,6 +649,11 @@ private fun ViewerActionBar(
                     text = { Text("Partager") },
                     leadingIcon = { Icon(Icons.Default.Share, contentDescription = null) },
                     onClick = { showMoreMenu = false; onShare() }
+                )
+                DropdownMenuItem(
+                    text = { Text("Infos") },
+                    leadingIcon = { Icon(Icons.Default.Info, contentDescription = null) },
+                    onClick = { showMoreMenu = false; onShowInfo() }
                 )
                 DropdownMenuItem(
                     text = { Text(if (isPinned) "Désépingler" else "Épingler") },

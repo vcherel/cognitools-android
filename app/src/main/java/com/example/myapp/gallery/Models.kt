@@ -11,6 +11,9 @@ data class MediaItem(
     val type: MediaType,
     val dateAdded: Long,
     val dateModified: Long,
+    // Epoch millis the photo/video was actually taken (EXIF/metadata), 0 if unknown. Distinct from
+    // dateAdded/dateModified, which track when the file landed on or last changed on this device.
+    val dateTaken: Long = 0,
     val bucketId: Long,
     val bucketName: String,
     // Folder the file lives in, e.g. "DCIM/Camera/". Used as the MediaStore RELATIVE_PATH

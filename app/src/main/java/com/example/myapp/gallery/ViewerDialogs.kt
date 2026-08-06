@@ -44,6 +44,9 @@ import com.example.myapp.AppDialog
 import com.example.myapp.ShowAlertDialog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 // The dialogs the full screen viewer opens on the current item: sharing it, renaming it, and
 // moving it to another album. MoveDialog is also used by the album grid's batch move.
@@ -140,6 +143,26 @@ private fun shareItemTo(context: Context, item: MediaItem, packageName: String) 
     }
     context.startActivity(intent)
 }
+@Composable
+fun InfoDialog(item: MediaItem, onDismiss: () -> Unit) {
+    // dateTaken is millis, dateAdded is seconds (MediaStore convention); dateTaken is 0 when the
+    // file carries no capture metadata (e.g. a screenshot or a download), so fall back to when it
+    // landed on the device instead of showing nothing.
+    val takenAtMillis = if (item.dateTaken > 0) item.dateTaken else item.dateAdded * 1000
+    val formatter = remember { SimpleDateFormat("d MMMM yyyy 'à' HH:mm", Locale.FRENCH) }
+    val formatted = remember(takenAtMillis) { formatter.format(Date(takenAtMillis)) }
+
+    AppDialog(onDismiss = onDismiss) {
+        Text("Infos", style = MaterialTheme.typography.titleMedium)
+        Spacer(Modifier.height(16.dp))
+        Text("Prise le $formatted")
+        Spacer(Modifier.height(16.dp))
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+            TextButton(onClick = onDismiss) { Text("Fermer") }
+        }
+    }
+}
+
 @Composable
 fun RenameDialog(item: MediaItem, onDismiss: () -> Unit, onConfirm: (String) -> Unit) {
     val dotIndex = item.displayName.lastIndexOf('.')
