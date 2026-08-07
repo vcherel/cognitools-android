@@ -310,19 +310,19 @@ fun MainScreen(
                         )
                     }
                     composable("randomGenerator") {
-                        RandomGeneratorScreen(onBack = { navController.popBackStack() })
+                        RandomGeneratorScreen(onBack = { navController.popBackStackOnce() })
                     }
                     composable("volumeBooster") {
-                        VolumeBoosterScreen(onBack = { navController.popBackStack() })
+                        VolumeBoosterScreen(onBack = { navController.popBackStackOnce() })
                     }
                     composable("undercover") {
-                        UndercoverScreen(onBack = { navController.popBackStack() })
+                        UndercoverScreen(onBack = { navController.popBackStackOnce() })
                     }
                     composable("wikipedia") {
-                        WikipediaScreen(onBack = { navController.popBackStack() })
+                        WikipediaScreen(onBack = { navController.popBackStackOnce() })
                     }
                     composable("weather") {
-                        WeatherScreen(onBack = { navController.popBackStack() })
+                        WeatherScreen(onBack = { navController.popBackStackOnce() })
                     }
                     composable(
                         "deezer?openPlayer={openPlayer}",
@@ -330,26 +330,26 @@ fun MainScreen(
                     ) { backStackEntry ->
                         val openPlayer = backStackEntry.arguments?.getBoolean("openPlayer") ?: false
                         DeezerScreen(
-                            onBack = { navController.popBackStack() },
+                            onBack = { navController.popBackStackOnce() },
                             openFullPlayerInitially = openPlayer
                         )
                     }
                     composable("gallery") {
                         GalleryAlbumsScreen(
-                            onBack = { navController.popBackStack() },
+                            onBack = { navController.popBackStackOnce() },
                             onOpenAlbum = { bucketId -> navController.navigate("gallery/album/$bucketId") },
                             onOpenTrash = { navController.navigate("gallery/trash") },
                             onOpenPinned = { navController.navigate("gallery/pinned") }
                         )
                     }
                     composable("gallery/trash") {
-                        GalleryTrashScreen(onBack = { navController.popBackStack() })
+                        GalleryTrashScreen(onBack = { navController.popBackStackOnce() })
                     }
                     composable("gallery/album/{bucketId}") { backStackEntry ->
                         val bucketId = backStackEntry.arguments?.getString("bucketId")?.toLongOrNull() ?: 0L
                         GalleryAlbumGridScreen(
                             bucketId = bucketId,
-                            onBack = { navController.popBackStack() },
+                            onBack = { navController.popBackStackOnce() },
                             onOpenItem = { itemId -> navController.navigate("gallery/viewer/$bucketId/$itemId") }
                         )
                     }
@@ -359,7 +359,7 @@ fun MainScreen(
                         GalleryViewerScreen(
                             source = ViewerSource.Album(bucketId),
                             initialItemId = itemId,
-                            onBack = { navController.popBackStack() },
+                            onBack = { navController.popBackStackOnce() },
                             onCrop = { id -> navController.navigate("gallery/crop/$id") },
                             onTrim = { id -> navController.navigate("gallery/trim/$id") }
                         )
@@ -368,7 +368,7 @@ fun MainScreen(
                         GalleryViewerScreen(
                             source = ViewerSource.Pinned,
                             initialItemId = -1L,
-                            onBack = { navController.popBackStack() },
+                            onBack = { navController.popBackStackOnce() },
                             onCrop = { id -> navController.navigate("gallery/crop/$id") },
                             onTrim = { id -> navController.navigate("gallery/trim/$id") }
                         )
@@ -377,24 +377,24 @@ fun MainScreen(
                         GalleryViewerScreen(
                             source = ViewerSource.Wallet,
                             initialItemId = -1L,
-                            onBack = { navController.popBackStack() },
+                            onBack = { navController.popBackStackOnce() },
                             onCrop = { id -> navController.navigate("gallery/crop/$id") },
                             onTrim = { id -> navController.navigate("gallery/trim/$id") }
                         )
                     }
                     composable("gallery/crop/{itemId}") { backStackEntry ->
                         val itemId = backStackEntry.arguments?.getString("itemId")?.toLongOrNull() ?: 0L
-                        GalleryCropScreen(itemId = itemId, onBack = { navController.popBackStack() })
+                        GalleryCropScreen(itemId = itemId, onBack = { navController.popBackStackOnce() })
                     }
                     composable("gallery/trim/{itemId}") { backStackEntry ->
                         val itemId = backStackEntry.arguments?.getString("itemId")?.toLongOrNull() ?: 0L
-                        GalleryTrimScreen(itemId = itemId, onBack = { navController.popBackStack() })
+                        GalleryTrimScreen(itemId = itemId, onBack = { navController.popBackStackOnce() })
                     }
                     composable("notes") {
                         NotesListScreen(navController = navController)
                     }
                     composable("notes/trash") {
-                        NotesTrashScreen(onBack = { navController.popBackStack() })
+                        NotesTrashScreen(onBack = { navController.popBackStackOnce() })
                     }
                     composable(
                         "note/{noteId}?editAt={editAt}",
@@ -405,7 +405,7 @@ fun MainScreen(
                         NoteEditorScreen(
                             noteId = noteId,
                             initialEditOffset = editAt,
-                            onBack = { navController.popBackStack() }
+                            onBack = { navController.popBackStackOnce() }
                         )
                     }
                     navigation(startDestination = "lists", route = "flashcards") {
@@ -417,7 +417,7 @@ fun MainScreen(
                             FlashcardDetailScreen(
                                 listId = listId,
                                 navController = navController,
-                                onBack = { navController.popBackStack() }
+                                onBack = { navController.popBackStackOnce() }
                             )
                         }
                         composable("game/{listId}") { backStackEntry ->

@@ -67,6 +67,7 @@ import com.example.myapp.BackIconButton
 import com.example.myapp.flashcardRepository
 import com.example.myapp.LocalIsDarkMode
 import com.example.myapp.MyButton
+import com.example.myapp.popBackStackOnce
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.min
@@ -289,7 +290,7 @@ fun FlashcardGameScreen(listId: String, navController: NavController) {
                     onBack = {
                         if (!hasNavigatedBack) {
                             hasNavigatedBack = true
-                            navController.popBackStack()
+                            navController.popBackStackOnce()
                         }
                     }
                 )
@@ -520,7 +521,7 @@ fun FlashcardGameScreen(listId: String, navController: NavController) {
                         Spacer(Modifier.height(32.dp))
                         MyButton(
                             text = "Retour",
-                            onClick = { navController.popBackStack() },
+                            onClick = { navController.popBackStackOnce() },
                             modifier = Modifier.fillMaxWidth().height(56.dp)
                         )
                     }

@@ -29,9 +29,20 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.navigation.NavController
 
 // Jumps back to the main menu from anywhere. Provided by MainScreen.
 val LocalGoHome = compositionLocalOf<() -> Unit> { {} }
+
+/**
+ * Goes back one screen, unless that would empty the back stack. A plain popBackStack() on the last
+ * remaining destination leaves the NavHost with nothing to render: a blank screen with no way out.
+ * That is reachable by double tapping a back arrow, where the second tap lands while the screen is
+ * still on its way out and pops the main menu underneath it. Every back arrow goes through this.
+ */
+fun NavController.popBackStackOnce() {
+    if (previousBackStackEntry != null) popBackStack()
+}
 
 // Tap goes back, long press goes straight to the main menu.
 // Every back arrow in the app uses this so the shortcut works on every screen.
