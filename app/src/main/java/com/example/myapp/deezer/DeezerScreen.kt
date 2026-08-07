@@ -16,6 +16,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.myapp.deezerRepository
 import com.example.myapp.podcastRepository
+import com.example.myapp.popBackStackOnce
 import com.example.myapp.podcasts.PodcastEpisodesScreen
 import com.example.myapp.podcasts.PodcastFullPlayerSheet
 import com.example.myapp.podcasts.PodcastMiniPlayerBar
@@ -60,12 +61,12 @@ fun DeezerScreen(onBack: () -> Unit, openFullPlayerInitially: Boolean = false) {
                     )
                 }
                 composable("search") {
-                    DeezerSearchScreen(repo = repo, onBack = { nav.popBackStack() })
+                    DeezerSearchScreen(repo = repo, onBack = { nav.popBackStackOnce() })
                 }
                 composable("podcast/{favoriteId}") { entry ->
                     val favoriteId = entry.arguments?.getString("favoriteId")
                         ?.let { java.net.URLDecoder.decode(it, "UTF-8") }.orEmpty()
-                    PodcastEpisodesScreen(repo = podcastRepo, favoriteId = favoriteId, onBack = { nav.popBackStack() })
+                    PodcastEpisodesScreen(repo = podcastRepo, favoriteId = favoriteId, onBack = { nav.popBackStackOnce() })
                 }
                 composable("playlist/{id}/{title}") { entry ->
                     val id = entry.arguments?.getString("id").orEmpty()
@@ -75,7 +76,7 @@ fun DeezerScreen(onBack: () -> Unit, openFullPlayerInitially: Boolean = false) {
                         title = title,
                         playlistId = id,
                         loader = { repo.playlistTracks(id) },
-                        onBack = { nav.popBackStack() }
+                        onBack = { nav.popBackStackOnce() }
                     )
                 }
             }
