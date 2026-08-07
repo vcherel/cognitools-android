@@ -6,11 +6,13 @@ import android.os.Bundle
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.session.DefaultMediaNotificationProvider
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionResult
 import com.example.myapp.MainActivity
+import com.example.myapp.R
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 
@@ -39,6 +41,17 @@ class PodcastPlaybackService : MediaSessionService() {
             .setCallback(SessionCallback())
             .setSessionActivity(openPodcastsPendingIntent())
             .build()
+
+        // Its own notification id and channel, distinct from DeezerPlaybackService's: sharing
+        // Media3's defaults makes the two services fight over one notification, which ends with
+        // Android killing whichever is still foreground without one.
+        setMediaNotificationProvider(
+            DefaultMediaNotificationProvider.Builder(this)
+                .setNotificationId(NOTIFICATION_ID)
+                .setChannelId(CHANNEL_ID)
+                .setChannelName(R.string.podcast_notification_channel)
+                .build()
+        )
     }
 
     // Podcasts no longer has its own top-level route: it lives inside the Musique tool (followed
@@ -105,5 +118,9 @@ class PodcastPlaybackService : MediaSessionService() {
     companion object {
         // Not private: PodcastRepository sends this from the UI (the "stop everything" button).
         const val CMD_STOP_ALL = "com.example.myapp.podcasts.STOP_ALL"
+
+        // Must differ from DeezerPlaybackService's, see the provider set up in onCreate.
+        private const val NOTIFICATION_ID = 1002
+        private const val CHANNEL_ID = "podcast_playback"
     }
 }

@@ -2,6 +2,7 @@ package com.example.myapp.podcasts
 
 import android.content.ComponentName
 import android.content.Context
+import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import androidx.media3.common.MediaItem
@@ -351,6 +352,10 @@ class PodcastRepository(private val appContext: Context) {
             throw IllegalStateException("Ce podcast doit être réajouté depuis la recherche pour pouvoir être lu")
         }
         val startIndex = queue.indexOfFirst { it.id == episode.id }.coerceAtLeast(0)
+        // One player at a time, the mirror of what DeezerRepository does when music starts: two of
+        // this app's playback services running at once means two foreground services fighting over
+        // audio focus.
+        withContext(Dispatchers.Main) { appContext.deezerRepository.stopAll() }
         val controller = ensureController()
         val items = queue.map { buildMediaItem(it) }
         withContext(Dispatchers.Main) {
@@ -371,11 +376,18 @@ class PodcastRepository(private val appContext: Context) {
     /** Pauses, drops the notification, and stops the playback service entirely. */
     fun stopAll() {
         cancelSleepTimer()
-        val c = controller ?: return
-        c.sendCustomCommand(SessionCommand(PodcastPlaybackService.CMD_STOP_ALL, Bundle.EMPTY), Bundle.EMPTY)
-        c.release()
-        controller = null
-        controllerDeferred = null
+        val c = controller
+        if (c != null) {
+            c.sendCustomCommand(SessionCommand(PodcastPlaybackService.CMD_STOP_ALL, Bundle.EMPTY), Bundle.EMPTY)
+            c.release()
+            controller = null
+            controllerDeferred = null
+        } else {
+            // The service outlives the process's controller when playback was started in an earlier
+            // app session and kept going in the background. Nothing is bound to it then, so stopping
+            // the service outright is what actually ends it.
+            appContext.stopService(Intent(appContext, PodcastPlaybackService::class.java))
+        }
         _playerState.value = PodcastPlayerUiState()
     }
 

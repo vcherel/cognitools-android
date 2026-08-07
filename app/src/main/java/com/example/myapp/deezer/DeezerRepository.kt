@@ -2,6 +2,7 @@ package com.example.myapp.deezer
 
 import android.content.ComponentName
 import android.content.Context
+import android.content.Intent
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.net.Uri
@@ -17,6 +18,7 @@ import androidx.media3.datasource.cache.SimpleCache
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionToken
+import com.example.myapp.podcastRepository
 import com.google.common.util.concurrent.MoreExecutors
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
@@ -609,6 +611,7 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
      * a plain queue whose order was already randomized in Kotlin before it gets here.
      */
     private suspend fun setQueue(tracks: List<DeezerTrack>, startIndex: Int, source: TrackSource?) {
+        stopPodcastPlayback()
         val controller = ensureController()
         queuedTracks.clear()
         val items = tracks.map { buildMediaItem(it, source = source) }
@@ -681,6 +684,7 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
         val controller = ensureController()
         withContext(Dispatchers.Main) {
             if (controller.mediaItemCount == 0) {
+                stopPodcastPlayback()
                 controller.setMediaItem(buildMediaItem(track))
                 controller.prepare()
                 controller.play()
@@ -710,12 +714,29 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
      * this the service's own stopSelf() would have no real effect until the app itself goes away.
      */
     fun stopAll() {
-        val c = controller ?: return
-        c.sendCustomCommand(SessionCommand(DeezerPlaybackService.CMD_STOP_ALL, Bundle.EMPTY), Bundle.EMPTY)
-        c.release()
-        controller = null
-        controllerDeferred = null
+        val c = controller
+        if (c != null) {
+            c.sendCustomCommand(SessionCommand(DeezerPlaybackService.CMD_STOP_ALL, Bundle.EMPTY), Bundle.EMPTY)
+            c.release()
+            controller = null
+            controllerDeferred = null
+        } else {
+            // The service outlives the process's controller when playback was started in an earlier
+            // app session and kept going in the background. Nothing is bound to it then, so stopping
+            // the service outright is what actually ends it.
+            appContext.stopService(Intent(appContext, DeezerPlaybackService::class.java))
+        }
         _playerState.value = PlayerUiState()
+    }
+
+    /**
+     * Ends whatever the podcast player was doing. One player at a time: two of this app's playback
+     * services running at once means two foreground services fighting over audio focus, and it is
+     * the case that used to take the app down when music was started over a playing podcast.
+     * Main thread only, like every other MediaController call.
+     */
+    private suspend fun stopPodcastPlayback() {
+        withContext(Dispatchers.Main) { appContext.podcastRepository.stopAll() }
     }
 
     /**
