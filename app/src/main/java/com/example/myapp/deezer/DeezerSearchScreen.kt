@@ -47,7 +47,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.example.myapp.AppSnackbar
+import com.example.myapp.RecentSearchChips
 import com.example.myapp.ScreenTopBar
+import com.example.myapp.SearchHistory
+import com.example.myapp.SearchSurface
 import com.example.myapp.ShowAlertDialog
 import com.example.myapp.podcastRepository
 import com.example.myapp.podcasts.PodcastArt
@@ -78,6 +81,13 @@ fun DeezerSearchScreen(repo: DeezerRepository, onBack: () -> Unit) {
             placeholder = { Text(if (mode == SearchMode.MUSIQUE) "Titre, artiste…" else "Nom du podcast…") },
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
         )
+        if (query.isBlank()) {
+            RecentSearchChips(
+                surface = if (mode == SearchMode.MUSIQUE) SearchSurface.MUSIC else SearchSurface.PODCAST,
+                onPick = { query = it },
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+            )
+        }
         when (mode) {
             SearchMode.MUSIQUE -> MusicSearch(repo = repo, query = query, scope = scope)
             SearchMode.PODCAST -> PodcastSearch(podcastRepo = podcastRepo, query = query, scope = scope)
@@ -161,6 +171,8 @@ private fun MusicSearch(repo: DeezerRepository, query: String, scope: kotlinx.co
             artist = artistDeferred.await()
         }
         searching = false
+        // Only a search that found something is worth offering again later.
+        if (results.isNotEmpty() || artist != null) SearchHistory.record(context, SearchSurface.MUSIC, q)
     }
 
     if (searching && results.isEmpty()) {
@@ -221,6 +233,7 @@ private fun MusicSearch(repo: DeezerRepository, query: String, scope: kotlinx.co
 /** Empty query: Deezer's trending shows as recommendations. Non-empty: merged iTunes+Deezer search. */
 @Composable
 private fun PodcastSearch(podcastRepo: PodcastRepository, query: String, scope: kotlinx.coroutines.CoroutineScope) {
+    val context = LocalContext.current
     var results by remember { mutableStateOf<List<PodcastCatalogItem>>(emptyList()) }
     var recommendations by remember { mutableStateOf<List<PodcastCatalogItem>>(emptyList()) }
     var loading by remember { mutableStateOf(false) }
@@ -239,6 +252,7 @@ private fun PodcastSearch(podcastRepo: PodcastRepository, query: String, scope: 
         delay(350)
         results = runCatching { podcastRepo.searchCatalog(q) }.getOrDefault(emptyList())
         loading = false
+        if (results.isNotEmpty()) SearchHistory.record(context, SearchSurface.PODCAST, q)
     }
 
     val shown = query.trim().let { if (it.isBlank()) recommendations else results }

@@ -63,6 +63,11 @@ import com.example.myapp.BackupRestoreActions
 import com.example.myapp.BottomFadeOverlay
 import com.example.myapp.LocalIsDarkMode
 import com.example.myapp.MyButton
+import com.example.myapp.popBackStackOnce
+import com.example.myapp.RecentSearchChips
+import com.example.myapp.SearchHistory
+import com.example.myapp.SearchSurface
+import com.example.myapp.ShowAlertDialog
 import com.example.myapp.flashcards.AppDatabase
 import com.example.myapp.flashcards.formatDuration
 import kotlinx.coroutines.launch
@@ -105,10 +110,14 @@ fun NotesListScreen(navController: NavController) {
     LaunchedEffect(dao) {
         dao.observeNotes().collect { notes = it }
     }
-    var trashedCount by remember { mutableStateOf(0) }
+    // The whole list, not just its size: a search looks through the trash too.
+    var trashedNotes by remember { mutableStateOf<List<Note>>(emptyList()) }
     LaunchedEffect(dao) {
-        dao.observeTrashedNotes().collect { trashedCount = it.size }
+        dao.observeTrashedNotes().collect { trashedNotes = it }
     }
+    val trashedCount = trashedNotes.size
+    // Set while a "supprimer définitivement" confirmation is waiting on a trashed search result.
+    var confirmDelete by remember { mutableStateOf<Note?>(null) }
 
     // Rewrites a note's lines and saves it, for the edits the pinned Todo widget makes in place.
     fun updateNoteLines(note: Note, onSaved: () -> Unit = {}, transform: (MutableList<String>) -> Unit) {
@@ -128,10 +137,20 @@ fun NotesListScreen(navController: NavController) {
     LaunchedEffect(searchActive) {
         if (searchActive) searchFocusRequester.requestFocus()
     }
-    BackHandler(enabled = searchActive) {
+    // Notes are filtered live as you type, so there is no "search" event to hang the history on.
+    // The two moments a search is visibly over are instead what gets remembered: closing the bar,
+    // and opening one of the results.
+    fun recordSearch() {
+        if (searchActive) SearchHistory.record(context, SearchSurface.NOTES, searchQuery)
+    }
+    fun closeSearch() {
+        recordSearch()
         searchActive = false
         searchQuery = ""
     }
+    BackHandler(enabled = searchActive) { closeSearch() }
+
+    val searchTerms = remember(searchQuery) { searchTermsOf(searchQuery) }
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
@@ -159,7 +178,7 @@ fun NotesListScreen(navController: NavController) {
                             placeholder = { Text("Rechercher dans les notes") },
                             singleLine = true,
                             leadingIcon = {
-                                IconButton(onClick = { searchActive = false; searchQuery = "" }) {
+                                IconButton(onClick = { closeSearch() }) {
                                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Fermer la recherche")
                                 }
                             },
@@ -172,7 +191,7 @@ fun NotesListScreen(navController: NavController) {
                             }
                         )
                     } else {
-                        BackIconButton(onBack = { navController.popBackStack() })
+                        BackIconButton(onBack = { navController.popBackStackOnce() })
                         Text(
                             "Notes",
                             style = MaterialTheme.typography.headlineSmall,
@@ -201,6 +220,14 @@ fun NotesListScreen(navController: NavController) {
                 }
             }
 
+            if (searchActive && searchQuery.isBlank()) {
+                RecentSearchChips(
+                    surface = SearchSurface.NOTES,
+                    onPick = { searchQuery = it },
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+            }
+
             Spacer(Modifier.height(16.dp))
 
             Box(
@@ -210,14 +237,13 @@ fun NotesListScreen(navController: NavController) {
                 contentAlignment = Alignment.Center
             ) {
                 val currentNotes = notes
-                val displayedNotes = remember(currentNotes, searchQuery) {
-                    currentNotes.orEmpty().let { list ->
-                        if (searchQuery.isBlank()) list
-                        else list.filter { note ->
-                            note.title.contains(searchQuery, ignoreCase = true) ||
-                                    note.content.contains(searchQuery, ignoreCase = true)
-                        }
-                    }
+                val displayedNotes = remember(currentNotes, searchTerms) {
+                    currentNotes.orEmpty().filter { noteMatchesSearch(it, searchTerms) }
+                }
+                // Something deleted by mistake stays findable without opening the trash screen.
+                val trashedMatches = remember(trashedNotes, searchTerms) {
+                    if (searchTerms.isEmpty()) emptyList()
+                    else trashedNotes.filter { noteMatchesSearch(it, searchTerms) }
                 }
                 val todoNote = remember(currentNotes) {
                     currentNotes?.firstOrNull {
@@ -237,7 +263,7 @@ fun NotesListScreen(navController: NavController) {
                         "Aucune note",
                         style = MaterialTheme.typography.bodyMedium
                     )
-                    gridNotes.isEmpty() && pinnedTodo == null && searchQuery.isNotBlank() -> Text(
+                    gridNotes.isEmpty() && pinnedTodo == null && trashedMatches.isEmpty() && searchQuery.isNotBlank() -> Text(
                         "Aucun résultat",
                         style = MaterialTheme.typography.bodyMedium
                     )
@@ -282,7 +308,11 @@ fun NotesListScreen(navController: NavController) {
                             items(items = gridNotes, key = { it.id }) { note ->
                                 NoteItem(
                                     note = note,
-                                    onNavigate = { navController.navigate("note/${note.id}") },
+                                    searchTerms = searchTerms,
+                                    onNavigate = {
+                                        recordSearch()
+                                        navController.navigate("note/${note.id}")
+                                    },
                                     onRecolor = {
                                         // Keep updatedAt so recoloring does not reorder the list
                                         scope.launch { dao.upsertNote(note.copy(color = nextNoteColor(note.color))) }
@@ -299,7 +329,35 @@ fun NotesListScreen(navController: NavController) {
                                     }
                                 )
                             }
-                            if (trashedCount > 0) {
+                            if (trashedMatches.isNotEmpty()) {
+                                item(key = "trash-heading", span = StaggeredGridItemSpan.FullLine) {
+                                    Text(
+                                        "Dans la corbeille",
+                                        style = MaterialTheme.typography.titleSmall,
+                                        color = Color.Gray,
+                                        modifier = Modifier.padding(top = 8.dp)
+                                    )
+                                }
+                                items(
+                                    items = trashedMatches,
+                                    key = { "trashed-${it.id}" },
+                                    span = { StaggeredGridItemSpan.FullLine }
+                                ) { note ->
+                                    TrashedNoteCard(
+                                        note = note,
+                                        searchTerms = searchTerms,
+                                        onRestore = {
+                                            recordSearch()
+                                            scope.launch {
+                                                dao.restoreNote(note.id)
+                                                AppSnackbar.show("Note restaurée")
+                                            }
+                                        },
+                                        onDeleteForever = { confirmDelete = note }
+                                    )
+                                }
+                            }
+                            if (trashedCount > 0 && searchTerms.isEmpty()) {
                                 item(key = "trash-entry", span = StaggeredGridItemSpan.FullLine) {
                                     TrashEntryRow(
                                         count = trashedCount,
@@ -329,6 +387,18 @@ fun NotesListScreen(navController: NavController) {
                 onClick = { navController.navigate("note/new") }
             )
         }
+    }
+
+    confirmDelete?.let { note ->
+        ShowAlertDialog(
+            onDismiss = { confirmDelete = null },
+            title = "Supprimer définitivement cette note ?",
+            onCancel = { confirmDelete = null },
+            onConfirm = {
+                confirmDelete = null
+                scope.launch { dao.deleteNote(note.id) }
+            }
+        )
     }
 }
 
@@ -512,25 +582,32 @@ private fun NoteItem(
     note: Note,
     onNavigate: () -> Unit,
     onRecolor: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    searchTerms: List<String> = emptyList()
 ) {
     val (title, preview) = remember(note) { noteTitleAndPreview(note) }
+    // While searching, the line that actually matched replaces the usual first lines, so a card
+    // whose hit is buried deep in the note explains itself.
+    val shownLine = remember(note, searchTerms) {
+        matchingLineOf(note, searchTerms) ?: preview
+    }
+    val highlighted = highlightedSearchText(shownLine, searchTerms)
 
     NoteCard(note = note, onClick = onNavigate) {
         if (note.locked) {
             LockedNoteTitle(note)
         } else {
             Text(
-                title,
+                highlightedSearchText(title, searchTerms),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
-            if (preview.isNotEmpty()) {
+            if (shownLine.isNotEmpty()) {
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    preview,
+                    highlighted,
                     style = MaterialTheme.typography.bodyMedium,
                     color = Color.Gray,
                     maxLines = 3,
