@@ -18,6 +18,7 @@ import androidx.media3.datasource.cache.CacheDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.session.CommandButton
+import androidx.media3.session.DefaultMediaNotificationProvider
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 import androidx.media3.session.SessionCommand
@@ -86,6 +87,19 @@ class DeezerPlaybackService : MediaSessionService() {
             .setMediaButtonPreferences(actionButtons(liked = false, inPepites = false))
             .setSessionActivity(openDeezerPendingIntent())
             .build()
+
+        // Media3's default provider gives every MediaSessionService the same notification id and
+        // channel. With two of them in one app (this one and PodcastPlaybackService), whichever
+        // started second steals the other's notification, and the first one tearing its own down
+        // then pulls the notification out from under a service that is still foreground, which
+        // Android kills the process for. Each service therefore gets its own id and channel.
+        setMediaNotificationProvider(
+            DefaultMediaNotificationProvider.Builder(this)
+                .setNotificationId(NOTIFICATION_ID)
+                .setChannelId(CHANNEL_ID)
+                .setChannelName(R.string.music_notification_channel)
+                .build()
+        )
 
         // The heart also flips when the track is liked from the app itself.
         scope.launch { repo.favoriteIds.collect { refreshActionButtons() } }
@@ -366,6 +380,10 @@ class DeezerPlaybackService : MediaSessionService() {
         private const val MAX_SKIPS = 5
         private const val CMD_TOGGLE_LIKE = "com.example.myapp.deezer.TOGGLE_LIKE"
         private const val CMD_ADD_PEPITES = "com.example.myapp.deezer.ADD_BEST_PEPITES"
+
+        // Must differ from PodcastPlaybackService's, see the provider set up in onCreate.
+        private const val NOTIFICATION_ID = 1001
+        private const val CHANNEL_ID = "music_playback"
 
         // Not private: DeezerRepository sends this from the UI (the "stop everything" button), so it
         // needs the same action string the session was told to accept above.
