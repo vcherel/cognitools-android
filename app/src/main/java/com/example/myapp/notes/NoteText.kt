@@ -6,7 +6,9 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.withStyle
+import java.text.Normalizer
 
 // A note is plain text. Everything the app reads into it (checkboxes, separators, inline markers,
 // quantity and waiting-date suffixes) is a convention on a line's characters, parsed here.
@@ -100,6 +102,85 @@ fun noteTitleAndPreview(note: Note): Pair<String, String> {
         note.title to lines.getOrElse(0) { "" }
     } else {
         lines.getOrElse(0) { "Note vide" } to lines.getOrElse(1) { "" }
+    }
+}
+
+// ---- Searching notes ----
+
+/**
+ * Lowercased and stripped of accents, so "creme" finds "crème". Deliberately one output character
+ * per input character (a decomposed letter keeps only its base): every index into the result is also
+ * a valid index into the original, which is what lets [searchMatchRanges] highlight what it found.
+ */
+fun normalizeForSearch(text: String): String {
+    val out = StringBuilder(text.length)
+    for (ch in text) {
+        val base = Normalizer.normalize(ch.toString(), Normalizer.Form.NFD).firstOrNull() ?: ch
+        out.append(base.lowercaseChar())
+    }
+    return out.toString()
+}
+
+/**
+ * The query split into the words a note has to contain. Order and position don't matter: "poulet
+ * riz" finds a note holding both words anywhere, which is the useful reading for a shopping list.
+ */
+fun searchTermsOf(query: String): List<String> =
+    normalizeForSearch(query).split(' ', '\n', '\t').filter { it.isNotBlank() }
+
+/** True when every term of [terms] appears somewhere in the note's title or body. */
+fun noteMatchesSearch(note: Note, terms: List<String>): Boolean {
+    if (terms.isEmpty()) return true
+    val haystack = normalizeForSearch(note.title) + "\n" + normalizeForSearch(note.content)
+    return terms.all { haystack.contains(it) }
+}
+
+/**
+ * The note's own line that best explains why it matched: the one holding the most search terms.
+ * Null when nothing in the body matched (the match was in the title alone), leaving the caller to
+ * show its usual preview.
+ */
+fun matchingLineOf(note: Note, terms: List<String>): String? {
+    if (terms.isEmpty()) return null
+    return note.content.lineSequence()
+        .filterNot { it.isSeparatorLine() }
+        .map { it.checkboxText().formatInline().text.trim() }
+        .filter { it.isNotEmpty() }
+        .map { line -> line to terms.count { normalizeForSearch(line).contains(it) } }
+        .filter { it.second > 0 }
+        .maxByOrNull { it.second }
+        ?.first
+}
+
+/** Where each term of [terms] sits in [text], for highlighting. Ranges may overlap. */
+fun searchMatchRanges(text: String, terms: List<String>): List<IntRange> {
+    val normalized = normalizeForSearch(text)
+    return terms.flatMap { term ->
+        val ranges = mutableListOf<IntRange>()
+        var from = normalized.indexOf(term)
+        while (from >= 0) {
+            ranges += from until (from + term.length)
+            from = normalized.indexOf(term, from + term.length)
+        }
+        ranges
+    }
+}
+
+// Note cards come in eight colors and two themes, so the highlight carries its own text color
+// rather than inheriting one that might land on top of it.
+private val SEARCH_HIGHLIGHT_STYLE = SpanStyle(
+    background = Color(0xFFFFD54F),
+    color = Color(0xFF1F1F1F),
+    fontWeight = FontWeight.Bold
+)
+
+/** [text] with every hit of [terms] painted, for the search result cards. */
+fun highlightedSearchText(text: String, terms: List<String>): AnnotatedString {
+    val ranges = searchMatchRanges(text, terms)
+    if (ranges.isEmpty()) return AnnotatedString(text)
+    return buildAnnotatedString {
+        append(text)
+        ranges.forEach { range -> addStyle(SEARCH_HIGHLIGHT_STYLE, range.first, range.last + 1) }
     }
 }
 

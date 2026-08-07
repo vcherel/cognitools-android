@@ -136,9 +136,16 @@ fun NotesTrashScreen(onBack: () -> Unit) {
     )
 }
 
+/** Not private: the notes list reuses this for the trashed notes a search turned up. */
 @Composable
-private fun TrashedNoteCard(note: Note, onRestore: () -> Unit, onDeleteForever: () -> Unit) {
+internal fun TrashedNoteCard(
+    note: Note,
+    onRestore: () -> Unit,
+    onDeleteForever: () -> Unit,
+    searchTerms: List<String> = emptyList()
+) {
     val (title, preview) = remember(note) { noteTitleAndPreview(note) }
+    val shownLine = remember(note, searchTerms) { matchingLineOf(note, searchTerms) ?: preview }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -159,16 +166,16 @@ private fun TrashedNoteCard(note: Note, onRestore: () -> Unit, onDeleteForever: 
                 }
             } else {
                 Text(
-                    title,
+                    highlightedSearchText(title, searchTerms),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                if (preview.isNotEmpty()) {
+                if (shownLine.isNotEmpty()) {
                     Spacer(Modifier.height(4.dp))
                     Text(
-                        preview,
+                        highlightedSearchText(shownLine, searchTerms),
                         style = MaterialTheme.typography.bodyMedium,
                         color = Color.Gray,
                         maxLines = 2,

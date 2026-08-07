@@ -352,6 +352,7 @@ private fun LocationChip(label: String, onClick: () -> Unit, modifier: Modifier 
 
 @Composable
 private fun CitySearchDialog(onCitySelected: (CityLocation?) -> Unit, onDismiss: () -> Unit) {
+    val context = LocalContext.current
     var query by remember { mutableStateOf("") }
     var results by remember { mutableStateOf<List<CityLocation>>(emptyList()) }
     var isSearching by remember { mutableStateOf(false) }
@@ -374,6 +375,7 @@ private fun CitySearchDialog(onCitySelected: (CityLocation?) -> Unit, onDismiss:
         } finally {
             isSearching = false
         }
+        if (results.isNotEmpty()) SearchHistory.record(context, SearchSurface.CITY, query.trim())
     }
 
     AppDialog(onDismiss = onDismiss) {
@@ -386,6 +388,13 @@ private fun CitySearchDialog(onCitySelected: (CityLocation?) -> Unit, onDismiss:
             singleLine = true,
             modifier = Modifier.fillMaxWidth()
         )
+        if (query.isBlank()) {
+            RecentSearchChips(
+                surface = SearchSurface.CITY,
+                onPick = { query = it },
+                modifier = Modifier.padding(top = 8.dp)
+            )
+        }
         Spacer(Modifier.height(4.dp))
         Row(
             modifier = Modifier
