@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -99,6 +100,9 @@ fun FlashcardDetailScreen(
     val listName = remember(lists, listId) {
         if (isAllLists) "Tout"
         else lists.find { it.id == listId }?.name ?: ""
+    }
+    val listFixedSide = remember(lists, listId) {
+        !isAllLists && lists.find { it.id == listId }?.fixedSide == true
     }
 
     // Local mutable list for fast UI updates
@@ -245,6 +249,29 @@ fun FlashcardDetailScreen(
                                     onClick = {
                                         sortMode = if (sortMode == first) second else first
                                         showSortMenu = false
+                                    }
+                                )
+                            }
+                            // "Tout" spans every list, so there is no single list to fix a side on.
+                            if (!isAllLists) {
+                                HorizontalDivider()
+                                DropdownMenuItem(
+                                    text = { Text("Liste à une seule face") },
+                                    trailingIcon = {
+                                        Switch(checked = listFixedSide, onCheckedChange = null)
+                                    },
+                                    onClick = {
+                                        val fixed = !listFixedSide
+                                        showSortMenu = false
+                                        scope.launch {
+                                            repository.setListFixedSide(listId, fixed)
+                                            Toast.makeText(
+                                                context,
+                                                if (fixed) "Toutes les cartes passent à une seule face"
+                                                else "Seules les nouvelles cartes retrouvent les deux faces",
+                                                Toast.LENGTH_SHORT
+                                            ).show()
+                                        }
                                     }
                                 )
                             }
@@ -450,6 +477,7 @@ fun FlashcardDetailScreen(
     if (showEditDialog) {
         ElementEditDialog(
             element = editingElement,
+            defaultRandomSide = !listFixedSide,
             onDismiss = { showEditDialog = false },
             onSave = { name, definition, randomSide ->
                 scope.launch {
@@ -495,12 +523,13 @@ fun FlashcardDetailScreen(
 @Composable
 private fun ElementEditDialog(
     element: FlashcardElement?,
+    defaultRandomSide: Boolean,
     onDismiss: () -> Unit,
     onSave: (name: String, definition: String, randomSide: Boolean) -> Unit
 ) {
     var name by remember { mutableStateOf(element?.name ?: "") }
     var definition by remember { mutableStateOf(element?.definition ?: "") }
-    var randomSide by remember { mutableStateOf(element?.randomSide ?: true) }
+    var randomSide by remember { mutableStateOf(element?.randomSide ?: defaultRandomSide) }
     val definitionFocusRequester = remember { FocusRequester() }
 
     fun save() {
