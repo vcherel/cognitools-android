@@ -5,9 +5,13 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.util.Log
+import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
+import androidx.media3.datasource.DataSpec
+import androidx.media3.datasource.cache.CacheWriter
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionToken
@@ -16,17 +20,21 @@ import com.example.myapp.deezerRepository
 import com.example.myapp.flashcards.AppDatabase
 import com.example.myapp.httpGet
 import com.google.common.util.concurrent.MoreExecutors
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -36,7 +44,12 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.security.MessageDigest
 
+private const val TAG = "PodcastRepository"
+
 private val RADIO_FRANCE_STATIONS = listOf("franceinter", "franceculture", "franceinfo", "francemusique", "mouv", "fip")
+
+// Secured past the timer's end, so nodding off with a couple of minutes left over still plays out.
+private const val SLEEP_PRELOAD_MARGIN_MS = 120_000L
 
 data class PodcastPlayerUiState(
     val hasItem: Boolean = false,
@@ -476,9 +489,17 @@ class PodcastRepository(private val appContext: Context) {
 
     private val timerScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private var sleepTimerJob: Job? = null
+    private var sleepPreloadJob: Job? = null
 
     private val _sleepTimerEndAt = MutableStateFlow<Long?>(null)
     val sleepTimerEndAt: StateFlow<Long?> = _sleepTimerEndAt
+
+    /**
+     * How much of the audio needed to reach the sleep timer's end is on the phone, 0..1, or null
+     * when no timer is running. At 1 the rest plays with no connection, so airplane mode is safe.
+     */
+    private val _sleepCacheProgress = MutableStateFlow<Float?>(null)
+    val sleepCacheProgress: StateFlow<Float?> = _sleepCacheProgress
 
     /** Pauses playback in [minutes]. Replaces any timer already running. */
     fun startSleepTimer(minutes: Int) {
@@ -488,13 +509,129 @@ class PodcastRepository(private val appContext: Context) {
             delay(minutes * 60_000L)
             withContext(Dispatchers.Main) { controller?.pause() }
             _sleepTimerEndAt.value = null
+            _sleepCacheProgress.value = null
         }
-        // Falling asleep usually means the phone is about to go offline (airplane mode): pull the
-        // episode to disk right away so playback can't die with the connection. The full player
-        // shows how far this has got, so it's visible when switching is safe.
-        currentEpisode()?.let { episode ->
-            timerScope.launch { runCatching { downloadEpisode(episode) } }
+        preloadForSleepTimer(minutes)
+    }
+
+    /**
+     * Falling asleep usually means the phone is about to go offline (airplane mode), so the audio
+     * needed to reach the timer's end is pulled in right away. Only that stretch, and only into the
+     * stream cache: it is not a download, the episode isn't listed as downloaded, and playback keeps
+     * streaming past it normally while there is still a connection.
+     */
+    private fun preloadForSleepTimer(minutes: Int) {
+        sleepPreloadJob?.cancel()
+        val episode = currentEpisode()
+        if (episode == null || episode.audioUrl.isBlank()) {
+            _sleepCacheProgress.value = null
+            return
         }
+        // A fully downloaded episode plays from its own file, with nothing left to secure.
+        if (isDownloaded(episode.id)) {
+            _sleepCacheProgress.value = 1f
+            return
+        }
+        _sleepCacheProgress.value = 0f
+        sleepPreloadJob = timerScope.launch {
+            val (positionMs, durationMs) = withContext(Dispatchers.Main) {
+                val c = controller
+                (c?.currentPosition ?: 0L) to (c?.duration ?: C.TIME_UNSET)
+            }
+            runCatching { cacheForSleepTimer(episode, positionMs, durationMs, minutes) }
+                .onSuccess { _sleepCacheProgress.value = 1f }
+                .onFailure { e ->
+                    if (e is CancellationException) throw e
+                    Log.w(TAG, "Sleep pre-fetch failed for ${episode.title}, downloading it whole", e)
+                    downloadWholeForSleepTimer(episode, positionMs, durationMs, minutes)
+                }
+        }
+    }
+
+    /**
+     * Fallback when the partial pre-fetch can't be done, typically a host that doesn't serve byte
+     * ranges: the whole episode is downloaded instead. That costs more data and does show it as a
+     * downloaded episode, which is the price of being sure it plays through the night.
+     */
+    private suspend fun downloadWholeForSleepTimer(
+        episode: PodcastEpisode,
+        positionMs: Long,
+        durationMs: Long,
+        minutes: Int
+    ) = coroutineScope {
+        val knownDurationMs = durationMs.takeIf { it > 0 } ?: ((episode.durationSec ?: 0) * 1000L)
+        val neededMs = (positionMs + minutes * 60_000L + SLEEP_PRELOAD_MARGIN_MS)
+            .let { if (knownDurationMs > 0) it.coerceAtMost(knownDurationMs) else it }
+        // The download runs from the start of the file, so what matters is when it gets past the
+        // timer's end, not when the whole episode is there: the badge is safe from that point on.
+        val neededFraction = if (knownDurationMs > 0) neededMs.toFloat() / knownDurationMs else 1f
+        val mirror = launch {
+            downloadProgress.collect { progress ->
+                progress[episode.id]?.let { done ->
+                    _sleepCacheProgress.value = (done / neededFraction).coerceIn(0f, 1f)
+                }
+            }
+        }
+        try {
+            // A manual download of the same episode already running would make downloadEpisode a
+            // no-op, so wait it out instead of calling the night secured the moment it returns.
+            if (episode.id in _downloadingIds.value) {
+                _downloadedKeys.first { downloadKey(episode.id) in it }
+            } else {
+                downloadEpisode(episode)
+            }
+            _sleepCacheProgress.value = 1f
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            // Progress stays where it stopped: below 100% is exactly the warning that airplane mode
+            // would cut the episode off.
+            Log.w(TAG, "Sleep download failed for ${episode.title}", e)
+        } finally {
+            mirror.cancel()
+        }
+    }
+
+    /** Caches the byte range covering [positionMs] to the timer's end (plus a margin), and nothing else. */
+    private suspend fun cacheForSleepTimer(
+        episode: PodcastEpisode,
+        positionMs: Long,
+        durationMs: Long,
+        minutes: Int
+    ) = withContext(Dispatchers.IO) {
+        val totalBytes = PodcastStreamCache.knownContentLength(appContext, episode.audioUrl)
+            .takeIf { it > 0 }
+            ?: runCatching {
+                val conn = openAudio(episode.audioUrl)
+                conn.contentLengthLong.also { conn.disconnect() }
+            }.getOrDefault(C.LENGTH_UNSET.toLong())
+        val knownDurationMs = durationMs.takeIf { it > 0 } ?: ((episode.durationSec ?: 0) * 1000L)
+        // The file's own average bitrate when both ends are known; without them a 128 kbps guess,
+        // high enough for spoken word that it over-fetches rather than leaving the timer uncovered.
+        val bytesPerMs = if (totalBytes > 0 && knownDurationMs > 0) totalBytes.toDouble() / knownDurationMs else 16.0
+
+        val start = (positionMs * bytesPerMs).toLong().coerceAtLeast(0L)
+        var length = ((minutes * 60_000L + SLEEP_PRELOAD_MARGIN_MS) * bytesPerMs).toLong()
+        if (totalBytes > 0) length = length.coerceAtMost(totalBytes - start)
+        if (length <= 0) return@withContext
+
+        val spec = DataSpec.Builder()
+            .setUri(Uri.parse(episode.audioUrl))
+            .setPosition(start)
+            .setLength(length)
+            .build()
+        val writer = CacheWriter(
+            PodcastStreamCache.cacheDataSourceFactory(appContext).createDataSource(),
+            spec,
+            null,
+            CacheWriter.ProgressListener { requestLength, bytesCached, _ ->
+                if (requestLength > 0) {
+                    _sleepCacheProgress.value = (bytesCached.toFloat() / requestLength).coerceIn(0f, 1f)
+                }
+            }
+        )
+        // runInterruptible so cancelling the timer actually aborts the fetch in flight.
+        runInterruptible { writer.cache() }
     }
 
     private fun currentEpisode(): PodcastEpisode? =
@@ -503,7 +640,10 @@ class PodcastRepository(private val appContext: Context) {
     fun cancelSleepTimer() {
         sleepTimerJob?.cancel()
         sleepTimerJob = null
+        sleepPreloadJob?.cancel()
+        sleepPreloadJob = null
         _sleepTimerEndAt.value = null
+        _sleepCacheProgress.value = null
     }
 
     private fun buildMediaItem(episode: PodcastEpisode): MediaItem {

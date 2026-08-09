@@ -6,6 +6,7 @@ import android.os.Bundle
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.session.DefaultMediaNotificationProvider
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
@@ -18,8 +19,10 @@ import com.google.common.util.concurrent.ListenableFuture
 
 /**
  * Background playback for the Podcasts tool. A plain MediaSessionService/ExoPlayer streaming
- * episode audio directly over https: no crypto, no cache, unlike DeezerPlaybackService. Media3
- * provides the media notification and lockscreen controls for free.
+ * episode audio over https, with no crypto unlike DeezerPlaybackService. It streams through
+ * [PodcastStreamCache], so what has already been fetched (including the stretch the sleep timer
+ * secures ahead of time) plays with no connection. Media3 provides the media notification and
+ * lockscreen controls for free.
  */
 class PodcastPlaybackService : MediaSessionService() {
 
@@ -28,6 +31,7 @@ class PodcastPlaybackService : MediaSessionService() {
     override fun onCreate() {
         super.onCreate()
         val player = ExoPlayer.Builder(this)
+            .setMediaSourceFactory(DefaultMediaSourceFactory(PodcastStreamCache.playerDataSourceFactory(this)))
             .setAudioAttributes(
                 AudioAttributes.Builder()
                     .setUsage(C.USAGE_MEDIA)

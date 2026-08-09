@@ -121,8 +121,7 @@ fun PodcastFullPlayerSheet(
     val goHome = LocalGoHome.current
     val episodes by repo.episodes.collectAsState()
     val isSeen = episodes.firstOrNull { it.id == state.episodeId }?.seen == true
-    val downloadedKeys by repo.downloadedKeys.collectAsState()
-    val downloadProgress by repo.downloadProgress.collectAsState()
+    val sleepCacheProgress by repo.sleepCacheProgress.collectAsState()
     val sleepTimerEndAt by repo.sleepTimerEndAt.collectAsState()
     var showSleepTimerDialog by remember { mutableStateOf(false) }
     var sleepTimerRemainingMs by remember { mutableStateOf<Long?>(null) }
@@ -161,20 +160,11 @@ fun PodcastFullPlayerSheet(
         }
         Row(modifier = Modifier.align(Alignment.TopEnd), verticalAlignment = Alignment.CenterVertically) {
             sleepTimerRemainingMs?.let { remainingMs ->
-                // How much of the audio needed to reach the timer's end is already on disk (starting
-                // the timer kicks off that download). At 100% the rest plays from the file, so it's
-                // safe to switch to airplane mode; below that the stream would cut out.
-                val downloadedFraction = when {
-                    state.episodeId == null -> 0f
-                    repo.isDownloaded(state.episodeId, downloadedKeys) -> 1f
-                    else -> downloadProgress[state.episodeId] ?: 0f
-                }
-                val neededMs = if (durationMs > 0) (positionMs + remainingMs).coerceAtMost(durationMs) else 0L
-                val covered = when {
-                    downloadedFraction >= 1f -> 1f
-                    neededMs <= 0L -> 0f
-                    else -> (downloadedFraction * durationMs / neededMs).coerceIn(0f, 1f)
-                }
+                // How much of the audio needed to reach the timer's end is already on the phone:
+                // starting the timer pre-fetches exactly that stretch, nothing more. At 100% the rest
+                // plays from the cache, so it's safe to switch to airplane mode; below that the
+                // stream would cut out.
+                val covered = sleepCacheProgress ?: 0f
                 if (covered >= 1f) {
                     Icon(
                         Icons.Filled.DownloadDone,
