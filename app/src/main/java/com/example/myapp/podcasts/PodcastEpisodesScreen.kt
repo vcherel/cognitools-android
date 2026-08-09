@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -67,6 +68,7 @@ fun PodcastEpisodesScreen(repo: PodcastRepository, favoriteId: String, onBack: (
     val downloadedKeys by repo.downloadedKeys.collectAsState()
     val downloadingIds by repo.downloadingIds.collectAsState()
     val downloadProgress by repo.downloadProgress.collectAsState()
+    val listeningProgress by repo.progress.collectAsState(initial = emptyMap())
     var loading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
     var showAll by remember { mutableStateOf(false) }
@@ -148,6 +150,7 @@ fun PodcastEpisodesScreen(repo: PodcastRepository, favoriteId: String, onBack: (
                         isDownloaded = repo.isDownloaded(episode.id, downloadedKeys),
                         isDownloading = episode.id in downloadingIds,
                         downloadProgress = downloadProgress[episode.id],
+                        listeningProgress = listeningProgress[episode.id],
                         onClick = {
                             scope.launch {
                                 runCatching { repo.playEpisode(episode, showEpisodes) }
@@ -195,6 +198,7 @@ fun PodcastEpisodeRow(
     isDownloaded: Boolean,
     isDownloading: Boolean,
     downloadProgress: Float?,
+    listeningProgress: PodcastEpisodeProgress?,
     onClick: () -> Unit,
     onToggleDownload: () -> Unit,
     onToggleSeen: () -> Unit
@@ -224,11 +228,21 @@ fun PodcastEpisodeRow(
                 Text(episode.title, style = MaterialTheme.typography.bodyLarge, maxLines = 2, overflow = TextOverflow.Ellipsis)
             }
             Text(
-                episodeSubtitle(episode),
+                episodeSubtitle(episode, listeningProgress),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1
             )
+            // Only a started, unfinished episode has a saved position, so the bar is exactly the
+            // "you left off here" marker.
+            episodeFraction(episode, listeningProgress)?.let { fraction ->
+                Spacer(Modifier.height(4.dp))
+                LinearProgressIndicator(
+                    progress = { fraction },
+                    modifier = Modifier.fillMaxWidth().height(3.dp).clip(RoundedCornerShape(2.dp)),
+                    trackColor = MaterialTheme.colorScheme.surfaceVariant
+                )
+            }
         }
         if (episode.source != PodcastSource.DEEZER) {
             Box(
@@ -278,11 +292,27 @@ fun PodcastEpisodeRow(
     }
 }
 
-private fun episodeSubtitle(episode: PodcastEpisode): String {
+private fun episodeSubtitle(episode: PodcastEpisode, progress: PodcastEpisodeProgress?): String {
     val date = if (episode.pubDate > 0) episodeDateFormat.format(episode.pubDate) else null
     val duration = episode.durationSec?.let { formatDuration(it) }
-    return listOfNotNull(date, duration).joinToString(" · ")
+    val remaining = progress?.let {
+        val totalMs = episodeDurationMs(episode, it)
+        if (totalMs <= 0) null else "reste ${formatDuration(((totalMs - it.positionMs) / 1000L).toInt().coerceAtLeast(60))}"
+    }
+    return listOfNotNull(date, duration, remaining).joinToString(" · ")
 }
+
+/** How far into the episode the saved position sits, 0..1, or null when there is nothing to show. */
+private fun episodeFraction(episode: PodcastEpisode, progress: PodcastEpisodeProgress?): Float? {
+    if (progress == null) return null
+    val totalMs = episodeDurationMs(episode, progress)
+    if (totalMs <= 0) return null
+    return (progress.positionMs.toFloat() / totalMs).coerceIn(0f, 1f)
+}
+
+/** The player's own duration when it got one, otherwise what the feed claims. */
+private fun episodeDurationMs(episode: PodcastEpisode, progress: PodcastEpisodeProgress): Long =
+    progress.durationMs.takeIf { it > 0 } ?: ((episode.durationSec ?: 0) * 1000L)
 
 private fun formatDuration(totalSec: Int): String {
     val h = totalSec / 3600
