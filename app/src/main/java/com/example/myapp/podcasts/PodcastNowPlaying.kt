@@ -3,7 +3,6 @@ package com.example.myapp.podcasts
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,7 +14,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -303,7 +301,8 @@ fun PodcastFullPlayerSheet(
     }
 }
 
-private val SLEEP_TIMER_PRESETS_MIN = listOf(5, 10, 15, 20, 30, 45, 60)
+/** Four presets, few enough to fit one row without scrolling: anything else goes in the custom field. */
+private val SLEEP_TIMER_PRESETS_MIN = listOf(10, 20, 30, 45)
 
 /** Minute presets (20 selected by default) plus a custom field; "Arrêter la minuterie" only shows while one is running. */
 @Composable
@@ -316,21 +315,22 @@ private fun SleepTimerDialog(isRunning: Boolean, onDismiss: () -> Unit, onStart:
         title = { Text("Minuterie de veille") },
         text = {
             Column {
-                Row(
-                    Modifier.horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     SLEEP_TIMER_PRESETS_MIN.forEach { preset ->
                         val selected = customText.isBlank() && minutes == preset
                         Box(
                             Modifier
+                                .weight(1f)
                                 .clip(RoundedCornerShape(16.dp))
                                 .background(if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant)
                                 .clickable { minutes = preset; customText = "" }
-                                .padding(horizontal = 14.dp, vertical = 8.dp)
+                                .padding(vertical = 10.dp),
+                            contentAlignment = Alignment.Center
                         ) {
                             Text(
                                 "$preset min",
+                                style = MaterialTheme.typography.labelLarge,
+                                maxLines = 1,
                                 color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
