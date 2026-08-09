@@ -13,9 +13,14 @@ import kotlin.random.Random
 class PuzzleGeneratorTest {
     private val assets = File("src/main/assets")
 
-    private val dictionary by lazy {
-        ClueDictionary.load(File(assets, "motsfleches_dict.txt").inputStream())
+    /** Both word lists: a grid is generated on the phone in whichever language is selected. */
+    private val dictionaries by lazy {
+        MotsFlechesLang.entries.associateWith {
+            ClueDictionary.load(File(assets, it.asset).inputStream())
+        }
     }
+
+    private val dictionary by lazy { dictionaries.getValue(MotsFlechesLang.FR) }
 
     private val layouts by lazy {
         PuzzleGenerator.parseLayouts(File(assets, "motsfleches_layouts.txt").readText())
@@ -23,10 +28,12 @@ class PuzzleGeneratorTest {
 
     @Test
     fun `dictionary indexes every length the layouts need`() {
-        assertTrue(dictionary.size > 10_000)
-        for (length in 3..8) {
-            val pattern = CharArray(length) { Puzzle.EMPTY }
-            assertTrue("no words of length $length", dictionary.matchCount(pattern) > 100)
+        for ((lang, dictionary) in dictionaries) {
+            assertTrue("$lang is too small", dictionary.size > 10_000)
+            for (length in 3..8) {
+                val pattern = CharArray(length) { Puzzle.EMPTY }
+                assertTrue("$lang has no words of length $length", dictionary.matchCount(pattern) > 100)
+            }
         }
         // A fixed letter must narrow the search, and the count must match what is returned.
         val pattern = charArrayOf('C', Puzzle.EMPTY, 'A', 'T')
@@ -44,16 +51,21 @@ class PuzzleGeneratorTest {
 
     @Test
     fun `nearly every layout fills, and what it fills is coherent`() {
-        var failures = 0
-        layouts.forEachIndexed { index, layout ->
-            val puzzle = fill(layout, seed = index.toLong())
-            if (puzzle == null) {
-                failures++
-                return@forEachIndexed
+        for ((lang, dictionary) in dictionaries) {
+            var failures = 0
+            layouts.forEachIndexed { index, layout ->
+                val puzzle = fill(layout, seed = index.toLong(), dictionary = dictionary)
+                if (puzzle == null) {
+                    failures++
+                    return@forEachIndexed
+                }
+                assertCoherent(puzzle)
             }
-            assertCoherent(puzzle)
+            assertTrue(
+                "$lang: $failures/${layouts.size} layouts could not be filled",
+                failures <= layouts.size / 6
+            )
         }
-        assertTrue("$failures/${layouts.size} layouts could not be filled", failures <= layouts.size / 6)
     }
 
     @Test
@@ -77,7 +89,12 @@ class PuzzleGeneratorTest {
     }
 
     /** What the app does: a layout that resists a few seeds is passed over, never shown half filled. */
-    private fun fill(layout: Layout, seed: Long, maxRank: Int = Int.MAX_VALUE): Puzzle? =
+    private fun fill(
+        layout: Layout,
+        seed: Long,
+        maxRank: Int = Int.MAX_VALUE,
+        dictionary: ClueDictionary = this.dictionary
+    ): Puzzle? =
         (0 until 4).firstNotNullOfOrNull { attempt ->
             PuzzleGenerator.generate(layout, dictionary, Random(seed * 10 + attempt), maxRank)
         }

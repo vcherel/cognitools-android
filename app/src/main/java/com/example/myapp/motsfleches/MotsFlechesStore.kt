@@ -1,7 +1,12 @@
 package com.example.myapp.motsfleches
 
 import android.content.Context
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -16,16 +21,29 @@ import kotlinx.serialization.json.put
 import java.io.File
 import kotlin.random.Random
 
+/** The two languages a grid can be played in. Each has its own word list and its own grid in progress. */
+enum class MotsFlechesLang(val code: String, val label: String, val asset: String, val saveFile: String) {
+    FR("fr", "FR", "motsfleches_dict_fr.txt", "motsfleches.json"),
+    EN("en", "EN", "motsfleches_dict_en.txt", "motsfleches_en.json");
+
+    companion object {
+        fun fromCode(code: String?): MotsFlechesLang = entries.firstOrNull { it.code == code } ?: FR
+    }
+}
+
+val Context.motsFlechesDataStore by preferencesDataStore("motsfleches_prefs")
+
+private val KEY_LANG = stringPreferencesKey("lang")
+
 /**
- * Holds the one grid being played. There is no library of grids: finishing one hands over the next,
- * so the only thing to remember is where the current one stands.
+ * Holds the one grid being played per language. There is no library of grids: finishing one hands
+ * over the next, so the only thing to remember is where the current one stands. Switching language
+ * leaves the other one's grid exactly where it was.
  *
- * The dictionary and the layouts are read from the assets once per process; both are needed to make
- * a grid and neither changes.
+ * The dictionaries and the layouts are read from the assets once per process; the layouts are the
+ * same shapes whatever the language, and none of it ever changes.
  */
 object MotsFlechesStore {
-    private const val SAVE_FILE = "motsfleches.json"
-    private const val DICTIONARY_ASSET = "motsfleches_dict.txt"
     private const val LAYOUTS_ASSET = "motsfleches_layouts.txt"
 
     /** Words rarer than this are only used when a grid cannot be filled without them. */
@@ -35,42 +53,50 @@ object MotsFlechesStore {
     private val mutex = Mutex()
     private val json = Json { ignoreUnknownKeys = true }
 
-    private var dictionary: ClueDictionary? = null
+    private val dictionaries = mutableMapOf<MotsFlechesLang, ClueDictionary>()
     private var layouts: List<Layout>? = null
 
     /** Generated ahead of time while a grid is being played, so the next one opens instantly. */
-    private var upcoming: Puzzle? = null
+    private val upcoming = mutableMapOf<MotsFlechesLang, Puzzle>()
+
+    /** The language the tool opens in, remembered across launches. */
+    fun language(context: Context): Flow<MotsFlechesLang> =
+        context.motsFlechesDataStore.data.map { MotsFlechesLang.fromCode(it[KEY_LANG]) }
+
+    suspend fun setLanguage(context: Context, lang: MotsFlechesLang) {
+        context.motsFlechesDataStore.edit { it[KEY_LANG] = lang.code }
+    }
 
     /** The grid in progress, or a fresh one on the very first run. */
-    suspend fun current(context: Context): PuzzleState = withContext(Dispatchers.IO) {
-        read(context) ?: newGrid(context)
+    suspend fun current(context: Context, lang: MotsFlechesLang): PuzzleState = withContext(Dispatchers.IO) {
+        read(context, lang) ?: newGrid(context, lang)
     }
 
-    suspend fun newGrid(context: Context): PuzzleState = withContext(Dispatchers.IO) {
-        val puzzle = mutex.withLock { upcoming.also { upcoming = null } } ?: generate(context)
-        PuzzleState.blank(puzzle).also { save(context, it) }
+    suspend fun newGrid(context: Context, lang: MotsFlechesLang): PuzzleState = withContext(Dispatchers.IO) {
+        val puzzle = mutex.withLock { upcoming.remove(lang) } ?: generate(context, lang)
+        PuzzleState.blank(puzzle).also { save(context, lang, it) }
     }
 
-    suspend fun save(context: Context, state: PuzzleState) = withContext(Dispatchers.IO) {
-        File(context.filesDir, SAVE_FILE).writeText(encode(state))
+    suspend fun save(context: Context, lang: MotsFlechesLang, state: PuzzleState) = withContext(Dispatchers.IO) {
+        File(context.filesDir, lang.saveFile).writeText(encode(state))
     }
 
     /** Builds the grid that comes after this one, so finishing never waits on a fill. */
-    suspend fun prepareNext(context: Context) = withContext(Dispatchers.IO) {
+    suspend fun prepareNext(context: Context, lang: MotsFlechesLang) = withContext(Dispatchers.IO) {
         mutex.withLock {
-            if (upcoming == null) upcoming = runCatching { generate(context) }.getOrNull()
+            if (lang !in upcoming) runCatching { generate(context, lang) }.getOrNull()?.let { upcoming[lang] = it }
         }
         Unit
     }
 
-    private fun read(context: Context): PuzzleState? {
-        val file = File(context.filesDir, SAVE_FILE)
+    private fun read(context: Context, lang: MotsFlechesLang): PuzzleState? {
+        val file = File(context.filesDir, lang.saveFile)
         if (!file.exists()) return null
         return runCatching { decode(file.readText()) }.getOrNull()
     }
 
-    private fun generate(context: Context): Puzzle {
-        val dictionary = dictionary(context)
+    private fun generate(context: Context, lang: MotsFlechesLang): Puzzle {
+        val dictionary = dictionary(context, lang)
         val layouts = layouts(context)
         val rng = Random(System.nanoTime())
         // Common words first; a layout that will not fill from them gets the whole dictionary.
@@ -83,9 +109,8 @@ object MotsFlechesStore {
         error("Aucune grille n'a pu être générée")
     }
 
-    private fun dictionary(context: Context): ClueDictionary = dictionary ?: synchronized(this) {
-        dictionary ?: context.assets.open(DICTIONARY_ASSET).use { ClueDictionary.load(it) }
-            .also { dictionary = it }
+    private fun dictionary(context: Context, lang: MotsFlechesLang): ClueDictionary = synchronized(this) {
+        dictionaries.getOrPut(lang) { context.assets.open(lang.asset).use { ClueDictionary.load(it) } }
     }
 
     private fun layouts(context: Context): List<Layout> = layouts ?: synchronized(this) {
