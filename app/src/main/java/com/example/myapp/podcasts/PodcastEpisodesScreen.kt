@@ -64,8 +64,9 @@ fun PodcastEpisodesScreen(repo: PodcastRepository, favoriteId: String, onBack: (
     val favorite = favorites.firstOrNull { it.id == favoriteId }
     val episodes by repo.episodes.collectAsState()
     val podcastPlayerState by repo.playerState.collectAsState()
-    val downloadedIds by repo.downloadedIds.collectAsState()
+    val downloadedKeys by repo.downloadedKeys.collectAsState()
     val downloadingIds by repo.downloadingIds.collectAsState()
+    val downloadProgress by repo.downloadProgress.collectAsState()
     var loading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
     var showAll by remember { mutableStateOf(false) }
@@ -144,8 +145,9 @@ fun PodcastEpisodesScreen(repo: PodcastRepository, favoriteId: String, onBack: (
                     PodcastEpisodeRow(
                         episode = episode,
                         isPlaying = podcastPlayerState.episodeId == episode.id,
-                        isDownloaded = episode.id in downloadedIds,
+                        isDownloaded = repo.isDownloaded(episode.id, downloadedKeys),
                         isDownloading = episode.id in downloadingIds,
+                        downloadProgress = downloadProgress[episode.id],
                         onClick = {
                             scope.launch {
                                 runCatching { repo.playEpisode(episode, showEpisodes) }
@@ -153,12 +155,12 @@ fun PodcastEpisodesScreen(repo: PodcastRepository, favoriteId: String, onBack: (
                             }
                         },
                         onToggleDownload = {
-                            if (episode.id in downloadedIds) {
+                            if (repo.isDownloaded(episode.id, downloadedKeys)) {
                                 repo.removeDownload(episode.id)
                             } else {
                                 scope.launch {
                                     runCatching { repo.downloadEpisode(episode) }
-                                        .onFailure { AppSnackbar.show("Échec du téléchargement") }
+                                        .onFailure { AppSnackbar.show("Échec du téléchargement: ${it.message}") }
                                 }
                             }
                         },
@@ -192,6 +194,7 @@ fun PodcastEpisodeRow(
     isPlaying: Boolean,
     isDownloaded: Boolean,
     isDownloading: Boolean,
+    downloadProgress: Float?,
     onClick: () -> Unit,
     onToggleDownload: () -> Unit,
     onToggleSeen: () -> Unit
@@ -236,6 +239,12 @@ fun PodcastEpisodeRow(
                 contentAlignment = Alignment.Center
             ) {
                 when {
+                    // Indeterminate only until the server tells us the episode's size.
+                    isDownloading && downloadProgress != null -> CircularProgressIndicator(
+                        progress = { downloadProgress },
+                        modifier = Modifier.size(20.dp),
+                        strokeWidth = 2.dp
+                    )
                     isDownloading -> CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
                     isDownloaded -> Icon(
                         Icons.Filled.DownloadDone,

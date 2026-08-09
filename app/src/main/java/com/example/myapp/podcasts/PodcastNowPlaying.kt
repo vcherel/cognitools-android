@@ -21,7 +21,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bedtime
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.DownloadDone
 import androidx.compose.material.icons.filled.Forward30
 import androidx.compose.material.icons.filled.KeyboardArrowDown
@@ -59,6 +58,7 @@ import com.example.myapp.LocalGoHome
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.Locale
+import kotlin.math.roundToInt
 
 /** Slim bar pinned at the bottom of the Podcasts tool, tap to expand. */
 @Composable
@@ -121,17 +121,18 @@ fun PodcastFullPlayerSheet(
     val goHome = LocalGoHome.current
     val episodes by repo.episodes.collectAsState()
     val isSeen = episodes.firstOrNull { it.id == state.episodeId }?.seen == true
-    val downloadedIds by repo.downloadedIds.collectAsState()
+    val downloadedKeys by repo.downloadedKeys.collectAsState()
+    val downloadProgress by repo.downloadProgress.collectAsState()
     val sleepTimerEndAt by repo.sleepTimerEndAt.collectAsState()
     var showSleepTimerDialog by remember { mutableStateOf(false) }
-    var sleepTimerRemainingMin by remember { mutableStateOf<Int?>(null) }
+    var sleepTimerRemainingMs by remember { mutableStateOf<Long?>(null) }
 
     LaunchedEffect(sleepTimerEndAt) {
         while (sleepTimerEndAt != null) {
-            sleepTimerRemainingMin = ((sleepTimerEndAt!! - System.currentTimeMillis()) / 60_000L + 1).toInt().coerceAtLeast(0)
+            sleepTimerRemainingMs = (sleepTimerEndAt!! - System.currentTimeMillis()).coerceAtLeast(0L)
             delay(1000)
         }
-        sleepTimerRemainingMin = null
+        sleepTimerRemainingMs = null
     }
 
     var positionMs by remember { mutableLongStateOf(0L) }
@@ -159,19 +160,46 @@ fun PodcastFullPlayerSheet(
             Icon(Icons.Filled.KeyboardArrowDown, contentDescription = "Réduire")
         }
         Row(modifier = Modifier.align(Alignment.TopEnd), verticalAlignment = Alignment.CenterVertically) {
-            sleepTimerRemainingMin?.let {
-                // While the timer runs, shows whether this episode is fully downloaded, so it's safe
-                // to switch to airplane mode without the stream cutting out before the timer ends.
-                val isDownloaded = state.episodeId != null && downloadedIds.contains(state.episodeId)
-                Icon(
-                    if (isDownloaded) Icons.Filled.DownloadDone else Icons.Filled.CloudDownload,
-                    contentDescription = if (isDownloaded) "Épisode téléchargé, lecture possible sans connexion" else "Épisode non téléchargé, nécessite une connexion",
-                    tint = if (isDownloaded) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
-                    modifier = Modifier.size(18.dp)
-                )
+            sleepTimerRemainingMs?.let { remainingMs ->
+                // How much of the audio needed to reach the timer's end is already on disk (starting
+                // the timer kicks off that download). At 100% the rest plays from the file, so it's
+                // safe to switch to airplane mode; below that the stream would cut out.
+                val downloadedFraction = when {
+                    state.episodeId == null -> 0f
+                    repo.isDownloaded(state.episodeId, downloadedKeys) -> 1f
+                    else -> downloadProgress[state.episodeId] ?: 0f
+                }
+                val neededMs = if (durationMs > 0) (positionMs + remainingMs).coerceAtMost(durationMs) else 0L
+                val covered = when {
+                    downloadedFraction >= 1f -> 1f
+                    neededMs <= 0L -> 0f
+                    else -> (downloadedFraction * durationMs / neededMs).coerceIn(0f, 1f)
+                }
+                if (covered >= 1f) {
+                    Icon(
+                        Icons.Filled.DownloadDone,
+                        contentDescription = "Téléchargé jusqu'à la fin de la minuterie, mode avion possible",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                } else {
+                    CircularProgressIndicator(
+                        progress = { covered },
+                        modifier = Modifier.size(18.dp),
+                        strokeWidth = 2.dp,
+                        color = MaterialTheme.colorScheme.error,
+                        trackColor = MaterialTheme.colorScheme.surfaceVariant
+                    )
+                    Spacer(Modifier.size(4.dp))
+                    Text(
+                        "${(covered * 100).roundToInt()} %",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
                 Spacer(Modifier.size(4.dp))
                 Text(
-                    "$it min",
+                    "${remainingMs / 60_000L + 1} min",
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.primary
                 )
@@ -180,7 +208,7 @@ fun PodcastFullPlayerSheet(
                 Icon(
                     Icons.Filled.Bedtime,
                     contentDescription = "Minuterie de veille",
-                    tint = if (sleepTimerRemainingMin != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                    tint = if (sleepTimerRemainingMs != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
             IconButton(onClick = { repo.stopAll(); goHome() }) {

@@ -34,6 +34,7 @@ import java.io.File
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
+import java.security.MessageDigest
 
 private val RADIO_FRANCE_STATIONS = listOf("franceinter", "franceculture", "franceinfo", "francemusique", "mouv", "fip")
 
@@ -234,56 +235,136 @@ class PodcastRepository(private val appContext: Context) {
     }
 
     // ---- Downloads ----
-    // Episodes are downloaded straight to a file keyed by episode id, no separate DB table: "downloaded"
-    // is derived from the file's presence, so it can never drift out of sync with what's actually on disk.
+    // Episodes are downloaded straight to a file, no separate DB table: "downloaded" is derived from
+    // the file's presence, so it can never drift out of sync with what's actually on disk. The file is
+    // named after a hash of the episode id rather than the id itself: an episode id *is* its audio URL,
+    // and its slashes (plus its length) make it an unusable file name, which is why writing the
+    // download used to fail outright for every episode.
 
     private val downloadsDir: File by lazy { File(appContext.filesDir, "podcast_downloads").apply { mkdirs() } }
 
-    private fun downloadFile(episodeId: String): File = File(downloadsDir, "$episodeId.audio")
+    /** File-system safe, stable name for [episodeId]. Public: screens match it against [downloadedKeys]. */
+    fun downloadKey(episodeId: String): String =
+        MessageDigest.getInstance("SHA-256").digest(episodeId.toByteArray())
+            .joinToString("") { "%02x".format(it) }
 
-    private val _downloadedIds = MutableStateFlow(
-        downloadsDir.listFiles()?.map { it.nameWithoutExtension }?.toSet() ?: emptySet()
+    private fun downloadFile(episodeId: String): File = File(downloadsDir, "${downloadKey(episodeId)}.audio")
+
+    private val _downloadedKeys = MutableStateFlow(
+        downloadsDir.listFiles()?.filter { it.extension == "audio" }?.map { it.nameWithoutExtension }?.toSet() ?: emptySet()
     )
-    val downloadedIds: StateFlow<Set<String>> = _downloadedIds
+    val downloadedKeys: StateFlow<Set<String>> = _downloadedKeys
 
     private val _downloadingIds = MutableStateFlow<Set<String>>(emptySet())
     val downloadingIds: StateFlow<Set<String>> = _downloadingIds
 
+    /** How much of each running download is on disk, 0..1, keyed by episode id. */
+    private val _downloadProgress = MutableStateFlow<Map<String, Float>>(emptyMap())
+    val downloadProgress: StateFlow<Map<String, Float>> = _downloadProgress
+
+    /** [keys] is passed in so a composable reading [downloadedKeys] recomposes when it changes. */
+    fun isDownloaded(episodeId: String, keys: Set<String> = _downloadedKeys.value): Boolean =
+        downloadKey(episodeId) in keys
+
     /** Downloads [episode]'s audio to disk so it can play with no connection. No-op if already downloaded/downloading. */
     suspend fun downloadEpisode(episode: PodcastEpisode) {
-        if (episode.id in _downloadedIds.value || episode.id in _downloadingIds.value) return
+        if (isDownloaded(episode.id) || episode.id in _downloadingIds.value) return
         if (episode.audioUrl.isBlank()) throw IOException("Pas de flux audio pour cet épisode")
+        val tmp = File(downloadsDir, "${downloadKey(episode.id)}.tmp")
         _downloadingIds.value = _downloadingIds.value + episode.id
         try {
             withContext(Dispatchers.IO) {
-                val tmp = File(downloadsDir, "${episode.id}.tmp")
-                val conn = (URL(episode.audioUrl).openConnection() as HttpURLConnection).apply {
-                    requestMethod = "GET"
-                    connectTimeout = 15_000
-                    readTimeout = 30_000
-                    setRequestProperty("User-Agent", USER_AGENT)
-                }
+                val conn = openAudio(episode.audioUrl)
                 try {
-                    if (conn.responseCode !in 200..299) throw IOException("HTTP ${conn.responseCode}")
-                    conn.inputStream.use { input -> tmp.outputStream().use { output -> input.copyTo(output) } }
+                    val total = conn.contentLengthLong
+                    conn.inputStream.use { input ->
+                        tmp.outputStream().use { output ->
+                            val buffer = ByteArray(64 * 1024)
+                            var written = 0L
+                            var lastPercent = -1
+                            while (true) {
+                                val read = input.read(buffer)
+                                if (read < 0) break
+                                output.write(buffer, 0, read)
+                                written += read
+                                if (total <= 0) continue
+                                val percent = (written * 100 / total).toInt()
+                                if (percent != lastPercent) {
+                                    lastPercent = percent
+                                    _downloadProgress.value =
+                                        _downloadProgress.value + (episode.id to (percent / 100f).coerceIn(0f, 1f))
+                                }
+                            }
+                        }
+                    }
                 } finally {
                     conn.disconnect()
                 }
                 if (!tmp.renameTo(downloadFile(episode.id))) throw IOException("Impossible d'enregistrer le téléchargement")
             }
-            _downloadedIds.value = _downloadedIds.value + episode.id
+            _downloadedKeys.value = _downloadedKeys.value + downloadKey(episode.id)
+            playFromFileIfCurrent(episode)
         } catch (e: Exception) {
-            runCatching { File(downloadsDir, "${episode.id}.tmp").delete() }
+            runCatching { tmp.delete() }
             throw e
         } finally {
             _downloadingIds.value = _downloadingIds.value - episode.id
+            _downloadProgress.value = _downloadProgress.value - episode.id
         }
+    }
+
+    /**
+     * Opens [url] for reading, following redirects by hand: podcast enclosures usually point at a
+     * tracking prefix (Podtrac, Chartable, Megaphone…) that bounces to the real CDN, and
+     * HttpURLConnection silently refuses to follow a redirect that switches between http and https.
+     */
+    private fun openAudio(url: String): HttpURLConnection {
+        var current = url
+        repeat(5) {
+            val conn = (URL(current).openConnection() as HttpURLConnection).apply {
+                requestMethod = "GET"
+                instanceFollowRedirects = true
+                connectTimeout = 15_000
+                readTimeout = 30_000
+                setRequestProperty("User-Agent", USER_AGENT)
+            }
+            val code = conn.responseCode
+            if (code in 300..399) {
+                val location = conn.getHeaderField("Location")
+                conn.disconnect()
+                if (location.isNullOrBlank()) throw IOException("Redirection sans destination")
+                current = URL(URL(current), location).toString()
+                return@repeat
+            }
+            if (code !in 200..299) {
+                conn.disconnect()
+                throw IOException("HTTP $code")
+            }
+            return conn
+        }
+        throw IOException("Trop de redirections")
+    }
+
+    /**
+     * Swaps the streaming source for the file just downloaded, at the same position. Without it the
+     * episode would sit on disk while the player keeps pulling the network stream it started with,
+     * so playback would still die the moment the phone goes offline.
+     */
+    private suspend fun playFromFileIfCurrent(episode: PodcastEpisode) = withContext(Dispatchers.Main) {
+        val c = controller ?: return@withContext
+        if (c.currentMediaItem?.mediaId != episode.id) return@withContext
+        val position = c.currentPosition
+        val wasPlaying = c.playWhenReady
+        c.replaceMediaItem(c.currentMediaItemIndex, buildMediaItem(episode))
+        c.seekTo(position)
+        c.prepare()
+        if (wasPlaying) c.play()
     }
 
     /** Deletes [episodeId]'s downloaded file, if any. */
     fun removeDownload(episodeId: String) {
         downloadFile(episodeId).delete()
-        _downloadedIds.value = _downloadedIds.value - episodeId
+        _downloadedKeys.value = _downloadedKeys.value - downloadKey(episodeId)
     }
 
     // ---- Player ----
@@ -408,7 +489,16 @@ class PodcastRepository(private val appContext: Context) {
             withContext(Dispatchers.Main) { controller?.pause() }
             _sleepTimerEndAt.value = null
         }
+        // Falling asleep usually means the phone is about to go offline (airplane mode): pull the
+        // episode to disk right away so playback can't die with the connection. The full player
+        // shows how far this has got, so it's visible when switching is safe.
+        currentEpisode()?.let { episode ->
+            timerScope.launch { runCatching { downloadEpisode(episode) } }
+        }
     }
+
+    private fun currentEpisode(): PodcastEpisode? =
+        _playerState.value.episodeId?.let { id -> _episodes.value.firstOrNull { it.id == id } }
 
     fun cancelSleepTimer() {
         sleepTimerJob?.cancel()
