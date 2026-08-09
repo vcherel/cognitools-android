@@ -155,9 +155,17 @@ private fun MusicSearch(repo: DeezerRepository, query: String, scope: kotlinx.co
     var searching by remember { mutableStateOf(false) }
     var pickerTrack by remember { mutableStateOf<DeezerTrack?>(null) }
     val favoriteIds by repo.favoriteIds.collectAsState()
+    val favorites by repo.favorites.collectAsState()
 
     // Warm the favorites cache so the hearts show the correct filled/empty state.
     LaunchedEffect(Unit) { runCatching { repo.ensureFavorites() } }
+
+    // Matching on artist + title, not on sngId: a favorite added years ago pins a different release
+    // id than the one the search hands back today, so the heart alone would miss most of them.
+    val favoriteKeys = remember(favorites) { favorites.orEmpty().mapTo(HashSet()) { it.matchKey } }
+    val ranked = remember(results, favoriteKeys, favoriteIds) {
+        results.sortedByDescending { it.sngId in favoriteIds || it.matchKey in favoriteKeys }
+    }
 
     LaunchedEffect(query) {
         val q = query.trim()
@@ -193,10 +201,10 @@ private fun MusicSearch(repo: DeezerRepository, query: String, scope: kotlinx.co
                 Spacer(Modifier.padding(4.dp))
             }
         }
-        itemsIndexed(results, key = { _, track -> track.sngId }) { index, track ->
+        itemsIndexed(ranked, key = { _, track -> track.sngId }) { index, track ->
             TrackRow(
                 track = track,
-                onClick = { scope.launch { repo.playTracks(results, index) } },
+                onClick = { scope.launch { repo.playTracks(ranked, index) } },
                 showActions = true,
                 isFavorite = favoriteIds.contains(track.sngId),
                 onToggleFavorite = { scope.launch { runCatching { repo.toggleFavorite(track) } } },
