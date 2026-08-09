@@ -44,6 +44,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -57,9 +58,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.withContext
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.format.TextStyle
@@ -81,12 +80,15 @@ fun WeatherScreen(onBack: () -> Unit) {
     var error by remember { mutableStateOf<String?>(null) }
     var selectedCity by remember { mutableStateOf(loadSavedCity(context)) }
     var showCityDialog by remember { mutableStateOf(false) }
+    // Bumped by the error's "Réessayer" button, the one way to re-run the fetch for a position
+    // already selected.
+    var reloadKey by remember { mutableIntStateOf(0) }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted -> hasPermission = granted }
 
-    LaunchedEffect(hasPermission, selectedCity) {
+    LaunchedEffect(hasPermission, selectedCity, reloadKey) {
         val city = selectedCity
         if (city == null && !hasPermission) {
             permissionLauncher.launch(Manifest.permission.ACCESS_COARSE_LOCATION)
@@ -104,15 +106,13 @@ fun WeatherScreen(onBack: () -> Unit) {
                 error = "Position indisponible, réessaie plus tard."
                 null
             } else {
-                withContext(Dispatchers.IO) {
-                    fetchWeatherForecast(coords.first, coords.second)
-                }
+                fetchWeatherForecast(coords.first, coords.second)
             }
         } catch (e: Exception) {
             // Drop what was on screen: a stale forecast shown as if it were current is worse
             // than the error, and it would hide the message below.
             forecast = null
-            error = "Erreur de chargement: ${e.message}"
+            error = weatherErrorMessage(e, "Erreur de chargement")
         } finally {
             isLoading = false
         }
@@ -170,11 +170,19 @@ fun WeatherScreen(onBack: () -> Unit) {
                             Text("Réessayer")
                         }
                     }
-                    currentError != null -> ErrorText(
-                        message = currentError,
-                        onDismiss = { error = null },
-                        modifier = Modifier.padding(16.dp)
-                    )
+                    currentError != null -> {
+                        ErrorText(
+                            message = currentError,
+                            onDismiss = { error = null },
+                            modifier = Modifier.padding(16.dp)
+                        )
+                        TextButton(
+                            onClick = { error = null; reloadKey++ },
+                            modifier = Modifier.padding(horizontal = 16.dp)
+                        ) {
+                            Text("Réessayer")
+                        }
+                    }
                 }
             }
         }
@@ -369,9 +377,9 @@ private fun CitySearchDialog(onCitySelected: (CityLocation?) -> Unit, onDismiss:
         isSearching = true
         searchError = null
         try {
-            results = withContext(Dispatchers.IO) { searchCities(query.trim()) }
+            results = searchCities(query.trim())
         } catch (e: Exception) {
-            searchError = "Recherche impossible: ${e.message}"
+            searchError = weatherErrorMessage(e, "Recherche impossible")
         } finally {
             isSearching = false
         }
@@ -453,6 +461,13 @@ private fun CitySearchDialog(onCitySelected: (CityLocation?) -> Unit, onDismiss:
         }
     }
 }
+
+// Open-Meteo throttles per IP, and a mobile carrier's shared IP can hit that limit on traffic that
+// isn't even ours. The request is already retried a couple of times before this shows, so what's
+// left to say is "wait a moment", not an HTTP status.
+private fun weatherErrorMessage(e: Exception, fallbackPrefix: String): String =
+    if (e is HttpStatusException && e.code == 429) "Service météo saturé, réessaie dans un instant."
+    else "$fallbackPrefix: ${e.message}"
 
 @Composable
 private fun DayNavArrow(icon: ImageVector, onClick: () -> Unit) {
