@@ -63,6 +63,16 @@ object PodcastStreamCache {
     /** Size of [url]'s audio if the cache learned it while streaming, else [androidx.media3.common.C.LENGTH_UNSET]. */
     fun knownContentLength(context: Context, url: String): Long =
         ContentMetadata.getContentLength(cache(context).getContentMetadata(url))
+
+    /**
+     * Throws away everything held for [url]. Called when an episode is finished: its bytes will never
+     * be read again, and left alone they would sit there until the LRU evictor happens to need the
+     * room, keeping fresher episodes out of the cache in the meantime.
+     */
+    fun remove(context: Context, url: String) {
+        if (url.isBlank()) return
+        runCatching { cache(context).removeResource(url) }
+    }
 }
 
 /**

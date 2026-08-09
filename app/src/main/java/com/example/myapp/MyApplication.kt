@@ -33,6 +33,8 @@ class MyApplication : Application(), SingletonImageLoader.Factory {
             // Reads the saved discoveries batch off disk right away (no network), so the card on the
             // music screen is already there on the first frame instead of popping in a moment later.
             deezerRepository.discoveries.prime()
+            // Heard episodes keep nothing on disk: their cached stream and their download go.
+            runCatching { podcastRepository.purgeHeardFromCache() }
         }
     }
 
