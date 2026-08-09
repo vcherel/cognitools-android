@@ -124,8 +124,8 @@ class DeezerPlaybackService : MediaSessionService() {
         // for surfaces that only understand the predefined set, like Android Auto.
         CommandButton.Builder(if (inPepites) CommandButton.ICON_CHECK_CIRCLE_FILLED else CommandButton.ICON_PLAYLIST_ADD)
             .setCustomIconResId(if (inPepites) R.drawable.ic_diamond_filled else R.drawable.ic_diamond)
-            .setSessionCommand(SessionCommand(CMD_ADD_PEPITES, Bundle.EMPTY))
-            .setDisplayName(if (inPepites) "Déjà dans Best pépites" else "Ajouter à Best pépites")
+            .setSessionCommand(SessionCommand(CMD_TOGGLE_PEPITES, Bundle.EMPTY))
+            .setDisplayName(if (inPepites) "Retirer de Best pépites" else "Ajouter à Best pépites")
             .setSlots(CommandButton.SLOT_FORWARD_SECONDARY, CommandButton.SLOT_OVERFLOW)
             .build()
     )
@@ -193,7 +193,7 @@ class DeezerPlaybackService : MediaSessionService() {
                 .setAvailableSessionCommands(
                     MediaSession.ConnectionResult.DEFAULT_SESSION_COMMANDS.buildUpon()
                         .add(SessionCommand(CMD_TOGGLE_LIKE, Bundle.EMPTY))
-                        .add(SessionCommand(CMD_ADD_PEPITES, Bundle.EMPTY))
+                        .add(SessionCommand(CMD_TOGGLE_PEPITES, Bundle.EMPTY))
                         .add(SessionCommand(CMD_STOP_ALL, Bundle.EMPTY))
                         .build()
                 )
@@ -227,18 +227,28 @@ class DeezerPlaybackService : MediaSessionService() {
                         .onFailure { toast("Échec, réessaie") }
                     refreshActionButtons()
                 }
-                CMD_ADD_PEPITES -> scope.launch {
-                    runCatching { repo.addToBestPepites(track) }
-                        .onSuccess {
-                            toast(
-                                when (it) {
-                                    PlaylistAddResult.ADDED -> "Ajouté à Best pépites"
-                                    PlaylistAddResult.DUPLICATE -> "Déjà dans Best pépites"
-                                    PlaylistAddResult.NO_PLAYLIST -> "Playlist Best pépites introuvable"
-                                }
-                            )
-                        }
-                        .onFailure { toast("Échec de l'ajout") }
+                CMD_TOGGLE_PEPITES -> scope.launch {
+                    // Reading the playlist first: without it a track played straight from Best
+                    // pépites, whose membership was never loaded, would look absent and get re-added
+                    // instead of removed.
+                    runCatching { repo.ensureBestPepitesLoaded() }
+                    if (repo.bestPepitesContains(track.sngId) == true) {
+                        runCatching { repo.removeFromBestPepites(track.sngId) }
+                            .onSuccess { toast(if (it) "Retiré de Best pépites" else "Playlist Best pépites introuvable") }
+                            .onFailure { toast("Échec du retrait") }
+                    } else {
+                        runCatching { repo.addToBestPepites(track) }
+                            .onSuccess {
+                                toast(
+                                    when (it) {
+                                        PlaylistAddResult.ADDED -> "Ajouté à Best pépites"
+                                        PlaylistAddResult.DUPLICATE -> "Déjà dans Best pépites"
+                                        PlaylistAddResult.NO_PLAYLIST -> "Playlist Best pépites introuvable"
+                                    }
+                                )
+                            }
+                            .onFailure { toast("Échec de l'ajout") }
+                    }
                     refreshActionButtons()
                 }
                 else -> return Futures.immediateFuture(SessionResult(SessionResult.RESULT_ERROR_NOT_SUPPORTED))
@@ -379,7 +389,7 @@ class DeezerPlaybackService : MediaSessionService() {
         private const val TAG = "DeezerPlayback"
         private const val MAX_SKIPS = 5
         private const val CMD_TOGGLE_LIKE = "com.example.myapp.deezer.TOGGLE_LIKE"
-        private const val CMD_ADD_PEPITES = "com.example.myapp.deezer.ADD_BEST_PEPITES"
+        private const val CMD_TOGGLE_PEPITES = "com.example.myapp.deezer.TOGGLE_BEST_PEPITES"
 
         // Must differ from PodcastPlaybackService's, see the provider set up in onCreate.
         private const val NOTIFICATION_ID = 1001

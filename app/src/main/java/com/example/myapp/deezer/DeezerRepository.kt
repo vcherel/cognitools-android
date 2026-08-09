@@ -461,6 +461,13 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
         return addToPlaylist(pid, track)
     }
 
+    /** Removes [sngId] from "Best pépites". False if that playlist doesn't exist. */
+    suspend fun removeFromBestPepites(sngId: String): Boolean {
+        val pid = bestPepitesPlaylistId() ?: return false
+        removeFromPlaylist(pid, sngId)
+        return true
+    }
+
     /** Loads the "Best pépites" contents so [bestPepitesContains] can answer without a network call. */
     suspend fun ensureBestPepitesLoaded() {
         membership(bestPepitesPlaylistId() ?: return)
