@@ -58,6 +58,7 @@ import com.example.myapp.gallery.hasReadMediaPermission
 import com.example.myapp.gallery.queryMediaItemById
 import com.example.myapp.gallery.rememberIntentSenderRequester
 import com.example.myapp.gallery.resolveMediaTarget
+import com.example.myapp.motsfleches.MotsFlechesScreen
 import com.example.myapp.notes.NoteEditorScreen
 import com.example.myapp.notes.NotesListScreen
 import com.example.myapp.notes.NotesTrashScreen
@@ -300,6 +301,7 @@ fun MainScreen(
                                 navController.navigate("game/all")
                             },
                             onOpenWeather = { navController.navigate("weather") },
+                            onOpenMotsFleches = { navController.navigate("motsFleches") },
                             onOpenUndercover = { navController.navigate("undercover") },
                             onOpenVolume = { navController.navigate("volumeBooster") },
                             onOpenRandom = { navController.navigate("randomGenerator") },
@@ -323,6 +325,9 @@ fun MainScreen(
                     }
                     composable("weather") {
                         WeatherScreen(onBack = { navController.popBackStackOnce() })
+                    }
+                    composable("motsFleches") {
+                        MotsFlechesScreen(onBack = { navController.popBackStackOnce() })
                     }
                     composable(
                         "deezer?openPlayer={openPlayer}",

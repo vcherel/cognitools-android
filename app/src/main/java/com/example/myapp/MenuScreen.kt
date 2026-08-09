@@ -19,10 +19,13 @@ import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Shuffle
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -37,6 +40,7 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.myapp.flashcards.AppDatabase
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -52,6 +56,7 @@ fun MenuScreen(
     onOpenFlashcards: () -> Unit,
     onPlayFlashcards: () -> Unit,
     onOpenWeather: () -> Unit,
+    onOpenMotsFleches: () -> Unit,
     onOpenUndercover: () -> Unit,
     onOpenVolume: () -> Unit,
     onOpenRandom: () -> Unit,
@@ -107,13 +112,21 @@ fun MenuScreen(
             Spacer(modifier = Modifier.height(spaceHeight))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 MyButton(text = "Météo", modifier = Modifier.weight(1f), height = buttonHeight, onClick = onOpenWeather)
-                MyButton(text = "Undercover", modifier = Modifier.weight(1f), height = buttonHeight, onClick = onOpenUndercover)
+                MyButton(text = "Mots fléchés", modifier = Modifier.weight(1f), height = buttonHeight, fontSize = 20.sp, onClick = onOpenMotsFleches)
             }
             Spacer(modifier = Modifier.height(spaceHeight))
+            var showOtherTools by remember { mutableStateOf(false) }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 MyButton(text = "Volume", modifier = Modifier.weight(1f), height = buttonHeight, onClick = onOpenVolume)
-                MyButton(text = "Random", modifier = Modifier.weight(1f), height = buttonHeight, onClick = onOpenRandom)
-                MyButton(text = "Wiki", modifier = Modifier.weight(1f), height = buttonHeight, onClick = onOpenWikipedia)
+                MyButton(text = "Divers", modifier = Modifier.weight(1f), height = buttonHeight, onClick = { showOtherTools = true })
+            }
+            if (showOtherTools) {
+                OtherToolsSheet(
+                    onDismiss = { showOtherTools = false },
+                    onOpenUndercover = onOpenUndercover,
+                    onOpenRandom = onOpenRandom,
+                    onOpenWikipedia = onOpenWikipedia
+                )
             }
             Spacer(modifier = Modifier.height(spaceHeight))
             val context = LocalContext.current
@@ -139,6 +152,31 @@ fun MenuScreen(
                 imageVector = if (isDarkMode) Icons.Default.LightMode else Icons.Default.DarkMode,
                 contentDescription = if (isDarkMode) "Mode clair" else "Mode sombre"
             )
+        }
+    }
+}
+
+// The tools that get opened once in a while live behind one button, so the ones used daily keep
+// the room. A sheet rather than a screen: one tap in, one tap back out.
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun OtherToolsSheet(
+    onDismiss: () -> Unit,
+    onOpenUndercover: () -> Unit,
+    onOpenRandom: () -> Unit,
+    onOpenWikipedia: () -> Unit
+) {
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState()) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 32.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            MyButton(text = "Undercover", height = 72.dp, onClick = { onDismiss(); onOpenUndercover() })
+            MyButton(text = "Wiki", height = 72.dp, onClick = { onDismiss(); onOpenWikipedia() })
+            MyButton(text = "Random", height = 72.dp, onClick = { onDismiss(); onOpenRandom() })
         }
     }
 }
