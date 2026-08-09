@@ -14,6 +14,7 @@ import com.example.myapp.gallery.PinnedMediaItemDao
 import com.example.myapp.notes.Note
 import com.example.myapp.notes.NoteDao
 import com.example.myapp.podcasts.PodcastDao
+import com.example.myapp.podcasts.PodcastEpisodeProgress
 import com.example.myapp.podcasts.PodcastFavorite
 import com.example.myapp.podcasts.PodcastSeenEpisode
 import kotlinx.coroutines.flow.Flow
@@ -73,9 +74,9 @@ interface FlashcardDao {
 @Database(
     entities = [
         FlashcardList::class, FlashcardElement::class, Note::class, PinnedMediaItem::class,
-        PodcastFavorite::class, PodcastSeenEpisode::class
+        PodcastFavorite::class, PodcastSeenEpisode::class, PodcastEpisodeProgress::class
     ],
-    version = 9
+    version = 10
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun flashcardDao(): FlashcardDao
@@ -160,6 +161,19 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_9_10 = object : Migration(9, 10) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `podcast_episode_progress` (" +
+                        "`episodeId` TEXT NOT NULL, " +
+                        "`positionMs` INTEGER NOT NULL, " +
+                        "`durationMs` INTEGER NOT NULL, " +
+                        "`updatedAt` INTEGER NOT NULL, " +
+                        "PRIMARY KEY(`episodeId`))"
+                )
+            }
+        }
+
         fun get(context: Context): AppDatabase =
             instance ?: synchronized(this) {
                 instance ?: Room.databaseBuilder(
@@ -168,7 +182,7 @@ abstract class AppDatabase : RoomDatabase() {
                     "flashcards.db"
                 ).addMigrations(
                     MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7,
-                    MIGRATION_7_8, MIGRATION_8_9
+                    MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10
                 )
                     .build().also { instance = it }
             }

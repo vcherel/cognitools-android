@@ -32,6 +32,7 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runInterruptible
@@ -50,6 +51,12 @@ private val RADIO_FRANCE_STATIONS = listOf("franceinter", "franceculture", "fran
 
 // Secured past the timer's end, so nodding off with a couple of minutes left over still plays out.
 private const val SLEEP_PRELOAD_MARGIN_MS = 120_000L
+
+private const val PROGRESS_SAVE_INTERVAL_MS = 5_000L
+/** Under this, an episode counts as not really started and resumes from zero. */
+private const val PROGRESS_MIN_MS = 15_000L
+/** Within this of the end, an episode counts as finished. */
+private const val PROGRESS_FINISHED_MARGIN_MS = 30_000L
 
 data class PodcastPlayerUiState(
     val hasItem: Boolean = false,
@@ -239,6 +246,9 @@ class PodcastRepository(private val appContext: Context) {
 
     suspend fun markSeen(episodeId: String) {
         dao().markSeen(PodcastSeenEpisode(episodeId, System.currentTimeMillis()))
+        // A heard episode has nothing left to resume: the saved position would only show a stale bar
+        // and restart it mid-way the next time it is played.
+        dao().deleteProgress(episodeId)
         _episodes.value = _episodes.value.map { if (it.id == episodeId) it.copy(seen = true) else it }
     }
 
@@ -393,10 +403,27 @@ class PodcastRepository(private val appContext: Context) {
     private var controllerDeferred: CompletableDeferred<MediaController>? = null
 
     private val playerListener = object : Player.Listener {
-        override fun onIsPlayingChanged(isPlaying: Boolean) = refreshPlayerState()
+        override fun onIsPlayingChanged(isPlaying: Boolean) {
+            refreshPlayerState()
+            // A pause is the most likely last thing before the process dies, so don't wait for the ticker.
+            if (!isPlaying) saveCurrentProgress()
+            trackProgressWhilePlaying(isPlaying)
+        }
+
         override fun onMediaMetadataChanged(mediaMetadata: MediaMetadata) = refreshPlayerState()
-        override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) = refreshPlayerState()
-        override fun onPlaybackStateChanged(playbackState: Int) = refreshPlayerState()
+
+        override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+            // The player has already moved on, so the episode that just ended is only known from what
+            // was tracked; an automatic transition means it played all the way through.
+            if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO) trackedEpisodeId?.let { finishEpisode(it) }
+            trackedEpisodeId = mediaItem?.mediaId
+            refreshPlayerState()
+        }
+
+        override fun onPlaybackStateChanged(playbackState: Int) {
+            if (playbackState == Player.STATE_ENDED) trackedEpisodeId?.let { finishEpisode(it) }
+            refreshPlayerState()
+        }
     }
 
     suspend fun ensureController(): MediaController = controllerMutex.withLock {
@@ -410,6 +437,9 @@ class PodcastRepository(private val appContext: Context) {
                 val c = future.get()
                 controller = c
                 c.addListener(playerListener)
+                // The service can already be playing something started in an earlier app session.
+                trackedEpisodeId = c.currentMediaItem?.mediaId
+                trackProgressWhilePlaying(c.isPlaying)
                 refreshPlayerState()
                 deferred.complete(c)
             }, MoreExecutors.directExecutor())
@@ -435,6 +465,61 @@ class PodcastRepository(private val appContext: Context) {
         )
     }
 
+    // ---- Listening progress ----
+    // Where each started episode was left off, so playing it again picks up there. Written every
+    // [PROGRESS_SAVE_INTERVAL_MS] while playing and on every pause, since the playback service can be
+    // killed with the app without any chance to save on the way out.
+
+    /** Saved positions keyed by episode id. Episodes never started, or finished, are absent. */
+    val progress: kotlinx.coroutines.flow.Flow<Map<String, PodcastEpisodeProgress>>
+        get() = dao().observeProgress().map { rows -> rows.associateBy { it.episodeId } }
+
+    private val progressScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    private var progressJob: Job? = null
+
+    /** The episode the player is on, kept here because a transition reports it only after the fact. */
+    private var trackedEpisodeId: String? = null
+
+    private fun trackProgressWhilePlaying(isPlaying: Boolean) {
+        progressJob?.cancel()
+        if (!isPlaying) return
+        progressJob = progressScope.launch {
+            while (true) {
+                delay(PROGRESS_SAVE_INTERVAL_MS)
+                saveCurrentProgress()
+            }
+        }
+    }
+
+    /** Writes where the player currently is. Runs on the main thread: the controller demands it. */
+    private fun saveCurrentProgress() {
+        val c = controller ?: return
+        val id = c.currentMediaItem?.mediaId ?: return
+        val positionMs = c.currentPosition
+        val durationMs = c.duration.takeIf { it > 0 } ?: 0L
+        progressScope.launch { persistProgress(id, positionMs, durationMs) }
+    }
+
+    /** Played to the end: heard, and back to the beginning if it is ever played again. */
+    private fun finishEpisode(episodeId: String) {
+        progressScope.launch { markSeen(episodeId) }
+    }
+
+    private suspend fun persistProgress(episodeId: String, positionMs: Long, durationMs: Long) {
+        // The last stretch is credits and outro, so stopping there counts as having heard the episode.
+        if (durationMs > 0 && positionMs >= durationMs - PROGRESS_FINISHED_MARGIN_MS) {
+            markSeen(episodeId)
+            return
+        }
+        // Below the threshold there is nothing worth resuming, and a stale row from a previous listen
+        // would otherwise survive a restart from the beginning.
+        if (positionMs < PROGRESS_MIN_MS) {
+            dao().deleteProgress(episodeId)
+            return
+        }
+        dao().upsertProgress(PodcastEpisodeProgress(episodeId, positionMs, durationMs, System.currentTimeMillis()))
+    }
+
     /**
      * Plays [episode], queuing the rest of [queue] (defaults to just this episode) right after it.
      * A DEEZER-sourced episode can't actually play (Deezer doesn't expose episode audio itself; see
@@ -452,8 +537,12 @@ class PodcastRepository(private val appContext: Context) {
         withContext(Dispatchers.Main) { appContext.deezerRepository.stopAll() }
         val controller = ensureController()
         val items = queue.map { buildMediaItem(it) }
+        // Picked up where it was left off, silently. An episode never started, or already finished,
+        // has no saved row and starts at zero.
+        val startPositionMs = dao().getProgress(episode.id)?.positionMs ?: 0L
         withContext(Dispatchers.Main) {
-            controller.setMediaItems(items, startIndex, 0L)
+            trackedEpisodeId = episode.id
+            controller.setMediaItems(items, startIndex, startPositionMs)
             controller.prepare()
             controller.play()
         }
@@ -470,6 +559,9 @@ class PodcastRepository(private val appContext: Context) {
     /** Pauses, drops the notification, and stops the playback service entirely. */
     fun stopAll() {
         cancelSleepTimer()
+        saveCurrentProgress()
+        progressJob?.cancel()
+        trackedEpisodeId = null
         val c = controller
         if (c != null) {
             c.sendCustomCommand(SessionCommand(PodcastPlaybackService.CMD_STOP_ALL, Bundle.EMPTY), Bundle.EMPTY)

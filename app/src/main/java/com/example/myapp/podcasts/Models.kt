@@ -33,6 +33,20 @@ data class PodcastSeenEpisode(
     val seenAt: Long
 )
 
+/**
+ * Where an episode was left off, so playing it again picks up there. Only episodes actually started
+ * and not finished have a row: a finished one is marked heard and its row dropped, so the absence of
+ * a row means "from the beginning".
+ */
+@Entity(tableName = "podcast_episode_progress")
+data class PodcastEpisodeProgress(
+    @PrimaryKey val episodeId: String,
+    val positionMs: Long,
+    /** The player's own duration, 0 until it knows it. More reliable than the feed's durationSec. */
+    val durationMs: Long,
+    val updatedAt: Long
+)
+
 @Dao
 interface PodcastDao {
     @Query("SELECT * FROM podcast_favorites ORDER BY addedAt")
@@ -53,6 +67,17 @@ interface PodcastDao {
 
     @Query("DELETE FROM podcast_seen_episodes WHERE episodeId = :id")
     suspend fun unmarkSeen(id: String)
+
+    @Query("SELECT * FROM podcast_episode_progress")
+    fun observeProgress(): Flow<List<PodcastEpisodeProgress>>
+
+    @Query("SELECT * FROM podcast_episode_progress WHERE episodeId = :id")
+    suspend fun getProgress(id: String): PodcastEpisodeProgress?
+
+    @Upsert suspend fun upsertProgress(row: PodcastEpisodeProgress)
+
+    @Query("DELETE FROM podcast_episode_progress WHERE episodeId = :id")
+    suspend fun deleteProgress(id: String)
 }
 
 /** A podcast from either directory, not yet (or already) a favorite. Powers both search results and recommendations. */
