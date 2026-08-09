@@ -14,6 +14,7 @@ import org.json.JSONObject
 import java.net.URLEncoder
 import java.time.LocalDate
 import java.time.LocalDateTime
+import java.util.Locale
 import kotlin.coroutines.resume
 
 // Where the Météo screen gets its data: the Open-Meteo forecast and geocoding APIs, the saved
@@ -58,12 +59,12 @@ fun saveCity(context: Context, city: CityLocation?) {
     prefs.edit().putString(KEY_SELECTED_CITY, json.toString()).apply()
 }
 
-fun searchCities(query: String): List<CityLocation> {
+suspend fun searchCities(query: String): List<CityLocation> = withContext(Dispatchers.IO) {
     val encoded = URLEncoder.encode(query, "UTF-8")
     val url = "https://geocoding-api.open-meteo.com/v1/search?name=$encoded&count=8&language=fr&format=json"
-    val json = JSONObject(httpGet(url))
-    val results = json.optJSONArray("results") ?: return emptyList()
-    return (0 until results.length()).map { i ->
+    val json = JSONObject(httpGetRetrying(url))
+    val results = json.optJSONArray("results") ?: return@withContext emptyList()
+    (0 until results.length()).map { i ->
         val obj = results.getJSONObject(i)
         CityLocation(
             name = obj.getString("name"),
@@ -88,18 +89,40 @@ private class ModelSeries(json: JSONObject, field: String) {
         series(useFallback).optInt(index, fallbackValue)
 }
 
+// A forecast doesn't change from one minute to the next, and Open-Meteo throttles by IP, so every
+// position keeps its last one for a quarter of an hour. Switching between two cities, or leaving
+// and reopening the screen, then costs no request at all, which is what used to earn a 429.
+private const val FORECAST_TTL_MS = 15 * 60_000L
+private val forecastCache = mutableMapOf<String, Pair<Long, WeatherForecast>>()
+
+/** Rounded to Open-Meteo's own grid resolution: two nearby positions share one forecast. */
+private fun cacheKey(lat: Double, lon: Double) = String.format(Locale.US, "%.2f,%.2f", lat, lon)
+
+/** The 16 day forecast for a position, from the cache when it holds a recent enough one. */
+suspend fun fetchWeatherForecast(lat: Double, lon: Double): WeatherForecast {
+    val key = cacheKey(lat, lon)
+    synchronized(forecastCache) {
+        forecastCache[key]?.let { (fetchedAt, forecast) ->
+            if (System.currentTimeMillis() - fetchedAt < FORECAST_TTL_MS) return forecast
+        }
+    }
+    val forecast = downloadForecast(lat, lon)
+    synchronized(forecastCache) { forecastCache[key] = System.currentTimeMillis() to forecast }
+    return forecast
+}
+
 /**
- * The 16 day forecast. Rain probability only ever comes from best_match, since Météo-France's
- * deterministic model doesn't expose one, only an amount. Every other field prefers Météo-France
- * and falls back to best_match past its much shorter horizon, where its values turn null, rather
- * than leaving the rest of the 16 days empty.
+ * Rain probability only ever comes from best_match, since Météo-France's deterministic model
+ * doesn't expose one, only an amount. Every other field prefers Météo-France and falls back to
+ * best_match past its much shorter horizon, where its values turn null, rather than leaving the
+ * rest of the 16 days empty.
  */
-fun fetchWeatherForecast(lat: Double, lon: Double): WeatherForecast {
+private suspend fun downloadForecast(lat: Double, lon: Double): WeatherForecast = withContext(Dispatchers.IO) {
     val url = "https://api.open-meteo.com/v1/forecast?latitude=$lat&longitude=$lon" +
             "&hourly=temperature_2m,precipitation_probability,precipitation,weathercode" +
             "&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum,weathercode" +
             "&timezone=auto&forecast_days=16&models=meteofrance_seamless,best_match"
-    val json = JSONObject(httpGet(url))
+    val json = JSONObject(httpGetRetrying(url))
 
     val hourlyJson = json.getJSONObject("hourly")
     val hourlyTimes = hourlyJson.getJSONArray("time")
@@ -144,7 +167,7 @@ fun fetchWeatherForecast(lat: Double, lon: Double): WeatherForecast {
         )
     }
 
-    return WeatherForecast(hourly, daily)
+    WeatherForecast(hourly, daily)
 }
 
 // Caller must have already checked/requested ACCESS_COARSE_LOCATION.
