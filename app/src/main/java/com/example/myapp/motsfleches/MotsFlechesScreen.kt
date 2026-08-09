@@ -30,6 +30,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -49,6 +50,7 @@ import com.example.myapp.AppDialog
 import com.example.myapp.AppSnackbar
 import com.example.myapp.MyButton
 import com.example.myapp.ScreenTopBar
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 private const val KEYBOARD_ROW_1 = "QWERTYUIOP"
@@ -70,21 +72,34 @@ fun MotsFlechesScreen(onBack: () -> Unit) {
     var confirmNewGrid by remember { mutableStateOf(false) }
     var solved by remember { mutableStateOf(false) }
     var menuOpen by remember { mutableStateOf(false) }
+    // Null until read from the settings: each language keeps its own grid, so loading one before
+    // knowing which is wanted would show the wrong grid for a moment and generate a needless one.
+    var lang by remember { mutableStateOf<MotsFlechesLang?>(null) }
 
     fun apply(next: PuzzleState) {
+        val current = lang ?: return
         state = next
-        scope.launch { MotsFlechesStore.save(context, next) }
+        scope.launch { MotsFlechesStore.save(context, current, next) }
         if (next.isSolved) solved = true
     }
 
     fun start(fresh: PuzzleState) {
+        val current = lang ?: return
         state = fresh
         selection = firstSelection(fresh.puzzle)
-        scope.launch { MotsFlechesStore.prepareNext(context) }
+        scope.launch { MotsFlechesStore.prepareNext(context, current) }
     }
 
     LaunchedEffect(Unit) {
-        start(MotsFlechesStore.current(context))
+        lang = MotsFlechesStore.language(context).first()
+    }
+
+    // Also runs on a language switch: the other language's grid is picked up exactly where it was.
+    LaunchedEffect(lang) {
+        val current = lang ?: return@LaunchedEffect
+        state = null
+        selection = null
+        start(MotsFlechesStore.current(context, current))
     }
 
     val current = state
@@ -96,6 +111,20 @@ fun MotsFlechesScreen(onBack: () -> Unit) {
             onBack = onBack,
             titleSuffix = {
                 Spacer(Modifier.weight(1f))
+                // One tap swaps the language, and with it the grid: each side keeps its own.
+                lang?.let { active ->
+                    TextButton(
+                        onClick = {
+                            val other = if (active == MotsFlechesLang.FR) MotsFlechesLang.EN else MotsFlechesLang.FR
+                            scope.launch {
+                                MotsFlechesStore.setLanguage(context, other)
+                                lang = other
+                            }
+                        }
+                    ) {
+                        Text(active.label, fontWeight = FontWeight.SemiBold)
+                    }
+                }
                 Box {
                     IconButton(onClick = { menuOpen = true }) {
                         Icon(Icons.Default.MoreVert, contentDescription = "Options")
@@ -204,7 +233,7 @@ fun MotsFlechesScreen(onBack: () -> Unit) {
                     onClick = {
                         confirmNewGrid = false
                         state = null
-                        scope.launch { start(MotsFlechesStore.newGrid(context)) }
+                        scope.launch { lang?.let { start(MotsFlechesStore.newGrid(context, it)) } }
                     }
                 )
             }
@@ -224,7 +253,7 @@ fun MotsFlechesScreen(onBack: () -> Unit) {
                 onClick = {
                     solved = false
                     state = null
-                    scope.launch { start(MotsFlechesStore.newGrid(context)) }
+                    scope.launch { lang?.let { start(MotsFlechesStore.newGrid(context, it)) } }
                 }
             )
         }

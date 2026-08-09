@@ -20,7 +20,7 @@ import urllib.request
 
 LEXIQUE_PATH = "data/lexique.tsv"
 CACHE_PATH = "data/motsfleches_senses.json"
-OUTPUT_PATH = "app/src/main/assets/motsfleches_dict.txt"
+OUTPUT_PATH = "app/src/main/assets/motsfleches_dict_fr.txt"
 
 API = "https://fr.wiktionary.org/w/api.php"
 USER_AGENT = "CogniTools/1.0 (personal offline crossword app; valentin.cherel22@yahoo.com)"

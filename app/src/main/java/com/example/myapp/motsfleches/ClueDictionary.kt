@@ -6,10 +6,10 @@ import java.io.InputStream
 data class Clue(val text: String, val explanation: String)
 
 /**
- * The French words the grids are filled with, indexed so the generator can ask "which words of
- * length 5 have an A in third position" without scanning the list.
+ * The words the grids are filled with, indexed so the generator can ask "which words of length 5
+ * have an A in third position" without scanning the list. One instance per language.
  *
- * Built from `motsfleches_dict.txt`, one line per definition:
+ * Built from `motsfleches_dict_<lang>.txt`, one line per definition:
  *   `WORD<tab>rank<tab>pos<tab>clue<tab>full definition`
  * where rank is the word's frequency order, used to keep common words in front.
  */
