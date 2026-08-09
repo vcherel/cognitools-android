@@ -64,10 +64,11 @@ data class DiscoveryState(
  *
  * Two sources feed it:
  *  - new releases from the artists on his Deezer profile, found by diffing each artist's public
- *    discography against the album ids we have already seen. Releases queue up in a backlog, so a week
- *    where six artists drop something spreads over several days instead of overflowing one batch.
+ *    discography against the album ids we have already seen. They have priority and fill the batch as
+ *    far as they go, newest first; what doesn't fit queues up in a backlog for the following days.
  *  - discoveries from Deezer's own personalized recommendations: Flow ([DeezerApi.flowTracks]), topped
- *    up with the track mix of a few random favorites when Flow runs thin after filtering.
+ *    up with the track mix of a few random favorites when Flow runs thin after filtering. These only
+ *    fill what the releases left free, so a heavy release week can leave none at all.
  *
  * Nothing already in his favorites, in Best pépites, or ever proposed before can appear. There is
  * deliberately no play tracking: Deezer's own listening history is a rolling window of 100 plays,
@@ -77,7 +78,6 @@ class DeezerDiscoveries(private val appContext: Context, private val repo: Deeze
 
     companion object {
         const val BATCH_SIZE = 20
-        private const val NEW_RELEASE_SLOTS = 5
         private const val RELEASE_WINDOW_DAYS = 60L
         private const val FLOW_CALLS = 8
         private const val MIX_SEEDS = 4
@@ -259,12 +259,11 @@ class DeezerDiscoveries(private val appContext: Context, private val repo: Deeze
             // backlog has to stay honest: anything liked or handled in the meantime is dead weight.
             backlog.removeAll { key(it.track) in excluded }
             val collector = BatchCollector(excluded, kept)
-            // Always tops the release slots back up: the ones carried over from the previous batch
-            // already count towards [NEW_RELEASE_SLOTS], so a refresh only reaches into the backlog
-            // for slots that are actually free.
+            // New releases come first and take as much of the batch as the backlog can fill, so a heavy
+            // release week can be all releases and Flow only gets what is left over.
             backlog.sortByDescending { it.releaseDate }
             for (item in backlog) {
-                if (collector.newReleases >= NEW_RELEASE_SLOTS) break
+                if (collector.full) break
                 collector.offer(item)
             }
             fillWithDiscoveries(collector, base = if (needsScan) SCAN_WEIGHT else 0)
@@ -316,7 +315,6 @@ class DeezerDiscoveries(private val appContext: Context, private val repo: Deeze
         private val artists = seed.mapTo(HashSet()) { normalize(it.track.artist) }
 
         val full: Boolean get() = items.size >= BATCH_SIZE
-        val newReleases: Int get() = items.count { it.isNewRelease }
 
         fun offer(item: DiscoveryTrack): Boolean {
             if (full) return false
