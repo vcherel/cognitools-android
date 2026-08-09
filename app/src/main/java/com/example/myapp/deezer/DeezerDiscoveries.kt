@@ -24,7 +24,6 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import java.io.File
-import java.text.Normalizer
 import java.time.LocalDate
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
@@ -97,6 +96,7 @@ class DeezerDiscoveries(private val appContext: Context, private val repo: Deeze
     val state: StateFlow<DiscoveryState> = _state
 
     private val file: File by lazy { File(appContext.filesDir, "deezer_discoveries.json") }
+    private val backupFile: File by lazy { File(appContext.filesDir, "deezer_discoveries.bak.json") }
     private val mutex = Mutex()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -399,13 +399,9 @@ class DeezerDiscoveries(private val appContext: Context, private val repo: Deeze
     // Matching on artist + title, not on sngId: the same song exists under many release ids, and a
     // favorite added years ago pins a different id than the one a recommendation hands back today.
 
-    private fun key(track: DeezerTrack): String = "${normalize(track.artist)}|${normalize(track.title)}"
+    private fun key(track: DeezerTrack): String = track.matchKey
 
-    private fun normalize(s: String): String =
-        Normalizer.normalize(s, Normalizer.Form.NFD)
-            .replace(Regex("\\p{M}+"), "")
-            .lowercase()
-            .replace(Regex("[^a-z0-9]+"), "")
+    private fun normalize(s: String): String = s.matchNormalized()
 
     private fun today(): String = LocalDate.now().toString()
 
@@ -415,22 +411,36 @@ class DeezerDiscoveries(private val appContext: Context, private val repo: Deeze
         if (loaded) return
         loaded = true
         withContext(Dispatchers.IO) {
-            runCatching {
-                if (!file.exists()) return@runCatching
-                val root = DeezerLibraryCache.json.parseToJsonElement(file.readText()).jsonObject
-                batchDate = root["date"]?.jsonPrimitive?.content.orEmpty()
-                lastScanDate = root["scan"]?.jsonPrimitive?.content.orEmpty()
-                batch = root["tracks"]?.jsonArray.orEmpty().mapTo(mutableListOf()) { itemFromJson(it.jsonObject) }
-                backlog = root["backlog"]?.jsonArray.orEmpty().mapTo(mutableListOf()) { itemFromJson(it.jsonObject) }
-                proposed = root["proposed"]?.jsonArray.orEmpty()
-                    .mapTo(LinkedHashSet()) { it.jsonPrimitive.content }
-                seenAlbums = root["albums"]?.jsonArray.orEmpty()
-                    .mapTo(LinkedHashSet()) { it.jsonPrimitive.content }
-            }.onFailure { Log.w(TAG, "Failed to read the discoveries state", it) }
+            // The backup is the previous good state: it only loses the last batch's bookkeeping,
+            // where a lost file means a whole new batch the same day and every track ever proposed
+            // becoming fair game again.
+            if (!readState(file)) readState(backupFile)
         }
         if (batchDate == today()) publish()
     }
 
+    private fun readState(from: File): Boolean = runCatching {
+        if (!from.exists()) return false
+        val root = DeezerLibraryCache.json.parseToJsonElement(from.readText()).jsonObject
+        batchDate = root["date"]?.jsonPrimitive?.content.orEmpty()
+        lastScanDate = root["scan"]?.jsonPrimitive?.content.orEmpty()
+        batch = root["tracks"]?.jsonArray.orEmpty().mapTo(mutableListOf()) { itemFromJson(it.jsonObject) }
+        backlog = root["backlog"]?.jsonArray.orEmpty().mapTo(mutableListOf()) { itemFromJson(it.jsonObject) }
+        proposed = root["proposed"]?.jsonArray.orEmpty()
+            .mapTo(LinkedHashSet()) { it.jsonPrimitive.content }
+        seenAlbums = root["albums"]?.jsonArray.orEmpty()
+            .mapTo(LinkedHashSet()) { it.jsonPrimitive.content }
+        true
+    }.onFailure { Log.w(TAG, "Failed to read the discoveries state from ${from.name}", it) }
+        .getOrDefault(false)
+
+    /**
+     * Written through a temp file and renamed over the real one, keeping the last version as a
+     * backup. This state runs to a few hundred kilobytes (the batch, the backlog, up to
+     * [PROPOSED_CAP] proposed keys and [SEEN_ALBUMS_CAP] album ids) and the app is killed with the
+     * screen off all the time; a plain write caught mid flight left a truncated file, which reads
+     * back as "no batch today" and hands out a second selection.
+     */
     private suspend fun save() = withContext(Dispatchers.IO) {
         val root = buildJsonObject {
             put("date", batchDate)
@@ -440,8 +450,12 @@ class DeezerDiscoveries(private val appContext: Context, private val repo: Deeze
             put("proposed", buildJsonArray { proposed.forEach { add(it) } })
             put("albums", buildJsonArray { seenAlbums.forEach { add(it) } })
         }
-        runCatching { file.writeText(root.toString()) }
-            .onFailure { Log.w(TAG, "Failed to write the discoveries state", it) }
+        runCatching {
+            val tmp = File(appContext.filesDir, "deezer_discoveries.json.tmp")
+            tmp.writeText(root.toString())
+            if (file.exists()) file.copyTo(backupFile, overwrite = true)
+            check(tmp.renameTo(file)) { "rename failed" }
+        }.onFailure { Log.w(TAG, "Failed to write the discoveries state", it) }
     }
 
     private fun itemToJson(item: DiscoveryTrack) = buildJsonObject {
