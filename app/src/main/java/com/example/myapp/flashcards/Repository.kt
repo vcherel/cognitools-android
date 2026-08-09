@@ -51,14 +51,32 @@ class FlashcardRepository(private val context: Context) {
 
     suspend fun deleteList(listId: String) = dao.deleteList(listId)
 
-    fun observeElements(listId: String): Flow<List<FlashcardElement>> = dao.observeElements(listId)
-
-    suspend fun addElement(listId: String, element: FlashcardElement) {
-        dao.upsertElement(element.copy(listId = listId))
+    /**
+     * Marks a whole list as reviewed front side only. Turning it on rewrites every card it already
+     * holds; turning it off only stops applying it to the cards added next, since a card put back on
+     * a random side would be a different card to learn.
+     */
+    suspend fun setListFixedSide(listId: String, fixedSide: Boolean) {
+        val list = dao.getList(listId) ?: return
+        dao.upsertList(list.copy(fixedSide = fixedSide))
+        if (!fixedSide) return
+        val toFix = dao.getElements(listId).filter { it.randomSide }
+        if (toFix.isNotEmpty()) dao.upsertElements(toFix.map { it.copy(randomSide = false) })
     }
 
+    fun observeElements(listId: String): Flow<List<FlashcardElement>> = dao.observeElements(listId)
+
+    suspend fun addElement(listId: String, element: FlashcardElement) = addElements(listId, listOf(element))
+
+    /** A card entering a fixed-side list is fixed side too, whatever it asked for. */
     suspend fun addElements(listId: String, elements: List<FlashcardElement>) {
-        dao.upsertElements(elements.map { it.copy(listId = listId) })
+        val fixedSide = dao.getList(listId)?.fixedSide == true
+        dao.upsertElements(
+            elements.map {
+                val moved = it.copy(listId = listId)
+                if (fixedSide) moved.copy(randomSide = false) else moved
+            }
+        )
     }
 
     suspend fun updateElement(element: FlashcardElement) = dao.upsertElement(element)

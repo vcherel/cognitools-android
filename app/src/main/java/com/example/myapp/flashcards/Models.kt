@@ -15,14 +15,17 @@ import kotlin.math.roundToLong
 data class FlashcardList(
     @PrimaryKey val id: String = UUID.randomUUID().toString(),
     val name: String,
-    val order: Int = 0
+    val order: Int = 0,
+    /** The whole list is reviewed front side only: every card added to it comes in fixed side. */
+    val fixedSide: Boolean = false
 ) {
     companion object {
         fun fromJson(json: JSONObject): FlashcardList {
             return FlashcardList(
                 id = json.optString("id", UUID.randomUUID().toString()),
                 name = json.optString("name", ""),
-                order = json.optInt("order", 0)
+                order = json.optInt("order", 0),
+                fixedSide = json.optBoolean("fixedSide", false)
             )
         }
 
@@ -181,6 +184,7 @@ fun FlashcardList.toJson(): JSONObject = JSONObject().also {
     it.put("id", id)
     it.put("name", name)
     it.put("order", order)
+    it.put("fixedSide", fixedSide)
 }
 
 fun FlashcardElement.toJson(): JSONObject = JSONObject().also {
