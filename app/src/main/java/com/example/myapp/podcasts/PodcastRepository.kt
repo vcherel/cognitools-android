@@ -250,6 +250,44 @@ class PodcastRepository(private val appContext: Context) {
         // and restart it mid-way the next time it is played.
         dao().deleteProgress(episodeId)
         _episodes.value = _episodes.value.map { if (it.id == episodeId) it.copy(seen = true) else it }
+        freeEpisodeStorage(episodeId)
+    }
+
+    /**
+     * Gives back the disk a heard episode was holding: its cached stream bytes and its download, if
+     * it had one. An episode id is its audio URL for an RSS episode, which is exactly the key the
+     * stream cache uses.
+     */
+    private suspend fun freeEpisodeStorage(episodeId: String) {
+        // Never pull the ground from under the player: an episode is marked heard once its last
+        // [PROGRESS_FINISHED_MARGIN_MS] start playing, and those bytes are still being read. The
+        // cleanup then happens on the pause, the transition to the next episode, or the next launch.
+        val stillPlaying = withContext(Dispatchers.Main) {
+            val c = controller ?: return@withContext false
+            c.currentMediaItem?.mediaId == episodeId && c.isPlaying
+        }
+        if (stillPlaying) return
+        withContext(Dispatchers.IO) {
+            val url = _episodes.value.firstOrNull { it.id == episodeId }?.audioUrl
+                ?: episodeId.takeIf { it.startsWith("http") }
+                ?: return@withContext
+            PodcastStreamCache.remove(appContext, url)
+            if (isDownloaded(episodeId)) removeDownload(episodeId)
+        }
+    }
+
+    /**
+     * Sweeps the stream cache of every episode already heard. Run at app start: it catches the ones
+     * finished before this cleanup existed, and any whose own cleanup was skipped because the player
+     * was still on them at the time.
+     */
+    suspend fun purgeHeardFromCache() = withContext(Dispatchers.IO) {
+        val seen = dao().getSeenIds().toSet()
+        if (seen.isEmpty()) return@withContext
+        // An RSS episode id is its audio URL, which is the key the cache files itself under.
+        PodcastStreamCache.cache(appContext).keys.filter { it in seen }
+            .forEach { PodcastStreamCache.remove(appContext, it) }
+        seen.filter { isDownloaded(it) }.forEach { removeDownload(it) }
     }
 
     suspend fun markUnseen(episodeId: String) {
