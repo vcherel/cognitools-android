@@ -47,6 +47,20 @@ data class DeezerTrack(
 /** One artist from the public catalog search, enough to show a card and shuffle their top tracks. */
 data class DeezerArtist(val id: String, val name: String, val pictureUrl: String?)
 
+/**
+ * One release (album, EP or single) from an artist's public discography. [releaseDate] is Deezer's
+ * "yyyy-MM-dd" string, kept verbatim so it can be compared and stored as is.
+ */
+data class DeezerRelease(
+    val albumId: String,
+    val title: String,
+    val releaseDate: String,
+    val recordType: String,
+    val coverMd5: String?,
+    val artistId: String,
+    val artistName: String
+)
+
 /** One podcast show from Deezer's public catalog (search, chart), not yet followed. */
 data class DeezerPodcastShow(val id: String, val title: String, val author: String, val artworkUrl: String?)
 

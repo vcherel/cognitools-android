@@ -128,6 +128,90 @@ class DeezerApi {
                 .map { parseGwTrack(it, it["SNG_ID"]?.jsonPrimitive?.content.orEmpty()) }
         }
 
+    /**
+     * Deezer's Flow for the owner: a dozen personalized tracks, built from their listening habits and
+     * favorites. Each call advances the radio, so consecutive calls hand back different tracks (four
+     * calls in a row measured 47 distinct tracks with no repeat).
+     */
+    suspend fun flowTracks(session: DeezerSession): List<DeezerTrack> = withContext(Dispatchers.IO) {
+        val body = """{"user_id":"${session.userId}"}"""
+        gw("radio.getUserRadio", body, session.apiToken)
+            .jsonObject["results"]?.jsonObject?.get("data")?.jsonArray.orEmpty()
+            .map { parseGwTrack(it.jsonObject, it.jsonObject["SNG_ID"]?.jsonPrimitive?.content.orEmpty()) }
+    }
+
+    /** The tracks Deezer considers close to [sngId] (the mix behind a track page). Seeds discoveries when Flow runs thin. */
+    suspend fun trackMix(session: DeezerSession, sngId: String, limit: Int = 30): List<DeezerTrack> =
+        withContext(Dispatchers.IO) {
+            val body = """{"sng_id":"$sngId","start":0,"nb":$limit}"""
+            gw("song.getSearchTrackMix", body, session.apiToken)
+                .jsonObject["results"]?.jsonObject?.get("data")?.jsonArray.orEmpty()
+                .map { parseGwTrack(it.jsonObject, it.jsonObject["SNG_ID"]?.jsonPrimitive?.content.orEmpty()) }
+        }
+
+    /**
+     * The artists on the owner's own profile page, which is Deezer's own view of who they listen to.
+     * One call returns all of them: the gw `nb` parameter is ignored on this tab.
+     */
+    suspend fun profileArtists(session: DeezerSession): List<DeezerArtist> = withContext(Dispatchers.IO) {
+        val body = """{"user_id":"${session.userId}","tab":"artists","nb":2000}"""
+        gw("deezer.pageProfile", body, session.apiToken)
+            .jsonObject["results"]?.jsonObject?.get("TAB")?.jsonObject
+            ?.get("artists")?.jsonObject?.get("data")?.jsonArray.orEmpty()
+            .mapNotNull { el ->
+                val o = el.jsonObject
+                val id = o["ART_ID"]?.jsonPrimitive?.content?.ifBlank { null } ?: return@mapNotNull null
+                DeezerArtist(
+                    id = id,
+                    name = o["ART_NAME"]?.jsonPrimitive?.content.orEmpty(),
+                    pictureUrl = o["ART_PICTURE"]?.jsonPrimitive?.content?.ifBlank { null }
+                        ?.let { "https://e-cdns-images.dzcdn.net/images/artist/$it/250x250-000000-80-0-0.jpg" }
+                )
+            }
+    }
+
+    /**
+     * An artist's whole discography from the public API, newest first. Deezer's own `order` parameter
+     * is silently ignored (it always groups albums, then EPs, then singles), so this sorts by release
+     * date here. Reads up to [pages] pages of 100, enough for the newest release of any real artist.
+     */
+    suspend fun artistReleases(artistId: String, artistName: String, pages: Int = 2): List<DeezerRelease> =
+        withContext(Dispatchers.IO) {
+            val out = ArrayList<DeezerRelease>()
+            for (page in 0 until pages) {
+                val data = fetchDataArray("https://api.deezer.com/artist/$artistId/albums?limit=100&index=${page * 100}")
+                data.forEach { el ->
+                    val o = el.jsonObject
+                    val id = o["id"]?.jsonPrimitive?.content ?: return@forEach
+                    out += DeezerRelease(
+                        albumId = id,
+                        title = o["title"]?.jsonPrimitive?.content.orEmpty(),
+                        releaseDate = o["release_date"]?.jsonPrimitive?.content.orEmpty(),
+                        recordType = o["record_type"]?.jsonPrimitive?.content.orEmpty(),
+                        coverMd5 = o["md5_image"]?.jsonPrimitive?.content?.ifBlank { null },
+                        artistId = artistId,
+                        artistName = artistName
+                    )
+                }
+                if (data.size < 100) break
+            }
+            out.sortedByDescending { it.releaseDate }
+        }
+
+    /**
+     * A release's tracks from the public API. These track objects carry no album title (they are
+     * already nested under one), so [release] fills that in.
+     */
+    suspend fun albumTracks(release: DeezerRelease, limit: Int = 50): List<DeezerTrack> = withContext(Dispatchers.IO) {
+        fetchDataArray("https://api.deezer.com/album/${release.albumId}/tracks?limit=$limit").mapNotNull {
+            parsePublicTrack(it.jsonObject)?.copy(
+                album = release.title,
+                artist = it.jsonObject["artist"]?.jsonObject?.get("name")?.jsonPrimitive?.content?.ifBlank { null }
+                    ?: release.artistName
+            )
+        }
+    }
+
     // ---- Mutations (like/unlike, add/remove from a playlist) ----
 
     /** Adds a track to the owner's favorites (loved tracks). */
