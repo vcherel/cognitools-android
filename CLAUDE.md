@@ -57,6 +57,8 @@ Root package (shared/misc):
 - `DeezerLibraryScreen.kt`: landing screen, favorites card, playlists row, offline status
 - `DeezerPlaylistScreen.kt`: reusable ordered track list (play, remove, like, add to pépites)
 - `DeezerSearchScreen.kt`: search screen
+- `DeezerDiscoveries.kt`: the daily "Découvertes du jour" batch; new release scan over the profile artists, Flow/track-mix discoveries, the persisted batch/backlog/proposed state
+- `DeezerDiscoveriesScreen.kt`: the batch's list screen (add, ignore, add all, ignore all, regenerate)
 
 `flashcards/` (spaced repetition flashcards tool):
 - `Models.kt`: FlashcardList/FlashcardElement data classes, JSON (de)serialization, stats helpers

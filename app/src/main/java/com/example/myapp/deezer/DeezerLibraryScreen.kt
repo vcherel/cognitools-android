@@ -22,6 +22,8 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.Diamond
@@ -31,6 +33,7 @@ import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.OfflinePin
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
@@ -76,7 +79,8 @@ fun DeezerLibraryScreen(
     onBack: () -> Unit,
     onOpenSearch: () -> Unit,
     onOpenPlaylist: (DeezerPlaylist) -> Unit,
-    onOpenPodcast: (PodcastFavorite) -> Unit
+    onOpenPodcast: (PodcastFavorite) -> Unit,
+    onOpenDiscoveries: () -> Unit
 ) {
     val scope = rememberCoroutineScope()
     val goHome = LocalGoHome.current
@@ -88,6 +92,7 @@ fun DeezerLibraryScreen(
     val favorites by repo.favorites.collectAsState()
     val playlists by repo.playlists.collectAsState()
     val offlineState by repo.offline.state.collectAsState()
+    val discoveryState by repo.discoveries.state.collectAsState()
     val playerState by repo.playerState.collectAsState()
     val playingPlaylistId = (playerState.source as? TrackSource.Playlist)?.id
     var error by remember { mutableStateOf<String?>(null) }
@@ -102,6 +107,8 @@ fun DeezerLibraryScreen(
         downloadedCount = runCatching { repo.downloadedTracks().size }.getOrDefault(0)
         // Keeps each podcast row's unseen count fresh without the user having to open it first.
         runCatching { podcastRepo.refreshEpisodes() }
+        // Builds the day's batch on the first entry of a new day; a no-op on every later entry.
+        repo.discoveries.ensureToday()
     }
     // Recomputed as the Best pépites sync progresses, so newly finished downloads show up without
     // needing to leave and re-enter the screen.
@@ -147,6 +154,19 @@ fun DeezerLibraryScreen(
                     message = "Erreur: $it",
                     onDismiss = { error = null },
                     modifier = Modifier.padding(vertical = 8.dp)
+                )
+            }
+
+            if (discoveryState.generating || discoveryState.tracks.isNotEmpty()) {
+                DiscoveriesCard(state = discoveryState, onOpen = onOpenDiscoveries)
+            } else {
+                // Nothing pending: the card gives way to a discreet line, which is the only way back
+                // into a fresh selection once the day's batch has been dealt with.
+                DiscoveriesRefreshRow(
+                    onClick = {
+                        repo.discoveries.regenerate()
+                        onOpenDiscoveries()
+                    }
                 )
             }
 
@@ -257,6 +277,80 @@ private fun ShuffleActionCard(icon: ImageVector, label: String, onShuffle: () ->
         Icon(Icons.Filled.Shuffle, contentDescription = "Lecture aléatoire", tint = MaterialTheme.colorScheme.primary)
         Spacer(Modifier.width(6.dp))
         Text("Aléatoire", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
+    }
+}
+
+/**
+ * The day's discoveries, shown only while there is something left to handle (or while the batch is
+ * being built). Tapping it opens the list; it vanishes on its own once every track has been dealt with.
+ */
+@Composable
+private fun DiscoveriesCard(state: DiscoveryState, onOpen: () -> Unit) {
+    val subtitle = when {
+        state.generating && state.tracks.isEmpty() -> "Recherche en cours… ${state.progress} %"
+        state.newReleaseCount > 0 ->
+            "${state.tracks.size} titres · ${state.newReleaseCount} nouveauté${if (state.newReleaseCount > 1) "s" else ""}"
+        else -> "${state.tracks.size} titres à découvrir"
+    }
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.primaryContainer)
+            .clickable(onClick = onOpen)
+            .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(Icons.Filled.AutoAwesome, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Text("Découvertes du jour", style = MaterialTheme.typography.bodyLarge)
+            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        if (state.generating) {
+            CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+        } else {
+            Icon(
+                Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary
+            )
+        }
+    }
+}
+
+/** What the discoveries card becomes once the batch is empty: one tap for a brand new selection. */
+@Composable
+private fun DiscoveriesRefreshRow(onClick: () -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp)
+            .clip(RoundedCornerShape(8.dp))
+            .clickable(onClick = onClick)
+            .padding(vertical = 10.dp, horizontal = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            Icons.Filled.AutoAwesome,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(16.dp)
+        )
+        Spacer(Modifier.width(8.dp))
+        Text(
+            "Découvertes · nouvelle sélection",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.weight(1f)
+        )
+        Icon(
+            Icons.Filled.Refresh,
+            contentDescription = "Nouvelle sélection",
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(18.dp)
+        )
     }
 }
 
@@ -417,6 +511,7 @@ private fun PlaylistRow(playlist: DeezerPlaylist, isPlaying: Boolean, onOpen: ()
  * when [isFavorite]) sits on the right, plus a three dot menu with the rest: add to queue, add to Best
  * pépites, add to a playlist, and, only if [onRemoveFromPlaylist] is provided, remove from the current
  * playlist. [isPlaying] tints the row and adds a playing icon for the track currently loaded in the player.
+ * [note] adds a third tinted line under the artist, and [onDismiss] a cross that throws the row away.
  */
 @Composable
 fun TrackRow(
@@ -425,11 +520,13 @@ fun TrackRow(
     showActions: Boolean = false,
     isFavorite: Boolean = false,
     isPlaying: Boolean = false,
+    note: String? = null,
     onToggleFavorite: (() -> Unit)? = null,
     onAddToQueue: (() -> Unit)? = null,
     onAddToBestPepites: (() -> Unit)? = null,
     onAddToPlaylist: (() -> Unit)? = null,
-    onRemoveFromPlaylist: (() -> Unit)? = null
+    onRemoveFromPlaylist: (() -> Unit)? = null,
+    onDismiss: (() -> Unit)? = null
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
     Row(
@@ -463,6 +560,14 @@ fun TrackRow(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
+            note?.let {
+                Text(
+                    it,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    maxLines = 1
+                )
+            }
         }
         if (showActions) {
             IconButton(onClick = { onToggleFavorite?.invoke() }, modifier = Modifier.size(40.dp)) {
@@ -505,6 +610,15 @@ fun TrackRow(
                             onClick = { menuExpanded = false; onRemoveFromPlaylist() }
                         )
                     }
+                }
+            }
+            if (onDismiss != null) {
+                IconButton(onClick = onDismiss, modifier = Modifier.size(40.dp)) {
+                    Icon(
+                        Icons.Filled.Close,
+                        contentDescription = "Ignorer",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
         }

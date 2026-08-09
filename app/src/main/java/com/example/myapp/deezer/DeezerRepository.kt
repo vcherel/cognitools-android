@@ -104,6 +104,9 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
     /** The permanent Best pépites mirror: its own uncapped cache, read before [streamCache] on playback. */
     val offline: DeezerOfflineLibrary by lazy { DeezerOfflineLibrary(appContext, this) }
 
+    /** The daily "Découvertes du jour" batch of tracks to like or ignore. */
+    val discoveries: DeezerDiscoveries by lazy { DeezerDiscoveries(appContext, this) }
+
     // Fire and forget IO work that must survive the screen that started it (played-track metadata writes).
     private val ioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -170,6 +173,28 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
         }
     }
     suspend fun search(query: String): List<DeezerTrack> = api.searchTracks(query)
+
+    // ---- Recommendation sources (behind DeezerDiscoveries) ----
+
+    /** One pull of Deezer's Flow. Each call advances the radio, so calling it again gives different tracks. */
+    suspend fun flowTracks(): List<DeezerTrack> = withTokenRetry { api.flowTracks(it) }
+
+    /** Tracks Deezer considers close to [sngId]. */
+    suspend fun trackMix(sngId: String): List<DeezerTrack> = withTokenRetry { api.trackMix(it, sngId) }
+
+    /** The artists on the owner's Deezer profile, i.e. who Deezer thinks they listen to. */
+    suspend fun profileArtists(): List<DeezerArtist> = withTokenRetry { api.profileArtists(it) }
+
+    /** [artistId]'s whole discography, newest first. Public catalog, no session needed. */
+    suspend fun artistReleases(artistId: String, artistName: String): List<DeezerRelease> =
+        api.artistReleases(artistId, artistName)
+
+    /** [release]'s tracks. Public catalog, no session needed. */
+    suspend fun albumTracks(release: DeezerRelease): List<DeezerTrack> = api.albumTracks(release)
+
+    /** The current contents of "Best pépites", or empty when there is no such playlist. */
+    suspend fun bestPepitesTracks(): List<DeezerTrack> =
+        bestPepitesPlaylistId()?.let { playlistTracks(it) } ?: emptyList()
 
     /** The catalog's best matching artist for [query], or null. Powers the search screen's artist shortcut. */
     suspend fun searchArtist(query: String): DeezerArtist? = api.searchArtists(query, limit = 1).firstOrNull()

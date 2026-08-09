@@ -57,11 +57,15 @@ fun DeezerScreen(onBack: () -> Unit, openFullPlayerInitially: Boolean = false) {
                         onBack = onBack,
                         onOpenSearch = { nav.navigate("search") },
                         onOpenPlaylist = { pl -> nav.navigate("playlist/${pl.id}/${java.net.URLEncoder.encode(pl.title, "UTF-8")}") },
-                        onOpenPodcast = { fav -> nav.navigate("podcast/${java.net.URLEncoder.encode(fav.id, "UTF-8")}") }
+                        onOpenPodcast = { fav -> nav.navigate("podcast/${java.net.URLEncoder.encode(fav.id, "UTF-8")}") },
+                        onOpenDiscoveries = { nav.navigate("discoveries") }
                     )
                 }
                 composable("search") {
                     DeezerSearchScreen(repo = repo, onBack = { nav.popBackStackOnce() })
+                }
+                composable("discoveries") {
+                    DeezerDiscoveriesScreen(repo = repo, onBack = { nav.popBackStackOnce() })
                 }
                 composable("podcast/{favoriteId}") { entry ->
                     val favoriteId = entry.arguments?.getString("favoriteId")
