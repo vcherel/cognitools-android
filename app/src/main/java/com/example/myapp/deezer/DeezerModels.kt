@@ -44,6 +44,20 @@ data class DeezerTrack(
         coverMd5?.let { "https://e-cdns-images.dzcdn.net/images/cover/$it/${size}x$size-000000-80-0-0.jpg" }
 }
 
+/**
+ * Identity of a song across release ids: the same track exists under many sngIds, and a favorite
+ * added years ago pins a different one than the search hands back today, so anything asking "do I
+ * already have this?" compares this instead.
+ */
+val DeezerTrack.matchKey: String
+    get() = "${artist.matchNormalized()}|${title.matchNormalized()}"
+
+fun String.matchNormalized(): String =
+    java.text.Normalizer.normalize(this, java.text.Normalizer.Form.NFD)
+        .replace(Regex("\\p{M}+"), "")
+        .lowercase()
+        .replace(Regex("[^a-z0-9]+"), "")
+
 /** One artist from the public catalog search, enough to show a card and shuffle their top tracks. */
 data class DeezerArtist(val id: String, val name: String, val pictureUrl: String?)
 
