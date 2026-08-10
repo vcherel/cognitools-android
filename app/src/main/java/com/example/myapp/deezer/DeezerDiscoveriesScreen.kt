@@ -70,26 +70,7 @@ fun DeezerDiscoveriesScreen(repo: DeezerRepository, onBack: () -> Unit) {
         }
 
         when {
-            state.generating && tracks.isEmpty() -> Box(
-                Modifier.fillMaxSize().padding(horizontal = 32.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("Recherche de nouveautés…", style = MaterialTheme.typography.bodyMedium)
-                    Spacer(Modifier.height(12.dp))
-                    LinearProgressIndicator(
-                        progress = { state.progress / 100f },
-                        modifier = Modifier.fillMaxWidth().height(6.dp)
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        "${state.progress} %",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-            tracks.isEmpty() -> Box(Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
+            tracks.isEmpty() && !state.generating -> Box(Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
                 Text(
                     "Tout est traité. La prochaine sélection arrive demain, ou tout de suite avec le bouton renouveler.",
                     style = MaterialTheme.typography.bodyMedium,
@@ -98,13 +79,14 @@ fun DeezerDiscoveriesScreen(repo: DeezerRepository, onBack: () -> Unit) {
                 )
             }
             else -> LazyColumn(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
-                // A regenerate keeps the nouveautés on screen, so its progress belongs here rather
-                // than in the full screen indicator above.
+                // Building a batch never blocks the screen: the list stays usable and the progress
+                // is just this discreet line at the top.
                 if (state.generating) {
                     item {
                         Column(Modifier.fillMaxWidth().padding(top = 8.dp)) {
                             Text(
-                                "Renouvellement… ${state.progress} %",
+                                if (tracks.isEmpty()) "Recherche de nouveautés… ${state.progress} %"
+                                else "Renouvellement… ${state.progress} %",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -115,7 +97,7 @@ fun DeezerDiscoveriesScreen(repo: DeezerRepository, onBack: () -> Unit) {
                         }
                     }
                 }
-                item {
+                if (tracks.isNotEmpty()) item {
                     Row(
                         Modifier.fillMaxWidth().padding(vertical = 8.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
