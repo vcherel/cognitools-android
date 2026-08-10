@@ -163,6 +163,12 @@ class FlashcardRepository(private val context: Context) {
             val toUpdate = lists.filter { it.id in renames }.map { it.copy(name = renames[it.id]!!) }
             if (toUpdate.isNotEmpty()) dao.upsertLists(toUpdate)
         }
+        if (currentVersion < 4) {
+            // Anglais is meant to be asked in one direction only. Turned on here once so the
+            // existing cards get it too; toggling it off later stays a manual choice.
+            dao.getLists().filter { it.name.equals("Anglais", ignoreCase = true) }
+                .forEach { setListFixedSide(it.id, true) }
+        }
 
         context.flashcardDataStore.edit { it[seedVersionKey] = SEED_VERSION }
     }
@@ -178,7 +184,7 @@ class FlashcardRepository(private val context: Context) {
 
     companion object {
         private val seedVersionKey = intPreferencesKey("seed_version")
-        private const val SEED_VERSION = 3
+        private const val SEED_VERSION = 4
         private const val SIX_MONTHS_MINUTES = 6 * 30 * 24 * 60
         private val builtinListIds = listOf(
             "builtin-capitals-v1", "builtin-prefectures-v1", "builtin-dept-numbers-v1"

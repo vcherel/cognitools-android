@@ -20,12 +20,13 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Flip
+import androidx.compose.material.icons.filled.LooksOne
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -223,11 +224,35 @@ fun FlashcardDetailScreen(
                     )
                 }
 
-                // Right side: sort button + divider + "X à réviser"
+                // Right side: one-face toggle + sort button + divider + "X à réviser"
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.End
                 ) {
+                    // "Tout" spans every list, so there is no single list to fix a side on.
+                    if (!isAllLists) {
+                        IconButton(
+                            onClick = {
+                                val fixed = !listFixedSide
+                                scope.launch {
+                                    repository.setListFixedSide(listId, fixed)
+                                    Toast.makeText(
+                                        context,
+                                        if (fixed) "Une seule face" else "Deux faces",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+                            }
+                        ) {
+                            Icon(
+                                if (listFixedSide) Icons.Default.LooksOne else Icons.Default.Flip,
+                                contentDescription = if (listFixedSide) "Une seule face" else "Deux faces",
+                                tint = if (listFixedSide) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
                     Box {
                         IconButton(onClick = { showSortMenu = true }) {
                             Icon(Icons.Default.SwapVert, contentDescription = "Trier")
@@ -249,29 +274,6 @@ fun FlashcardDetailScreen(
                                     onClick = {
                                         sortMode = if (sortMode == first) second else first
                                         showSortMenu = false
-                                    }
-                                )
-                            }
-                            // "Tout" spans every list, so there is no single list to fix a side on.
-                            if (!isAllLists) {
-                                HorizontalDivider()
-                                DropdownMenuItem(
-                                    text = { Text("Liste à une seule face") },
-                                    trailingIcon = {
-                                        Switch(checked = listFixedSide, onCheckedChange = null)
-                                    },
-                                    onClick = {
-                                        val fixed = !listFixedSide
-                                        showSortMenu = false
-                                        scope.launch {
-                                            repository.setListFixedSide(listId, fixed)
-                                            Toast.makeText(
-                                                context,
-                                                if (fixed) "Toutes les cartes passent à une seule face"
-                                                else "Seules les nouvelles cartes retrouvent les deux faces",
-                                                Toast.LENGTH_SHORT
-                                            ).show()
-                                        }
                                     }
                                 )
                             }
