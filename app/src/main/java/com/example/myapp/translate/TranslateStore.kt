@@ -16,12 +16,11 @@ val Context.translateDataStore by preferencesDataStore("translate")
 data class LookupEntry(val source: String, val translation: String, val to: TranslateLang)
 
 /**
- * The translator's small persisted state: which way it opens, which flashcard list a word goes to,
- * and the recent lookups. All of it fits in preferences, so there is no table for any of it.
+ * The translator's small persisted state: which way it opens and the recent lookups. All of it fits
+ * in preferences, so there is no table for any of it.
  */
 object TranslateStore {
     private val KEY_TARGET = stringPreferencesKey("target")
-    private val KEY_LIST = stringPreferencesKey("flashcard_list")
     private val KEY_HISTORY = stringPreferencesKey("history")
 
     private const val MAX_HISTORY = 40
@@ -31,14 +30,6 @@ object TranslateStore {
 
     suspend fun setTarget(context: Context, lang: TranslateLang) {
         context.translateDataStore.edit { it[KEY_TARGET] = lang.code }
-    }
-
-    /** The list the last card went to, so the next one is a single tap. */
-    fun flashcardListId(context: Context): Flow<String?> =
-        context.translateDataStore.data.map { it[KEY_LIST] }
-
-    suspend fun setFlashcardListId(context: Context, listId: String) {
-        context.translateDataStore.edit { it[KEY_LIST] = listId }
     }
 
     fun history(context: Context): Flow<List<LookupEntry>> =

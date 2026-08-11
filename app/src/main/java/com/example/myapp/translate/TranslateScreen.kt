@@ -136,7 +136,7 @@ fun TranslateScreen(onBack: () -> Unit) {
                     OutlinedTextField(
                         value = input,
                         onValueChange = { input = it },
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 120.dp),
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 220.dp),
                         placeholder = { Text("Mot ou texte à traduire") },
                         trailingIcon = {
                             if (input.isNotEmpty()) {
