@@ -11,6 +11,7 @@ data class Slot(
     val across: Boolean,
     val answer: String,
     val clue: String,
+    /** The definition in full; the clue is that same sentence cut down to fit the cell. */
     val explanation: String
 ) {
     val length: Int get() = answer.length
@@ -51,6 +52,13 @@ class Puzzle(
 
     fun isDefinition(row: Int, col: Int): Boolean = index(row, col) in definitionCells
 
+    /** Every cell a word runs through, in reading order. */
+    fun cellsOf(slot: Slot): List<Int> =
+        (0 until slot.length).map { index(slot.cellRow(it), slot.cellCol(it)) }
+
+    /** The letter that belongs in a cell; [Puzzle.EMPTY] on a definition cell. */
+    fun answerAt(cell: Int): Char = solution[cell]
+
     fun slotIndexAt(row: Int, col: Int, across: Boolean): Int? {
         val cell = index(row, col)
         val slotIndex = if (across) acrossAt[cell] else downAt[cell]
@@ -72,25 +80,62 @@ class Puzzle(
     }
 }
 
-/** A grid plus what has been typed into it. Revealed cells are the ones the player gave up on. */
+/**
+ * A grid plus what has been typed into it. Revealed cells are the ones the player gave up on,
+ * confirmed cells the ones a check found right; both are marked so they read differently from an
+ * ordinary entry.
+ */
 data class PuzzleState(
     val puzzle: Puzzle,
     val entries: String,
-    val revealed: Set<Int> = emptySet()
+    val revealed: Set<Int> = emptySet(),
+    val confirmed: Set<Int> = emptySet()
 ) {
     fun letterAt(cell: Int): Char = entries.getOrElse(cell) { Puzzle.EMPTY }
 
     fun withLetter(cell: Int, letter: Char): PuzzleState =
         copy(entries = entries.take(cell) + letter + entries.drop(cell + 1))
 
-    /** Every cell of the word filled in, right or wrong. */
-    fun isFilled(slot: Slot): Boolean = (0 until slot.length).all {
-        letterAt(puzzle.index(slot.cellRow(it), slot.cellCol(it))) != Puzzle.EMPTY
-    }
+    private fun unmarked(cell: Int): PuzzleState =
+        copy(revealed = revealed - cell, confirmed = confirmed - cell)
 
-    fun isCorrect(slot: Slot): Boolean = (0 until slot.length).all {
-        letterAt(puzzle.index(slot.cellRow(it), slot.cellCol(it))) == slot.answer[it]
-    }
+    /**
+     * Typing over a cell. Typing the letter that is already there changes nothing at all, so a
+     * revealed or checked cell keeps its mark instead of turning back into an ordinary entry.
+     */
+    fun typed(cell: Int, letter: Char): PuzzleState =
+        if (letterAt(cell) == letter) this else withLetter(cell, letter).unmarked(cell)
+
+    fun cleared(cell: Int): PuzzleState = withLetter(cell, Puzzle.EMPTY).unmarked(cell)
+
+    /** Wipes a whole word, crossing letters included: what the "effacer le mot" action does. */
+    fun clearSlot(slot: Slot): PuzzleState =
+        puzzle.cellsOf(slot).fold(this) { state, cell -> state.cleared(cell) }
+
+    /** Writes the answer in one cell and marks it as given away. */
+    fun revealCell(cell: Int): PuzzleState =
+        withLetter(cell, puzzle.answerAt(cell))
+            .copy(revealed = revealed + cell, confirmed = confirmed - cell)
+
+    fun revealSlot(slot: Slot): PuzzleState =
+        puzzle.cellsOf(slot).fold(this) { state, cell -> state.revealCell(cell) }
+
+    fun filledIn(cells: List<Int>): List<Int> = cells.filter { letterAt(it) != Puzzle.EMPTY }
+
+    /** The cells among [cells] that hold a letter, and the wrong one. */
+    fun wrongIn(cells: List<Int>): List<Int> =
+        filledIn(cells).filter { letterAt(it) != puzzle.answerAt(it) }
+
+    /** Keeps the filled cells that are right marked as checked from now on. */
+    fun confirming(cells: List<Int>): PuzzleState =
+        copy(confirmed = confirmed + filledIn(cells).filter { letterAt(it) == puzzle.answerAt(it) })
+
+    /** Every cell of the word filled in, right or wrong. */
+    fun isFilled(slot: Slot): Boolean =
+        puzzle.cellsOf(slot).all { letterAt(it) != Puzzle.EMPTY }
+
+    fun isCorrect(slot: Slot): Boolean =
+        puzzle.cellsOf(slot).all { letterAt(it) == puzzle.answerAt(it) }
 
     val isComplete: Boolean
         get() = puzzle.slots.all { isFilled(it) }

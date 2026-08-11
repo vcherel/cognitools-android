@@ -21,6 +21,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Backspace
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.DoneAll
+import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.CircularProgressIndicator
@@ -41,6 +44,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -68,7 +72,9 @@ fun MotsFlechesScreen(onBack: () -> Unit) {
 
     var state by remember { mutableStateOf<PuzzleState?>(null) }
     var selection by remember { mutableStateOf<Selection?>(null) }
-    var explained by remember { mutableStateOf<Slot?>(null) }
+    // The letters a check found wrong. Not saved: a mark only means "wrong when you asked", and it
+    // goes away as soon as the cell is touched again.
+    var wrong by remember { mutableStateOf(emptySet<Int>()) }
     var confirmNewGrid by remember { mutableStateOf(false) }
     var solved by remember { mutableStateOf(false) }
     var menuOpen by remember { mutableStateOf(false) }
@@ -87,7 +93,31 @@ fun MotsFlechesScreen(onBack: () -> Unit) {
         val current = lang ?: return
         state = fresh
         selection = firstSelection(fresh.puzzle)
+        wrong = emptySet()
         scope.launch { MotsFlechesStore.prepareNext(context, current) }
+    }
+
+    /**
+     * Checks what is written in [cells], however little that is: the right letters stay marked as
+     * checked, the wrong ones turn red until they are typed over.
+     */
+    fun check(cells: List<Int>, whole: Boolean) {
+        val puzzleState = state ?: return
+        val filled = puzzleState.filledIn(cells)
+        if (filled.isEmpty()) {
+            AppSnackbar.show("Rien à vérifier ici pour l'instant")
+            return
+        }
+        val bad = puzzleState.wrongIn(cells).toSet()
+        wrong = wrong - filled.toSet() + bad
+        apply(puzzleState.confirming(cells))
+        AppSnackbar.show(
+            when {
+                bad.isNotEmpty() -> "${bad.size} lettre${plural(bad.size)} fausse${plural(bad.size)}"
+                filled.size == cells.size -> if (whole) "Toute la grille est juste !" else "Ce mot est bon"
+                else -> "Bon jusqu'ici : ${filled.size} lettre${plural(filled.size)} juste${plural(filled.size)}"
+            }
+        )
     }
 
     LaunchedEffect(Unit) {
@@ -141,7 +171,10 @@ fun MotsFlechesScreen(onBack: () -> Unit) {
                             text = { Text("Effacer la grille") },
                             onClick = {
                                 menuOpen = false
-                                current?.let { apply(PuzzleState.blank(it.puzzle)) }
+                                current?.let {
+                                    wrong = emptySet()
+                                    apply(PuzzleState.blank(it.puzzle))
+                                }
                             }
                         )
                     }
@@ -150,8 +183,18 @@ fun MotsFlechesScreen(onBack: () -> Unit) {
         )
 
         if (current == null) {
+            // Nothing is downloaded here: the wait is a grid being filled on the phone, so it says
+            // so rather than leaving a bare spinner that could pass for a stalled request.
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    CircularProgressIndicator()
+                    Spacer(Modifier.height(16.dp))
+                    Text(
+                        "Génération de la grille…",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
             return@Column
         }
@@ -163,21 +206,31 @@ fun MotsFlechesScreen(onBack: () -> Unit) {
                 .fillMaxWidth()
                 .weight(1f)
                 .padding(horizontal = 4.dp),
+            wrong = wrong,
             onSelect = { row, col -> selection = selectionFor(current.puzzle, row, col, selection) }
         )
 
         ClueBar(
             slot = slot,
-            onCheck = {
-                slot ?: return@ClueBar
-                AppSnackbar.show(
-                    if (current.isCorrect(slot)) "Ce mot est bon" else "Ce mot n'est pas encore bon"
-                )
+            onCheckWord = { slot?.let { check(current.puzzle.cellsOf(it), whole = false) } },
+            onCheckGrid = { check((0 until current.puzzle.cellCount).filterNot { it in current.puzzle.definitionCells }, whole = true) },
+            onRevealLetter = {
+                val target = selection ?: return@ClueBar
+                val cell = current.puzzle.index(target.row, target.col)
+                wrong = wrong - cell
+                apply(current.revealCell(cell))
+                selection = advance(current.puzzle, target)
             },
-            onReveal = {
-                slot ?: return@ClueBar
-                apply(revealSlot(current, slot))
-                explained = slot
+            onRevealWord = {
+                val target = slot ?: return@ClueBar
+                wrong = wrong - current.puzzle.cellsOf(target).toSet()
+                apply(current.revealSlot(target))
+            },
+            onClearWord = {
+                val target = slot ?: return@ClueBar
+                wrong = wrong - current.puzzle.cellsOf(target).toSet()
+                apply(current.clearSlot(target))
+                selection = Selection(target.row, target.col, target.across)
             }
         )
 
@@ -185,29 +238,25 @@ fun MotsFlechesScreen(onBack: () -> Unit) {
             onLetter = { letter ->
                 val target = selection ?: return@LetterKeyboard
                 val cell = current.puzzle.index(target.row, target.col)
-                apply(current.withLetter(cell, letter).copy(revealed = current.revealed - cell))
+                wrong = wrong - cell
+                apply(current.typed(cell, letter))
                 selection = advance(current.puzzle, target)
             },
             onBackspace = {
                 val target = selection ?: return@LetterKeyboard
                 val cell = current.puzzle.index(target.row, target.col)
                 if (current.letterAt(cell) != Puzzle.EMPTY) {
-                    apply(current.withLetter(cell, Puzzle.EMPTY).copy(revealed = current.revealed - cell))
+                    wrong = wrong - cell
+                    apply(current.cleared(cell))
                 } else {
                     val previous = retreat(current.puzzle, target)
                     val previousCell = current.puzzle.index(previous.row, previous.col)
-                    apply(
-                        current.withLetter(previousCell, Puzzle.EMPTY)
-                            .copy(revealed = current.revealed - previousCell)
-                    )
+                    wrong = wrong - previousCell
+                    apply(current.cleared(previousCell))
                     selection = previous
                 }
             }
         )
-    }
-
-    explained?.let { revealedSlot ->
-        ExplanationDialog(slot = revealedSlot, onDismiss = { explained = null })
     }
 
     if (confirmNewGrid) {
@@ -260,26 +309,32 @@ fun MotsFlechesScreen(onBack: () -> Unit) {
     }
 }
 
-/** The definition of the word being filled, with the two on-demand actions next to it. */
+/** The definition of the word being filled, and every action that acts on it or on the grid. */
 @Composable
-private fun ClueBar(slot: Slot?, onCheck: () -> Unit, onReveal: () -> Unit) {
-    Row(
+private fun ClueBar(
+    slot: Slot?,
+    onCheckWord: () -> Unit,
+    onCheckGrid: () -> Unit,
+    onRevealLetter: () -> Unit,
+    onRevealWord: () -> Unit,
+    onClearWord: () -> Unit
+) {
+    Column(
         modifier = Modifier
             .fillMaxWidth()
             .background(MaterialTheme.colorScheme.surfaceVariant)
-            .padding(horizontal = 12.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .padding(horizontal = 12.dp, vertical = 6.dp)
     ) {
         Column(
             modifier = Modifier
-                .weight(1f)
-                // The bar keeps its height whatever the definition's length, so the grid above it
-                // never jumps as you move from word to word.
-                .heightIn(min = 44.dp, max = 96.dp)
+                .fillMaxWidth()
+                // The definition is shown whole: the bar takes the height it needs, rather than
+                // being cut at the bottom.
+                .heightIn(min = 40.dp, max = 132.dp)
                 .verticalScroll(rememberScrollState())
         ) {
             Text(
-                // The full definition, not the shortened one printed in the cell.
+                // The definition in full, not the one cut down to fit the cell.
                 text = slot?.explanation ?: "Touche une case pour commencer",
                 style = MaterialTheme.typography.bodyMedium,
                 fontStyle = if (slot == null) FontStyle.Italic else FontStyle.Normal
@@ -292,12 +347,29 @@ private fun ClueBar(slot: Slot?, onCheck: () -> Unit, onReveal: () -> Unit) {
                 )
             }
         }
-        IconButton(onClick = onCheck, enabled = slot != null) {
-            Icon(Icons.Default.Check, contentDescription = "Vérifier ce mot")
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            ClueAction(Icons.Default.Check, "Vérifier ce mot", enabled = slot != null, onClick = onCheckWord)
+            ClueAction(Icons.Default.DoneAll, "Vérifier la grille", onClick = onCheckGrid)
+            ClueAction(Icons.Default.Lightbulb, "Donner une lettre", enabled = slot != null, onClick = onRevealLetter)
+            ClueAction(Icons.Default.Visibility, "Voir la réponse", enabled = slot != null, onClick = onRevealWord)
+            ClueAction(Icons.Default.DeleteOutline, "Effacer ce mot", enabled = slot != null, onClick = onClearWord)
         }
-        IconButton(onClick = onReveal, enabled = slot != null) {
-            Icon(Icons.Default.Visibility, contentDescription = "Voir la réponse")
-        }
+    }
+}
+
+@Composable
+private fun ClueAction(
+    icon: ImageVector,
+    label: String,
+    enabled: Boolean = true,
+    onClick: () -> Unit
+) {
+    IconButton(onClick = onClick, enabled = enabled, modifier = Modifier.size(40.dp)) {
+        Icon(icon, contentDescription = label, modifier = Modifier.size(22.dp))
     }
 }
 
@@ -362,28 +434,6 @@ private fun Key(modifier: Modifier, onClick: () -> Unit, content: @Composable ()
     )
 }
 
-@Composable
-private fun ExplanationDialog(slot: Slot, onDismiss: () -> Unit) {
-    AppDialog(onDismiss = onDismiss) {
-        Text(slot.answer, style = MaterialTheme.typography.headlineSmall)
-        Spacer(Modifier.height(12.dp))
-        Text(
-            text = slot.clue,
-            style = MaterialTheme.typography.bodyMedium,
-            fontStyle = FontStyle.Italic
-        )
-        Spacer(Modifier.height(12.dp))
-        Text(slot.explanation, style = MaterialTheme.typography.bodyMedium)
-        Spacer(Modifier.height(16.dp))
-        MyButton(
-            text = "Fermer",
-            modifier = Modifier.fillMaxWidth().height(48.dp),
-            fontSize = 16.sp,
-            onClick = onDismiss
-        )
-    }
-}
-
 private fun puzzleSlot(puzzle: Puzzle, selection: Selection?): Slot? {
     val index = selection?.let { puzzle.slotIndexAt(it.row, it.col, it.across) } ?: return null
     return puzzle.slots[index]
@@ -441,14 +491,4 @@ private fun retreat(puzzle: Puzzle, selection: Selection): Selection {
     )
 }
 
-/** Writes the answer in and marks those cells as given, so they read differently from your own. */
-private fun revealSlot(state: PuzzleState, slot: Slot): PuzzleState {
-    var next = state
-    val given = state.revealed.toMutableSet()
-    for (position in 0 until slot.length) {
-        val cell = state.puzzle.index(slot.cellRow(position), slot.cellCol(position))
-        next = next.withLetter(cell, slot.answer[position])
-        given.add(cell)
-    }
-    return next.copy(revealed = given)
-}
+private fun plural(count: Int) = if (count > 1) "s" else ""

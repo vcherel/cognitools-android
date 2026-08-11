@@ -64,7 +64,7 @@ object PuzzleGenerator {
 
         val letters = CharArray(layout.width * layout.height) { Puzzle.EMPTY }
         val answers = IntArray(shapes.size) { UNASSIGNED }
-        val used = HashSet<String>()
+        val used = ArrayList<String>()
         var nodes = 0
 
         fun patternOf(shape: SlotShape): CharArray =
@@ -98,7 +98,8 @@ object PuzzleGenerator {
 
             for (candidate in candidates) {
                 val word = dictionary.word(candidate)
-                if (!used.add(word)) continue
+                if (used.any { sameFamily(it, word) }) continue
+                used.add(word)
                 for (position in 0 until shape.length) {
                     letters[shape.cell(layout.width, position)] = word[position]
                 }
@@ -131,6 +132,53 @@ object PuzzleGenerator {
             )
         }
         return Puzzle(layout.width, layout.height, layout.definitionCells, slots)
+    }
+
+    /**
+     * Two words close enough that a grid holding both would read as the same word twice: the same
+     * word, or one being the other plus an ending (CHAT/CHATS, AIME/AIMER/AIMEE).
+     */
+    private fun sameFamily(one: String, other: String): Boolean {
+        val short = if (one.length <= other.length) one else other
+        val long = if (one.length <= other.length) other else one
+        return long.length - short.length <= 2 && long.startsWith(short)
+    }
+
+    /**
+     * Whether every word of a layout crosses another one and the whole thing hangs together in one
+     * piece. A layout split into islands gives a grid where a corner can never be reached from the
+     * letters already found, so those are left out.
+     */
+    fun isFullyLinked(layout: Layout): Boolean {
+        val shapes = shapesOf(layout)
+        if (shapes.isEmpty()) return false
+        val cells = shapes.map { shape ->
+            (0 until shape.length).map { shape.cell(layout.width, it) }.toSet()
+        }
+        val neighbours = Array(shapes.size) { mutableListOf<Int>() }
+        for (one in shapes.indices) {
+            for (other in one + 1 until shapes.size) {
+                if (cells[one].any { it in cells[other] }) {
+                    neighbours[one].add(other)
+                    neighbours[other].add(one)
+                }
+            }
+        }
+        val seen = BooleanArray(shapes.size)
+        val stack = ArrayDeque<Int>()
+        seen[0] = true
+        stack.addLast(0)
+        var reached = 1
+        while (stack.isNotEmpty()) {
+            for (next in neighbours[stack.removeLast()]) {
+                if (!seen[next]) {
+                    seen[next] = true
+                    reached++
+                    stack.addLast(next)
+                }
+            }
+        }
+        return reached == shapes.size
     }
 
     /** Every run of 3 or more letter cells; runs of one belong to the crossing word only. */

@@ -48,7 +48,20 @@ object MotsFlechesStore {
 
     /** Words rarer than this are only used when a grid cannot be filled without them. */
     private const val COMMON_WORDS = 20_000
-    private const val LAYOUT_ATTEMPTS = 8
+
+    /**
+     * What a grid is built from first: the everyday part of the language. About a third of the
+     * layouts fill from it, which a dozen attempts turn into an easy grid nearly every time.
+     */
+    private const val EASY_WORDS = 10_000
+
+    /** 8x10 and 10x13 fit here, 12x15 does not: fewer words to find, and bigger cells to read. */
+    private const val SMALL_GRID_CELLS = 130
+
+    private const val LAYOUT_ATTEMPTS = 12
+
+    /** How many grids are kept ready per language, so a new one never waits on a fill. */
+    private const val PREFETCH = 2
 
     private val mutex = Mutex()
     private val json = Json { ignoreUnknownKeys = true }
@@ -56,8 +69,8 @@ object MotsFlechesStore {
     private val dictionaries = mutableMapOf<MotsFlechesLang, ClueDictionary>()
     private var layouts: List<Layout>? = null
 
-    /** Generated ahead of time while a grid is being played, so the next one opens instantly. */
-    private val upcoming = mutableMapOf<MotsFlechesLang, Puzzle>()
+    /** Generated ahead of time while a grid is being played, so the next ones open instantly. */
+    private val upcoming = mutableMapOf<MotsFlechesLang, ArrayDeque<Puzzle>>()
 
     /** The language the tool opens in, remembered across launches. */
     fun language(context: Context): Flow<MotsFlechesLang> =
@@ -73,7 +86,7 @@ object MotsFlechesStore {
     }
 
     suspend fun newGrid(context: Context, lang: MotsFlechesLang): PuzzleState = withContext(Dispatchers.IO) {
-        val puzzle = mutex.withLock { upcoming.remove(lang) } ?: generate(context, lang)
+        val puzzle = mutex.withLock { upcoming[lang]?.removeFirstOrNull() } ?: generate(context, lang)
         PuzzleState.blank(puzzle).also { save(context, lang, it) }
     }
 
@@ -81,12 +94,15 @@ object MotsFlechesStore {
         File(context.filesDir, lang.saveFile).writeText(encode(state))
     }
 
-    /** Builds the grid that comes after this one, so finishing never waits on a fill. */
+    /**
+     * Tops the reserve back up to [PREFETCH] grids, so finishing one never waits on a fill. The
+     * fill itself runs outside the lock: it takes far longer than handing a ready grid over.
+     */
     suspend fun prepareNext(context: Context, lang: MotsFlechesLang) = withContext(Dispatchers.IO) {
-        mutex.withLock {
-            if (lang !in upcoming) runCatching { generate(context, lang) }.getOrNull()?.let { upcoming[lang] = it }
+        while (mutex.withLock { upcoming[lang]?.size ?: 0 } < PREFETCH) {
+            val puzzle = runCatching { generate(context, lang) }.getOrNull() ?: break
+            mutex.withLock { upcoming.getOrPut(lang) { ArrayDeque() }.addLast(puzzle) }
         }
-        Unit
     }
 
     private fun read(context: Context, lang: MotsFlechesLang): PuzzleState? {
@@ -97,13 +113,20 @@ object MotsFlechesStore {
 
     private fun generate(context: Context, lang: MotsFlechesLang): Puzzle {
         val dictionary = dictionary(context, lang)
-        val layouts = layouts(context)
+        val all = layouts(context)
+        val small = all.filter { it.width * it.height <= SMALL_GRID_CELLS }.ifEmpty { all }
         val rng = Random(System.nanoTime())
-        // Common words first; a layout that will not fill from them gets the whole dictionary.
-        for (maxRank in intArrayOf(COMMON_WORDS, Int.MAX_VALUE)) {
+        // Easiest first: a small grid of everyday words. Each step down only happens when the one
+        // before it could not be filled at all.
+        val steps = listOf(
+            small to EASY_WORDS,
+            small to COMMON_WORDS,
+            all to COMMON_WORDS,
+            all to Int.MAX_VALUE
+        )
+        for ((pool, maxRank) in steps) {
             repeat(LAYOUT_ATTEMPTS) {
-                val layout = layouts.random(rng)
-                PuzzleGenerator.generate(layout, dictionary, rng, maxRank)?.let { return it }
+                PuzzleGenerator.generate(pool.random(rng), dictionary, rng, maxRank)?.let { return it }
             }
         }
         error("Aucune grille n'a pu être générée")
@@ -113,10 +136,11 @@ object MotsFlechesStore {
         dictionaries.getOrPut(lang) { context.assets.open(lang.asset).use { ClueDictionary.load(it) } }
     }
 
+    /** Only the shapes whose words all hang together; a grid split into islands is no fun to solve. */
     private fun layouts(context: Context): List<Layout> = layouts ?: synchronized(this) {
         layouts ?: context.assets.open(LAYOUTS_ASSET).use {
             PuzzleGenerator.parseLayouts(it.bufferedReader().readText())
-        }.also { layouts = it }
+        }.filter { PuzzleGenerator.isFullyLinked(it) }.also { layouts = it }
     }
 
     // Hand written with short keys, the same style as the Deezer caches, so the app stays off the
@@ -129,6 +153,7 @@ object MotsFlechesStore {
             put("d", buildJsonArray { puzzle.definitionCells.sorted().forEach { add(it) } })
             put("e", state.entries)
             put("r", buildJsonArray { state.revealed.sorted().forEach { add(it) } })
+            put("k", buildJsonArray { state.confirmed.sorted().forEach { add(it) } })
             put("s", buildJsonArray {
                 puzzle.slots.forEach { slot ->
                     add(buildJsonObject {
@@ -151,19 +176,22 @@ object MotsFlechesStore {
         val definitions = root.getValue("d").jsonArray.map { it.jsonPrimitive.content.toInt() }.toSet()
         val slots = root.getValue("s").jsonArray.map { element ->
             val slot = element.jsonObject
+            val clue = slot.getValue("q").jsonPrimitive.content
             Slot(
                 row = slot.getValue("r").jsonPrimitive.content.toInt(),
                 col = slot.getValue("c").jsonPrimitive.content.toInt(),
                 across = slot.getValue("a").jsonPrimitive.content.toBoolean(),
                 answer = slot.getValue("w").jsonPrimitive.content,
-                clue = slot.getValue("q").jsonPrimitive.content,
-                explanation = slot.getValue("x").jsonPrimitive.content
+                clue = clue,
+                // A grid saved while the full definition was not kept falls back to the short one.
+                explanation = slot["x"]?.jsonPrimitive?.content ?: clue
             )
         }
         val puzzle = Puzzle(width, height, definitions, slots)
         val entries = root.getValue("e").jsonPrimitive.content
         val revealed = root["r"]?.jsonArray.orEmpty().map { it.jsonPrimitive.content.toInt() }.toSet()
+        val confirmed = root["k"]?.jsonArray.orEmpty().map { it.jsonPrimitive.content.toInt() }.toSet()
         require(entries.length == puzzle.cellCount) { "grille sauvegardée incohérente" }
-        return PuzzleState(puzzle, entries, revealed)
+        return PuzzleState(puzzle, entries, revealed, confirmed)
     }
 }

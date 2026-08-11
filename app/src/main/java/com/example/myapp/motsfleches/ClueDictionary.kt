@@ -2,7 +2,10 @@ package com.example.myapp.motsfleches
 
 import java.io.InputStream
 
-/** A definition to print in the grid, and the full one shown when the answer is given away. */
+/**
+ * A definition: the short form printed in the grid cell, and the whole sentence it was cut from,
+ * which is what the clue bar shows.
+ */
 data class Clue(val text: String, val explanation: String)
 
 /**

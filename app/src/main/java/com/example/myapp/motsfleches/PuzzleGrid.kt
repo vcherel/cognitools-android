@@ -46,7 +46,9 @@ private class GridColors(
     val line: Color,
     val clueText: Color,
     val answerText: Color,
-    val revealedText: Color
+    val revealedText: Color,
+    val checkedText: Color,
+    val wrongText: Color
 )
 
 private fun gridColors(isDark: Boolean) = if (isDark) {
@@ -58,7 +60,9 @@ private fun gridColors(isDark: Boolean) = if (isDark) {
         line = Color(0xFF546E7A),
         clueText = Color(0xFFCFD8DC),
         answerText = Color(0xFFECEFF1),
-        revealedText = Color(0xFF64B5F6)
+        revealedText = Color(0xFF64B5F6),
+        checkedText = Color(0xFF81C784),
+        wrongText = Color(0xFFEF9A9A)
     )
 } else {
     GridColors(
@@ -69,7 +73,9 @@ private fun gridColors(isDark: Boolean) = if (isDark) {
         line = Color(0xFF90A4AE),
         clueText = Color(0xFF263238),
         answerText = Color(0xFF102027),
-        revealedText = Color(0xFF1565C0)
+        revealedText = Color(0xFF1565C0),
+        checkedText = Color(0xFF2E7D32),
+        wrongText = Color(0xFFC62828)
     )
 }
 
@@ -86,6 +92,7 @@ fun PuzzleGrid(
     state: PuzzleState,
     selection: Selection?,
     modifier: Modifier = Modifier,
+    wrong: Set<Int> = emptySet(),
     onSelect: (row: Int, col: Int) -> Unit
 ) {
     val puzzle = state.puzzle
@@ -168,7 +175,12 @@ fun PuzzleGrid(
                             letters[letter]?.let { layout ->
                                 drawText(
                                     textLayoutResult = layout,
-                                    color = if (index in state.revealed) colors.revealedText else colors.answerText,
+                                    color = when {
+                                        index in wrong -> colors.wrongText
+                                        index in state.revealed -> colors.revealedText
+                                        index in state.confirmed -> colors.checkedText
+                                        else -> colors.answerText
+                                    },
                                     topLeft = topLeft + Offset(
                                         (cell - layout.size.width) / 2f,
                                         (cell - layout.size.height) / 2f
@@ -241,25 +253,31 @@ private fun layoutClues(
             // for a down one.
             val textWidth = cell - padding * 2 - if (isAcross) arrow else 0f
             val textHeight = bandHeight - padding * 2 - if (isAcross) 0f else arrow
-            val fontPx = cell * fontFactor(shared)
-            val linePx = fontPx * 1.15f
-            val style = TextStyle(
-                fontSize = with(density) { fontPx.toSp() },
-                lineHeight = with(density) { linePx.toSp() },
-                color = colors.clueText,
-                textAlign = TextAlign.Start
-            )
-            // Ellipsis needs a line count: a height constraint alone would cut a line in half.
-            val layout = measurer.measure(
-                text = slot.clue,
-                style = style,
-                overflow = TextOverflow.Ellipsis,
-                maxLines = max(1, (textHeight / linePx).toInt()),
-                constraints = Constraints(maxWidth = max(1, textWidth.toInt()))
-            )
+            // A long definition is not cut off, it is set smaller: the first size that fits whole
+            // wins, and only a definition that overflows even the smallest one is ellipsized.
+            var layout: TextLayoutResult? = null
+            for (factor in fontFactors(shared)) {
+                val fontPx = cell * factor
+                val linePx = fontPx * 1.15f
+                val style = TextStyle(
+                    fontSize = with(density) { fontPx.toSp() },
+                    lineHeight = with(density) { linePx.toSp() },
+                    color = colors.clueText,
+                    textAlign = TextAlign.Start
+                )
+                // Ellipsis needs a line count: a height constraint alone would cut a line in half.
+                layout = measurer.measure(
+                    text = slot.clue,
+                    style = style,
+                    overflow = TextOverflow.Ellipsis,
+                    maxLines = max(1, (textHeight / linePx).toInt()),
+                    constraints = Constraints(maxWidth = max(1, textWidth.toInt()))
+                )
+                if (!layout.hasVisualOverflow) break
+            }
             draws.add(
                 ClueDraw(
-                    layout = layout,
+                    layout = layout ?: return@forEachIndexed,
                     topLeft = origin + Offset(padding, bandTop + padding),
                     arrow = arrowPath(origin, bandTop, bandHeight, cell, arrow, isAcross)
                 )
@@ -294,5 +312,10 @@ private fun arrowPath(
     close()
 }
 
-/** Two definitions in one cell each get half the height, so they need a smaller type. */
-private fun fontFactor(shared: Boolean) = if (shared) 0.135f else 0.16f
+/**
+ * The type sizes a definition is tried at, biggest first. Two definitions in one cell each get half
+ * the height, so they start smaller.
+ */
+private fun fontFactors(shared: Boolean): FloatArray =
+    if (shared) floatArrayOf(0.135f, 0.12f, 0.105f, 0.092f, 0.08f)
+    else floatArrayOf(0.16f, 0.142f, 0.125f, 0.11f, 0.096f)
