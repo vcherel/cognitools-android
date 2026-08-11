@@ -17,10 +17,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.SnackbarResult
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -81,6 +78,14 @@ class MainActivity : ComponentActivity() {
     // case, so the rest of the app (menu, notes, other albums...) stays behind the real lock screen.
     private val lockedQuickViewItem = mutableStateOf<MediaItem?>(null)
 
+    // True for the whole life of an activity instance that has shown a picture over the keyguard.
+    // Such an instance never turns back into the full app while the phone is still locked: once the
+    // item is gone (deleted, moved, or a later intent pointing at something unreadable), it closes
+    // instead, so the albums or another album's pictures can't end up on screen over the lock
+    // screen. Survives a recreation, which would otherwise re-enter onCreate with the flag lost and
+    // the just-deleted item no longer resolvable.
+    private var lockedSession = false
+
     override fun onCreate(savedInstanceState: Bundle?) {
         val splashScreen = installSplashScreen()
         super.onCreate(savedInstanceState)
@@ -105,6 +110,14 @@ class MainActivity : ComponentActivity() {
         val quickViewItem = resolveLockedQuickViewItem(intent)
         lockedQuickViewItem.value = quickViewItem
         applyShowWhenLocked(quickViewItem != null)
+        lockedSession = quickViewItem != null ||
+            (savedInstanceState?.getBoolean(STATE_LOCKED_SESSION) == true && isKeyguardLocked())
+        if (lockedSession && quickViewItem == null) {
+            // Recreated after the item was deleted or moved: there is nothing left to show, and the
+            // full app is not an acceptable fallback with the phone still locked.
+            finish()
+            return
+        }
 
         // Asking for notification permission over the lock screen makes no sense for a quick photo
         // review that never touches anything notification related.
@@ -117,9 +130,12 @@ class MainActivity : ComponentActivity() {
         // Resolved up front, synchronously: a single indexed-row query, fast enough to do before
         // the first frame so the menu is never the destination Compose actually starts on (which
         // would otherwise flash on screen for the frame or two before a post-composition navigate
-        // could react to it).
-        val initialRoute = resolveInitialGalleryRoute(this, viewMediaUriFrom(intent))
-            ?: routeFromIntent(intent)?.let { it to null }
+        // could react to it). Skipped entirely for a locked session: that route opens the item's
+        // whole album, which must not be sitting there ready to fire behind the quick view.
+        val initialRoute = if (lockedSession) null else {
+            resolveInitialGalleryRoute(this, viewMediaUriFrom(intent))
+                ?: routeFromIntent(intent)?.let { it to null }
+        }
 
         enableEdgeToEdge()
         setContent {
@@ -131,7 +147,10 @@ class MainActivity : ComponentActivity() {
             AppTheme(isDarkMode = isDarkMode) {
                 val quickView = lockedQuickViewItem
                 if (quickView != null) {
-                    LockedQuickView(item = quickView, onClose = { finish() })
+                    // Outside MainScreen, so the locals it normally provides have to be set here.
+                    CompositionLocalProvider(LocalIsDarkMode provides isDarkMode) {
+                        LockedQuickView(item = quickView, onClose = { finish() })
+                    }
                 } else {
                     MainScreen(
                         themeManager = themeManager,
@@ -153,9 +172,31 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         val quickViewItem = resolveLockedQuickViewItem(intent)
-        lockedQuickViewItem.value = quickViewItem
-        applyShowWhenLocked(quickViewItem != null)
-        if (quickViewItem == null) routeFromIntent(intent)?.let { pendingRoute.value = it }
+        if (quickViewItem != null) {
+            lockedSession = true
+            lockedQuickViewItem.value = quickViewItem
+            applyShowWhenLocked(true)
+            return
+        }
+        // Nothing to show over the keyguard. If this instance is a locked session, that is the end
+        // of it: the camera re-sending the picture just deleted, or any other intent, closes the
+        // activity rather than revealing the app underneath. The session only ends normally once
+        // the phone is actually unlocked.
+        if (lockedSession) {
+            if (isKeyguardLocked()) {
+                finish()
+                return
+            }
+            lockedSession = false
+        }
+        lockedQuickViewItem.value = null
+        applyShowWhenLocked(false)
+        routeFromIntent(intent)?.let { pendingRoute.value = it }
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putBoolean(STATE_LOCKED_SESSION, lockedSession)
     }
 
     // Non-null only when the device is currently locked and this intent points at a single photo
@@ -164,12 +205,14 @@ class MainActivity : ComponentActivity() {
     // through to the normal full-app flow instead.
     private fun resolveLockedQuickViewItem(intent: Intent): MediaItem? {
         val uri = viewMediaUriFrom(intent) ?: return null
-        val keyguardManager = getSystemService(KeyguardManager::class.java) ?: return null
-        if (!keyguardManager.isKeyguardLocked) return null
+        if (!isKeyguardLocked()) return null
         if (!hasReadMediaPermission(this)) return null
         val (itemId, _) = resolveMediaTarget(this, uri) ?: return null
         return queryMediaItemById(this, itemId)
     }
+
+    private fun isKeyguardLocked(): Boolean =
+        getSystemService(KeyguardManager::class.java)?.isKeyguardLocked == true
 
     // Lets this activity draw over the keyguard without dismissing it, only while it is showing
     // LockedQuickView. Always explicitly set (true or false) rather than only ever turned on, since
@@ -193,6 +236,7 @@ class MainActivity : ComponentActivity() {
     companion object {
         const val EXTRA_OPEN_ROUTE = "com.example.myapp.OPEN_ROUTE"
         const val ROUTE_DEEZER_NOW_PLAYING = "deezer?openPlayer=true"
+        private const val STATE_LOCKED_SESSION = "lockedSession"
     }
 }
 
@@ -260,18 +304,7 @@ fun MainScreen(
             onPendingRouteConsumed()
         }
 
-        val snackbarHostState = remember { SnackbarHostState() }
-        LaunchedEffect(Unit) {
-            AppSnackbar.requests.collect { request ->
-                val result = snackbarHostState.showSnackbar(
-                    message = request.message,
-                    actionLabel = request.actionLabel,
-                    withDismissAction = true,
-                    duration = SnackbarDuration.Short
-                )
-                if (result == SnackbarResult.ActionPerformed) request.onAction?.invoke()
-            }
-        }
+        val snackbarHostState = rememberAppSnackbarHostState()
 
         Scaffold(snackbarHost = { SnackbarHost(snackbarHostState) }) { innerPadding ->
             Box(modifier = Modifier.padding(innerPadding)) {

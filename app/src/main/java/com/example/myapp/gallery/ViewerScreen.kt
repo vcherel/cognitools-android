@@ -75,11 +75,13 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 // Where GalleryViewerScreen gets its items from: a normal album, the pinned set (hero first),
-// or the Wallet shortcut (the album named "Wallet", opened straight to its first item).
+// the Wallet shortcut (the album named "Wallet", opened straight to its first item), or a single
+// item on its own (the locked quick view, where nothing around it should be reachable).
 sealed interface ViewerSource {
     data class Album(val bucketId: Long) : ViewerSource
     data object Pinned : ViewerSource
     data object Wallet : ViewerSource
+    data class Single(val itemId: Long) : ViewerSource
 }
 
 const val WALLET_ALBUM_NAME = "Wallet"
@@ -115,6 +117,9 @@ fun GalleryViewerScreen(
             ViewerSource.Wallet -> withContext(Dispatchers.IO) {
                 val wallet = queryAlbums(context).firstOrNull { it.name.equals(WALLET_ALBUM_NAME, ignoreCase = true) }
                 if (wallet != null) queryMediaItems(context, bucketId = wallet.bucketId) else emptyList()
+            }
+            is ViewerSource.Single -> withContext(Dispatchers.IO) {
+                listOfNotNull(queryMediaItemById(context, source.itemId))
             }
         }
         loaded = true
@@ -394,7 +399,12 @@ fun GalleryViewerScreen(
 
     if (showMoveDialog) {
         MoveDialog(
-            currentBucketId = (source as? ViewerSource.Album)?.bucketId ?: -1L,
+            // A single-item viewer has no album of its own to exclude, so it goes by the item's.
+            currentBucketId = when (source) {
+                is ViewerSource.Album -> source.bucketId
+                is ViewerSource.Single -> currentItem.bucketId
+                else -> -1L
+            },
             onDismiss = { showMoveDialog = false },
             onConfirm = { targetRelativePath ->
                 showMoveDialog = false
