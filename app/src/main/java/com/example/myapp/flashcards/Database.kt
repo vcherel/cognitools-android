@@ -17,6 +17,8 @@ import com.example.myapp.podcasts.PodcastDao
 import com.example.myapp.podcasts.PodcastEpisodeProgress
 import com.example.myapp.podcasts.PodcastFavorite
 import com.example.myapp.podcasts.PodcastSeenEpisode
+import com.example.myapp.reader.Book
+import com.example.myapp.reader.BookDao
 import kotlinx.coroutines.flow.Flow
 
 data class CountRow(val listId: String, val c: Int)
@@ -74,15 +76,16 @@ interface FlashcardDao {
 @Database(
     entities = [
         FlashcardList::class, FlashcardElement::class, Note::class, PinnedMediaItem::class,
-        PodcastFavorite::class, PodcastSeenEpisode::class, PodcastEpisodeProgress::class
+        PodcastFavorite::class, PodcastSeenEpisode::class, PodcastEpisodeProgress::class, Book::class
     ],
-    version = 11
+    version = 12
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun flashcardDao(): FlashcardDao
     abstract fun noteDao(): NoteDao
     abstract fun pinnedMediaItemDao(): PinnedMediaItemDao
     abstract fun podcastDao(): PodcastDao
+    abstract fun bookDao(): BookDao
 
     companion object {
         @Volatile private var instance: AppDatabase? = null
@@ -180,6 +183,26 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_11_12 = object : Migration(11, 12) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `books` (" +
+                        "`id` TEXT NOT NULL, " +
+                        "`title` TEXT NOT NULL, " +
+                        "`author` TEXT NOT NULL, " +
+                        "`fileName` TEXT NOT NULL, " +
+                        "`coverFileName` TEXT, " +
+                        "`chapterCount` INTEGER NOT NULL, " +
+                        "`chapterIndex` INTEGER NOT NULL, " +
+                        "`blockIndex` INTEGER NOT NULL, " +
+                        "`blockOffset` INTEGER NOT NULL, " +
+                        "`addedAt` INTEGER NOT NULL, " +
+                        "`lastOpenedAt` INTEGER NOT NULL, " +
+                        "PRIMARY KEY(`id`))"
+                )
+            }
+        }
+
         fun get(context: Context): AppDatabase =
             instance ?: synchronized(this) {
                 instance ?: Room.databaseBuilder(
@@ -188,7 +211,7 @@ abstract class AppDatabase : RoomDatabase() {
                     "flashcards.db"
                 ).addMigrations(
                     MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7,
-                    MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11
+                    MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12
                 )
                     .build().also { instance = it }
             }
