@@ -28,7 +28,11 @@ import com.example.myapp.podcasts.PodcastMiniPlayerBar
  * track/podcast episode, and an RSS podcast episode), so both sets are shown side by side here.
  */
 @Composable
-fun DeezerScreen(onBack: () -> Unit, openFullPlayerInitially: Boolean = false) {
+fun DeezerScreen(
+    onBack: () -> Unit,
+    openFullPlayerInitially: Boolean = false,
+    onOpenVolume: () -> Unit = {}
+) {
     val context = LocalContext.current
     val repo = context.deezerRepository
     val podcastRepo = context.podcastRepository
@@ -58,7 +62,8 @@ fun DeezerScreen(onBack: () -> Unit, openFullPlayerInitially: Boolean = false) {
                         onOpenSearch = { nav.navigate("search") },
                         onOpenPlaylist = { pl -> nav.navigate("playlist/${pl.id}/${java.net.URLEncoder.encode(pl.title, "UTF-8")}") },
                         onOpenPodcast = { fav -> nav.navigate("podcast/${java.net.URLEncoder.encode(fav.id, "UTF-8")}") },
-                        onOpenDiscoveries = { nav.navigate("discoveries") }
+                        onOpenDiscoveries = { nav.navigate("discoveries") },
+                        onOpenVolume = onOpenVolume
                     )
                 }
                 composable("search") {

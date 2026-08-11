@@ -23,6 +23,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CloudDownload
@@ -80,7 +81,8 @@ fun DeezerLibraryScreen(
     onOpenSearch: () -> Unit,
     onOpenPlaylist: (DeezerPlaylist) -> Unit,
     onOpenPodcast: (PodcastFavorite) -> Unit,
-    onOpenDiscoveries: () -> Unit
+    onOpenDiscoveries: () -> Unit,
+    onOpenVolume: () -> Unit
 ) {
     val scope = rememberCoroutineScope()
     val goHome = LocalGoHome.current
@@ -121,6 +123,11 @@ fun DeezerLibraryScreen(
             Spacer(Modifier.weight(1f))
             IconButton(onClick = { repo.stopAll(); podcastRepo.stopAll(); goHome() }) {
                 Icon(Icons.Filled.Stop, contentDescription = "Tout arrêter")
+            }
+            // The booster belongs to whatever is playing, so it is reachable from here rather than
+            // only from the menu.
+            IconButton(onClick = onOpenVolume) {
+                Icon(Icons.AutoMirrored.Filled.VolumeUp, contentDescription = "Volume booster")
             }
             IconButton(onClick = { showSettings = true }) {
                 Icon(Icons.Filled.Settings, contentDescription = "Réglages")
