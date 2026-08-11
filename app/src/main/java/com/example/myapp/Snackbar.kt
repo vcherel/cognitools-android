@@ -1,5 +1,11 @@
 package com.example.myapp
 
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 
@@ -21,4 +27,25 @@ object AppSnackbar {
     fun show(message: String, actionLabel: String? = null, onAction: (suspend () -> Unit)? = null) {
         _requests.tryEmit(Request(message, actionLabel, onAction))
     }
+}
+
+/**
+ * A SnackbarHostState already wired to AppSnackbar's requests. Whoever draws the SnackbarHost owns
+ * one of these: the nav host in the normal app, and the locked quick view, which runs outside it.
+ */
+@Composable
+fun rememberAppSnackbarHostState(): SnackbarHostState {
+    val hostState = remember { SnackbarHostState() }
+    LaunchedEffect(hostState) {
+        AppSnackbar.requests.collect { request ->
+            val result = hostState.showSnackbar(
+                message = request.message,
+                actionLabel = request.actionLabel,
+                withDismissAction = true,
+                duration = SnackbarDuration.Short
+            )
+            if (result == SnackbarResult.ActionPerformed) request.onAction?.invoke()
+        }
+    }
+    return hostState
 }
