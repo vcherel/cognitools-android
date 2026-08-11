@@ -130,15 +130,8 @@ data class PuzzleState(
     fun confirming(cells: List<Int>): PuzzleState =
         copy(confirmed = confirmed + filledIn(cells).filter { letterAt(it) == puzzle.answerAt(it) })
 
-    /** Every cell of the word filled in, right or wrong. */
-    fun isFilled(slot: Slot): Boolean =
-        puzzle.cellsOf(slot).all { letterAt(it) != Puzzle.EMPTY }
-
     fun isCorrect(slot: Slot): Boolean =
         puzzle.cellsOf(slot).all { letterAt(it) == puzzle.answerAt(it) }
-
-    val isComplete: Boolean
-        get() = puzzle.slots.all { isFilled(it) }
 
     val isSolved: Boolean
         get() = puzzle.slots.all { isCorrect(it) }

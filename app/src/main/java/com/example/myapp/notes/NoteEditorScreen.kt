@@ -14,33 +14,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Sort
-import androidx.compose.material.icons.automirrored.filled.Undo
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.CheckBox
-import androidx.compose.material.icons.filled.CheckBoxOutlineBlank
-import androidx.compose.material.icons.filled.DeleteSweep
-import androidx.compose.material.icons.filled.FormatBold
-import androidx.compose.material.icons.filled.FormatItalic
-import androidx.compose.material.icons.filled.FormatUnderlined
-import androidx.compose.material.icons.filled.Kitchen
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.LockOpen
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.VerticalAlignCenter
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -56,8 +37,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextRange
@@ -99,8 +78,6 @@ fun NoteEditorScreen(noteId: String, initialEditOffset: Int = -1, onBack: () -> 
     var unlocked by remember { mutableStateOf(isNew) }
     var showCreatePin by remember { mutableStateOf(false) }
     var titleFocused by remember { mutableStateOf(false) }
-    var showFormatMenu by remember { mutableStateOf(false) }
-    var showMoreMenu by remember { mutableStateOf(false) }
     // null until the note is loaded; guards the autosave against saving too early
     var lastSaved by remember { mutableStateOf<NoteSnapshot?>(if (isNew) NoteSnapshot("", "") else null) }
     // Snapshots to step back through with the undo button
@@ -205,12 +182,12 @@ fun NoteEditorScreen(noteId: String, initialEditOffset: Int = -1, onBack: () -> 
         scope.launch { dao.upsertNote(note) }
     }
 
-    // Rewrites the note's lines in place: the single shape every per-line action shares.
-    fun editLines(block: (MutableList<String>) -> Unit) {
-        val lines = textFieldState.text.toString().split("\n").toMutableList()
-        block(lines)
-        saveContent(lines.joinToString("\n"))
-    }
+    val lineEdits = rememberNoteLineEdits(
+        textFieldState = textFieldState,
+        snackbar = snackbarHostState,
+        scope = scope,
+        saveContent = { saveContent(it) }
+    )
 
     val sync = rememberNoteSyncActions(
         noteId = id,
@@ -286,70 +263,6 @@ fun NoteEditorScreen(noteId: String, initialEditOffset: Int = -1, onBack: () -> 
         }
     }
 
-    // Bumps the day in a "Muscu (jour)" checkbox line two days forward, wrapping
-    // across the week, so a tap after a session sets it to the next planned one
-    fun advanceMuscuLineDay(index: Int) = editLines { lines ->
-        val line = lines[index]
-        if (!line.isCheckboxLine()) return@editLines
-        val text = line.checkboxText()
-        val match = muscuDayMatch(text) ?: return@editLines
-        val dayGroup = match.groups[1]!!
-        val dayIndex = frenchDays.indexOf(dayGroup.value.trim().lowercase())
-        val newDay = frenchDays[(dayIndex + 2) % 7]
-        val newText = text.substring(0, dayGroup.range.first) + newDay + text.substring(dayGroup.range.last + 1)
-        lines[index] = line.checkboxPrefix() + newText
-    }
-
-    // Drops a checkbox line's trailing "(jour)"/"(date)" waiting suffix, once its day
-    // or date has come and the item moves out of the waiting zone into the active list
-    fun removeLineDateSuffix(index: Int) = editLines { lines ->
-        val line = lines[index]
-        if (!line.isCheckboxLine()) return@editLines
-        lines[index] = line.checkboxPrefix() + line.checkboxText().withoutDateSuffix()
-    }
-
-    fun toggleLine(index: Int) = editLines { lines ->
-        val line = lines[index]
-        val prefix = if (line.isCheckedLine()) UNCHECKED_PREFIX else CHECKED_PREFIX
-        lines[index] = prefix + line.checkboxText()
-    }
-
-    // Changes a checkbox line's "(N)" quantity by delta (floored at 1, "(1)" is dropped)
-    fun changeLineQuantity(index: Int, delta: Int) = editLines { lines ->
-        val line = lines[index]
-        if (!line.isCheckboxLine()) return@editLines
-        lines[index] = line.checkboxPrefix() + line.checkboxText().withQuantityDelta(delta)
-    }
-
-    fun deleteLine(index: Int) {
-        var removed = ""
-        editLines { lines -> removed = lines.removeAt(index) }
-        scope.launch {
-            // Replace any snackbar from a previous delete instead of queueing
-            snackbarHostState.currentSnackbarData?.dismiss()
-            val result = snackbarHostState.showSnackbar(
-                message = "Élément supprimé",
-                actionLabel = "Annuler",
-                withDismissAction = true,
-                duration = SnackbarDuration.Short
-            )
-            if (result == SnackbarResult.ActionPerformed) {
-                editLines { lines -> lines.add(index.coerceAtMost(lines.size), removed) }
-            }
-        }
-    }
-
-    // Wraps a whole line's text in the marker (or removes it when already wrapped)
-    fun toggleLineMarker(index: Int, marker: String) {
-        saveContent(textFieldState.text.toString().withLineMarkerToggled(index, marker))
-    }
-
-    // Adds/removes the "Resume" marker right after a category title, in the Claude note
-    fun toggleResumeAfter(index: Int) = editLines { lines ->
-        if (lines.getOrNull(index + 1) == RESUME_LINE) lines.removeAt(index + 1)
-        else lines.add(index + 1, RESUME_LINE)
-    }
-
     // Enters edit mode with the caret at the given content offset, padding the note
     // first so there's room to type before the first line or after the last.
     fun enterEditAt(offset: Int) {
@@ -400,161 +313,41 @@ fun NoteEditorScreen(noteId: String, initialEditOffset: Int = -1, onBack: () -> 
             ) {
                 Spacer(Modifier.height(16.dp))
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    if (!titleFocused) {
-                        BackIconButton(onBack = { goBack() })
-                    }
-                    BasicTextField(
-                        state = titleFieldState,
-                        inputTransformation = stripNewlinesTransformation,
-                        // Wraps onto up to two lines rather than being clipped by the buttons;
-                        // stripNewlinesTransformation still keeps it a single logical line.
-                        lineLimits = TextFieldLineLimits.MultiLine(maxHeightInLines = 2),
-                        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
-                        modifier = Modifier
-                            .padding(start = 8.dp)
-                            .weight(1f)
-                            .onFocusChanged { titleFocused = it.isFocused },
-                        textStyle = MaterialTheme.typography.titleMedium.copy(
-                            color = MaterialTheme.colorScheme.onBackground
-                        ),
-                        cursorBrush = SolidColor(MaterialTheme.colorScheme.onBackground),
-                        decorator = { innerTextField ->
-                            Box {
-                                if (titleFieldState.text.isEmpty()) {
-                                    Text(
-                                        "Note",
-                                        style = MaterialTheme.typography.titleMedium,
-                                        color = Color.Gray
-                                    )
-                                }
-                                innerTextField()
+                NoteEditorTopBar(
+                    titleFieldState = titleFieldState,
+                    titleFocused = titleFocused,
+                    onTitleFocusChanged = { titleFocused = it },
+                    state = NoteEditorBarState(
+                        isEditing = isEditing,
+                        locked = locked,
+                        canUndo = undoStack.isNotEmpty(),
+                        hasBlankEdgeLines = content != content.trimBlankEdgeLines(),
+                        hasCheckboxLine = content.hasCheckboxLine(),
+                        hasCheckedLine = content.hasCheckedLine(),
+                        isCoursesNote = isCoursesNote,
+                        isIngredientsNote = isIngredientsNote,
+                        isIngredientModelNote = isIngredientModelNote
+                    ),
+                    actions = NoteEditorBarActions(
+                        onBack = { goBack() },
+                        onUndo = { performUndo() },
+                        onToggleLock = {
+                            if (locked) persistLock(false)
+                            else scope.launch {
+                                if (NoteLock.hasPin(context)) persistLock(true) else showCreatePin = true
                             }
-                        }
+                        },
+                        onTrimBlankEdgeLines = { saveContent(content.trimBlankEdgeLines()) },
+                        onSendCheckedToIngredients = { sync.sendCheckedToIngredients() },
+                        onAddIngredient = { addItemTarget = AddItemTarget.INGREDIENT },
+                        onAddCourseItem = { addItemTarget = AddItemTarget.COURSE },
+                        onResortIngredients = { sync.resortIngredients() },
+                        onResortCourses = { sync.resortCourses() },
+                        onSetAllCheckboxes = { saveContent(setAllCheckboxes(content, it)) },
+                        onRemoveChecked = { saveContent(removeCheckedCheckboxes(content)) },
+                        onToggleInlineMarker = { textFieldState.toggleInlineMarker(it) }
                     )
-                    if (!titleFocused) {
-                        if (!isEditing) {
-                            if (content != content.trimBlankEdgeLines()) {
-                                IconButton(onClick = { saveContent(content.trimBlankEdgeLines()) }) {
-                                    Icon(Icons.Default.VerticalAlignCenter, contentDescription = "Supprimer les lignes vides en haut/bas")
-                                }
-                            }
-                            if (isCoursesNote && content.hasCheckedLine()) {
-                                IconButton(onClick = { sync.sendCheckedToIngredients() }) {
-                                    Icon(Icons.Default.Kitchen, contentDescription = "Ranger les articles cochés dans les Ingrédients")
-                                }
-                            }
-                            if (isIngredientsNote) {
-                                IconButton(onClick = { addItemTarget = AddItemTarget.INGREDIENT }) {
-                                    Icon(Icons.Default.Add, contentDescription = "Ajouter un ingrédient")
-                                }
-                            }
-                            if (isIngredientModelNote) {
-                                IconButton(onClick = { sync.resortIngredients() }) {
-                                    Icon(Icons.AutoMirrored.Filled.Sort, contentDescription = "Réordonner les ingrédients présents")
-                                }
-                            }
-                            if (isCoursesNote) {
-                                IconButton(onClick = { addItemTarget = AddItemTarget.COURSE }) {
-                                    Icon(Icons.Default.Add, contentDescription = "Ajouter un article")
-                                }
-                            }
-                        }
-                        IconButton(onClick = { performUndo() }, enabled = undoStack.isNotEmpty()) {
-                            Icon(Icons.AutoMirrored.Filled.Undo, contentDescription = "Annuler")
-                        }
-                        if (isEditing) {
-                            Box {
-                                IconButton(onClick = { showFormatMenu = true }) {
-                                    Icon(Icons.Default.FormatBold, contentDescription = "Mise en forme")
-                                }
-                                DropdownMenu(expanded = showFormatMenu, onDismissRequest = { showFormatMenu = false }) {
-                                    DropdownMenuItem(
-                                        text = { Text("Gras") },
-                                        leadingIcon = { Icon(Icons.Default.FormatBold, contentDescription = null) },
-                                        onClick = { textFieldState.toggleInlineMarker("**") }
-                                    )
-                                    DropdownMenuItem(
-                                        text = { Text("Italique") },
-                                        leadingIcon = { Icon(Icons.Default.FormatItalic, contentDescription = null) },
-                                        onClick = { textFieldState.toggleInlineMarker("*") }
-                                    )
-                                    DropdownMenuItem(
-                                        text = { Text("Souligné") },
-                                        leadingIcon = { Icon(Icons.Default.FormatUnderlined, contentDescription = null) },
-                                        onClick = { textFieldState.toggleInlineMarker("__") }
-                                    )
-                                }
-                            }
-                        }
-                        Box {
-                            IconButton(onClick = { showMoreMenu = true }) {
-                                Icon(Icons.Default.MoreVert, contentDescription = "Plus d'options")
-                            }
-                            DropdownMenu(expanded = showMoreMenu, onDismissRequest = { showMoreMenu = false }) {
-                                DropdownMenuItem(
-                                    text = { Text(if (locked) "Déverrouiller" else "Verrouiller") },
-                                    leadingIcon = {
-                                        Icon(
-                                            if (locked) Icons.Default.Lock else Icons.Default.LockOpen,
-                                            contentDescription = null
-                                        )
-                                    },
-                                    onClick = {
-                                        showMoreMenu = false
-                                        if (locked) persistLock(false)
-                                        else scope.launch {
-                                            if (NoteLock.hasPin(context)) persistLock(true) else showCreatePin = true
-                                        }
-                                    }
-                                )
-                                if (!isEditing) {
-                                    if (content.hasCheckboxLine()) {
-                                        DropdownMenuItem(
-                                            text = { Text("Tout cocher") },
-                                            leadingIcon = { Icon(Icons.Default.CheckBox, contentDescription = null) },
-                                            onClick = {
-                                                showMoreMenu = false
-                                                saveContent(setAllCheckboxes(content, true))
-                                            }
-                                        )
-                                        DropdownMenuItem(
-                                            text = { Text("Tout décocher") },
-                                            leadingIcon = { Icon(Icons.Default.CheckBoxOutlineBlank, contentDescription = null) },
-                                            onClick = {
-                                                showMoreMenu = false
-                                                saveContent(setAllCheckboxes(content, false))
-                                            }
-                                        )
-                                        if (content.hasCheckedLine()) {
-                                            DropdownMenuItem(
-                                                text = { Text("Supprimer les cochés") },
-                                                leadingIcon = { Icon(Icons.Default.DeleteSweep, contentDescription = null) },
-                                                onClick = {
-                                                    showMoreMenu = false
-                                                    saveContent(removeCheckedCheckboxes(content))
-                                                }
-                                            )
-                                        }
-                                    }
-                                    if (isCoursesNote) {
-                                        DropdownMenuItem(
-                                            text = { Text("Mettre à jour selon le modèle") },
-                                            leadingIcon = { Icon(Icons.AutoMirrored.Filled.Sort, contentDescription = null) },
-                                            onClick = {
-                                                showMoreMenu = false
-                                                sync.resortCourses()
-                                            }
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
+                )
 
                 if (!isEditing && !titleFocused && isCoursesNote) {
                     val itemCount = content.uncheckedItemCount()
@@ -612,14 +405,14 @@ fun NoteEditorScreen(noteId: String, initialEditOffset: Int = -1, onBack: () -> 
                         textFieldState = textFieldState,
                         title = title,
                         actions = NoteLineActions(
-                            onToggleLine = { toggleLine(it) },
-                            onDeleteLine = { deleteLine(it) },
+                            onToggleLine = lineEdits::toggleLine,
+                            onDeleteLine = lineEdits::deleteLine,
                             onMoveToCourses = { sync.moveLineToCourses(it) },
-                            onChangeQuantity = { index, delta -> changeLineQuantity(index, delta) },
-                            onAdvanceMuscu = { advanceMuscuLineDay(it) },
-                            onRemoveDateSuffix = { removeLineDateSuffix(it) },
-                            onToggleLineMarker = { index, marker -> toggleLineMarker(index, marker) },
-                            onToggleResume = { toggleResumeAfter(it) },
+                            onChangeQuantity = lineEdits::changeQuantity,
+                            onAdvanceMuscu = lineEdits::advanceMuscuDay,
+                            onRemoveDateSuffix = lineEdits::removeDateSuffix,
+                            onToggleLineMarker = lineEdits::toggleLineMarker,
+                            onToggleResume = lineEdits::toggleResumeAfter,
                             onEnterEditAt = { enterEditAt(it) },
                             onReorder = { saveContent(it) }
                         )

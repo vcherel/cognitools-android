@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -18,8 +17,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
@@ -63,13 +60,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import coil3.compose.AsyncImage
 import androidx.compose.ui.platform.LocalContext
 import com.example.myapp.ErrorText
+import com.example.myapp.MediaArt
+import com.example.myapp.MediaListRow
+import com.example.myapp.MediaRowSubtitle
 import com.example.myapp.LocalGoHome
 import com.example.myapp.ScreenTopBar
 import com.example.myapp.podcastRepository
-import com.example.myapp.podcasts.PodcastArt
 import com.example.myapp.podcasts.PodcastFavorite
 import kotlinx.coroutines.launch
 
@@ -387,45 +385,28 @@ private fun PodcastRow(
     onOpen: () -> Unit,
     onPlayLatest: (() -> Unit)?
 ) {
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(8.dp))
-            .background(if (isPlaying) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface)
-            .clickable(onClick = onOpen)
-            .padding(vertical = 8.dp, horizontal = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        PodcastArt(favorite.artworkUrl, Modifier.size(56.dp).clip(RoundedCornerShape(8.dp)))
-        Spacer(Modifier.width(12.dp))
-        Column(Modifier.weight(1f)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                if (isPlaying) {
-                    Icon(
-                        Icons.Filled.PlayArrow,
-                        contentDescription = "En cours de lecture",
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(Modifier.width(4.dp))
-                }
-                Text(favorite.title, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            }
+    MediaListRow(
+        artworkUrl = favorite.artworkUrl,
+        title = favorite.title,
+        isPlaying = isPlaying,
+        onClick = onOpen,
+        artworkSize = 56.dp,
+        cornerSize = 8.dp,
+        contentPadding = 8.dp,
+        below = {
             if (unseenCount > 0) {
-                Text(
-                    "$unseenCount épisode${if (unseenCount > 1) "s" else ""} non écouté${if (unseenCount > 1) "s" else ""}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1
-                )
+                val plural = if (unseenCount > 1) "s" else ""
+                MediaRowSubtitle("$unseenCount épisode$plural non écouté$plural")
+            }
+        },
+        trailing = {
+            if (onPlayLatest != null) {
+                IconButton(onClick = onPlayLatest) {
+                    Icon(Icons.Filled.PlayArrow, contentDescription = "Lire le dernier épisode", tint = MaterialTheme.colorScheme.primary)
+                }
             }
         }
-        if (onPlayLatest != null) {
-            IconButton(onClick = onPlayLatest) {
-                Icon(Icons.Filled.PlayArrow, contentDescription = "Lire le dernier épisode", tint = MaterialTheme.colorScheme.primary)
-            }
-        }
-    }
+    )
 }
 
 /**
@@ -471,46 +452,21 @@ private fun LoadingRow() {
 /** One stacked playlist row: cover + name + count, tap to open, shuffle button on the right. Tinted when it is the one currently playing. */
 @Composable
 private fun PlaylistRow(playlist: DeezerPlaylist, isPlaying: Boolean, onOpen: () -> Unit, onShuffle: () -> Unit) {
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(8.dp))
-            .background(if (isPlaying) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface)
-            .clickable(onClick = onOpen)
-            .padding(vertical = 8.dp, horizontal = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        CoverArt(playlist.coverUrl(), Modifier.size(56.dp).clip(RoundedCornerShape(8.dp)))
-        Spacer(Modifier.width(12.dp))
-        Column(Modifier.weight(1f)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                if (isPlaying) {
-                    Icon(
-                        Icons.Filled.PlayArrow,
-                        contentDescription = "En cours de lecture",
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(Modifier.width(4.dp))
-                }
-                Text(
-                    playlist.title,
-                    style = MaterialTheme.typography.bodyLarge,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+    MediaListRow(
+        artworkUrl = playlist.coverUrl(),
+        title = playlist.title,
+        isPlaying = isPlaying,
+        onClick = onOpen,
+        artworkSize = 56.dp,
+        cornerSize = 8.dp,
+        contentPadding = 8.dp,
+        below = { MediaRowSubtitle("${playlist.trackCount} titres") },
+        trailing = {
+            IconButton(onClick = onShuffle) {
+                Icon(Icons.Filled.Shuffle, contentDescription = "Lecture aléatoire", tint = MaterialTheme.colorScheme.primary)
             }
-            Text(
-                "${playlist.trackCount} titres",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1
-            )
         }
-        IconButton(onClick = onShuffle) {
-            Icon(Icons.Filled.Shuffle, contentDescription = "Lecture aléatoire", tint = MaterialTheme.colorScheme.primary)
-        }
-    }
+    )
 }
 
 /**
@@ -536,37 +492,13 @@ fun TrackRow(
     onDismiss: (() -> Unit)? = null
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(6.dp))
-            .background(if (isPlaying) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface)
-            .clickable(onClick = onClick)
-            .padding(vertical = 6.dp, horizontal = 6.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        CoverArt(track.coverUrl(), Modifier.size(48.dp).clip(RoundedCornerShape(6.dp)))
-        Spacer(Modifier.width(12.dp))
-        Column(Modifier.weight(1f)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                if (isPlaying) {
-                    Icon(
-                        Icons.Filled.PlayArrow,
-                        contentDescription = "En cours de lecture",
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(Modifier.width(4.dp))
-                }
-                Text(track.title, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            }
-            Text(
-                track.artist,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
+    MediaListRow(
+        artworkUrl = track.coverUrl(),
+        title = track.title,
+        isPlaying = isPlaying,
+        onClick = onClick,
+        below = {
+            MediaRowSubtitle(track.artist)
             note?.let {
                 Text(
                     it,
@@ -575,8 +507,9 @@ fun TrackRow(
                     maxLines = 1
                 )
             }
-        }
-        if (showActions) {
+        },
+        trailing = {
+            if (!showActions) return@MediaListRow
             IconButton(onClick = { onToggleFavorite?.invoke() }, modifier = Modifier.size(40.dp)) {
                 Icon(
                     if (isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
@@ -629,7 +562,7 @@ fun TrackRow(
                 }
             }
         }
-    }
+    )
 }
 
 /** Shared: runs the "add to queue" action and returns the toast to show. */
@@ -692,7 +625,7 @@ fun PlaylistPickerDialog(
                             Modifier.fillMaxWidth().clickable { onPick(pl) }.padding(vertical = 8.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            CoverArt(pl.coverUrl(), Modifier.size(44.dp).clip(RoundedCornerShape(6.dp)))
+                            MediaArt(pl.coverUrl(), Modifier.size(44.dp).clip(RoundedCornerShape(6.dp)))
                             Spacer(Modifier.width(12.dp))
                             Column(Modifier.weight(1f)) {
                                 Text(pl.title, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -708,14 +641,4 @@ fun PlaylistPickerDialog(
             }
         }
     )
-}
-
-/** Shared: square cover art from a Deezer image URL, with a neutral placeholder. */
-@Composable
-fun CoverArt(url: String?, modifier: Modifier = Modifier) {
-    Box(modifier.aspectRatio(1f).background(MaterialTheme.colorScheme.surfaceVariant)) {
-        if (url != null) {
-            AsyncImage(model = url, contentDescription = null, modifier = Modifier.fillMaxSize())
-        }
-    }
 }

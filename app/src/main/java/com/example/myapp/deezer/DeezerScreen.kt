@@ -14,12 +14,12 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.example.myapp.MiniPlayerBar
 import com.example.myapp.deezerRepository
 import com.example.myapp.podcastRepository
 import com.example.myapp.popBackStackOnce
 import com.example.myapp.podcasts.PodcastEpisodesScreen
 import com.example.myapp.podcasts.PodcastFullPlayerSheet
-import com.example.myapp.podcasts.PodcastMiniPlayerBar
 
 /**
  * Host for the Musique tool. A nested NavHost drives library / search / track lists / podcast
@@ -92,15 +92,23 @@ fun DeezerScreen(
 
             if (playerState.hasItem) {
                 MiniPlayerBar(
-                    state = playerState,
-                    sourceLabel = sourceLabel,
+                    artworkUrl = playerState.coverUrl,
+                    title = playerState.title,
+                    subtitle = playerState.artist,
+                    note = sourceLabel?.let { "Lecture depuis : $it" },
+                    isPlaying = playerState.isPlaying,
+                    isBuffering = playerState.isBuffering,
                     onExpand = { showFullPlayer = true },
                     onTogglePlay = { repo.togglePlay() }
                 )
             }
             if (podcastPlayerState.hasItem) {
-                PodcastMiniPlayerBar(
-                    state = podcastPlayerState,
+                MiniPlayerBar(
+                    artworkUrl = podcastPlayerState.artworkUrl,
+                    title = podcastPlayerState.title,
+                    subtitle = podcastPlayerState.podcastTitle,
+                    isPlaying = podcastPlayerState.isPlaying,
+                    isBuffering = podcastPlayerState.isBuffering,
                     onExpand = { showFullPodcastPlayer = true },
                     onTogglePlay = { podcastRepo.togglePlay() }
                 )
