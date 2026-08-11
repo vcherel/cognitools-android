@@ -1,5 +1,7 @@
 package com.example.myapp.deezer
 
+import com.example.myapp.matchNormalized
+
 /**
  * Plain data models for the Deezer tool. gw-light responses are parsed with JsonElement navigation
  * in DeezerApi (Deezer's private JSON has inconsistent field types, so hand parsing is more robust
@@ -51,12 +53,6 @@ data class DeezerTrack(
  */
 val DeezerTrack.matchKey: String
     get() = "${artist.matchNormalized()}|${title.matchNormalized()}"
-
-fun String.matchNormalized(): String =
-    java.text.Normalizer.normalize(this, java.text.Normalizer.Form.NFD)
-        .replace(Regex("\\p{M}+"), "")
-        .lowercase()
-        .replace(Regex("[^a-z0-9]+"), "")
 
 /** One artist from the public catalog search, enough to show a card and shuffle their top tracks. */
 data class DeezerArtist(val id: String, val name: String, val pictureUrl: String?)

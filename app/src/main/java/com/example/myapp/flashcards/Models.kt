@@ -4,9 +4,9 @@ import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import com.example.myapp.deaccented
 import org.json.JSONArray
 import org.json.JSONObject
-import java.text.Normalizer
 import java.util.UUID
 import kotlin.math.roundToLong
 
@@ -40,12 +40,6 @@ data class FlashcardList(
     }
 }
 
-fun String.normalizeForSearch(): String {
-    return Normalizer.normalize(this, Normalizer.Form.NFD)
-        .replace("\\p{Mn}+".toRegex(), "")
-        .lowercase()
-}
-
 @Entity(
     tableName = "cards",
     foreignKeys = [ForeignKey(
@@ -61,8 +55,8 @@ data class FlashcardElement(
     val listId: String,
     val name: String,
     val definition: String,
-    val normalizedName: String = name.normalizeForSearch(),
-    val normalizedDefinition: String = definition.normalizeForSearch(),
+    val normalizedName: String = name.deaccented(),
+    val normalizedDefinition: String = definition.deaccented(),
     val easeFactor: Double = 2.5,
     val interval: Int = 0,
     val repetitions: Int = 0,
@@ -82,8 +76,8 @@ data class FlashcardElement(
                 listId = json.optString("listId", ""),
                 name = name,
                 definition = definition,
-                normalizedName = name.normalizeForSearch(),
-                normalizedDefinition = definition.normalizeForSearch(),
+                normalizedName = name.deaccented(),
+                normalizedDefinition = definition.deaccented(),
                 easeFactor = json.optDouble("easeFactor", 2.5),
                 interval = json.optInt("interval", 0),
                 repetitions = json.optInt("repetitions", 0),

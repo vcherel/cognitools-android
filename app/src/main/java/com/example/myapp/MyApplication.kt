@@ -49,7 +49,7 @@ class MyApplication : Application(), SingletonImageLoader.Factory {
             .build()
 }
 
-// The two app wide singletons, reachable from any Context instead of casting at every call site.
+// The app wide singletons, reachable from any Context instead of casting at every call site.
 val Context.flashcardRepository: FlashcardRepository
     get() = (applicationContext as MyApplication).flashcardRepository
 

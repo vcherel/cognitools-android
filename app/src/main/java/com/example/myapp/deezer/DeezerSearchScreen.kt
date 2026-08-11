@@ -25,7 +25,6 @@ import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Podcasts
 import androidx.compose.material.icons.filled.Shuffle
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -48,12 +47,12 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.example.myapp.AppSnackbar
 import com.example.myapp.RecentSearchChips
+import com.example.myapp.MediaArt
 import com.example.myapp.ScreenTopBar
 import com.example.myapp.SearchHistory
 import com.example.myapp.SearchSurface
 import com.example.myapp.ShowAlertDialog
 import com.example.myapp.podcastRepository
-import com.example.myapp.podcasts.PodcastArt
 import com.example.myapp.podcasts.PodcastCatalogItem
 import com.example.myapp.podcasts.PodcastRepository
 import kotlinx.coroutines.async
@@ -318,7 +317,7 @@ private fun PodcastCatalogRow(item: PodcastCatalogItem, isFollowing: Boolean, on
         Modifier.fillMaxWidth().padding(vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        PodcastArt(item.artworkUrl, Modifier.size(48.dp).clip(RoundedCornerShape(6.dp)))
+        MediaArt(item.artworkUrl, Modifier.size(48.dp).clip(RoundedCornerShape(6.dp)))
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             Text(item.title, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)

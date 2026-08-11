@@ -56,6 +56,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.myapp.BackIconButton
+import com.example.myapp.deaccented
 import com.example.myapp.flashcardRepository
 import com.example.myapp.BottomFadeOverlay
 import com.example.myapp.MyButton
@@ -63,15 +64,50 @@ import com.example.myapp.ShowAlertDialog
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-private enum class SortMode(val menuLabel: String) {
-    INTERVAL_DESC("Intervalle révision"),
-    INTERVAL_ASC("Intervalle révision"),
-    VIEWS_DESC("Nombre vues totales"),
-    VIEWS_ASC("Nombre vues totales"),
-    SCORE_ASC("Score"),
-    SCORE_DESC("Score"),
-    FIXED_SIDE_ONLY("Toujours le même sens"),
-    RANDOM_SIDE_ONLY("Toujours le même sens")
+private enum class SortField(val menuLabel: String) {
+    INTERVAL("Intervalle révision"),
+    VIEWS("Nombre vues totales"),
+    SCORE("Score"),
+    /** Not a sort but a filter: shows one kind of card at a time, still ordered by interval. */
+    SIDE("Toujours le même sens")
+}
+
+/**
+ * Each menu entry toggles on repeat taps: [flipped] is the other sort direction, or, for
+ * [SortField.SIDE], the random-side half of the list rather than the fixed-side one.
+ */
+private data class SortMode(val field: SortField, val flipped: Boolean = false)
+
+private fun List<FlashcardElement>.filteredAndSorted(query: String, mode: SortMode): List<FlashcardElement> {
+    val normalized = query.deaccented()
+    val matching = filter {
+        (normalized.isEmpty() ||
+            it.normalizedName.contains(normalized) ||
+            it.normalizedDefinition.contains(normalized)) &&
+            (mode.field != SortField.SIDE || it.randomSide == mode.flipped)
+    }
+    return when (mode.field) {
+        SortField.SIDE -> matching.sortedByDescending { it.nextReviewAt }
+        SortField.INTERVAL ->
+            if (mode.flipped) matching.sortedBy { it.nextReviewAt }
+            else matching.sortedByDescending { it.nextReviewAt }
+        SortField.VIEWS ->
+            if (mode.flipped) matching.sortedBy { it.totalWins + it.totalLosses }
+            else matching.sortedByDescending { it.totalWins + it.totalLosses }
+        SortField.SCORE -> matching.sortedWith(
+            if (mode.flipped) {
+                compareByDescending<FlashcardElement> { it.score }
+                    .thenByDescending { it.totalWins }
+                    .thenBy { it.totalLosses }
+                    .thenByDescending { it.nextReviewAt }
+            } else {
+                compareBy<FlashcardElement> { it.score }
+                    .thenByDescending { it.totalWins }
+                    .thenBy { it.totalLosses }
+                    .thenBy { it.nextReviewAt }
+            }
+        )
+    }
 }
 
 @Composable
@@ -92,7 +128,7 @@ fun FlashcardDetailScreen(
     var selectedElement by remember { mutableStateOf<FlashcardElement?>(null) }
     var showStats by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(true) }
-    var sortMode by remember { mutableStateOf(SortMode.INTERVAL_DESC) }
+    var sortMode by remember { mutableStateOf(SortMode(SortField.INTERVAL)) }
     var showSortMenu by remember { mutableStateOf(false) }
 
     val isAllLists = listId == "all"
@@ -106,13 +142,12 @@ fun FlashcardDetailScreen(
         !isAllLists && lists.find { it.id == listId }?.fixedSide == true
     }
 
-    // Local mutable list for fast UI updates
+    // Every card of the list, mutated in place so an edit shows up without waiting on the database.
     val elementsState = remember { mutableStateListOf<FlashcardElement>() }
     // Bumped whenever elementsState is mutated, so the filter/sort effect below can key off a
     // cheap int instead of copying and diffing the whole list on every recomposition.
     var elementsVersion by remember { mutableStateOf(0) }
 
-    // Sync repository elements into local state
     LaunchedEffect(listId) {
         isLoading = true
         val flow = if (isAllLists) repository.observeAllElements()
@@ -156,38 +191,8 @@ fun FlashcardDetailScreen(
         prevQuery.value = searchQuery
         prevSort.value = sortMode
 
-        val normalizedQuery = searchQuery.normalizeForSearch()
-        val filtered = elementsState.filter {
-            (normalizedQuery.isEmpty() ||
-                    it.normalizedName.contains(normalizedQuery) ||
-                    it.normalizedDefinition.contains(normalizedQuery)) &&
-                    (sortMode != SortMode.FIXED_SIDE_ONLY || !it.randomSide) &&
-                    (sortMode != SortMode.RANDOM_SIDE_ONLY || it.randomSide)
-        }
-
-        val sorted = when (sortMode) {
-            SortMode.INTERVAL_DESC,
-            SortMode.FIXED_SIDE_ONLY,
-            SortMode.RANDOM_SIDE_ONLY -> filtered.sortedByDescending { it.nextReviewAt }
-            SortMode.INTERVAL_ASC -> filtered.sortedBy { it.nextReviewAt }
-            SortMode.VIEWS_DESC -> filtered.sortedByDescending { it.totalWins + it.totalLosses }
-            SortMode.VIEWS_ASC -> filtered.sortedBy { it.totalWins + it.totalLosses }
-            SortMode.SCORE_ASC -> filtered.sortedWith(
-                compareBy<FlashcardElement> { it.score }
-                    .thenByDescending { it.totalWins }
-                    .thenBy { it.totalLosses }
-                    .thenBy { it.nextReviewAt }
-            )
-            SortMode.SCORE_DESC -> filtered.sortedWith(
-                compareByDescending<FlashcardElement> { it.score }
-                    .thenByDescending { it.totalWins }
-                    .thenBy { it.totalLosses }
-                    .thenByDescending { it.nextReviewAt }
-            )
-        }
-
         visibleElements.clear()
-        visibleElements.addAll(sorted)
+        visibleElements.addAll(elementsState.filteredAndSorted(searchQuery, sortMode))
 
         // A new search or sort jumps to the top; a data update (reset, edit, ...) keeps the
         // viewport anchored to the same scroll offset so the touched card just moves underneath.
@@ -209,120 +214,38 @@ fun FlashcardDetailScreen(
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
             Spacer(Modifier.height(16.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                // Left side: back button + title
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    BackIconButton(onBack = { onBack() })
-                    Text(
-                        listName,
-                        style = MaterialTheme.typography.headlineSmall,
-                        modifier = Modifier.clickable { showStats = true }
-                    )
+            DetailTopBar(
+                listName = listName,
+                isAllLists = isAllLists,
+                listFixedSide = listFixedSide,
+                dueCount = remember(elementsVersion) { elementsState.count { isDue(it) } },
+                sortMode = sortMode,
+                showSortMenu = showSortMenu,
+                onSetSortMenu = { showSortMenu = it },
+                onPickSort = { sortMode = it },
+                onBack = onBack,
+                onShowStats = { showStats = true },
+                onToggleFixedSide = {
+                    val fixed = !listFixedSide
+                    scope.launch {
+                        repository.setListFixedSide(listId, fixed)
+                        Toast.makeText(
+                            context,
+                            if (fixed) "Une seule face" else "Deux faces",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                },
+                onShowAverageWait = {
+                    val message = if (visibleElements.isEmpty()) "Aucune carte à réviser" else {
+                        val avgMillis = visibleElements.map {
+                            maxOf(0L, it.nextReviewAt - System.currentTimeMillis())
+                        }.average().toLong()
+                        "Temps moyen : ${formatDuration(avgMillis, detailed = true)}"
+                    }
+                    Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
                 }
-
-                // Right side: one-face toggle + sort button + divider + "X à réviser"
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.End
-                ) {
-                    // "Tout" spans every list, so there is no single list to fix a side on.
-                    if (!isAllLists) {
-                        IconButton(
-                            onClick = {
-                                val fixed = !listFixedSide
-                                scope.launch {
-                                    repository.setListFixedSide(listId, fixed)
-                                    Toast.makeText(
-                                        context,
-                                        if (fixed) "Une seule face" else "Deux faces",
-                                        Toast.LENGTH_SHORT
-                                    ).show()
-                                }
-                            }
-                        ) {
-                            Icon(
-                                if (listFixedSide) Icons.Default.LooksOne else Icons.Default.Flip,
-                                contentDescription = if (listFixedSide) "Une seule face" else "Deux faces",
-                                tint = if (listFixedSide) MaterialTheme.colorScheme.primary
-                                else MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-
-                    Box {
-                        IconButton(onClick = { showSortMenu = true }) {
-                            Icon(Icons.Default.SwapVert, contentDescription = "Trier")
-                        }
-
-                        DropdownMenu(
-                            expanded = showSortMenu,
-                            onDismissRequest = { showSortMenu = false }
-                        ) {
-                            // Each entry toggles between its two directions on repeat clicks
-                            listOf(
-                                SortMode.INTERVAL_DESC to SortMode.INTERVAL_ASC,
-                                SortMode.VIEWS_DESC to SortMode.VIEWS_ASC,
-                                SortMode.SCORE_ASC to SortMode.SCORE_DESC,
-                                SortMode.FIXED_SIDE_ONLY to SortMode.RANDOM_SIDE_ONLY
-                            ).forEach { (first, second) ->
-                                DropdownMenuItem(
-                                    text = { Text(first.menuLabel) },
-                                    onClick = {
-                                        sortMode = if (sortMode == first) second else first
-                                        showSortMenu = false
-                                    }
-                                )
-                            }
-                        }
-                    }
-
-                    Spacer(Modifier.width(2.dp))
-
-                    Box(
-                        modifier = Modifier
-                            .height(24.dp)
-                            .width(1.dp)
-                            .background(Color.Gray)
-                    )
-
-                    Spacer(Modifier.width(8.dp))
-
-                    val dueCount = remember(elementsState.toList()) {
-                        elementsState.count { isDue(it) }
-                    }
-                    Text(
-                        "$dueCount à réviser",
-                        style = MaterialTheme.typography.bodyMedium,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        textAlign = TextAlign.End,
-                        modifier = Modifier.clickable {
-                            if (visibleElements.isNotEmpty()) {
-                                val avgMillis = visibleElements.map {
-                                    maxOf(0L, it.nextReviewAt - System.currentTimeMillis())
-                                }.average().toLong()
-
-                                Toast.makeText(
-                                    context,
-                                    "Temps moyen : ${formatDuration(avgMillis, detailed = true)}",
-                                    Toast.LENGTH_SHORT
-                                ).show()
-                            } else {
-                                Toast.makeText(
-                                    context,
-                                    "Aucune carte à réviser",
-                                    Toast.LENGTH_SHORT
-                                ).show()
-                            }
-                        }
-
-                    )
-                }
-            }
+            )
 
             Spacer(Modifier.height(16.dp))
 
@@ -370,7 +293,6 @@ fun FlashcardDetailScreen(
                                 onDelete = { elementToDelete = element },
                                 onReset = {
                                     scope.launch {
-                                        // Update local state immediately for UI stability
                                         val idx = elementsState.indexOfFirst { it.id == element.id }
                                         if (idx != -1) {
                                             elementsState[idx] = element.resetProgress()
@@ -389,7 +311,7 @@ fun FlashcardDetailScreen(
             }
         }
 
-        // Show action buttons only if not in "all lists" mode
+        // "Tout" is read only: cards are added and played from a real list.
         if (!isAllLists) {
             Column(
                 modifier = Modifier
@@ -420,7 +342,6 @@ fun FlashcardDetailScreen(
         }
     }
 
-    // Information dialog
     selectedElement?.let { element ->
         ShowAlertDialog(
             onDismiss = { selectedElement = null },
@@ -466,7 +387,6 @@ fun FlashcardDetailScreen(
             onConfirm = {
                 scope.launch {
                     repository.deleteElement(element.id)
-                    // Update UI immediately
                     elementsState.removeIf { it.id == element.id }
                 }
                 elementToDelete = null
@@ -497,8 +417,8 @@ fun FlashcardDetailScreen(
                         val updatedElement = editing.copy(
                             name = name,
                             definition = definition,
-                            normalizedName = name.normalizeForSearch(),
-                            normalizedDefinition = definition.normalizeForSearch(),
+                            normalizedName = name.deaccented(),
+                            normalizedDefinition = definition.deaccented(),
                             randomSide = randomSide
                         )
                         val idx = elementsState.indexOfFirst { it.id == editing.id }
@@ -519,6 +439,94 @@ fun FlashcardDetailScreen(
             onDismiss = { showStats = false },
             loadStats = { repository.getStats(if (isAllLists) null else listId) }
         )
+    }
+}
+
+/** Back arrow + list name (tap for stats), then the one-face toggle, the sort menu and the due count. */
+@Composable
+private fun DetailTopBar(
+    listName: String,
+    isAllLists: Boolean,
+    listFixedSide: Boolean,
+    dueCount: Int,
+    sortMode: SortMode,
+    showSortMenu: Boolean,
+    onSetSortMenu: (Boolean) -> Unit,
+    onPickSort: (SortMode) -> Unit,
+    onBack: () -> Unit,
+    onShowStats: () -> Unit,
+    onToggleFixedSide: () -> Unit,
+    onShowAverageWait: () -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            BackIconButton(onBack = onBack)
+            Text(
+                listName,
+                style = MaterialTheme.typography.headlineSmall,
+                modifier = Modifier.clickable(onClick = onShowStats)
+            )
+        }
+
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.End
+        ) {
+            // "Tout" spans every list, so there is no single list to fix a side on.
+            if (!isAllLists) {
+                IconButton(onClick = onToggleFixedSide) {
+                    Icon(
+                        if (listFixedSide) Icons.Default.LooksOne else Icons.Default.Flip,
+                        contentDescription = if (listFixedSide) "Une seule face" else "Deux faces",
+                        tint = if (listFixedSide) MaterialTheme.colorScheme.primary
+                        else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            Box {
+                IconButton(onClick = { onSetSortMenu(true) }) {
+                    Icon(Icons.Default.SwapVert, contentDescription = "Trier")
+                }
+                DropdownMenu(expanded = showSortMenu, onDismissRequest = { onSetSortMenu(false) }) {
+                    SortField.entries.forEach { field ->
+                        DropdownMenuItem(
+                            text = { Text(field.menuLabel) },
+                            onClick = {
+                                // Tapping the entry already in use flips it rather than doing nothing.
+                                val alreadyActive = sortMode.field == field && !sortMode.flipped
+                                onPickSort(SortMode(field, flipped = alreadyActive))
+                                onSetSortMenu(false)
+                            }
+                        )
+                    }
+                }
+            }
+
+            Spacer(Modifier.width(2.dp))
+
+            Box(
+                modifier = Modifier
+                    .height(24.dp)
+                    .width(1.dp)
+                    .background(Color.Gray)
+            )
+
+            Spacer(Modifier.width(8.dp))
+
+            Text(
+                "$dueCount à réviser",
+                style = MaterialTheme.typography.bodyMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.End,
+                modifier = Modifier.clickable(onClick = onShowAverageWait)
+            )
+        }
     }
 }
 

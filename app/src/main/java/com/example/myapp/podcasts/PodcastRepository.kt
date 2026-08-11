@@ -1,10 +1,7 @@
 package com.example.myapp.podcasts
 
-import android.content.ComponentName
 import android.content.Context
-import android.content.Intent
 import android.net.Uri
-import android.os.Bundle
 import android.util.Log
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
@@ -13,15 +10,14 @@ import androidx.media3.common.Player
 import androidx.media3.datasource.DataSpec
 import androidx.media3.datasource.cache.CacheWriter
 import androidx.media3.session.MediaController
-import androidx.media3.session.SessionCommand
-import androidx.media3.session.SessionToken
+import com.example.myapp.MediaControllerHolder
 import com.example.myapp.USER_AGENT
 import com.example.myapp.deezerRepository
 import com.example.myapp.flashcards.AppDatabase
 import com.example.myapp.httpGet
-import com.google.common.util.concurrent.MoreExecutors
+import com.example.myapp.matchNormalized
+import com.example.myapp.slugified
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
@@ -33,6 +29,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runInterruptible
@@ -129,14 +126,20 @@ class PodcastRepository(private val appContext: Context) {
     }
 
     /** Re-fetches just [favoriteId]'s episodes and patches them into the merged list. Used by the
-     *  per-podcast screen, which doesn't need every other followed show re-fetched to open fast. */
+     *  per-podcast screen, which doesn't need every other followed show re-fetched to open fast.
+     *  Shares [refreshMutex] with the full refresh, which would otherwise overwrite this patch. */
     suspend fun refreshFavorite(favoriteId: String) {
         val fav = dao().getFavorites().firstOrNull { it.id == favoriteId } ?: return
         val seen = dao().getSeenIds().toSet()
         val fresh = withContext(Dispatchers.IO) {
             runCatching { fetchEpisodesFor(fav) }.getOrDefault(emptyList())
         }.map { it.copy(seen = it.id in seen) }
-        _episodes.value = (_episodes.value.filterNot { it.podcastId == favoriteId } + fresh)
+        refreshMutex.withLock { replaceEpisodesOf(favoriteId, fresh) }
+    }
+
+    /** Swaps in one podcast's episodes, keeping the merged list ordered newest first. */
+    private fun replaceEpisodesOf(podcastId: String, fresh: List<PodcastEpisode>) {
+        _episodes.value = (_episodes.value.filterNot { it.podcastId == podcastId } + fresh)
             .sortedByDescending { it.pubDate }
     }
 
@@ -158,13 +161,6 @@ class PodcastRepository(private val appContext: Context) {
         }
     }
 
-    /** Lowercases, strips accents and punctuation, for exact-ish title matching. */
-    private fun normalizeTitle(s: String): String =
-        java.text.Normalizer.normalize(s, java.text.Normalizer.Form.NFD)
-            .replace(Regex("\\p{M}+"), "")
-            .lowercase()
-            .replace(Regex("[^a-z0-9]"), "")
-
     /**
      * Deezer aggregates podcasts from their original external hosts (Acast, Audiomeans, Radio
      * France…) and, contrary to what its API's track_token field suggests, doesn't actually expose
@@ -175,9 +171,9 @@ class PodcastRepository(private val appContext: Context) {
      * at all (confirmed for France Inter's own flagship shows), via [resolveRadioFranceFeed].
      */
     private suspend fun resolveDeezerShowToRss(item: PodcastCatalogItem): PodcastCatalogItem? {
-        val target = normalizeTitle(item.title)
+        val target = item.title.matchNormalized()
         val candidates = runCatching { searchPodcasts(item.title) }.getOrDefault(emptyList())
-        candidates.firstOrNull { normalizeTitle(it.title) == target }?.let { return it }
+        candidates.firstOrNull { it.title.matchNormalized() == target }?.let { return it }
         return resolveRadioFranceFeed(item)
     }
 
@@ -189,7 +185,7 @@ class PodcastRepository(private val appContext: Context) {
      */
     private suspend fun resolveRadioFranceFeed(item: PodcastCatalogItem): PodcastCatalogItem? =
         withContext(Dispatchers.IO) {
-            val slug = slugify(item.title)
+            val slug = item.title.slugified()
             val feedPattern = Regex("""https://radiofrance-podcast\.net/podcast09/[^"'\s]+\.xml""")
             for (station in RADIO_FRANCE_STATIONS) {
                 val html = runCatching {
@@ -202,13 +198,6 @@ class PodcastRepository(private val appContext: Context) {
             }
             null
         }
-
-    private fun slugify(s: String): String =
-        java.text.Normalizer.normalize(s, java.text.Normalizer.Form.NFD)
-            .replace(Regex("\\p{M}+"), "")
-            .lowercase()
-            .replace(Regex("[^a-z0-9]+"), "-")
-            .trim('-')
 
     /**
      * Follows [item] and merges its episodes into the list right away, without a full refresh.
@@ -233,8 +222,7 @@ class PodcastRepository(private val appContext: Context) {
         val newEpisodes = withContext(Dispatchers.IO) {
             runCatching { fetchEpisodesFor(fav) }.getOrDefault(emptyList())
         }.map { it.copy(seen = it.id in seen) }
-        _episodes.value = (_episodes.value.filterNot { it.podcastId == fav.id } + newEpisodes)
-            .sortedByDescending { it.pubDate }
+        refreshMutex.withLock { replaceEpisodesOf(fav.id, newEpisodes) }
         return true
     }
 
@@ -268,9 +256,11 @@ class PodcastRepository(private val appContext: Context) {
         }
         if (stillPlaying) return
         withContext(Dispatchers.IO) {
+            // An RSS episode id is its audio URL, which is the key the stream cache files it under.
+            // A Deezer-sourced one is a numeric id with nothing cached against it, so it has nothing
+            // to free here beyond a download it can't have either.
             val url = _episodes.value.firstOrNull { it.id == episodeId }?.audioUrl
-                ?: episodeId.takeIf { it.startsWith("http") }
-                ?: return@withContext
+                ?.takeIf { it.isNotBlank() } ?: return@withContext
             PodcastStreamCache.remove(appContext, url)
             if (isDownloaded(episodeId)) removeDownload(episodeId)
         }
@@ -332,7 +322,7 @@ class PodcastRepository(private val appContext: Context) {
         if (isDownloaded(episode.id) || episode.id in _downloadingIds.value) return
         if (episode.audioUrl.isBlank()) throw IOException("Pas de flux audio pour cet épisode")
         val tmp = File(downloadsDir, "${downloadKey(episode.id)}.tmp")
-        _downloadingIds.value = _downloadingIds.value + episode.id
+        _downloadingIds.update { it + episode.id }
         try {
             withContext(Dispatchers.IO) {
                 val conn = openAudio(episode.audioUrl)
@@ -352,8 +342,9 @@ class PodcastRepository(private val appContext: Context) {
                                 val percent = (written * 100 / total).toInt()
                                 if (percent != lastPercent) {
                                     lastPercent = percent
-                                    _downloadProgress.value =
-                                        _downloadProgress.value + (episode.id to (percent / 100f).coerceIn(0f, 1f))
+                                    _downloadProgress.update {
+                                        it + (episode.id to (percent / 100f).coerceIn(0f, 1f))
+                                    }
                                 }
                             }
                         }
@@ -363,14 +354,14 @@ class PodcastRepository(private val appContext: Context) {
                 }
                 if (!tmp.renameTo(downloadFile(episode.id))) throw IOException("Impossible d'enregistrer le téléchargement")
             }
-            _downloadedKeys.value = _downloadedKeys.value + downloadKey(episode.id)
+            _downloadedKeys.update { it + downloadKey(episode.id) }
             playFromFileIfCurrent(episode)
         } catch (e: Exception) {
             runCatching { tmp.delete() }
             throw e
         } finally {
-            _downloadingIds.value = _downloadingIds.value - episode.id
-            _downloadProgress.value = _downloadProgress.value - episode.id
+            _downloadingIds.update { it - episode.id }
+            _downloadProgress.update { it - episode.id }
         }
     }
 
@@ -425,20 +416,13 @@ class PodcastRepository(private val appContext: Context) {
     /** Deletes [episodeId]'s downloaded file, if any. */
     fun removeDownload(episodeId: String) {
         downloadFile(episodeId).delete()
-        _downloadedKeys.value = _downloadedKeys.value - downloadKey(episodeId)
+        _downloadedKeys.update { it - downloadKey(episodeId) }
     }
 
     // ---- Player ----
 
     private val _playerState = MutableStateFlow(PodcastPlayerUiState())
     val playerState: StateFlow<PodcastPlayerUiState> = _playerState
-
-    @Volatile
-    var controller: MediaController? = null
-        private set
-
-    private val controllerMutex = Mutex()
-    private var controllerDeferred: CompletableDeferred<MediaController>? = null
 
     private val playerListener = object : Player.Listener {
         override fun onIsPlayingChanged(isPlaying: Boolean) {
@@ -464,26 +448,21 @@ class PodcastRepository(private val appContext: Context) {
         }
     }
 
-    suspend fun ensureController(): MediaController = controllerMutex.withLock {
-        controllerDeferred?.let { return it.await() }
-        val deferred = CompletableDeferred<MediaController>()
-        controllerDeferred = deferred
-        withContext(Dispatchers.Main) {
-            val token = SessionToken(appContext, ComponentName(appContext, PodcastPlaybackService::class.java))
-            val future = MediaController.Builder(appContext, token).buildAsync()
-            future.addListener({
-                val c = future.get()
-                controller = c
-                c.addListener(playerListener)
-                // The service can already be playing something started in an earlier app session.
-                trackedEpisodeId = c.currentMediaItem?.mediaId
-                trackProgressWhilePlaying(c.isPlaying)
-                refreshPlayerState()
-                deferred.complete(c)
-            }, MoreExecutors.directExecutor())
-        }
-        deferred.await()
+    private val controllerHolder = MediaControllerHolder(
+        appContext,
+        PodcastPlaybackService::class.java,
+        PodcastPlaybackService.CMD_STOP_ALL
+    ) { c ->
+        c.addListener(playerListener)
+        // The service can already be playing something started in an earlier app session.
+        trackedEpisodeId = c.currentMediaItem?.mediaId
+        trackProgressWhilePlaying(c.isPlaying)
+        refreshPlayerState()
     }
+
+    val controller: MediaController? get() = controllerHolder.controller
+
+    suspend fun ensureController(): MediaController = controllerHolder.ensure()
 
     private fun refreshPlayerState() {
         val c = controller
@@ -600,18 +579,7 @@ class PodcastRepository(private val appContext: Context) {
         saveCurrentProgress()
         progressJob?.cancel()
         trackedEpisodeId = null
-        val c = controller
-        if (c != null) {
-            c.sendCustomCommand(SessionCommand(PodcastPlaybackService.CMD_STOP_ALL, Bundle.EMPTY), Bundle.EMPTY)
-            c.release()
-            controller = null
-            controllerDeferred = null
-        } else {
-            // The service outlives the process's controller when playback was started in an earlier
-            // app session and kept going in the background. Nothing is bound to it then, so stopping
-            // the service outright is what actually ends it.
-            appContext.stopService(Intent(appContext, PodcastPlaybackService::class.java))
-        }
+        controllerHolder.stop()
         _playerState.value = PodcastPlayerUiState()
     }
 

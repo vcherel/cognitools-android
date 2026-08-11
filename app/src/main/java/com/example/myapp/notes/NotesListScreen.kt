@@ -120,12 +120,16 @@ fun NotesListScreen(navController: NavController) {
     var confirmDelete by remember { mutableStateOf<Note?>(null) }
 
     // Rewrites a note's lines and saves it, for the edits the pinned Todo widget makes in place.
-    fun updateNoteLines(note: Note, onSaved: () -> Unit = {}, transform: (MutableList<String>) -> Unit) {
-        val lines = note.content.split("\n").toMutableList()
-        transform(lines)
+    // Reads the note back inside the coroutine rather than transforming the copy captured at
+    // composition time: two taps before the first recomposition lands would otherwise both rewrite
+    // the same stale content, and the second one would silently undo the first.
+    fun updateNoteLines(noteId: String, onSaved: () -> Unit = {}, transform: (MutableList<String>) -> Unit) {
         scope.launch {
+            val current = dao.getNote(noteId) ?: return@launch
+            val lines = current.content.split("\n").toMutableList()
+            transform(lines)
             dao.upsertNote(
-                note.copy(content = lines.joinToString("\n"), updatedAt = System.currentTimeMillis())
+                current.copy(content = lines.joinToString("\n"), updatedAt = System.currentTimeMillis())
             )
             onSaved()
         }
@@ -280,14 +284,14 @@ fun NotesListScreen(navController: NavController) {
                                         note = pinnedTodo,
                                         onNavigate = { navController.navigate("note/${pinnedTodo.id}") },
                                         onToggleLine = { index ->
-                                            updateNoteLines(pinnedTodo) { lines ->
+                                            updateNoteLines(pinnedTodo.id) { lines ->
                                                 val line = lines[index]
                                                 val prefix = if (line.isCheckedLine()) UNCHECKED_PREFIX else CHECKED_PREFIX
                                                 lines[index] = prefix + line.checkboxText()
                                             }
                                         },
                                         onDeleteLine = { index ->
-                                            updateNoteLines(pinnedTodo) { lines -> lines.removeAt(index) }
+                                            updateNoteLines(pinnedTodo.id) { lines -> lines.removeAt(index) }
                                         },
                                         onAddItem = {
                                             // The new item goes at the end of the active block, above the
@@ -298,7 +302,7 @@ fun NotesListScreen(navController: NavController) {
                                             val offset = lines.take(insertAt).sumOf { it.length + 1 } +
                                                 UNCHECKED_PREFIX.length
                                             updateNoteLines(
-                                                note = pinnedTodo,
+                                                noteId = pinnedTodo.id,
                                                 onSaved = { navController.navigate("note/${pinnedTodo.id}?editAt=$offset") }
                                             ) { it.add(insertAt, UNCHECKED_PREFIX) }
                                         }

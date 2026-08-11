@@ -1,8 +1,6 @@
 package com.example.myapp.deezer
 
-import android.content.ComponentName
 import android.content.Context
-import android.content.Intent
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.net.Uri
@@ -16,11 +14,9 @@ import androidx.media3.datasource.cache.ContentMetadata
 import androidx.media3.datasource.cache.LeastRecentlyUsedCacheEvictor
 import androidx.media3.datasource.cache.SimpleCache
 import androidx.media3.session.MediaController
-import androidx.media3.session.SessionCommand
-import androidx.media3.session.SessionToken
+import com.example.myapp.MediaControllerHolder
+import com.example.myapp.deaccented
 import com.example.myapp.podcastRepository
-import com.google.common.util.concurrent.MoreExecutors
-import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -31,6 +27,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
@@ -45,7 +42,6 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import java.io.File
 import java.io.IOException
-import java.text.Normalizer
 import java.util.concurrent.ConcurrentHashMap
 
 /** Outcome of adding a track to a playlist: it was added, it was already there, or the playlist doesn't exist. */
@@ -250,6 +246,8 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
                 val pls = plsDeferred.await()
                 setFavorites(favs)
                 _playlists.value = pls
+                // A "Best pépites" created since the last lookup is found again on the next one.
+                bestPepitesLookedUp = false
                 writeSnapshot(favs, pls)
             }
         }
@@ -327,7 +325,7 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
      * this override on its own.
      */
     fun markTemporaryFavorite(sngId: String) {
-        _favoriteIds.value = _favoriteIds.value + sngId
+        _favoriteIds.update { it + sngId }
     }
 
     /**
@@ -446,14 +444,22 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
     // ---- "Best pépites" quick-add ----
 
     @Volatile private var bestPepitesId: String? = null
+    // Separate from the id being null: without it, an owner with no such playlist would re-fetch the
+    // whole playlist list on every lookup, and the playback service does two of these per track.
+    @Volatile private var bestPepitesLookedUp = false
 
     /**
      * Resolves (and caches) the id of the owner's "Best pépites" playlist, or null if none exists.
      * Reads the already loaded playlists first, so it also answers offline once the library is seeded.
      */
-    suspend fun bestPepitesPlaylistId(): String? =
-        bestPepitesId ?: (_playlists.value ?: fetchPlaylists())
-            .firstOrNull { normalizeName(it.title).contains("pepite") }?.id?.also { bestPepitesId = it }
+    suspend fun bestPepitesPlaylistId(): String? {
+        bestPepitesId?.let { return it }
+        if (bestPepitesLookedUp) return null
+        val playlists = _playlists.value ?: fetchPlaylists()
+        bestPepitesLookedUp = true
+        return playlists.firstOrNull { it.title.deaccented().contains("pepite") }?.id
+            ?.also { bestPepitesId = it }
+    }
 
     /** Adds [track] to the owner's "Best pépites" playlist, unless it is already in it. */
     suspend fun addToBestPepites(track: DeezerTrack): PlaylistAddResult {
@@ -486,12 +492,6 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
         return PlaylistAddResult.ADDED
     }
 
-    /** Lowercases and strips accents + non-letters so "Best pépites 💎" matches on "pepite". */
-    private fun normalizeName(s: String): String =
-        Normalizer.normalize(s, Normalizer.Form.NFD)
-            .replace(Regex("\\p{M}+"), "")
-            .lowercase()
-
     /** Removes [sngId] from [playlistId]. */
     suspend fun removeFromPlaylist(playlistId: String, sngId: String) {
         withTokenRetry { api.removeSongFromPlaylist(it, playlistId, sngId) }
@@ -509,16 +509,13 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
      * different sngId) and returns the first one that actually resolves a stream, or null if none does.
      */
     suspend fun findReplacement(track: DeezerTrack): DeezerTrack? {
-        val artistKey = normalizeName(track.artist)
-        val titleKey = normalizeName(track.title)
+        val key = track.matchKey
         val candidates = try {
             search("${track.title} ${track.artist}")
         } catch (e: Exception) {
             return null
         }
-        val matches = candidates.filter {
-            it.sngId != track.sngId && normalizeName(it.artist) == artistKey && normalizeName(it.title) == titleKey
-        }.take(5)
+        val matches = candidates.filter { it.sngId != track.sngId && it.matchKey == key }.take(5)
         for (candidate in matches) {
             val works = try {
                 resolveStream(candidate.sngId, DEFAULT_QUALITY)
@@ -584,13 +581,6 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
     private val _playerState = MutableStateFlow(PlayerUiState())
     val playerState: StateFlow<PlayerUiState> = _playerState
 
-    @Volatile
-    var controller: MediaController? = null
-        private set
-
-    private val controllerMutex = Mutex()
-    private var controllerDeferred: CompletableDeferred<MediaController>? = null
-
     private val playerListener = object : Player.Listener {
         override fun onIsPlayingChanged(isPlaying: Boolean) = refreshPlayerState()
         override fun onMediaMetadataChanged(mediaMetadata: MediaMetadata) = refreshPlayerState()
@@ -598,23 +588,18 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
         override fun onPlaybackStateChanged(playbackState: Int) = refreshPlayerState()
     }
 
-    suspend fun ensureController(): MediaController = controllerMutex.withLock {
-        controllerDeferred?.let { return it.await() }
-        val deferred = CompletableDeferred<MediaController>()
-        controllerDeferred = deferred
-        withContext(Dispatchers.Main) {
-            val token = SessionToken(appContext, ComponentName(appContext, DeezerPlaybackService::class.java))
-            val future = MediaController.Builder(appContext, token).buildAsync()
-            future.addListener({
-                val c = future.get()
-                controller = c
-                c.addListener(playerListener)
-                refreshPlayerState()
-                deferred.complete(c)
-            }, MoreExecutors.directExecutor())
-        }
-        deferred.await()
+    private val controllerHolder = MediaControllerHolder(
+        appContext,
+        DeezerPlaybackService::class.java,
+        DeezerPlaybackService.CMD_STOP_ALL
+    ) { c ->
+        c.addListener(playerListener)
+        refreshPlayerState()
     }
+
+    val controller: MediaController? get() = controllerHolder.controller
+
+    suspend fun ensureController(): MediaController = controllerHolder.ensure()
 
     private fun refreshPlayerState() {
         val c = controller
@@ -740,24 +725,9 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
     fun positionMs(): Long = controller?.currentPosition ?: 0L
     fun durationMs(): Long = controller?.duration?.takeIf { it > 0 } ?: 0L
 
-    /**
-     * Pauses playback, removes the notification, and stops the playback service entirely. Also drops
-     * our own MediaController: a service stays alive as long as any client is bound to it, so without
-     * this the service's own stopSelf() would have no real effect until the app itself goes away.
-     */
+    /** Pauses playback, removes the notification, and stops the playback service entirely. */
     fun stopAll() {
-        val c = controller
-        if (c != null) {
-            c.sendCustomCommand(SessionCommand(DeezerPlaybackService.CMD_STOP_ALL, Bundle.EMPTY), Bundle.EMPTY)
-            c.release()
-            controller = null
-            controllerDeferred = null
-        } else {
-            // The service outlives the process's controller when playback was started in an earlier
-            // app session and kept going in the background. Nothing is bound to it then, so stopping
-            // the service outright is what actually ends it.
-            appContext.stopService(Intent(appContext, DeezerPlaybackService::class.java))
-        }
+        controllerHolder.stop()
         _playerState.value = PlayerUiState()
     }
 

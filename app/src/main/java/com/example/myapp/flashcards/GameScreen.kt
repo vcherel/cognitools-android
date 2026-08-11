@@ -367,69 +367,12 @@ fun FlashcardGameScreen(listId: String, navController: NavController) {
                             },
                         elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
                     ) {
-                        val score = card.score.toInt()
-                        val scoreColor = scoreColor(score)
-
-                        Box(modifier = Modifier.fillMaxSize()) {
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.Center,
-                                modifier = Modifier.align(Alignment.Center)
-                            ) {
-                                Text(
-                                    text = if (showFront != showDefinition) card.name else card.definition,
-                                    style = MaterialTheme.typography.headlineMedium,
-                                    textAlign = TextAlign.Center,
-                                    fontWeight = FontWeight.Bold
-                                )
-
-                                if (showDefinition) {
-                                    Spacer(Modifier.height(24.dp))
-                                    Text(
-                                        text = if (showFront) card.name else card.definition,
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        textAlign = TextAlign.Center
-                                    )
-                                }
-                            }
-
-                            // Score circle
-                            Box(
-                                contentAlignment = Alignment.Center,
-                                modifier = Modifier
-                                    .align(Alignment.TopEnd)
-                                    .padding(16.dp)
-                                    .size(36.dp)
-                                    .border(width = 3.dp, color = scoreColor, shape = CircleShape)
-                            ) {
-                                Text(
-                                    "$score",
-                                    style = MaterialTheme.typography.bodyLarge.copy(
-                                        shadow = if (score <= 3 || score == 10) null
-                                        else Shadow(
-                                            offset = Offset(0f, 0f),
-                                            blurRadius = 4f
-                                        )
-                                    ),
-                                    color = scoreColor,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-
-                            if (isAllListsMode) {
-                                Text(
-                                    text = listName,
-                                    style = MaterialTheme.typography.bodyMedium.copy(
-                                        color = Color.Gray,
-                                        fontStyle = FontStyle.Italic
-                                    ),
-                                    modifier = Modifier
-                                        .align(Alignment.BottomStart)
-                                        .padding(12.dp)
-                                )
-                            }
-
-                        }
+                        CardFace(
+                            card = card,
+                            showFront = showFront,
+                            showDefinition = showDefinition,
+                            listName = if (isAllListsMode) listName else null
+                        )
                     }
                 }
 
@@ -460,73 +403,155 @@ fun FlashcardGameScreen(listId: String, navController: NavController) {
                     }
                 }
             } else {
-                // No cards due
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(32.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    Box(modifier = Modifier.size(100.dp)) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .offset(y = 6.dp)
-                                .background(Color(0xFF2E7D32), RoundedCornerShape(24.dp))
-                        )
-
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(greenColor, RoundedCornerShape(24.dp)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.CheckCircle,
-                                contentDescription = null,
-                                tint = Color.White,
-                                modifier = Modifier.size(80.dp)
-                            )
-                        }
-                    }
-
-                    Spacer(Modifier.height(16.dp))
-                    Text(
-                        text = "Félicitations !",
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        text = "Vous avez révisé toutes les cartes disponibles",
-                        style = MaterialTheme.typography.bodyLarge,
-                        textAlign = TextAlign.Center
-                    )
-
-                    Spacer(Modifier.height(16.dp))
-                    MyButton(
-                        text = "Retour aux listes",
-                        onClick = {
-                            navController.navigate("lists") {
-                                popUpTo("lists") { inclusive = true }
-                            }
-                        },
-                        modifier = Modifier.fillMaxWidth().height(56.dp)
-                    )
-
-                    // Show different back button depending on mode
-                    if (!isAllListsMode) {
-                        Spacer(Modifier.height(32.dp))
-                        MyButton(
-                            text = "Retour",
-                            onClick = { navController.popBackStackOnce() },
-                            modifier = Modifier.fillMaxWidth().height(56.dp)
-                        )
-                    }
-                }
+                AllReviewedScreen(
+                    greenColor = greenColor,
+                    showPlainBack = !isAllListsMode,
+                    onBackToLists = {
+                        navController.navigate("lists") { popUpTo("lists") { inclusive = true } }
+                    },
+                    onBack = { navController.popBackStackOnce() }
+                )
             }
+        }
+    }
+}
+
+/**
+ * What the card shows: the side being asked, the other one once revealed, its score in the corner,
+ * and, when playing across every list ([listName] non-null), which list it came from.
+ */
+@Composable
+private fun CardFace(
+    card: FlashcardElement,
+    showFront: Boolean,
+    showDefinition: Boolean,
+    listName: String?
+) {
+    val score = card.score.toInt()
+    val scoreColor = scoreColor(score)
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+            modifier = Modifier.align(Alignment.Center)
+        ) {
+            Text(
+                text = if (showFront != showDefinition) card.name else card.definition,
+                style = MaterialTheme.typography.headlineMedium,
+                textAlign = TextAlign.Center,
+                fontWeight = FontWeight.Bold
+            )
+            if (showDefinition) {
+                Spacer(Modifier.height(24.dp))
+                Text(
+                    text = if (showFront) card.name else card.definition,
+                    style = MaterialTheme.typography.bodyLarge,
+                    textAlign = TextAlign.Center
+                )
+            }
+        }
+
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(16.dp)
+                .size(36.dp)
+                .border(width = 3.dp, color = scoreColor, shape = CircleShape)
+        ) {
+            Text(
+                "$score",
+                style = MaterialTheme.typography.bodyLarge.copy(
+                    // A glow on the middle scores only: the extremes read clearly on their own.
+                    shadow = if (score <= 3 || score == 10) null
+                    else Shadow(offset = Offset(0f, 0f), blurRadius = 4f)
+                ),
+                color = scoreColor,
+                fontWeight = FontWeight.Bold
+            )
+        }
+
+        if (listName != null) {
+            Text(
+                text = listName,
+                style = MaterialTheme.typography.bodyMedium.copy(
+                    color = Color.Gray,
+                    fontStyle = FontStyle.Italic
+                ),
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(12.dp)
+            )
+        }
+    }
+}
+
+/** Nothing left to review. [showPlainBack] adds a second way out for a single list's game. */
+@Composable
+private fun AllReviewedScreen(
+    greenColor: Color,
+    showPlainBack: Boolean,
+    onBackToLists: () -> Unit,
+    onBack: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Box(modifier = Modifier.size(100.dp)) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .offset(y = 6.dp)
+                    .background(Color(0xFF2E7D32), RoundedCornerShape(24.dp))
+            )
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(greenColor, RoundedCornerShape(24.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.CheckCircle,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(80.dp)
+                )
+            }
+        }
+
+        Spacer(Modifier.height(16.dp))
+        Text(
+            text = "Félicitations !",
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.Bold
+        )
+
+        Spacer(Modifier.height(8.dp))
+        Text(
+            text = "Vous avez révisé toutes les cartes disponibles",
+            style = MaterialTheme.typography.bodyLarge,
+            textAlign = TextAlign.Center
+        )
+
+        Spacer(Modifier.height(16.dp))
+        MyButton(
+            text = "Retour aux listes",
+            onClick = onBackToLists,
+            modifier = Modifier.fillMaxWidth().height(56.dp)
+        )
+
+        if (showPlainBack) {
+            Spacer(Modifier.height(32.dp))
+            MyButton(
+                text = "Retour",
+                onClick = onBack,
+                modifier = Modifier.fillMaxWidth().height(56.dp)
+            )
         }
     }
 }

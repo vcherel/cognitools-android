@@ -1,5 +1,6 @@
 package com.example.myapp.deezer
 
+import com.example.myapp.matchNormalized
 import android.content.Context
 import android.util.Log
 import kotlinx.coroutines.CoroutineScope

@@ -4,7 +4,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -22,7 +21,6 @@ import androidx.compose.material.icons.filled.CheckCircleOutline
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.DownloadDone
-import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.CircularProgressIndicator
@@ -41,12 +39,11 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.myapp.AppSnackbar
 import com.example.myapp.ErrorText
+import com.example.myapp.MediaListRow
 import com.example.myapp.ScreenTopBar
 import com.example.myapp.ShowAlertDialog
 import kotlinx.coroutines.launch
@@ -203,30 +200,15 @@ fun PodcastEpisodeRow(
     onToggleDownload: () -> Unit,
     onToggleSeen: () -> Unit
 ) {
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(6.dp))
-            .background(if (isPlaying) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface)
-            .clickable(onClick = onClick)
-            .padding(vertical = 6.dp, horizontal = 6.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        PodcastArt(episode.podcastArtworkUrl, Modifier.size(52.dp).clip(RoundedCornerShape(6.dp)))
-        Spacer(Modifier.width(12.dp))
-        Column(Modifier.weight(1f).alpha(if (episode.seen) 0.55f else 1f)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                if (isPlaying) {
-                    Icon(
-                        Icons.Filled.PlayArrow,
-                        contentDescription = "En cours de lecture",
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(Modifier.width(4.dp))
-                }
-                Text(episode.title, style = MaterialTheme.typography.bodyLarge, maxLines = 2, overflow = TextOverflow.Ellipsis)
-            }
+    MediaListRow(
+        artworkUrl = episode.podcastArtworkUrl,
+        title = episode.title,
+        isPlaying = isPlaying,
+        onClick = onClick,
+        artworkSize = 52.dp,
+        titleMaxLines = 2,
+        textAlpha = if (episode.seen) 0.55f else 1f,
+        below = {
             Text(
                 episodeSubtitle(episode, listeningProgress),
                 style = MaterialTheme.typography.labelSmall,
@@ -243,53 +225,55 @@ fun PodcastEpisodeRow(
                     trackColor = MaterialTheme.colorScheme.surfaceVariant
                 )
             }
-        }
-        if (episode.source != PodcastSource.DEEZER) {
+        },
+        trailing = {
+            if (episode.source != PodcastSource.DEEZER) {
+                Box(
+                    Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .clickable(enabled = !isDownloading, onClick = onToggleDownload),
+                    contentAlignment = Alignment.Center
+                ) {
+                    when {
+                        // Indeterminate only until the server tells us the episode's size.
+                        isDownloading && downloadProgress != null -> CircularProgressIndicator(
+                            progress = { downloadProgress },
+                            modifier = Modifier.size(20.dp),
+                            strokeWidth = 2.dp
+                        )
+                        isDownloading -> CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                        isDownloaded -> Icon(
+                            Icons.Filled.DownloadDone,
+                            contentDescription = "Téléchargé, appuyer pour supprimer",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                        else -> Icon(
+                            Icons.Filled.Download,
+                            contentDescription = "Télécharger l'épisode",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+                Spacer(Modifier.width(4.dp))
+            }
             Box(
                 Modifier
                     .size(36.dp)
                     .clip(CircleShape)
-                    .clickable(enabled = !isDownloading, onClick = onToggleDownload),
+                    .background(if (episode.seen) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant)
+                    .clickable(onClick = onToggleSeen),
                 contentAlignment = Alignment.Center
             ) {
-                when {
-                    // Indeterminate only until the server tells us the episode's size.
-                    isDownloading && downloadProgress != null -> CircularProgressIndicator(
-                        progress = { downloadProgress },
-                        modifier = Modifier.size(20.dp),
-                        strokeWidth = 2.dp
-                    )
-                    isDownloading -> CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
-                    isDownloaded -> Icon(
-                        Icons.Filled.DownloadDone,
-                        contentDescription = "Téléchargé, appuyer pour supprimer",
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                    else -> Icon(
-                        Icons.Filled.Download,
-                        contentDescription = "Télécharger l'épisode",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
+                Icon(
+                    if (episode.seen) Icons.Filled.Check else Icons.Filled.CheckCircleOutline,
+                    contentDescription = if (episode.seen) "Marquer comme non écouté" else "Marquer comme écouté",
+                    tint = if (episode.seen) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(20.dp)
+                )
             }
-            Spacer(Modifier.width(4.dp))
         }
-        Box(
-            Modifier
-                .size(36.dp)
-                .clip(CircleShape)
-                .background(if (episode.seen) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant)
-                .clickable(onClick = onToggleSeen),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                if (episode.seen) Icons.Filled.Check else Icons.Filled.CheckCircleOutline,
-                contentDescription = if (episode.seen) "Marquer comme non écouté" else "Marquer comme écouté",
-                tint = if (episode.seen) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(20.dp)
-            )
-        }
-    }
+    )
 }
 
 private fun episodeSubtitle(episode: PodcastEpisode, progress: PodcastEpisodeProgress?): String {

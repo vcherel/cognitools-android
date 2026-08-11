@@ -22,8 +22,6 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.DownloadDone
 import androidx.compose.material.icons.filled.Forward30
 import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.Pause
-import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Replay10
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.AlertDialog
@@ -32,16 +30,12 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Slider
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -51,60 +45,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import coil3.compose.AsyncImage
 import com.example.myapp.LocalGoHome
+import com.example.myapp.MediaArt
+import com.example.myapp.PlayPauseButton
+import com.example.myapp.PlayerSeekBar
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import java.util.Locale
 import kotlin.math.roundToInt
-
-/** Slim bar pinned at the bottom of the Podcasts tool, tap to expand. */
-@Composable
-fun PodcastMiniPlayerBar(
-    state: PodcastPlayerUiState,
-    onExpand: () -> Unit,
-    onTogglePlay: () -> Unit
-) {
-    Surface(tonalElevation = 3.dp, shadowElevation = 8.dp) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable(onClick = onExpand)
-                .padding(horizontal = 12.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            PodcastArt(state.artworkUrl, Modifier.size(44.dp).clip(RoundedCornerShape(6.dp)))
-            Spacer(Modifier.size(12.dp))
-            Column(Modifier.weight(1f)) {
-                Text(
-                    state.title.ifBlank { "…" },
-                    style = MaterialTheme.typography.bodyLarge,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                if (state.podcastTitle.isNotBlank()) {
-                    Text(
-                        state.podcastTitle,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-            }
-            IconButton(onClick = onTogglePlay) {
-                if (state.isBuffering) {
-                    CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
-                } else {
-                    Icon(
-                        if (state.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                        contentDescription = if (state.isPlaying) "Pause" else "Lecture"
-                    )
-                }
-            }
-        }
-    }
-}
 
 /** Full player overlay: big artwork, seek bar, transport, and a "mark heard" shortcut. */
 @Composable
@@ -132,21 +79,6 @@ fun PodcastFullPlayerSheet(
         sleepTimerRemainingMs = null
     }
 
-    var positionMs by remember { mutableLongStateOf(0L) }
-    var durationMs by remember { mutableLongStateOf(0L) }
-    var scrubbing by remember { mutableStateOf(false) }
-    var scrubValue by remember { mutableFloatStateOf(0f) }
-
-    LaunchedEffect(state.episodeId) {
-        while (true) {
-            if (!scrubbing) {
-                positionMs = repo.positionMs()
-                durationMs = repo.durationMs()
-            }
-            delay(500)
-        }
-    }
-
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -158,39 +90,7 @@ fun PodcastFullPlayerSheet(
         }
         Row(modifier = Modifier.align(Alignment.TopEnd), verticalAlignment = Alignment.CenterVertically) {
             sleepTimerRemainingMs?.let { remainingMs ->
-                // How much of the audio needed to reach the timer's end is already on the phone:
-                // starting the timer pre-fetches exactly that stretch, nothing more. At 100% the rest
-                // plays from the cache, so it's safe to switch to airplane mode; below that the
-                // stream would cut out.
-                val covered = sleepCacheProgress ?: 0f
-                if (covered >= 1f) {
-                    Icon(
-                        Icons.Filled.DownloadDone,
-                        contentDescription = "Téléchargé jusqu'à la fin de la minuterie, mode avion possible",
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(18.dp)
-                    )
-                } else {
-                    CircularProgressIndicator(
-                        progress = { covered },
-                        modifier = Modifier.size(18.dp),
-                        strokeWidth = 2.dp,
-                        color = MaterialTheme.colorScheme.error,
-                        trackColor = MaterialTheme.colorScheme.surfaceVariant
-                    )
-                    Spacer(Modifier.size(4.dp))
-                    Text(
-                        "${(covered * 100).roundToInt()} %",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.error
-                    )
-                }
-                Spacer(Modifier.size(4.dp))
-                Text(
-                    "${remainingMs / 60_000L + 1} min",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.primary
-                )
+                SleepCoverageBadge(covered = sleepCacheProgress ?: 0f, remainingMs = remainingMs)
             }
             IconButton(onClick = { showSleepTimerDialog = true }) {
                 Icon(
@@ -208,7 +108,7 @@ fun PodcastFullPlayerSheet(
             modifier = Modifier.align(Alignment.Center).fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            PodcastArt(
+            MediaArt(
                 state.artworkUrl,
                 Modifier.fillMaxWidth(0.8f).aspectRatio(1f).clip(RoundedCornerShape(16.dp))
             )
@@ -226,64 +126,35 @@ fun PodcastFullPlayerSheet(
             )
 
             Spacer(Modifier.height(8.dp))
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.clickable {
-                    val id = state.episodeId ?: return@clickable
+            MarkHeardToggle(
+                isSeen = isSeen,
+                onToggle = {
+                    val id = state.episodeId ?: return@MarkHeardToggle
                     scope.launch { if (isSeen) repo.markUnseen(id) else repo.markSeen(id) }
                 }
-            ) {
-                Box(
-                    Modifier
-                        .size(40.dp)
-                        .clip(CircleShape)
-                        .background(if (isSeen) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        Icons.Filled.Check,
-                        contentDescription = null,
-                        tint = if (isSeen) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                Text(
-                    if (isSeen) "Écouté" else "Marquer comme écouté",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = if (isSeen) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+            )
 
             Spacer(Modifier.height(16.dp))
 
-            val sliderMax = durationMs.coerceAtLeast(1L).toFloat()
-            val sliderPos = if (scrubbing) scrubValue else positionMs.toFloat().coerceIn(0f, sliderMax)
-            Slider(
-                value = sliderPos,
-                onValueChange = { scrubbing = true; scrubValue = it },
-                onValueChangeFinished = { repo.seekTo(scrubValue.toLong()); positionMs = scrubValue.toLong(); scrubbing = false },
-                valueRange = 0f..sliderMax
+            PlayerSeekBar(
+                trackKey = state.episodeId,
+                isPlaying = state.isPlaying,
+                positionMs = { repo.positionMs() },
+                durationMs = { repo.durationMs() },
+                onSeek = { repo.seekTo(it) }
             )
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(formatTime(if (scrubbing) scrubValue.toLong() else positionMs), style = MaterialTheme.typography.bodySmall)
-                Text(formatTime(durationMs), style = MaterialTheme.typography.bodySmall)
-            }
 
             Spacer(Modifier.height(16.dp))
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(24.dp)) {
                 IconButton(onClick = { repo.seekBy(-10_000L) }) {
                     Icon(Icons.Filled.Replay10, contentDescription = "Reculer de 10 s", modifier = Modifier.size(36.dp))
                 }
-                IconButton(onClick = { repo.togglePlay() }) {
-                    if (state.isBuffering) {
-                        CircularProgressIndicator(modifier = Modifier.size(40.dp), strokeWidth = 3.dp)
-                    } else {
-                        Icon(
-                            if (state.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                            contentDescription = if (state.isPlaying) "Pause" else "Lecture",
-                            modifier = Modifier.size(56.dp)
-                        )
-                    }
-                }
+                PlayPauseButton(
+                    isPlaying = state.isPlaying,
+                    isBuffering = state.isBuffering,
+                    onClick = { repo.togglePlay() },
+                    iconSize = 56.dp
+                )
                 IconButton(onClick = { repo.seekBy(30_000L) }) {
                     Icon(Icons.Filled.Forward30, contentDescription = "Avancer de 30 s", modifier = Modifier.size(36.dp))
                 }
@@ -297,6 +168,70 @@ fun PodcastFullPlayerSheet(
             onDismiss = { showSleepTimerDialog = false },
             onStart = { minutes -> repo.startSleepTimer(minutes); showSleepTimerDialog = false },
             onCancel = { repo.cancelSleepTimer(); showSleepTimerDialog = false }
+        )
+    }
+}
+
+/**
+ * How much of the audio needed to reach the sleep timer's end is already on the phone: starting the
+ * timer pre-fetches exactly that stretch, nothing more. At 100% the rest plays from the cache, so
+ * it's safe to switch to airplane mode; below that the stream would cut out.
+ */
+@Composable
+private fun SleepCoverageBadge(covered: Float, remainingMs: Long) {
+    if (covered >= 1f) {
+        Icon(
+            Icons.Filled.DownloadDone,
+            contentDescription = "Téléchargé jusqu'à la fin de la minuterie, mode avion possible",
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(18.dp)
+        )
+    } else {
+        CircularProgressIndicator(
+            progress = { covered },
+            modifier = Modifier.size(18.dp),
+            strokeWidth = 2.dp,
+            color = MaterialTheme.colorScheme.error,
+            trackColor = MaterialTheme.colorScheme.surfaceVariant
+        )
+        Spacer(Modifier.size(4.dp))
+        Text(
+            "${(covered * 100).roundToInt()} %",
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.error
+        )
+    }
+    Spacer(Modifier.size(4.dp))
+    Text(
+        "${remainingMs / 60_000L + 1} min",
+        style = MaterialTheme.typography.labelMedium,
+        color = MaterialTheme.colorScheme.primary
+    )
+}
+
+@Composable
+private fun MarkHeardToggle(isSeen: Boolean, onToggle: () -> Unit) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.clickable(onClick = onToggle)
+    ) {
+        Box(
+            Modifier
+                .size(40.dp)
+                .clip(CircleShape)
+                .background(if (isSeen) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                Icons.Filled.Check,
+                contentDescription = null,
+                tint = if (isSeen) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        Text(
+            if (isSeen) "Écouté" else "Marquer comme écouté",
+            style = MaterialTheme.typography.labelSmall,
+            color = if (isSeen) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }
@@ -360,22 +295,4 @@ private fun SleepTimerDialog(isRunning: Boolean, onDismiss: () -> Unit, onStart:
             }
         }
     )
-}
-
-private fun formatTime(ms: Long): String {
-    val totalSec = (ms / 1000).coerceAtLeast(0)
-    val h = totalSec / 3600
-    val m = (totalSec % 3600) / 60
-    val s = totalSec % 60
-    return if (h > 0) String.format(Locale.US, "%d:%02d:%02d", h, m, s) else String.format(Locale.US, "%d:%02d", m, s)
-}
-
-/** Shared: square podcast/episode artwork, with a neutral placeholder. */
-@Composable
-fun PodcastArt(url: String?, modifier: Modifier = Modifier) {
-    Box(modifier.aspectRatio(1f).background(MaterialTheme.colorScheme.surfaceVariant)) {
-        if (url != null) {
-            AsyncImage(model = url, contentDescription = null, modifier = Modifier.fillMaxSize())
-        }
-    }
 }
