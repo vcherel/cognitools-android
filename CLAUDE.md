@@ -21,19 +21,24 @@ adb install -r app/build/outputs/apk/release/app-release.apk
 Always install release builds, never debug (performance matters on device). Debug is only for `run-as` access, e.g. DB inspection.
 
 ## Codebase map
-Five independent tools live under `app/src/main/java/com/example/myapp/`. Use this map to jump straight to the right file with Read/Grep instead of spawning an exploration agent.
+The independent tools live under `app/src/main/java/com/example/myapp/`. Use this map to jump straight to the right file with Read/Grep instead of spawning an exploration agent.
 
 Root package (shared/misc):
-- `MainActivity.kt`: app entry point and the whole nav host
+- `MainActivity.kt`: app entry point; the window, the intents it is launched with, and the locked-over-the-keyguard quick view
+- `AppNavHost.kt`: MainScreen, the whole app's nav graph plus the composition locals and the snackbar host every screen reads
 - `MenuScreen.kt`: the main menu, one explicit callback per destination
 - `Theme.kt`: ThemeManager (dark mode DataStore), AppTheme, LocalIsDarkMode
-- `MyApplication.kt`: Application class, holds the FlashcardRepository and DeezerRepository singletons plus the `Context.flashcardRepository` / `Context.deezerRepository` extensions, and the app start housekeeping
-- `Buttons.kt`: shared composables, MyButton, SplitMyButton, MySwitch, ShowAlertDialog, AppDialog (the buttons all built on RaisedSurface, the custom dialogs all on AppDialog)
+- `MyApplication.kt`: Application class, holds the FlashcardRepository / DeezerRepository / PodcastRepository singletons plus their `Context.<name>Repository` extensions, and the app start housekeeping
+- `Buttons.kt`: shared composables, MyButton, SplitMyButton, MySwitch, ShowAlertDialog, ErrorText, AppDialog (the buttons all built on RaisedSurface, the custom dialogs all on AppDialog)
 - `ScreenTopBar.kt`: shared back-arrow + title header used by the tool screens
 - `Home.kt`: BackIconButton (tap = back, long press = main menu), the LocalGoHome hook, and the idle-return-to-menu lifecycle watcher with its IdleResetGuard
-- `Http.kt`: shared httpGet helper and User-Agent (Weather + Wikipedia)
+- `PlayerUi.kt`: the surfaces `deezer/` and `podcasts/` both draw; MediaArt, MediaListRow, MiniPlayerBar, PlayPauseButton, PlayerSeekBar (which owns the position polling), formatPlaybackTime
+- `MediaControllerHolder.kt`: the MediaController connect-once/stop-the-service plumbing both playback repositories use
+- `Normalize.kt`: `deaccented` / `matchNormalized` / `slugified`, the one place text is folded for comparison
+- `Http.kt`: shared httpGet helper and User-Agent (Weather + Wikipedia + podcast feeds)
 - `BottomFadeOverlay.kt`: shared fade out gradient overlay composable
 - `Snackbar.kt`: AppSnackbar, the app wide snackbar screens post undo actions through
+- `SearchHistory.kt`: recent search terms per surface (notes, cities, Deezer) and the RecentSearchChips row
 - `BackupRestore.kt`: export/import actions for app data
 - `Random.kt`: random number generator tool screen
 - `Volume.kt`: volume booster foreground service and its screen
@@ -52,13 +57,22 @@ Root package (shared/misc):
 - `DeezerLibraryCache.kt`: JSON snapshot of favorites + playlists so a cold launch renders instantly
 - `DeezerOffline.kt`: DeezerOfflineLibrary, the permanent Best pépites mirror; sync, retry pass, sync log file
 - `DeezerPlaybackService.kt`: MediaSessionService owning the ExoPlayer; media notification, its heart/diamond action buttons (`actionButtons`), error recovery
-- `DeezerScreen.kt`: tool host, nested NavHost + persistent mini-player
-- `DeezerNowPlaying.kt`: MiniPlayerBar and FullPlayerSheet
-- `DeezerLibraryScreen.kt`: landing screen, favorites card, playlists row, offline status
+- `DeezerScreen.kt`: host for the whole Musique tool (music *and* podcasts), nested NavHost + the two persistent mini-players
+- `DeezerNowPlaying.kt`: FullPlayerSheet, plus the share-a-track sheet. The mini-player bar itself is the shared one in `PlayerUi.kt`
+- `DeezerLibraryScreen.kt`: landing screen; favorites card, playlists rows, followed podcast rows, offline status. Also holds TrackRow and the playlist picker every Deezer screen reuses
 - `DeezerPlaylistScreen.kt`: reusable ordered track list (play, remove, like, add to pépites)
-- `DeezerSearchScreen.kt`: search screen
+- `DeezerSearchScreen.kt`: search screen, tracks and podcast shows
 - `DeezerDiscoveries.kt`: the daily "Découvertes du jour" batch; new release scan over the profile artists, Flow/track-mix discoveries, the persisted batch/backlog/proposed state
 - `DeezerDiscoveriesScreen.kt`: the batch's list screen (add, ignore, add all, ignore all, regenerate)
+
+`podcasts/` (podcast subscriptions and playback, surfaced inside the Musique tool):
+- `Models.kt`: PodcastFavorite/PodcastEpisode/PodcastCatalogItem/PodcastEpisodeProgress and PodcastDao
+- `PodcastApi.kt`: the iTunes directory search and the RSS feed parsing
+- `PodcastRepository.kt`: the singleton; followed shows (Room), the merged episode list re-fetched live from each feed, heard/seen state, downloads, listening progress, the sleep timer and its pre-fetch, the MediaController
+- `PodcastStreamCache.kt`: the episode stream disk cache, shared by playback and the sleep timer pre-fetch
+- `PodcastPlaybackService.kt`: MediaSessionService owning the episode ExoPlayer; its own notification id and channel, distinct from the Deezer one
+- `PodcastNowPlaying.kt`: PodcastFullPlayerSheet, the mark-heard toggle, the sleep timer dialog and its coverage badge
+- `PodcastEpisodesScreen.kt`: one followed show's episode list (play, download, mark heard, unfollow)
 
 `flashcards/` (spaced repetition flashcards tool):
 - `Models.kt`: FlashcardList/FlashcardElement data classes, JSON (de)serialization, stats helpers
@@ -78,9 +92,11 @@ Root package (shared/misc):
 - `GalleryRefresh.kt`: global refresh counter the screens observe after a write
 - `TrashScreen.kt`: the trashed items grid (restore, delete for good) and showTrashedSnackbar
 - `GalleryImage.kt`: GalleryAsyncImage, the Coil loader with a dateModified aware cache key
+- `GalleryMediaViewers.kt`: the zoomable image and the video player the viewer pages are made of
+- `LockedQuickView.kt`: the single item shown over the keyguard, with the gallery tools that make sense there
 - `AlbumsScreen.kt`: album list, plus the pinned-picture hero card at the top
 - `AlbumGridScreen.kt`: thumbnail grid, multi-select with drag, batch actions
-- `ViewerScreen.kt`: full screen pager (ViewerSource: an album or the pinned set), image zoom and video playback, per-item tools including pin/unpin and set-as-hero
+- `ViewerScreen.kt`: full screen pager (ViewerSource: an album, the pinned set, the Wallet album or a single item), image zoom and video playback, per-item tools including pin/unpin and set-as-hero
 - `ViewerDialogs.kt`: the viewer's share, rename and move dialogs (MoveDialog is also used by the album grid)
 - `GalleryPins.kt`: PinnedMediaItem Room entity/DAO and pin/unpin/setHero/resolve helpers
 - `CropScreen.kt`: image crop editor
@@ -99,7 +115,9 @@ Root package (shared/misc):
 - `Models.kt`: the Note entity, its JSON (de)serialization, and NoteDao (the Room DAO)
 - `NoteText.kt`: everything a note's plain text encodes; the special note titles, checkbox/separator prefixes, formatInline, quantity and waiting-date suffixes, noteTitleAndPreview
 - `NotesListScreen.kt`: list of notes screen, with the pinned Todo widget
-- `NoteEditorScreen.kt`: the note editor shell; load/save, autosave, undo, edit-mode text field, menus, per-line actions
+- `NoteEditorScreen.kt`: the note editor shell; load/save, autosave, undo, edit-mode text field, the edit padding, the dialogs
+- `NoteEditorTopBar.kt`: the editor's header; the editable title plus every button and menu entry, driven by a NoteEditorBarState/NoteEditorBarActions pair
+- `NoteLineEdits.kt`: the per-line edits the read-only view makes (toggle, quantity, muscu day, delete with undo), all going through one editLines
 - `NoteEditing.kt`: pure text helpers; input transformations, slash commands, inline/line marker toggling, muscu day
 - `NoteViewMode.kt`: the read-only note rendering; per-line checkbox/separator/text, drag reorder, double-tap to edit. Takes one NoteLineActions from the editor
 - `NoteLock.kt`: PIN lock for notes, PinDialog
@@ -117,7 +135,7 @@ Root package (shared/misc):
 
 `translate/` (translator):
 - `TranslateApi.kt`: the keyless `translate.googleapis.com/translate_a/single` call (the endpoint Google's own web widget uses), its bare-array response parsed into a translation, the detected language and the dictionary entries
-- `TranslateStore.kt`: the target language, the flashcard list a word goes to, and the recent lookups
+- `TranslateStore.kt`: the target language and the recent lookups (the flashcard list is fixed: the big button always files into Anglais)
 - `TranslateUi.kt`: the pieces both entry points share, TranslationCard, AddToFlashcardsButton, the TextToSpeech reader, and WordLookupSheet (what the reader opens)
 - `TranslateScreen.kt`: the tool screen, debounced live translation and the history
 
@@ -139,11 +157,13 @@ The map above is by feature. These are the ones you won't find by feature name:
 
 - **Room**: one database for the whole app, declared in `flashcards/Database.kt` (version 12). The notes `Note` entity and `NoteDao` are registered there too but defined in `notes/Models.kt`; same for the gallery's `PinnedMediaItem`/`PinnedMediaItemDao` in `gallery/GalleryPins.kt`, the podcasts' tables in `podcasts/`, and the reader's `Book`/`BookDao` in `reader/BookModels.kt`.
 - **Word to flashcard loop**: the reader, the translator and the flashcards are one chain. Long pressing a word in `reader/ReaderScreen.kt` opens `translate/WordLookupSheet`, which writes a `FlashcardElement` into the list used last (remembered in `TranslateStore`). The reader is also the only screen that calls `SuppressIdleReset`.
-- **Media notification and lockscreen buttons**: `deezer/DeezerPlaybackService.kt`, `actionButtons()`. Media3 draws the notification; the buttons are `CommandButton`s handled in `SessionCallback.onCustomCommand`, so they act without opening the app.
+- **Media notification and lockscreen buttons**: `deezer/DeezerPlaybackService.kt`, `actionButtons()`. Media3 draws the notification; the buttons are `CommandButton`s handled in `SessionCallback.onCustomCommand`, so they act without opening the app. `podcasts/PodcastPlaybackService.kt` does the same with its ±30 s pair.
+- **Two playback stacks, one player at a time**: music (`deezer/`) and podcasts (`podcasts/`) each have their own repository, service, notification and mini-player, and they are deliberately mutually exclusive: `DeezerRepository.stopPodcastPlayback()` and `PodcastRepository.playEpisode()` stop the other one, because two foreground services fighting over audio focus used to take the app down. Their two services must also keep **different notification ids and channels** (see either `onCreate`). What they share lives in the root package: `PlayerUi.kt` (every surface) and `MediaControllerHolder.kt` (the connection and the stop).
 - **Icons**: screens use Compose `Icons.*` (material-icons-extended). `res/drawable/` only holds what the framework needs as a real resource: the launcher and the notification action icons. Media3 has no icon constant for most things, so a custom button icon means a vector in `res/drawable/` passed to `setCustomIconResId`.
-- **Singletons**: `MyApplication` holds FlashcardRepository and DeezerRepository. Screens reach them as `context.flashcardRepository` / `context.deezerRepository` (extensions declared in `MyApplication.kt`), never by casting. Anything long lived hangs off there, not off an object/DI graph.
-- **App start work**: `MyApplication.onCreate` purges the expired trashed notes and calls `FlashcardRepository.seedAndPurge()` (seeds the builtin flashcard lists on a fresh install, drops mastered cards outside them). The repositories themselves assume this has been kicked off.
-- **HTTP**: `Http.kt`'s `httpGet` serves Weather and Wikipedia only. Deezer has its own client in `deezer/DeezerApi.kt`, Gallery does no networking.
-- **Foreground services**: `Volume.kt` (volume booster) and `deezer/DeezerPlaybackService.kt`. The Deezer offline sync deliberately has none.
+- **Singletons**: `MyApplication` holds FlashcardRepository, DeezerRepository and PodcastRepository. Screens reach them as `context.flashcardRepository` / `context.deezerRepository` / `context.podcastRepository` (extensions declared in `MyApplication.kt`), never by casting. Anything long lived hangs off there, not off an object/DI graph.
+- **App start work**: `MyApplication.onCreate` purges the expired trashed notes, calls `FlashcardRepository.seedAndPurge()` (seeds the builtin flashcard lists on a fresh install, drops mastered cards outside them), primes the saved discoveries batch, and sweeps the stream cache of heard podcast episodes. The repositories themselves assume this has been kicked off.
+- **HTTP**: `Http.kt`'s `httpGet` serves Weather, Wikipedia and the podcast feeds/directory. Deezer has its own client in `deezer/DeezerApi.kt`, podcast episode audio is fetched by hand in `PodcastRepository.openAudio` (tracking prefixes need manual redirect following), Gallery does no networking.
+- **Foreground services**: `Volume.kt` (volume booster), `deezer/DeezerPlaybackService.kt` and `podcasts/PodcastPlaybackService.kt`. The Deezer offline sync and the podcast downloads deliberately have none.
 - **30 day trash**: two different mechanisms. Notes carry a `deletedAt` timestamp and are purged by `MyApplication.onCreate`. The gallery uses MediaStore's own trash (`IS_TRASHED`, `performTrashBatch`/`performRestoreBatch`), which Android empties by itself; it only exists from API 30 on, below that a delete stays permanent.
 - **Media consent launcher**: registered once in `MainActivity` and passed down through `LocalMediaConsent`, so an undo posted after its screen is gone can still show the system dialog. Gallery screens read it instead of calling `rememberIntentSenderRequester` themselves.
+- **Text folding**: any "are these the same thing?" comparison goes through `Normalize.kt`. `deaccented()` is the base (NFD, marks stripped, lowercased), `matchNormalized()` also drops punctuation and is what `DeezerTrack.matchKey` and the podcast title matching use, `slugified()` builds URL path segments. Do not hand-roll another Normalizer call.
