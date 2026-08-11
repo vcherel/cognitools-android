@@ -134,9 +134,12 @@ fun TranslationCard(
     }
 }
 
+/** The list the big button always files into: what the translator is used for nearly every time. */
+private const val DEFAULT_LIST_NAME = "Anglais"
+
 /**
- * Sends the lookup to a flashcard list. The list used last is remembered, so filing a word is one
- * tap; the second button is there to send this one somewhere else.
+ * Sends the lookup to a flashcard list. The big button always files into [DEFAULT_LIST_NAME], so the
+ * usual case is one tap; the second button sends this one word somewhere else without changing that.
  */
 @Composable
 fun AddToFlashcardsButton(source: String, translation: String, modifier: Modifier = Modifier) {
@@ -144,10 +147,9 @@ fun AddToFlashcardsButton(source: String, translation: String, modifier: Modifie
     val repo = remember { context.flashcardRepository }
     val scope = rememberCoroutineScope()
     val lists by repo.observeLists().collectAsState(initial = emptyList())
-    val rememberedId by TranslateStore.flashcardListId(context).collectAsState(initial = null)
     var picking by remember { mutableStateOf(false) }
 
-    val target = lists.firstOrNull { it.id == rememberedId }
+    val target = lists.firstOrNull { it.name.equals(DEFAULT_LIST_NAME, ignoreCase = true) }
 
     val add: (FlashcardList) -> Unit = { list ->
         scope.launch {
@@ -155,7 +157,6 @@ fun AddToFlashcardsButton(source: String, translation: String, modifier: Modifie
                 list.id,
                 FlashcardElement(listId = list.id, name = source.trim(), definition = translation.trim())
             )
-            TranslateStore.setFlashcardListId(context, list.id)
             AppSnackbar.show("Ajouté à ${list.name}")
         }
         picking = false
