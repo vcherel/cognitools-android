@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.Checklist
@@ -57,6 +59,8 @@ fun MenuScreen(
     onPlayFlashcards: () -> Unit,
     onOpenWeather: () -> Unit,
     onOpenMotsFleches: () -> Unit,
+    onOpenTranslate: () -> Unit,
+    onOpenReader: () -> Unit,
     onOpenUndercover: () -> Unit,
     onOpenVolume: () -> Unit,
     onOpenRandom: () -> Unit,
@@ -117,12 +121,14 @@ fun MenuScreen(
             Spacer(modifier = Modifier.height(spaceHeight))
             var showOtherTools by remember { mutableStateOf(false) }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                MyButton(text = "Volume", modifier = Modifier.weight(1f), height = buttonHeight, onClick = onOpenVolume)
+                MyButton(text = "Traducteur", modifier = Modifier.weight(1f), height = buttonHeight, fontSize = 20.sp, onClick = onOpenTranslate)
                 MyButton(text = "Divers", modifier = Modifier.weight(1f), height = buttonHeight, onClick = { showOtherTools = true })
             }
             if (showOtherTools) {
                 OtherToolsSheet(
                     onDismiss = { showOtherTools = false },
+                    onOpenReader = onOpenReader,
+                    onOpenVolume = onOpenVolume,
                     onOpenUndercover = onOpenUndercover,
                     onOpenRandom = onOpenRandom,
                     onOpenWikipedia = onOpenWikipedia
@@ -157,23 +163,32 @@ fun MenuScreen(
 }
 
 // The tools that get opened once in a while live behind one button, so the ones used daily keep
-// the room. A sheet rather than a screen: one tap in, one tap back out.
+// the room. A sheet rather than a screen: one tap in, one tap back out. Always fully expanded, or
+// a list this long opens at half height and the last tools sit below the fold.
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun OtherToolsSheet(
     onDismiss: () -> Unit,
+    onOpenReader: () -> Unit,
+    onOpenVolume: () -> Unit,
     onOpenUndercover: () -> Unit,
     onOpenRandom: () -> Unit,
     onOpenWikipedia: () -> Unit
 ) {
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState()) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp)
                 .padding(bottom = 32.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            MyButton(text = "Lecture", height = 72.dp, onClick = { onDismiss(); onOpenReader() })
+            MyButton(text = "Volume", height = 72.dp, onClick = { onDismiss(); onOpenVolume() })
             MyButton(text = "Undercover", height = 72.dp, onClick = { onDismiss(); onOpenUndercover() })
             MyButton(text = "Wiki", height = 72.dp, onClick = { onDismiss(); onOpenWikipedia() })
             MyButton(text = "Random", height = 72.dp, onClick = { onDismiss(); onOpenRandom() })

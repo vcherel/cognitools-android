@@ -108,6 +108,19 @@ Root package (shared/misc):
 - `IngredientSync.kt`: the pure text side of that sync: group parsing and rendering (Ingrédients: `Modèle ingrédients`, anonymous blank-line groups; Courses: `Modèle courses`, named "--- Nom" sections), NoteSyncBatch/ReconcileItem, closeness ranking
 - `IngredientDialogs.kt`: the reconcile dialog and the add-an-item name prompt
 
+`reader/` (epub reader):
+- `Epub.kt`: the whole epub format side, no library: java.util.zip opens the archive, jsoup parses the OPF manifest, the table of contents and the chapter markup into TextBlock/InlineSpan. Pure, covered by a JVM unit test
+- `BookModels.kt`: the Book Room entity and BookDao, plus import (copy the picked file into `filesDir/books`, read its metadata, extract the cover) and delete
+- `ReaderStore.kt`: the font size setting, shared by every book
+- `BookLibraryScreen.kt`: the cover grid, epub import, long press to delete
+- `ReaderScreen.kt`: the reading screen; one chapter scrolled continuously, controls shown on tap, chapters sheet, progress written back when the scrolling settles, long press a word to open the translator's lookup sheet
+
+`translate/` (translator):
+- `TranslateApi.kt`: the keyless `translate.googleapis.com/translate_a/single` call (the endpoint Google's own web widget uses), its bare-array response parsed into a translation, the detected language and the dictionary entries
+- `TranslateStore.kt`: the target language, the flashcard list a word goes to, and the recent lookups
+- `TranslateUi.kt`: the pieces both entry points share, TranslationCard, AddToFlashcardsButton, the TextToSpeech reader, and WordLookupSheet (what the reader opens)
+- `TranslateScreen.kt`: the tool screen, debounced live translation and the history
+
 `undercover/` (party game tool):
 - `Data.kt`: Player, GameSettings, GameState, MrWhiteScenario, ScoreValues data model
 - `Functions.kt`: elimination, win condition, Mr. White guess resolution logic
@@ -124,7 +137,8 @@ Root package (shared/misc):
 ## Cross-cutting things, and where they actually live
 The map above is by feature. These are the ones you won't find by feature name:
 
-- **Room**: one database for the whole app, declared in `flashcards/Database.kt` (version 11). The notes `Note` entity and `NoteDao` are registered there too but defined in `notes/Models.kt`; same for the gallery's `PinnedMediaItem`/`PinnedMediaItemDao`, which live in `gallery/GalleryPins.kt`.
+- **Room**: one database for the whole app, declared in `flashcards/Database.kt` (version 12). The notes `Note` entity and `NoteDao` are registered there too but defined in `notes/Models.kt`; same for the gallery's `PinnedMediaItem`/`PinnedMediaItemDao` in `gallery/GalleryPins.kt`, the podcasts' tables in `podcasts/`, and the reader's `Book`/`BookDao` in `reader/BookModels.kt`.
+- **Word to flashcard loop**: the reader, the translator and the flashcards are one chain. Long pressing a word in `reader/ReaderScreen.kt` opens `translate/WordLookupSheet`, which writes a `FlashcardElement` into the list used last (remembered in `TranslateStore`). The reader is also the only screen that calls `SuppressIdleReset`.
 - **Media notification and lockscreen buttons**: `deezer/DeezerPlaybackService.kt`, `actionButtons()`. Media3 draws the notification; the buttons are `CommandButton`s handled in `SessionCallback.onCustomCommand`, so they act without opening the app.
 - **Icons**: screens use Compose `Icons.*` (material-icons-extended). `res/drawable/` only holds what the framework needs as a real resource: the launcher and the notification action icons. Media3 has no icon constant for most things, so a custom button icon means a vector in `res/drawable/` passed to `setCustomIconResId`.
 - **Singletons**: `MyApplication` holds FlashcardRepository and DeezerRepository. Screens reach them as `context.flashcardRepository` / `context.deezerRepository` (extensions declared in `MyApplication.kt`), never by casting. Anything long lived hangs off there, not off an object/DI graph.

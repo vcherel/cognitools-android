@@ -61,6 +61,9 @@ import com.example.myapp.notes.NotesListScreen
 import com.example.myapp.notes.NotesTrashScreen
 import com.example.myapp.notes.TODO_LIST_TITLE
 import com.example.myapp.notes.noteTitleAndPreview
+import com.example.myapp.reader.BookLibraryScreen
+import com.example.myapp.reader.ReaderScreen
+import com.example.myapp.translate.TranslateScreen
 import com.example.myapp.undercover.UndercoverScreen
 import kotlinx.coroutines.launch
 
@@ -335,6 +338,8 @@ fun MainScreen(
                             },
                             onOpenWeather = { navController.navigate("weather") },
                             onOpenMotsFleches = { navController.navigate("motsFleches") },
+                            onOpenTranslate = { navController.navigate("translate") },
+                            onOpenReader = { navController.navigate("reader") },
                             onOpenUndercover = { navController.navigate("undercover") },
                             onOpenVolume = { navController.navigate("volumeBooster") },
                             onOpenRandom = { navController.navigate("randomGenerator") },
@@ -362,6 +367,19 @@ fun MainScreen(
                     composable("motsFleches") {
                         MotsFlechesScreen(onBack = { navController.popBackStackOnce() })
                     }
+                    composable("translate") {
+                        TranslateScreen(onBack = { navController.popBackStackOnce() })
+                    }
+                    composable("reader") {
+                        BookLibraryScreen(
+                            onBack = { navController.popBackStackOnce() },
+                            onOpenBook = { bookId -> navController.navigate("reader/book/$bookId") }
+                        )
+                    }
+                    composable("reader/book/{bookId}") { backStackEntry ->
+                        val bookId = backStackEntry.arguments?.getString("bookId").orEmpty()
+                        ReaderScreen(bookId = bookId, onBack = { navController.popBackStackOnce() })
+                    }
                     composable(
                         "deezer?openPlayer={openPlayer}",
                         arguments = listOf(navArgument("openPlayer") { type = NavType.BoolType; defaultValue = false })
@@ -369,7 +387,8 @@ fun MainScreen(
                         val openPlayer = backStackEntry.arguments?.getBoolean("openPlayer") ?: false
                         DeezerScreen(
                             onBack = { navController.popBackStackOnce() },
-                            openFullPlayerInitially = openPlayer
+                            openFullPlayerInitially = openPlayer,
+                            onOpenVolume = { navController.navigate("volumeBooster") }
                         )
                     }
                     composable("gallery") {
