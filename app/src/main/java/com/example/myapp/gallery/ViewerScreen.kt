@@ -181,9 +181,14 @@ fun GalleryViewerScreen(
             controller.hide(WindowInsetsCompat.Type.systemBars())
         }
         onDispose {
-            // Restore the system bars when leaving the viewer.
+            // Put the window back exactly as it was found. Both halves matter: showing the bars
+            // again without clearing the transient behaviour leaves them drawn over the content and
+            // contributing no insets, which strands every other screen (the whole app takes its
+            // navigation bar padding from the one Scaffold in AppNavHost) underneath them.
             val w = view.context.findActivity()?.window ?: return@onDispose
-            WindowInsetsControllerCompat(w, view).show(WindowInsetsCompat.Type.systemBars())
+            val controller = WindowInsetsControllerCompat(w, view)
+            controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_DEFAULT
+            controller.show(WindowInsetsCompat.Type.systemBars())
         }
     }
 
