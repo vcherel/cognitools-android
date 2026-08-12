@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
@@ -24,6 +25,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -42,6 +44,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.myapp.AppDialog
@@ -137,9 +140,14 @@ fun TranslationCard(
 /** The list the big button always files into: what the translator is used for nearly every time. */
 private const val DEFAULT_LIST_NAME = "Anglais"
 
+/** Both sides go in with a capital, the way the lists are written. */
+private fun capitalized(text: String): String =
+    text.trim().replaceFirstChar { it.uppercaseChar() }
+
 /**
  * Sends the lookup to a flashcard list. The big button always files into [DEFAULT_LIST_NAME], so the
- * usual case is one tap; the second button sends this one word somewhere else without changing that.
+ * list is only asked for when it is not that one; either way the card is shown for a last edit before
+ * it is written, since the translation often needs a word dropped or a gender fixed.
  */
 @Composable
 fun AddToFlashcardsButton(source: String, translation: String, modifier: Modifier = Modifier) {
@@ -148,19 +156,9 @@ fun AddToFlashcardsButton(source: String, translation: String, modifier: Modifie
     val scope = rememberCoroutineScope()
     val lists by repo.observeLists().collectAsState(initial = emptyList())
     var picking by remember { mutableStateOf(false) }
+    var confirming by remember { mutableStateOf<FlashcardList?>(null) }
 
     val target = lists.firstOrNull { it.name.equals(DEFAULT_LIST_NAME, ignoreCase = true) }
-
-    val add: (FlashcardList) -> Unit = { list ->
-        scope.launch {
-            repo.addElement(
-                list.id,
-                FlashcardElement(listId = list.id, name = source.trim(), definition = translation.trim())
-            )
-            AppSnackbar.show("Ajouté à ${list.name}")
-        }
-        picking = false
-    }
 
     Row(modifier = modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         MyButton(
@@ -169,7 +167,7 @@ fun AddToFlashcardsButton(source: String, translation: String, modifier: Modifie
             height = 56.dp,
             fontSize = 16.sp,
             enabled = lists.isNotEmpty(),
-            onClick = { if (target != null) add(target) else picking = true }
+            onClick = { if (target != null) confirming = target else picking = true }
         )
         MyButton(
             modifier = Modifier.width(64.dp),
@@ -192,10 +190,69 @@ fun AddToFlashcardsButton(source: String, translation: String, modifier: Modifie
                         style = MaterialTheme.typography.bodyLarge,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { add(list) }
+                            .clickable {
+                                picking = false
+                                confirming = list
+                            }
                             .padding(vertical = 12.dp)
                     )
                 }
+            }
+        }
+    }
+
+    confirming?.let { list ->
+        var name by remember(list, source) { mutableStateOf(capitalized(source)) }
+        var definition by remember(list, translation) { mutableStateOf(capitalized(translation)) }
+
+        AppDialog(onDismiss = { confirming = null }) {
+            Text("Ajouter à ${list.name}", style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.height(16.dp))
+            OutlinedTextField(
+                value = name,
+                onValueChange = { name = it },
+                label = { Text("Mot") },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(Modifier.height(8.dp))
+            OutlinedTextField(
+                value = definition,
+                onValueChange = { definition = it },
+                label = { Text("Traduction") },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(Modifier.height(16.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                MyButton(
+                    text = "Annuler",
+                    modifier = Modifier.weight(1f),
+                    height = 48.dp,
+                    fontSize = 16.sp,
+                    onClick = { confirming = null }
+                )
+                MyButton(
+                    text = "Ajouter",
+                    modifier = Modifier.weight(1f),
+                    height = 48.dp,
+                    fontSize = 16.sp,
+                    enabled = name.isNotBlank() && definition.isNotBlank(),
+                    onClick = {
+                        val element = FlashcardElement(
+                            listId = list.id,
+                            name = name.trim(),
+                            definition = definition.trim()
+                        )
+                        scope.launch {
+                            repo.addElement(list.id, element)
+                            AppSnackbar.show("Ajouté à ${list.name}")
+                        }
+                        confirming = null
+                    }
+                )
             }
         }
     }
