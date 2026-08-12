@@ -1,8 +1,6 @@
 package com.example.myapp.motsfleches
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -327,10 +325,9 @@ private fun ClueBar(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                // The definition is shown whole: the bar takes the height it needs, rather than
-                // being cut at the bottom.
-                .heightIn(min = 40.dp, max = 132.dp)
-                .verticalScroll(rememberScrollState())
+                // No ceiling here: the definition is shown whole, however long it is. The bar takes
+                // the height it needs and the grid above, which is the weighted one, gives it up.
+                .heightIn(min = 40.dp)
         ) {
             Text(
                 // The definition in full, not the one cut down to fit the cell.
