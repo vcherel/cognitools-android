@@ -99,6 +99,7 @@ Root package (shared/misc):
 - `ViewerScreen.kt`: full screen pager (ViewerSource: an album, the pinned set, the Wallet album or a single item), image zoom and video playback, per-item tools including pin/unpin and set-as-hero
 - `ViewerDialogs.kt`: the viewer's share, rename and move dialogs (MoveDialog is also used by the album grid)
 - `GalleryPins.kt`: PinnedMediaItem Room entity/DAO and pin/unpin/setHero/resolve helpers
+- `GalleryLock.kt`: the albums put behind the notes PIN, kept as a set of bucket ids in DataStore
 - `CropScreen.kt`: image crop editor
 - `TrimScreen.kt`: video trim editor
 
@@ -120,7 +121,7 @@ Root package (shared/misc):
 - `NoteLineEdits.kt`: the per-line edits the read-only view makes (toggle, quantity, muscu day, delete with undo), all going through one editLines
 - `NoteEditing.kt`: pure text helpers; input transformations, slash commands, inline/line marker toggling, muscu day
 - `NoteViewMode.kt`: the read-only note rendering; per-line checkbox/separator/text, drag reorder, double-tap to edit. Takes one NoteLineActions from the editor
-- `NoteLock.kt`: PIN lock for notes, PinDialog
+- `NoteLock.kt`: the app's one PIN (notes *and* locked gallery albums, see `gallery/GalleryLock.kt`) and PinDialog
 - `NotesTrashScreen.kt`: the trashed notes screen (restore, delete for good, empty the trash)
 - `NoteSyncActions.kt`: the flows the editor triggers across the Courses/Ingrédients/model notes (move, add, re-sort, reconcile) and the batch state behind the reconcile dialog
 - `IngredientSync.kt`: the pure text side of that sync: group parsing and rendering (Ingrédients: `Modèle ingrédients`, anonymous blank-line groups; Courses: `Modèle courses`, named "--- Nom" sections), NoteSyncBatch/ReconcileItem, closeness ranking

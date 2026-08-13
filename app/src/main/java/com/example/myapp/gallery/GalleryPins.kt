@@ -67,7 +67,8 @@ fun orderedPinnedIds(rows: List<PinnedMediaItem>): List<Long> {
 
 /**
  * Resolves pinned rows against MediaStore, hero first. Pins pointing at a since-deleted item are
- * dropped from the result and pruned from the database.
+ * dropped from the result and pruned from the database. An item living in a locked album is left out
+ * too, without dropping its pin: a picture put behind a code must not come back through the hero card.
  */
 suspend fun resolvedPinnedMediaItems(context: Context, rows: List<PinnedMediaItem>): List<MediaItem> {
     if (rows.isEmpty()) return emptyList()
@@ -79,5 +80,6 @@ suspend fun resolvedPinnedMediaItems(context: Context, rows: List<PinnedMediaIte
         val dao = AppDatabase.get(context).pinnedMediaItemDao()
         stale.forEach { dao.unpin(it) }
     }
-    return resolved.sortedBy { orderedIds.indexOf(it.id) }
+    val locked = GalleryLock.lockedBucketIdsNow(context)
+    return resolved.filterNot { it.bucketId in locked }.sortedBy { orderedIds.indexOf(it.id) }
 }

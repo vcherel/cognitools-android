@@ -3,8 +3,10 @@ package com.example.myapp.gallery
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,6 +23,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -31,6 +34,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -44,9 +48,17 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.myapp.MyButton
 import com.example.myapp.ScreenTopBar
+import com.example.myapp.ShowAlertDialog
 import com.example.myapp.flashcards.AppDatabase
+import com.example.myapp.notes.NoteLock
+import com.example.myapp.notes.PinDialog
+import com.example.myapp.notes.PinPurpose
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+
+/** What entering the code is about to do to an album (see the long press and the tap on a lock). */
+private enum class LockAction { Open, Lock, Unlock }
 
 @Composable
 fun GalleryAlbumsScreen(
@@ -56,6 +68,7 @@ fun GalleryAlbumsScreen(
     onOpenPinned: () -> Unit
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     var hasPermission by remember { mutableStateOf(hasReadMediaPermission(context)) }
     var hasAllFiles by remember { mutableStateOf(hasAllFilesAccess()) }
     var albums by remember { mutableStateOf<List<Album>?>(null) }
@@ -65,6 +78,13 @@ fun GalleryAlbumsScreen(
     val pinnedRows by pinDao.observePinned().collectAsState(initial = emptyList())
     var heroItem by remember { mutableStateOf<MediaItem?>(null) }
     var pinnedCount by remember { mutableStateOf(0) }
+    val lockedBuckets by remember { GalleryLock.lockedBucketIds(context) }.collectAsState(initial = emptySet())
+    // The album the code prompt is about, and what entering it will do.
+    var pinRequest by remember { mutableStateOf<Pair<Album, LockAction>?>(null) }
+    var confirmLock by remember { mutableStateOf<Album?>(null) }
+    var confirmUnlock by remember { mutableStateOf<Album?>(null) }
+    // Locking the first album with no code set yet is where the code gets chosen.
+    var hasPin by remember { mutableStateOf(true) }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -74,6 +94,7 @@ fun GalleryAlbumsScreen(
 
     LaunchedEffect(Unit) {
         if (!hasPermission) permissionLauncher.launch(readMediaPermissions())
+        hasPin = NoteLock.hasPin(context)
     }
 
     LaunchedEffect(hasPermission, refreshVersion) {
@@ -92,6 +113,53 @@ fun GalleryAlbumsScreen(
     }
 
     BackHandler { onBack() }
+
+    confirmLock?.let { album ->
+        ShowAlertDialog(
+            onDismiss = { confirmLock = null },
+            title = "Verrouiller « ${album.name} » ?",
+            textContent = { Text("Le dossier ne s'ouvrira plus qu'avec le code des notes.") },
+            confirmText = "Verrouiller",
+            onCancel = { confirmLock = null },
+            onConfirm = {
+                confirmLock = null
+                // With no code set yet, choosing one is part of locking the first album.
+                if (hasPin) scope.launch { GalleryLock.setLocked(context, album.bucketId, true) }
+                else pinRequest = album to LockAction.Lock
+            }
+        )
+    }
+
+    confirmUnlock?.let { album ->
+        ShowAlertDialog(
+            onDismiss = { confirmUnlock = null },
+            title = "Déverrouiller « ${album.name} » ?",
+            confirmText = "Déverrouiller",
+            onCancel = { confirmUnlock = null },
+            onConfirm = {
+                confirmUnlock = null
+                pinRequest = album to LockAction.Unlock
+            }
+        )
+    }
+
+    pinRequest?.let { (album, action) ->
+        PinDialog(
+            purpose = if (action == LockAction.Lock && !hasPin) PinPurpose.Create else PinPurpose.Enter,
+            onDismiss = { pinRequest = null },
+            onSuccess = {
+                pinRequest = null
+                when (action) {
+                    LockAction.Open -> onOpenAlbum(album.bucketId)
+                    LockAction.Lock -> scope.launch {
+                        hasPin = true
+                        GalleryLock.setLocked(context, album.bucketId, true)
+                    }
+                    LockAction.Unlock -> scope.launch { GalleryLock.setLocked(context, album.bucketId, false) }
+                }
+            }
+        )
+    }
 
     Column(modifier = Modifier.fillMaxSize()) {
         ScreenTopBar(title = "Galerie", onBack = onBack, modifier = Modifier.padding(16.dp))
@@ -129,6 +197,19 @@ fun GalleryAlbumsScreen(
                 Text("Aucune photo ou vidéo trouvée")
             }
             else -> {
+                // Tapping a locked album asks for the code before opening it, a long press is where
+                // the lock itself is put on or taken off.
+                val albumCard: @Composable (Album) -> Unit = { album ->
+                    val locked = album.bucketId in lockedBuckets
+                    AlbumCard(
+                        album = album,
+                        locked = locked,
+                        onClick = {
+                            if (locked) pinRequest = album to LockAction.Open else onOpenAlbum(album.bucketId)
+                        },
+                        onLongClick = { if (locked) confirmUnlock = album else confirmLock = album }
+                    )
+                }
                 val walletAlbum = albums!!.firstOrNull { it.name.equals(WALLET_ALBUM_NAME, ignoreCase = true) }
                 val regularAlbums = if (walletAlbum != null) albums!! - walletAlbum else albums!!
                 LazyVerticalGrid(
@@ -138,12 +219,10 @@ fun GalleryAlbumsScreen(
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                     modifier = Modifier.fillMaxSize()
                 ) {
-                    items(regularAlbums, key = { it.bucketId }) { album ->
-                        AlbumCard(album = album, onClick = { onOpenAlbum(album.bucketId) })
-                    }
+                    items(regularAlbums, key = { it.bucketId }) { album -> albumCard(album) }
                     // Wallet next to last, then trash last: neither should push the regular albums down.
                     if (walletAlbum != null) {
-                        item(key = "wallet") { AlbumCard(album = walletAlbum, onClick = { onOpenAlbum(walletAlbum.bucketId) }) }
+                        item(key = "wallet") { albumCard(walletAlbum) }
                     }
                     if (trashCount > 0) {
                         item(key = "trash") { TrashCard(itemCount = trashCount, onClick = onOpenTrash) }
@@ -243,19 +322,43 @@ private fun PinnedHeroCard(item: MediaItem, pinnedCount: Int, onClick: () -> Uni
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun AlbumCard(album: Album, onClick: () -> Unit) {
-    Column(modifier = Modifier.fillMaxWidth().clickable(onClick = onClick)) {
-        GalleryAsyncImage(
-            uri = album.coverUri,
-            dateModified = album.coverDateModified,
-            contentDescription = album.name,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier
-                .fillMaxWidth()
-                .aspectRatio(1f)
-                .clip(RoundedCornerShape(12.dp))
-        )
+private fun AlbumCard(album: Album, locked: Boolean, onClick: () -> Unit, onLongClick: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
+    ) {
+        // A locked album shows no cover at all: the thumbnail alone would give away what is inside.
+        if (locked) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(1f)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    Icons.Default.Lock,
+                    contentDescription = null,
+                    modifier = Modifier.size(48.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        } else {
+            GalleryAsyncImage(
+                uri = album.coverUri,
+                dateModified = album.coverDateModified,
+                contentDescription = album.name,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(1f)
+                    .clip(RoundedCornerShape(12.dp))
+            )
+        }
         Text(
             album.name,
             style = MaterialTheme.typography.titleSmall,
@@ -264,7 +367,7 @@ private fun AlbumCard(album: Album, onClick: () -> Unit) {
             modifier = Modifier.padding(top = 6.dp)
         )
         Text(
-            "${album.itemCount} élément${if (album.itemCount > 1) "s" else ""}",
+            if (locked) "Verrouillé" else "${album.itemCount} élément${if (album.itemCount > 1) "s" else ""}",
             style = MaterialTheme.typography.bodySmall,
             color = Color.Gray
         )
