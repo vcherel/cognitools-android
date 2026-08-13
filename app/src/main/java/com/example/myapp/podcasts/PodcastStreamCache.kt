@@ -65,6 +65,14 @@ object PodcastStreamCache {
         ContentMetadata.getContentLength(cache(context).getContentMetadata(url))
 
     /**
+     * True when all [length] bytes from [position] are held for [url], with no hole. What the sleep
+     * timer checks before promising the night is covered: writing a range and holding it are not the
+     * same thing, since the evictor is free to drop spans in between.
+     */
+    fun isFullyCached(context: Context, url: String, position: Long, length: Long): Boolean =
+        length > 0 && cache(context).isCached(url, position, length)
+
+    /**
      * Throws away everything held for [url]. Called when an episode is finished: its bytes will never
      * be read again, and left alone they would sit there until the LRU evictor happens to need the
      * room, keeping fresher episodes out of the cache in the meantime.

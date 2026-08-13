@@ -37,7 +37,17 @@ class MediaControllerHolder(
     private var connection: CompletableDeferred<MediaController>? = null
 
     suspend fun ensure(): MediaController = mutex.withLock {
-        connection?.let { return it.await() }
+        connection?.let { existing ->
+            val current = controller
+            // A controller whose session is gone (the service was destroyed while the app was away)
+            // stays cached here and silently ignores every command, so playback would look dead until
+            // the process restarts. Dropped and rebuilt instead. A null controller means the
+            // connection is still in flight, which is fine to wait on.
+            if (current == null || current.isConnected) return existing.await()
+            current.release()
+            controller = null
+            connection = null
+        }
         val deferred = CompletableDeferred<MediaController>()
         connection = deferred
         withContext(Dispatchers.Main) {
