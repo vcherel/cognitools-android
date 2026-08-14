@@ -112,6 +112,26 @@ class PuzzleGeneratorTest {
         assertTrue(averageRank(easy) < averageRank(open))
     }
 
+    /**
+     * The easy ceiling is the one the app tries first, and each language sets its own. Too low a
+     * ceiling for the word list behind it means every new grid burns its attempts before falling
+     * back, so each language has to fill a fair share of the small layouts from that ceiling alone.
+     */
+    @Test
+    fun `each language fills small grids from its everyday words alone`() {
+        // The app's own SMALL_GRID_CELLS: 8x10 and 10x13 fit, 12x15 does not.
+        val small = layouts.filter { it.width * it.height <= 130 }
+        for ((lang, dictionary) in dictionaries) {
+            val filled = small.count { layout ->
+                fill(layout, seed = 5, maxRank = lang.easyWords, dictionary = dictionary) != null
+            }
+            assertTrue(
+                "$lang fills only $filled/${small.size} small layouts under rank ${lang.easyWords}",
+                filled >= small.size / 5
+            )
+        }
+    }
+
     /** What the app does: a layout that resists a few seeds is passed over, never shown half filled. */
     private fun fill(
         layout: Layout,

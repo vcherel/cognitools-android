@@ -21,10 +21,22 @@ import kotlinx.serialization.json.put
 import java.io.File
 import kotlin.random.Random
 
-/** The two languages a grid can be played in. Each has its own word list and its own grid in progress. */
-enum class MotsFlechesLang(val code: String, val label: String, val asset: String, val saveFile: String) {
-    FR("fr", "FR", "motsfleches_dict_fr.txt", "motsfleches.json"),
-    EN("en", "EN", "motsfleches_dict_en.txt", "motsfleches_en.json");
+/**
+ * The two languages a grid can be played in. Each has its own word list and its own grid in
+ * progress, and its own idea of what an easy word is: the two frequency lists are not comparable,
+ * the English one stays everyday much less far down than the French one.
+ */
+enum class MotsFlechesLang(
+    val code: String,
+    val label: String,
+    val asset: String,
+    val saveFile: String,
+    val easyWords: Int,
+    val commonWords: Int,
+    val wiktionary: String
+) {
+    FR("fr", "FR", "motsfleches_dict_fr.txt", "motsfleches.json", 10_000, 20_000, "fr"),
+    EN("en", "EN", "motsfleches_dict_en.txt", "motsfleches_en.json", 6_000, 12_000, "en");
 
     companion object {
         fun fromCode(code: String?): MotsFlechesLang = entries.firstOrNull { it.code == code } ?: FR
@@ -45,15 +57,6 @@ private val KEY_LANG = stringPreferencesKey("lang")
  */
 object MotsFlechesStore {
     private const val LAYOUTS_ASSET = "motsfleches_layouts.txt"
-
-    /** Words rarer than this are only used when a grid cannot be filled without them. */
-    private const val COMMON_WORDS = 20_000
-
-    /**
-     * What a grid is built from first: the everyday part of the language. About a third of the
-     * layouts fill from it, which a dozen attempts turn into an easy grid nearly every time.
-     */
-    private const val EASY_WORDS = 10_000
 
     /** 8x10 and 10x13 fit here, 12x15 does not: fewer words to find, and bigger cells to read. */
     private const val SMALL_GRID_CELLS = 130
@@ -117,11 +120,11 @@ object MotsFlechesStore {
         val small = all.filter { it.width * it.height <= SMALL_GRID_CELLS }.ifEmpty { all }
         val rng = Random(System.nanoTime())
         // Easiest first: a small grid of everyday words. Each step down only happens when the one
-        // before it could not be filled at all.
+        // before it could not be filled at all. The two ceilings are the language's own.
         val steps = listOf(
-            small to EASY_WORDS,
-            small to COMMON_WORDS,
-            all to COMMON_WORDS,
+            small to lang.easyWords,
+            small to lang.commonWords,
+            all to lang.commonWords,
             all to Int.MAX_VALUE
         )
         for ((pool, maxRank) in steps) {
