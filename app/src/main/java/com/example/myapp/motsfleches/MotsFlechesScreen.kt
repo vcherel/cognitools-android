@@ -1,5 +1,8 @@
 package com.example.myapp.motsfleches
 
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -18,12 +21,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Backspace
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.DeleteOutline
-import androidx.compose.material.icons.filled.DoneAll
 import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -41,6 +43,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontStyle
@@ -72,6 +75,9 @@ fun MotsFlechesScreen(onBack: () -> Unit) {
     // The letters a check found wrong. Not saved: a mark only means "wrong when you asked", and it
     // goes away as soon as the cell is touched again.
     var wrong by remember { mutableStateOf(emptySet<Int>()) }
+    // The cells a check has already found an error in, without saying where. Pressing check again
+    // on the very same cells is what gives the positions away.
+    var flagged by remember { mutableStateOf<List<Int>?>(null) }
     var confirmNewGrid by remember { mutableStateOf(false) }
     var solved by remember { mutableStateOf(false) }
     var menuOpen by remember { mutableStateOf(false) }
@@ -82,6 +88,8 @@ fun MotsFlechesScreen(onBack: () -> Unit) {
     fun apply(next: PuzzleState) {
         val current = lang ?: return
         state = next
+        // Any change to the grid starts the check over: a flagged word is only flagged as it was.
+        flagged = null
         scope.launch { MotsFlechesStore.save(context, current, next) }
         if (next.isSolved) solved = true
     }
@@ -91,12 +99,15 @@ fun MotsFlechesScreen(onBack: () -> Unit) {
         state = fresh
         selection = firstSelection(fresh.puzzle)
         wrong = emptySet()
+        flagged = null
         scope.launch { MotsFlechesStore.prepareNext(context, current) }
     }
 
     /**
-     * Checks what is written in [cells], however little that is: the right letters stay marked as
-     * checked, the wrong ones turn red until they are typed over.
+     * Checks what is written in [cells], however little that is. A first check only says whether
+     * something is wrong; nothing is marked and no count is given away. Checking the same cells
+     * again, without having typed since, is what turns the wrong letters red and confirms the
+     * right ones. A check that finds nothing wrong has nothing to hold back, so it marks at once.
      */
     fun check(cells: List<Int>, whole: Boolean) {
         val puzzleState = state ?: return
@@ -106,6 +117,15 @@ fun MotsFlechesScreen(onBack: () -> Unit) {
             return
         }
         val bad = puzzleState.wrongIn(cells).toSet()
+        if (bad.isNotEmpty() && flagged != cells) {
+            flagged = cells
+            AppSnackbar.show(
+                if (whole) "Il y a une faute dans la grille. Revérifie pour la situer."
+                else "Il y a une faute dans ce mot. Revérifie pour la situer."
+            )
+            return
+        }
+        flagged = null
         wrong = wrong - filled.toSet() + bad
         apply(puzzleState.confirming(cells))
         AppSnackbar.show(
@@ -132,6 +152,21 @@ fun MotsFlechesScreen(onBack: () -> Unit) {
     val current = state
     val slot = current?.let { puzzleSlot(it.puzzle, selection) }
 
+    fun checkGrid() {
+        val puzzleState = current ?: return
+        check(
+            (0 until puzzleState.puzzle.cellCount).filterNot { it in puzzleState.puzzle.definitionCells },
+            whole = true
+        )
+    }
+
+    fun revealWord() {
+        val puzzleState = current ?: return
+        val target = slot ?: return
+        wrong = wrong - puzzleState.puzzle.cellsOf(target).toSet()
+        apply(puzzleState.revealSlot(target))
+    }
+
     Column(modifier = Modifier.fillMaxSize()) {
         ScreenTopBar(
             title = "Mots fléchés",
@@ -157,6 +192,24 @@ fun MotsFlechesScreen(onBack: () -> Unit) {
                         Icon(Icons.Default.MoreVert, contentDescription = "Options")
                     }
                     DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                        // The two rarer actions live here so the clue bar keeps three clear
+                        // buttons: checking everything at once, and giving up on a word.
+                        DropdownMenuItem(
+                            text = { Text("Vérifier toute la grille") },
+                            enabled = current != null,
+                            onClick = {
+                                menuOpen = false
+                                checkGrid()
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Voir la réponse") },
+                            enabled = slot != null,
+                            onClick = {
+                                menuOpen = false
+                                revealWord()
+                            }
+                        )
                         DropdownMenuItem(
                             text = { Text("Nouvelle grille") },
                             onClick = {
@@ -209,19 +262,16 @@ fun MotsFlechesScreen(onBack: () -> Unit) {
 
         ClueBar(
             slot = slot,
+            // The link only shows once the word is found, so it can never point at the answer.
+            lookupWord = slot?.takeIf { current.isCorrect(it) }?.answer,
+            lang = lang,
             onCheckWord = { slot?.let { check(current.puzzle.cellsOf(it), whole = false) } },
-            onCheckGrid = { check((0 until current.puzzle.cellCount).filterNot { it in current.puzzle.definitionCells }, whole = true) },
             onRevealLetter = {
                 val target = selection ?: return@ClueBar
                 val cell = current.puzzle.index(target.row, target.col)
                 wrong = wrong - cell
                 apply(current.revealCell(cell))
                 selection = advance(current.puzzle, target)
-            },
-            onRevealWord = {
-                val target = slot ?: return@ClueBar
-                wrong = wrong - current.puzzle.cellsOf(target).toSet()
-                apply(current.revealSlot(target))
             },
             onClearWord = {
                 val target = slot ?: return@ClueBar
@@ -306,16 +356,21 @@ fun MotsFlechesScreen(onBack: () -> Unit) {
     }
 }
 
-/** The definition of the word being filled, and every action that acts on it or on the grid. */
+/**
+ * The definition of the word being filled, and the three actions that act on it. Checking the
+ * whole grid and giving a word away outright are in the screen's menu instead: they are asked for
+ * far less often, and five unlabelled icons side by side told you nothing about what they did.
+ */
 @Composable
 private fun ClueBar(
     slot: Slot?,
+    lookupWord: String?,
+    lang: MotsFlechesLang?,
     onCheckWord: () -> Unit,
-    onCheckGrid: () -> Unit,
     onRevealLetter: () -> Unit,
-    onRevealWord: () -> Unit,
     onClearWord: () -> Unit
 ) {
+    val context = LocalContext.current
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -336,11 +391,25 @@ private fun ClueBar(
                 fontStyle = if (slot == null) FontStyle.Italic else FontStyle.Normal
             )
             if (slot != null) {
-                Text(
-                    text = "${slot.length} lettres" + if (slot.across) ", horizontal" else ", vertical",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "${slot.length} lettres" + if (slot.across) ", horizontal" else ", vertical",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    if (lookupWord != null && lang != null) {
+                        Spacer(Modifier.weight(1f))
+                        TextButton(onClick = { openWiktionary(context, lang, lookupWord) }) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.OpenInNew,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(Modifier.width(6.dp))
+                            Text("En savoir plus", style = MaterialTheme.typography.labelMedium)
+                        }
+                    }
+                }
             }
         }
         Row(
@@ -348,15 +417,14 @@ private fun ClueBar(
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            ClueAction(Icons.Default.Check, "Vérifier ce mot", enabled = slot != null, onClick = onCheckWord)
-            ClueAction(Icons.Default.DoneAll, "Vérifier la grille", onClick = onCheckGrid)
-            ClueAction(Icons.Default.Lightbulb, "Donner une lettre", enabled = slot != null, onClick = onRevealLetter)
-            ClueAction(Icons.Default.Visibility, "Voir la réponse", enabled = slot != null, onClick = onRevealWord)
-            ClueAction(Icons.Default.DeleteOutline, "Effacer ce mot", enabled = slot != null, onClick = onClearWord)
+            ClueAction(Icons.Default.Check, "Vérifier", enabled = slot != null, onClick = onCheckWord)
+            ClueAction(Icons.Default.Lightbulb, "Indice", enabled = slot != null, onClick = onRevealLetter)
+            ClueAction(Icons.Default.DeleteOutline, "Effacer", enabled = slot != null, onClick = onClearWord)
         }
     }
 }
 
+/** An icon with what it does written under it: on its own the icon was anybody's guess. */
 @Composable
 private fun ClueAction(
     icon: ImageVector,
@@ -364,9 +432,29 @@ private fun ClueAction(
     enabled: Boolean = true,
     onClick: () -> Unit
 ) {
-    IconButton(onClick = onClick, enabled = enabled, modifier = Modifier.size(40.dp)) {
-        Icon(icon, contentDescription = label, modifier = Modifier.size(22.dp))
+    val tint = if (enabled) MaterialTheme.colorScheme.onSurface
+    else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+    Column(
+        modifier = Modifier
+            .clip(RoundedCornerShape(8.dp))
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 6.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(22.dp))
+        Text(label, style = MaterialTheme.typography.labelSmall, color = tint)
     }
+}
+
+/**
+ * The found word's dictionary entry. The grid holds it stripped of its accents, which is not always
+ * a page title, so this goes through the search rather than straight to a URL that may not exist.
+ */
+private fun openWiktionary(context: Context, lang: MotsFlechesLang, word: String) {
+    val url = "https://${lang.wiktionary}.wiktionary.org/w/index.php?search=" +
+        Uri.encode(word.lowercase())
+    runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
+        .onFailure { AppSnackbar.show("Aucun navigateur pour ouvrir le lien") }
 }
 
 /** Letters only: the system keyboard's suggestions and autocorrect have nothing to offer here. */
