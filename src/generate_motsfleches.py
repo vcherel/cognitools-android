@@ -4,6 +4,10 @@ Words come from data/lexique.tsv (lemmas, ranked by frequency); their definition
 from fr.wiktionary.org. Each kept sense yields a short clue and the full definition used
 as the explanation when checking an answer.
 
+The same pages also give their synonyms and antonyms, which turn into "Synonyme de ..." /
+"Contraire de ..." clues: that is how a real mots fleches grid reads, where a dictionary
+definition reads like a dictionary.
+
 Run with:
     uv run --no-project src/generate_motsfleches.py
 """
@@ -31,6 +35,10 @@ MAX_WORDS = 34000
 MAX_SENSES = 2
 CLUE_MAX = 48
 FULL_MAX = 240
+# What is left of a definition once it is cut at its first semicolon has to still say something.
+MIN_SEGMENT = 12
+# A synonym nobody has heard of is a worse clue than the definition it replaces (Lexique, per million).
+MIN_RELATED_FREQ = 1.0
 
 POS_SECTIONS = {
     "nom": "n",
@@ -75,8 +83,10 @@ def grid_form(word):
 
 
 def load_candidates():
-    """Lemmas from Lexique, most frequent first, one per grid form."""
+    """Lemmas from Lexique, most frequent first and one per grid form, plus every lemma's
+    frequency, which is what ranks the synonyms a page offers."""
     seen = {}
+    frequencies = {}
     with open(LEXIQUE_PATH, encoding="utf-8", newline="") as handle:
         for row in csv.DictReader(handle, delimiter="\t"):
             if row["islem"] != "1":
@@ -84,21 +94,23 @@ def load_candidates():
             if row["cgram"] not in ("NOM", "ADJ", "VER", "ADV"):
                 continue
             word = row["ortho"]
+            try:
+                freq = float(row["freqlemfilms2"]) + float(row["freqlemlivres"])
+            except ValueError:
+                continue
+            key = strip_accents(word).lower()
+            frequencies[key] = max(frequencies.get(key, 0.0), freq)
             if not MIN_LENGTH <= len(word) <= MAX_LENGTH:
                 continue
             form = grid_form(word)
             if form is None or len(form) > MAX_LENGTH:
-                continue
-            try:
-                freq = float(row["freqlemfilms2"]) + float(row["freqlemlivres"])
-            except ValueError:
                 continue
             previous = seen.get(form)
             if previous is None or freq > previous[1]:
                 seen[form] = (word, freq)
 
     ranked = sorted(seen.items(), key=lambda item: -item[1][1])
-    return [(form, word) for form, (word, _) in ranked[:MAX_WORDS]]
+    return [(form, word) for form, (word, _) in ranked[:MAX_WORDS]], frequencies
 
 
 TEMPLATE = re.compile(r"\{\{([^{}]*)\}\}")
@@ -138,29 +150,51 @@ def clean_wikitext(text):
 
 
 SECTION = re.compile(r"^===+\s*\{\{S\|([^|}]+)", re.MULTILINE)
+RELATED_SECTIONS = {"synonymes": "syn", "antonymes": "ant"}
+# A synonym is one word or one phrase, sometimes followed by the sense it applies to.
+RELATED_WORD = re.compile(r"^[^\W\d_][\w' -]*$", re.UNICODE)
+
+
+def parse_related(block):
+    """The words a synonyms or antonyms section lists, one per bullet."""
+    found = []
+    for line in block.splitlines():
+        if not line.startswith("*") or line.startswith("**"):
+            continue
+        text = clean_wikitext(line.lstrip("* ").strip())
+        text = re.split(r"[(,:;]", text)[0].strip()
+        if text and RELATED_WORD.fullmatch(text):
+            found.append(text)
+    return found
 
 
 def parse_page(wikitext):
-    """The French definitions of a page, as (pos, definition) pairs in page order."""
+    """What the French part of a page holds: its definitions in page order, its synonyms and its
+    antonyms."""
+    page = {"senses": [], "syn": [], "ant": []}
     start = wikitext.find("== {{langue|fr}} ==")
     if start < 0:
-        return []
+        return page
     end = wikitext.find("\n== {{langue|", start + 1)
     french = wikitext[start : end if end > 0 else len(wikitext)]
 
-    senses = []
     marks = list(SECTION.finditer(french))
     for index, mark in enumerate(marks):
-        pos = POS_SECTIONS.get(mark.group(1).strip().lower())
+        name = mark.group(1).strip().lower()
+        stop = marks[index + 1].start() if index + 1 < len(marks) else len(french)
+        block = french[mark.end() : stop]
+        if name in RELATED_SECTIONS:
+            page[RELATED_SECTIONS[name]].extend(parse_related(block))
+            continue
+        pos = POS_SECTIONS.get(name)
         if pos is None:
             continue
-        stop = marks[index + 1].start() if index + 1 < len(marks) else len(french)
-        for line in french[mark.end() : stop].splitlines():
+        for line in block.splitlines():
             if line.startswith("# ") or (line.startswith("#") and not line[1:2] in ("*", ":", "#")):
                 definition = clean_wikitext(line.lstrip("# ").strip())
                 if definition:
-                    senses.append((pos, definition))
-    return senses
+                    page["senses"].append((pos, definition))
+    return page
 
 
 def gives_it_away(definition, word):
@@ -170,10 +204,27 @@ def gives_it_away(definition, word):
     return any(token.startswith(stem) for token in re.findall(r"[a-z]+", plain))
 
 
+def cut_at_semicolon(definition):
+    """A definition that goes on after a semicolon is really several: the first one is the clue.
+
+    Applied to the whole definition, not only to the ones too long for a cell, so the clue bar
+    never shows a sentence with three senses strung together either.
+    """
+    parts = definition.split(";")
+    if len(parts) == 1:
+        return definition
+    kept = ""
+    for part in parts:
+        kept = f"{kept};{part}" if kept else part
+        if len(kept.strip()) >= MIN_SEGMENT:
+            break
+    return kept.strip(" ,;:")
+
+
 def shorten(definition):
     if len(definition) <= CLUE_MAX:
         return definition
-    for separator in (" ; ", "; ", " : ", ", "):
+    for separator in (" : ", ", "):
         cut = definition.find(separator)
         if 18 <= cut <= CLUE_MAX:
             return definition[:cut]
@@ -182,7 +233,8 @@ def shorten(definition):
 
 def usable_senses(senses, word):
     kept = []
-    for rank, (pos, definition) in enumerate(senses):
+    for rank, (pos, raw) in enumerate(senses):
+        definition = cut_at_semicolon(raw)
         if len(definition) < 12 or REDIRECT_DEF.match(definition):
             continue
         if gives_it_away(definition, word):
@@ -239,8 +291,17 @@ def save_cache(cache):
         json.dump(cache, handle, ensure_ascii=False)
 
 
+def entry_of(cache, word):
+    """A cached page. Entries written before the synonyms were kept are plain sense lists."""
+    entry = cache.get(word)
+    if isinstance(entry, dict):
+        return entry
+    return {"senses": entry or [], "syn": [], "ant": []}
+
+
 def collect(candidates, cache):
-    missing = [word for _, word in candidates if word not in cache]
+    # An entry that is not a dict predates the synonym sections and has to be fetched again.
+    missing = [word for _, word in candidates if not isinstance(cache.get(word), dict)]
     print(f"{len(candidates)} candidates, {len(missing)} to fetch", flush=True)
     for start in range(0, len(missing), 50):
         batch = missing[start : start + 50]
@@ -260,14 +321,39 @@ def collect(candidates, cache):
     return cache
 
 
-def write_asset(candidates, cache):
+def related_clues(entry, word, frequencies):
+    """The crossword idiom: the most common synonym and antonym the page offers, if any."""
+    clues = []
+    for kind, label in (("syn", "Synonyme"), ("ant", "Contraire")):
+        options = [
+            other
+            for other in entry.get(kind, [])
+            if 2 < len(other) < 25
+            and not gives_it_away(other, word)
+            and not gives_it_away(word, other)
+            and frequencies.get(strip_accents(other).lower(), 0) >= MIN_RELATED_FREQ
+        ]
+        if options:
+            best = max(options, key=lambda other: frequencies[strip_accents(other).lower()])
+            elided = strip_accents(best[0]).lower() in "aeiou"
+            clues.append(f"{label} d'{best}" if elided else f"{label} de {best}")
+    return clues
+
+
+def write_asset(candidates, cache, frequencies):
     rows = []
     for rank, (form, word) in enumerate(candidates):
-        senses = usable_senses(cache.get(word, []), word)
+        entry = entry_of(cache, word)
+        senses = usable_senses(entry["senses"], word)
         for pos, definition in senses:
             full = definition[:FULL_MAX].rsplit(" ", 1)[0] if len(definition) > FULL_MAX else definition
             # Rank is the frequency order: the grid generator uses it to pick a difficulty.
             rows.append(f"{form}\t{rank}\t{pos}\t{shorten(definition)}\t{full}")
+        # Only alongside a definition: on its own a synonym is too thin a clue to build a grid on.
+        if senses:
+            pos = senses[0][0]
+            for clue in related_clues(entry, word, frequencies):
+                rows.append(f"{form}\t{rank}\t{pos}\t{clue}\t{clue}")
     # Plain text on purpose: the Android build unpacks a .gz asset at packaging time, and the APK
     # deflates whatever it ships anyway.
     with open(OUTPUT_PATH, "w", encoding="utf-8") as handle:
@@ -278,9 +364,9 @@ def write_asset(candidates, cache):
 
 
 def main():
-    candidates = load_candidates()
+    candidates, frequencies = load_candidates()
     cache = collect(candidates, load_cache())
-    write_asset(candidates, cache)
+    write_asset(candidates, cache, frequencies)
 
 
 if __name__ == "__main__":
