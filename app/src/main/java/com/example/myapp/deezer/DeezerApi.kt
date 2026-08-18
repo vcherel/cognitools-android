@@ -1,6 +1,7 @@
 package com.example.myapp.deezer
 
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
@@ -35,6 +36,8 @@ class DeezerApi {
         const val GW_URL = "https://www.deezer.com/ajax/gw-light.php"
         const val GET_URL = "https://media.deezer.com/v1/get_url"
         val TOKEN_ERRORS = listOf("VALID_TOKEN_REQUIRED", "INVALID_TOKEN", "GATEWAY_ERROR", "CSRF_TOKEN")
+        const val QUOTA_RETRIES = 4
+        const val QUOTA_BACKOFF_MS = 1500L
     }
 
     /** Bootstraps a session from the ARL. Throws [DeezerApiException] if the ARL is expired (guest session). */
@@ -71,22 +74,35 @@ class DeezerApi {
      * gateway until it runs dry, so there is no 200 track ceiling. Metadata only, no audio.
      */
     suspend fun getFavorites(session: DeezerSession): List<DeezerTrack> = withContext(Dispatchers.IO) {
+        favoriteSongObjects(session).byDateAdded()
+    }
+
+    /** The raw gw song objects of the owner's favorites, which carry more than [DeezerTrack] keeps. */
+    private fun favoriteSongObjects(session: DeezerSession): List<JsonObject> =
+        gwSongPages("favorite_song.getList", session.apiToken) { start, nb ->
+            """{"user_id":"${session.userId}","start":$start,"nb":$nb}"""
+        }
+
+    /** Pages a gw song list until it runs dry, so there is no 200 track ceiling. */
+    private fun gwSongPages(method: String, apiToken: String, body: (Int, Int) -> String): List<JsonObject> {
         val page = 2000
         val objs = ArrayList<JsonObject>()
         var start = 0
         var iter = 0
         while (iter++ < 50) {
-            val body = """{"user_id":"${session.userId}","start":$start,"nb":$page}"""
-            val data = gw("favorite_song.getList", body, session.apiToken)
+            val data = gw(method, body(start, page), apiToken)
                 .jsonObject["results"]?.jsonObject?.get("data")?.jsonArray.orEmpty()
             if (data.isEmpty()) break
             data.forEach { objs += it.jsonObject }
             start += data.size
             if (data.size < page) break
         }
-        objs.sortedByDescending { it["DATE_ADD"]?.jsonPrimitive?.content?.toLongOrNull() ?: 0L }
-            .map { parseGwTrack(it, it["SNG_ID"]?.jsonPrimitive?.content.orEmpty()) }
+        return objs
     }
+
+    private fun List<JsonObject>.byDateAdded(): List<DeezerTrack> =
+        sortedByDescending { it["DATE_ADD"]?.jsonPrimitive?.content?.toLongOrNull() ?: 0L }
+            .map { parseGwTrack(it, it["SNG_ID"]?.jsonPrimitive?.content.orEmpty()) }
 
     /** The owner's own playlists (created by them), newest first. Excludes followed playlists. */
     suspend fun getPlaylists(session: DeezerSession, count: Int = 100): List<DeezerPlaylist> =
@@ -111,21 +127,12 @@ class DeezerApi {
     /** All tracks of a playlist, most recently added first. Pages until exhausted, so 3000+ track playlists load fully. */
     suspend fun getPlaylistTracks(session: DeezerSession, playlistId: String): List<DeezerTrack> =
         withContext(Dispatchers.IO) {
-            val page = 2000
-            val objs = ArrayList<JsonObject>()
-            var start = 0
-            var iter = 0
-            while (iter++ < 50) {
-                val body = """{"playlist_id":"$playlistId","start":$start,"nb":$page}"""
-                val data = gw("playlist.getSongs", body, session.apiToken)
-                    .jsonObject["results"]?.jsonObject?.get("data")?.jsonArray.orEmpty()
-                if (data.isEmpty()) break
-                data.forEach { objs += it.jsonObject }
-                start += data.size
-                if (data.size < page) break
-            }
-            objs.sortedByDescending { it["DATE_ADD"]?.jsonPrimitive?.content?.toLongOrNull() ?: 0L }
-                .map { parseGwTrack(it, it["SNG_ID"]?.jsonPrimitive?.content.orEmpty()) }
+            playlistSongObjects(session, playlistId).byDateAdded()
+        }
+
+    private fun playlistSongObjects(session: DeezerSession, playlistId: String): List<JsonObject> =
+        gwSongPages("playlist.getSongs", session.apiToken) { start, nb ->
+            """{"playlist_id":"$playlistId","start":$start,"nb":$nb}"""
         }
 
     /**
@@ -171,11 +178,29 @@ class DeezerApi {
     }
 
     /**
+     * Every artist behind the owner's favorites and behind [playlistIds], from the gw song objects,
+     * which carry the artist id the [DeezerTrack] model drops. The profile tab is Deezer's own view
+     * of who they listen to and leaves out artists they only have a track or two from, whose new
+     * releases would then never be scanned.
+     */
+    suspend fun libraryArtists(session: DeezerSession, playlistIds: List<String>): List<DeezerArtist> =
+        withContext(Dispatchers.IO) {
+            val objs = favoriteSongObjects(session) +
+                playlistIds.flatMap { runCatching { playlistSongObjects(session, it) }.getOrDefault(emptyList()) }
+            objs.mapNotNull { o ->
+                val id = o["ART_ID"]?.jsonPrimitive?.content?.ifBlank { null } ?: return@mapNotNull null
+                DeezerArtist(id = id, name = o["ART_NAME"]?.jsonPrimitive?.content.orEmpty(), pictureUrl = null)
+            }.distinctBy { it.id }
+        }
+
+    /**
      * An artist's whole discography from the public API, newest first. Deezer's own `order` parameter
      * is silently ignored (it always groups albums, then EPs, then singles), so this sorts by release
-     * date here. Reads up to [pages] pages of 100, enough for the newest release of any real artist.
+     * date here. Singles come last in that grouping, so a new single by an artist with a long back
+     * catalog sits past the first pages: this reads up to [pages] pages of 100, stopping as soon as
+     * one comes back short.
      */
-    suspend fun artistReleases(artistId: String, artistName: String, pages: Int = 2): List<DeezerRelease> =
+    suspend fun artistReleases(artistId: String, artistName: String, pages: Int = 8): List<DeezerRelease> =
         withContext(Dispatchers.IO) {
             val out = ArrayList<DeezerRelease>()
             for (page in 0 until pages) {
@@ -364,10 +389,22 @@ class DeezerApi {
     // ---- HTTP ----
 
     /** GETs [url] and returns the "data" array of a public api.deezer.com JSON response; empty on any non-2xx status. */
-    private fun fetchDataArray(url: String): List<JsonElement> {
-        val conn = open(url, "GET")
-        if (conn.responseCode !in 200..299) return emptyList()
-        return json.parseToJsonElement(readBody(conn)).jsonObject["data"]?.jsonArray.orEmpty()
+    /**
+     * One public API list call. Deezer answers 200 with an error object rather than an HTTP status
+     * when the ~50 calls per 5 s quota is hit, and the release scan walks hundreds of artists, so it
+     * does trip it; returning an empty list there would read exactly like "this artist released
+     * nothing", which is why a quota answer is waited out and retried instead.
+     */
+    private suspend fun fetchDataArray(url: String): List<JsonElement> {
+        repeat(QUOTA_RETRIES) { attempt ->
+            val conn = open(url, "GET")
+            if (conn.responseCode !in 200..299) return emptyList()
+            val root = json.parseToJsonElement(readBody(conn)).jsonObject
+            root["data"]?.jsonArray?.let { return it }
+            if (root["error"]?.toString()?.contains("quota", ignoreCase = true) != true) return emptyList()
+            delay(QUOTA_BACKOFF_MS * (attempt + 1))
+        }
+        return emptyList()
     }
 
     private fun gw(method: String, body: String, apiToken: String): kotlinx.serialization.json.JsonElement {

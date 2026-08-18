@@ -63,8 +63,9 @@ data class DiscoveryState(
  * leaves the batch, and once the batch is empty nothing shows until the next day brings a new one.
  *
  * Two sources feed it:
- *  - new releases from the artists on his Deezer profile, found by diffing each artist's public
- *    discography against the album ids we have already seen. They have priority and fill the batch as
+ *  - new releases from the artists on his Deezer profile and from every artist in his favorites or
+ *    in Best pépites, found by diffing each artist's public discography against the album ids we
+ *    have already seen. They have priority and fill the batch as
  *    far as they go, newest first; what doesn't fit queues up in a backlog for the following days.
  *  - discoveries from Deezer's own personalized recommendations: Flow ([DeezerApi.flowTracks]), topped
  *    up with the track mix of a few random favorites when Flow runs thin after filtering. These only
@@ -329,12 +330,23 @@ class DeezerDiscoveries(private val appContext: Context, private val repo: Deeze
     }
 
     /**
-     * Diffs every profile artist's discography against [seenAlbums] and turns anything released inside
+     * Diffs every known artist's discography against [seenAlbums] and turns anything released inside
      * the window into backlog entries. Bounded per run: the newest [ALBUMS_PER_SCAN] candidates get
      * their lead track fetched and marked seen, the rest stay unseen for the next scan.
      */
     private suspend fun scanNewReleases() = withContext(Dispatchers.IO) {
-        val artists = repo.profileArtists()
+        // Two sources, because neither covers the other: the profile tab is Deezer's own view of who
+        // Valentin listens to and skips artists he only has a track or two from, while the library
+        // artists are exactly the ones he liked, whatever Deezer thinks of his habits.
+        val profile = runCatching { repo.profileArtists() }.getOrElse {
+            Log.w(TAG, "Profile artists failed", it)
+            emptyList()
+        }
+        val library = runCatching { repo.libraryArtists() }.getOrElse {
+            Log.w(TAG, "Library artists failed", it)
+            emptyList()
+        }
+        val artists = (profile + library).distinctBy { it.id }
         if (artists.isEmpty()) return@withContext
         val cutoff = LocalDate.now().minusDays(RELEASE_WINDOW_DAYS).toString()
         val today = today()

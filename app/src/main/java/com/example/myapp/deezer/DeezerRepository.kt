@@ -181,6 +181,12 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
     /** The artists on the owner's Deezer profile, i.e. who Deezer thinks they listen to. */
     suspend fun profileArtists(): List<DeezerArtist> = withTokenRetry { api.profileArtists(it) }
 
+    /** Every artist behind the owner's favorites and behind Best pépites, ids included. */
+    suspend fun libraryArtists(): List<DeezerArtist> {
+        val pepites = listOfNotNull(runCatching { bestPepitesPlaylistId() }.getOrNull())
+        return withTokenRetry { api.libraryArtists(it, pepites) }
+    }
+
     /** [artistId]'s whole discography, newest first. Public catalog, no session needed. */
     suspend fun artistReleases(artistId: String, artistName: String): List<DeezerRelease> =
         api.artistReleases(artistId, artistName)
