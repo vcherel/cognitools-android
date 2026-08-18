@@ -212,9 +212,9 @@ private fun MusicSearch(repo: DeezerRepository, query: String, scope: kotlinx.co
                         Toast.makeText(context, addToQueueMessage(repo, track), Toast.LENGTH_SHORT).show()
                     }
                 },
-                onAddToBestPepites = {
+                onToggleBestPepites = {
                     scope.launch {
-                        Toast.makeText(context, addToBestPepitesMessage(repo, track), Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, toggleBestPepitesMessage(repo, track), Toast.LENGTH_SHORT).show()
                     }
                 },
                 onAddToPlaylist = { pickerTrack = track }
