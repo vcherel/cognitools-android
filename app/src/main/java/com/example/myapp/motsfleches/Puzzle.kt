@@ -133,6 +133,14 @@ data class PuzzleState(
     fun isCorrect(slot: Slot): Boolean =
         puzzle.cellsOf(slot).all { letterAt(it) == puzzle.answerAt(it) }
 
+    /**
+     * A word the player has been told is right: every letter either checked or given away. Anything
+     * shown only for a found word hangs off this rather than off [isCorrect], which would announce
+     * the answer the moment it is typed.
+     */
+    fun isValidated(slot: Slot): Boolean =
+        puzzle.cellsOf(slot).all { it in confirmed || it in revealed }
+
     val isSolved: Boolean
         get() = puzzle.slots.all { isCorrect(it) }
 

@@ -1,19 +1,14 @@
 package com.example.myapp.translate
 
 import android.speech.tts.TextToSpeech
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
@@ -25,7 +20,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -35,7 +29,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -44,17 +37,13 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.myapp.AppDialog
 import com.example.myapp.AppSnackbar
 import com.example.myapp.ErrorText
 import com.example.myapp.MyButton
 import com.example.myapp.flashcardRepository
-import com.example.myapp.flashcards.FlashcardElement
-import com.example.myapp.flashcards.FlashcardList
-import kotlinx.coroutines.launch
+import com.example.myapp.flashcards.AddToFlashcardsDialog
 import java.util.Locale
 
 /**
@@ -140,10 +129,6 @@ fun TranslationCard(
 /** The list the big button always files into: what the translator is used for nearly every time. */
 private const val DEFAULT_LIST_NAME = "Anglais"
 
-/** Both sides go in with a capital, the way the lists are written. */
-private fun capitalized(text: String): String =
-    text.trim().replaceFirstChar { it.uppercaseChar() }
-
 /**
  * Sends the lookup to a flashcard list. The big button always files into [DEFAULT_LIST_NAME], so the
  * list is only asked for when it is not that one; either way the card is shown for a last edit before
@@ -153,10 +138,9 @@ private fun capitalized(text: String): String =
 fun AddToFlashcardsButton(source: String, translation: String, modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val repo = remember { context.flashcardRepository }
-    val scope = rememberCoroutineScope()
     val lists by repo.observeLists().collectAsState(initial = emptyList())
-    var picking by remember { mutableStateOf(false) }
-    var confirming by remember { mutableStateOf<FlashcardList?>(null) }
+    var filing by remember { mutableStateOf(false) }
+    var startWithPicker by remember { mutableStateOf(false) }
 
     val target = lists.firstOrNull { it.name.equals(DEFAULT_LIST_NAME, ignoreCase = true) }
 
@@ -167,7 +151,10 @@ fun AddToFlashcardsButton(source: String, translation: String, modifier: Modifie
             height = 56.dp,
             fontSize = 16.sp,
             enabled = lists.isNotEmpty(),
-            onClick = { if (target != null) confirming = target else picking = true }
+            onClick = {
+                startWithPicker = false
+                filing = true
+            }
         )
         MyButton(
             modifier = Modifier.width(64.dp),
@@ -175,86 +162,22 @@ fun AddToFlashcardsButton(source: String, translation: String, modifier: Modifie
             icon = Icons.AutoMirrored.Filled.List,
             text = "Choisir la liste",
             enabled = lists.isNotEmpty(),
-            onClick = { picking = true }
+            onClick = {
+                startWithPicker = true
+                filing = true
+            }
         )
     }
 
-    if (picking) {
-        AppDialog(onDismiss = { picking = false }) {
-            Text("Ajouter à quelle liste ?", style = MaterialTheme.typography.titleMedium)
-            Spacer(Modifier.height(12.dp))
-            Column(Modifier.heightIn(max = 400.dp).verticalScroll(rememberScrollState())) {
-                lists.forEach { list ->
-                    Text(
-                        text = list.name,
-                        style = MaterialTheme.typography.bodyLarge,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable {
-                                picking = false
-                                confirming = list
-                            }
-                            .padding(vertical = 12.dp)
-                    )
-                }
-            }
-        }
-    }
-
-    confirming?.let { list ->
-        var name by remember(list, source) { mutableStateOf(capitalized(source)) }
-        var definition by remember(list, translation) { mutableStateOf(capitalized(translation)) }
-
-        AppDialog(onDismiss = { confirming = null }) {
-            Text("Ajouter à ${list.name}", style = MaterialTheme.typography.titleMedium)
-            Spacer(Modifier.height(16.dp))
-            OutlinedTextField(
-                value = name,
-                onValueChange = { name = it },
-                label = { Text("Mot") },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
-                modifier = Modifier.fillMaxWidth()
-            )
-            Spacer(Modifier.height(8.dp))
-            OutlinedTextField(
-                value = definition,
-                onValueChange = { definition = it },
-                label = { Text("Traduction") },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
-                modifier = Modifier.fillMaxWidth()
-            )
-            Spacer(Modifier.height(16.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                MyButton(
-                    text = "Annuler",
-                    modifier = Modifier.weight(1f),
-                    height = 48.dp,
-                    fontSize = 16.sp,
-                    onClick = { confirming = null }
-                )
-                MyButton(
-                    text = "Ajouter",
-                    modifier = Modifier.weight(1f),
-                    height = 48.dp,
-                    fontSize = 16.sp,
-                    enabled = name.isNotBlank() && definition.isNotBlank(),
-                    onClick = {
-                        val element = FlashcardElement(
-                            listId = list.id,
-                            name = name.trim(),
-                            definition = definition.trim()
-                        )
-                        scope.launch {
-                            repo.addElement(list.id, element)
-                            AppSnackbar.show("Ajouté à ${list.name}")
-                        }
-                        confirming = null
-                    }
-                )
-            }
-        }
+    if (filing) {
+        AddToFlashcardsDialog(
+            word = source,
+            definition = translation,
+            defaultListName = DEFAULT_LIST_NAME,
+            definitionLabel = "Traduction",
+            startWithPicker = startWithPicker,
+            onDismiss = { filing = false }
+        )
     }
 }
 

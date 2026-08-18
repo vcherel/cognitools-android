@@ -8,6 +8,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
@@ -26,6 +27,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.School
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -54,8 +56,12 @@ import com.example.myapp.AppDialog
 import com.example.myapp.AppSnackbar
 import com.example.myapp.MyButton
 import com.example.myapp.ScreenTopBar
+import com.example.myapp.flashcards.AddToFlashcardsDialog
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+
+/** Where a found word is filed by default; the dialog can still send it anywhere else. */
+private const val MOTS_FLECHES_LIST_NAME = "Random"
 
 private const val KEYBOARD_ROW_1 = "QWERTYUIOP"
 private const val KEYBOARD_ROW_2 = "ASDFGHJKL"
@@ -262,8 +268,9 @@ fun MotsFlechesScreen(onBack: () -> Unit) {
 
         ClueBar(
             slot = slot,
-            // The link only shows once the word is found, so it can never point at the answer.
-            lookupWord = slot?.takeIf { current.isCorrect(it) }?.answer,
+            // Only once the word has been checked or given away: gating this on the letters simply
+            // being right would tell the player they had found it before they asked.
+            foundSlot = slot?.takeIf { current.isValidated(it) },
             lang = lang,
             onCheckWord = { slot?.let { check(current.puzzle.cellsOf(it), whole = false) } },
             onRevealLetter = {
@@ -364,13 +371,14 @@ fun MotsFlechesScreen(onBack: () -> Unit) {
 @Composable
 private fun ClueBar(
     slot: Slot?,
-    lookupWord: String?,
+    foundSlot: Slot?,
     lang: MotsFlechesLang?,
     onCheckWord: () -> Unit,
     onRevealLetter: () -> Unit,
     onClearWord: () -> Unit
 ) {
     val context = LocalContext.current
+    var filing by remember { mutableStateOf(false) }
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -397,16 +405,14 @@ private fun ClueBar(
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    if (lookupWord != null && lang != null) {
+                    // Both of these hand the answer over, so they only exist once the word is found.
+                    if (foundSlot != null) {
                         Spacer(Modifier.weight(1f))
-                        TextButton(onClick = { openWiktionary(context, lang, lookupWord) }) {
-                            Icon(
-                                Icons.AutoMirrored.Filled.OpenInNew,
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(Modifier.width(6.dp))
-                            Text("En savoir plus", style = MaterialTheme.typography.labelMedium)
+                        LinkAction(Icons.Default.School, "Flashcard") { filing = true }
+                        if (lang != null) {
+                            LinkAction(Icons.AutoMirrored.Filled.OpenInNew, "En savoir plus") {
+                                openWiktionary(context, lang, foundSlot.answer)
+                            }
                         }
                     }
                 }
@@ -421,6 +427,27 @@ private fun ClueBar(
             ClueAction(Icons.Default.Lightbulb, "Indice", enabled = slot != null, onClick = onRevealLetter)
             ClueAction(Icons.Default.DeleteOutline, "Effacer", enabled = slot != null, onClick = onClearWord)
         }
+    }
+
+    if (filing && foundSlot != null) {
+        AddToFlashcardsDialog(
+            // The grid holds the word in capitals and without its accents: it goes in the dialog as
+            // an ordinary word, and whatever is left to fix is fixed there before it is filed.
+            word = foundSlot.answer.lowercase(),
+            definition = foundSlot.explanation,
+            defaultListName = MOTS_FLECHES_LIST_NAME,
+            onDismiss = { filing = false }
+        )
+    }
+}
+
+/** A small text action shown next to the definition once its word is found. */
+@Composable
+private fun LinkAction(icon: ImageVector, label: String, onClick: () -> Unit) {
+    TextButton(onClick = onClick, contentPadding = PaddingValues(horizontal = 10.dp)) {
+        Icon(icon, contentDescription = null, modifier = Modifier.size(16.dp))
+        Spacer(Modifier.width(6.dp))
+        Text(label, style = MaterialTheme.typography.labelMedium)
     }
 }
 

@@ -6,6 +6,7 @@ import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -15,6 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -125,6 +127,22 @@ fun PuzzleGrid(
             return Offset(x, y)
         }
 
+        // The cells are sized on the width, so a tall grid runs past the bottom of the screen, all
+        // the more once the clue bar takes the room a long definition needs. Rather than leave the
+        // player to pan for the row being filled, the grid follows the selection.
+        LaunchedEffect(selection, cell, scale, viewport.height) {
+            val target = selection ?: return@LaunchedEffect
+            val margin = minOf(cell * scale, viewport.height / 4f)
+            val top = target.row * cell * scale + offset.y
+            val bottom = top + cell * scale
+            val shift = when {
+                top < margin -> margin - top
+                bottom > viewport.height - margin -> viewport.height - margin - bottom
+                else -> 0f
+            }
+            if (shift != 0f) offset = clamp(offset.copy(y = offset.y + shift), scale)
+        }
+
         val clues = remember(puzzle, cell, colors) { layoutClues(measurer, density, puzzle, cell, colors) }
         val letters = remember(cell, colors) { layoutLetters(measurer, density, cell, colors) }
         val highlighted = remember(puzzle, selection) { cellsOfSelection(puzzle, selection) }
@@ -194,6 +212,19 @@ fun PuzzleGrid(
                     drawText(clue.layout, topLeft = clue.topLeft)
                     drawPath(clue.arrow, colors.clueText)
                 }
+            }
+            // Says there is more grid under the edge, which a cut off row otherwise hides.
+            if (offset.y + gridSize.height * scale > size.height + 1f) {
+                val fade = cell * 0.7f
+                drawRect(
+                    brush = Brush.verticalGradient(
+                        colors = listOf(Color.Transparent, colors.line.copy(alpha = 0.5f)),
+                        startY = size.height - fade,
+                        endY = size.height
+                    ),
+                    topLeft = Offset(0f, size.height - fade),
+                    size = Size(size.width, fade)
+                )
             }
         }
     }
