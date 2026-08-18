@@ -23,7 +23,7 @@ object TranslateStore {
     private val KEY_TARGET = stringPreferencesKey("target")
     private val KEY_HISTORY = stringPreferencesKey("history")
 
-    private const val MAX_HISTORY = 40
+    private const val MAX_HISTORY = 12
 
     fun target(context: Context): Flow<TranslateLang> =
         context.translateDataStore.data.map { TranslateLang.fromCode(it[KEY_TARGET]) ?: TranslateLang.FR }
@@ -33,7 +33,7 @@ object TranslateStore {
     }
 
     fun history(context: Context): Flow<List<LookupEntry>> =
-        context.translateDataStore.data.map { decode(it[KEY_HISTORY]) }
+        context.translateDataStore.data.map { decode(it[KEY_HISTORY]).take(MAX_HISTORY) }
 
     /** Adds a lookup at the top, dropping an older identical one rather than repeating it. */
     suspend fun remember(context: Context, entry: LookupEntry) {
