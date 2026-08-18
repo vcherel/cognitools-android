@@ -91,12 +91,12 @@ Root package (shared/misc):
 - `MediaStoreRepository.kt`: all MediaStore reads (queryAlbums/queryMediaItems) and writes (performRename/Move/Delete/Overwrite + batch variants), WriteOutcome
 - `GalleryPermissions.kt`: read-media and all-files permission checks, rememberIntentSenderRequester for scoped storage consent prompts
 - `GalleryRefresh.kt`: global refresh counter the screens observe after a write
-- `TrashScreen.kt`: the trashed items grid (restore, delete for good) and showTrashedSnackbar
+- `TrashScreen.kt`: the trashed items grid (multi-select with drag, restore, delete for good) and showTrashedSnackbar
 - `GalleryImage.kt`: GalleryAsyncImage, the Coil loader with a dateModified aware cache key
 - `GalleryMediaViewers.kt`: the zoomable image and the video player the viewer pages are made of
 - `LockedQuickView.kt`: the single item shown over the keyguard, with the gallery tools that make sense there
 - `AlbumsScreen.kt`: album list, plus the pinned-picture hero card at the top
-- `AlbumGridScreen.kt`: thumbnail grid, multi-select with drag, batch actions
+- `AlbumGridScreen.kt`: thumbnail grid, batch actions, and `sweepSelection`, the long-press-and-drag multi-select the trash grid reuses
 - `ViewerScreen.kt`: full screen pager (ViewerSource: an album, the pinned set, the Wallet album or a single item), image zoom and video playback, per-item tools including pin/unpin and set-as-hero
 - `ViewerDialogs.kt`: the viewer's share, rename and move dialogs (MoveDialog is also used by the album grid)
 - `GalleryPins.kt`: PinnedMediaItem Room entity/DAO and pin/unpin/setHero/resolve helpers

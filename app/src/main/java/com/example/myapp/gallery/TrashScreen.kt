@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
@@ -55,6 +56,10 @@ fun GalleryTrashScreen(onBack: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val requestConsent = LocalMediaConsent.current
+    val gridState = rememberLazyGridState()
+    // Swallows the click the sweep's long press would otherwise fire on the thumbnail under it,
+    // see sweepSelection.
+    val suppressClick = remember { mutableStateOf(false) }
     var items by remember { mutableStateOf<List<MediaItem>?>(null) }
     var selectedIds by remember { mutableStateOf<Set<Long>>(emptySet()) }
     var showPurgeDialog by remember { mutableStateOf(false) }
@@ -144,11 +149,20 @@ fun GalleryTrashScreen(onBack: () -> Unit) {
                 Text("Corbeille vide")
             }
             else -> LazyVerticalGrid(
+                state = gridState,
                 columns = GridCells.Fixed(3),
                 contentPadding = PaddingValues(2.dp),
                 horizontalArrangement = Arrangement.spacedBy(2.dp),
                 verticalArrangement = Arrangement.spacedBy(2.dp),
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier
+                    .fillMaxSize()
+                    .sweepSelection(
+                        gridState = gridState,
+                        items = currentItems,
+                        selectedIds = { selectedIds },
+                        onSelectionChange = { selectedIds = it },
+                        suppressClick = suppressClick
+                    )
             ) {
                 items(currentItems, key = { it.id }) { item ->
                     val isSelected = item.id in selectedIds
@@ -156,7 +170,14 @@ fun GalleryTrashScreen(onBack: () -> Unit) {
                         item = item,
                         selected = isSelected,
                         showSelectionIndicator = true,
-                        onClick = { selectedIds = if (isSelected) selectedIds - item.id else selectedIds + item.id }
+                        onClick = {
+                            if (suppressClick.value) {
+                                suppressClick.value = false
+                            } else {
+                                selectedIds =
+                                    if (isSelected) selectedIds - item.id else selectedIds + item.id
+                            }
+                        }
                     ) {
                         remainingDays(item.dateExpires)?.let { days ->
                             Text(

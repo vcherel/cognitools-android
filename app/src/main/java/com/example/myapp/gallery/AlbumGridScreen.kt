@@ -27,6 +27,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -128,34 +129,13 @@ fun GalleryAlbumGridScreen(bucketId: Long, onBack: () -> Unit, onOpenItem: (Long
                 verticalArrangement = Arrangement.spacedBy(2.dp),
                 modifier = Modifier
                     .fillMaxSize()
-                    // Long-press a thumbnail to start selecting, then drag to sweep a range of
-                    // items into the selection (added on top of whatever was already selected).
-                    .pointerInput(currentItems) {
-                        var anchor: Int? = null
-                        var baseline: Set<Long> = emptySet()
-                        detectDragGesturesAfterLongPress(
-                            onDragStart = { pos ->
-                                gridState.itemIndexAt(pos)?.let { idx ->
-                                    anchor = idx
-                                    baseline = selectedIds
-                                    selectedIds = selectedIds + currentItems[idx].id
-                                    suppressClick.value = true
-                                }
-                            },
-                            onDrag = { change, _ ->
-                                change.consume()
-                                val start = anchor ?: return@detectDragGesturesAfterLongPress
-                                val idx = gridState.itemIndexAt(change.position)
-                                    ?: return@detectDragGesturesAfterLongPress
-                                val range = minOf(start, idx)..maxOf(start, idx)
-                                selectedIds = baseline + range.mapNotNull { currentItems.getOrNull(it)?.id }
-                            },
-                            // The thumbnail's click is dispatched before these, so disarming here
-                            // only affects a sweep whose click got cancelled by the drag.
-                            onDragEnd = { anchor = null; suppressClick.value = false },
-                            onDragCancel = { anchor = null; suppressClick.value = false }
-                        )
-                    }
+                    .sweepSelection(
+                        gridState = gridState,
+                        items = currentItems,
+                        selectedIds = { selectedIds },
+                        onSelectionChange = { selectedIds = it },
+                        suppressClick = suppressClick
+                    )
             ) {
                 items(currentItems, key = { it.id }) { item ->
                     val selected = item.id in selectedIds
@@ -241,9 +221,47 @@ private fun SelectionTopBar(
     }
 }
 
+/**
+ * Long-press a thumbnail to start selecting, then drag to sweep a range of items into the
+ * selection (added on top of whatever was already selected). Applied to the grid itself, so it
+ * needs [gridState] to tell which item a finger is over, and [suppressClick] to let the thumbnail
+ * underneath swallow the click the long press would otherwise fire.
+ */
+internal fun Modifier.sweepSelection(
+    gridState: LazyGridState,
+    items: List<MediaItem>,
+    selectedIds: () -> Set<Long>,
+    onSelectionChange: (Set<Long>) -> Unit,
+    suppressClick: MutableState<Boolean>
+): Modifier = pointerInput(items) {
+    var anchor: Int? = null
+    var baseline: Set<Long> = emptySet()
+    detectDragGesturesAfterLongPress(
+        onDragStart = { pos ->
+            gridState.itemIndexAt(pos)?.let { idx ->
+                anchor = idx
+                baseline = selectedIds()
+                onSelectionChange(baseline + items[idx].id)
+                suppressClick.value = true
+            }
+        },
+        onDrag = { change, _ ->
+            change.consume()
+            val start = anchor ?: return@detectDragGesturesAfterLongPress
+            val idx = gridState.itemIndexAt(change.position) ?: return@detectDragGesturesAfterLongPress
+            val range = minOf(start, idx)..maxOf(start, idx)
+            onSelectionChange(baseline + range.mapNotNull { items.getOrNull(it)?.id })
+        },
+        // The thumbnail's click is dispatched before these, so disarming here only affects a
+        // sweep whose click got cancelled by the drag.
+        onDragEnd = { anchor = null; suppressClick.value = false },
+        onDragCancel = { anchor = null; suppressClick.value = false }
+    )
+}
+
 // Index of the grid item under a pointer position (in the grid's own coordinate space), or null
 // when the finger is over a gap or outside any item.
-private fun LazyGridState.itemIndexAt(offset: Offset): Int? =
+internal fun LazyGridState.itemIndexAt(offset: Offset): Int? =
     layoutInfo.visibleItemsInfo.firstOrNull { info ->
         offset.x >= info.offset.x && offset.x < info.offset.x + info.size.width &&
             offset.y >= info.offset.y && offset.y < info.offset.y + info.size.height
