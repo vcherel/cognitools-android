@@ -131,6 +131,22 @@ internal fun String.withLineMarkerToggled(index: Int, marker: String): String {
     return lines.joinToString("\n")
 }
 
+// The whole line the cursor sits on becomes a title (or stops being one), with the same
+// "**__ ... __**" markers the /titre command inserts. Line level rather than selection level,
+// because a title is a line, and the cursor is left after the text.
+internal fun TextFieldState.toggleTitleLine() {
+    val fullText = text.toString()
+    val cursor = selection.max
+    val lineStart = if (cursor == 0) 0 else fullText.lastIndexOf('\n', cursor - 1) + 1
+    val lineEnd = fullText.indexOf('\n', cursor).let { if (it == -1) fullText.length else it }
+    val line = fullText.substring(lineStart, lineEnd)
+    val toggled = if (line.isTitleLine()) line.substring(4, line.length - 4) else "**__" + line + "__**"
+    edit {
+        replace(lineStart, lineEnd, toggled)
+        selection = TextRange(lineStart + toggled.length - if (line.isTitleLine()) 0 else 4)
+    }
+}
+
 // Wraps the selection in the marker (or removes it when already wrapped);
 // with no selection, inserts a marker pair and puts the cursor inside.
 internal fun TextFieldState.toggleInlineMarker(marker: String) {

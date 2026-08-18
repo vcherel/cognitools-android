@@ -22,6 +22,7 @@ import androidx.compose.material.icons.filled.Kitchen
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Title
 import androidx.compose.material.icons.filled.VerticalAlignCenter
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -69,7 +70,8 @@ data class NoteEditorBarActions(
     val onResortCourses: () -> Unit,
     val onSetAllCheckboxes: (Boolean) -> Unit,
     val onRemoveChecked: () -> Unit,
-    val onToggleInlineMarker: (String) -> Unit
+    val onToggleInlineMarker: (String) -> Unit,
+    val onToggleTitle: () -> Unit
 )
 
 /**
@@ -165,6 +167,11 @@ fun NoteEditorTopBar(
                         text = { Text("Italique") },
                         leadingIcon = { Icon(Icons.Default.FormatItalic, contentDescription = null) },
                         onClick = { actions.onToggleInlineMarker("*") }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Titre") },
+                        leadingIcon = { Icon(Icons.Default.Title, contentDescription = null) },
+                        onClick = { actions.onToggleTitle() }
                     )
                     DropdownMenuItem(
                         text = { Text("Souligné") },

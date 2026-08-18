@@ -345,7 +345,8 @@ fun NoteEditorScreen(noteId: String, initialEditOffset: Int = -1, onBack: () -> 
                         onResortCourses = { sync.resortCourses() },
                         onSetAllCheckboxes = { saveContent(setAllCheckboxes(content, it)) },
                         onRemoveChecked = { saveContent(removeCheckedCheckboxes(content)) },
-                        onToggleInlineMarker = { textFieldState.toggleInlineMarker(it) }
+                        onToggleInlineMarker = { textFieldState.toggleInlineMarker(it) },
+                        onToggleTitle = { textFieldState.toggleTitleLine() }
                     )
                 )
 
