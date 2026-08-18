@@ -76,6 +76,7 @@ Root package (shared/misc):
 
 `flashcards/` (spaced repetition flashcards tool):
 - `Models.kt`: FlashcardList/FlashcardElement data classes, JSON (de)serialization, stats helpers
+- `AddToFlashcards.kt`: the shared filing dialog (list picker + editable card) the translator and the mots fleches clue bar both open
 - `Database.kt`: Room FlashcardDao
 - `Repository.kt`: FlashcardRepository, mediates between DB and UI
 - `SpacedRepetition.kt`: reviewCard, the spaced repetition scheduling algorithm
