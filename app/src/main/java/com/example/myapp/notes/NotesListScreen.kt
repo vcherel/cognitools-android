@@ -118,6 +118,8 @@ fun NotesListScreen(navController: NavController) {
     val trashedCount = trashedNotes.size
     // Set while a "supprimer définitivement" confirmation is waiting on a trashed search result.
     var confirmDelete by remember { mutableStateOf<Note?>(null) }
+    // Set while a "mettre à la corbeille" confirmation is waiting on a note of the list.
+    var confirmTrash by remember { mutableStateOf<Note?>(null) }
 
     // Rewrites a note's lines and saves it, for the edits the pinned Todo widget makes in place.
     // Reads the note back inside the coroutine rather than transforming the copy captured at
@@ -321,16 +323,7 @@ fun NotesListScreen(navController: NavController) {
                                         // Keep updatedAt so recoloring does not reorder the list
                                         scope.launch { dao.upsertNote(note.copy(color = nextNoteColor(note.color))) }
                                     },
-                                    onDelete = {
-                                        scope.launch {
-                                            dao.trashNote(note.id)
-                                            AppSnackbar.show(
-                                                message = "Note dans la corbeille",
-                                                actionLabel = "Annuler",
-                                                onAction = { dao.restoreNote(note.id) }
-                                            )
-                                        }
-                                    }
+                                    onDelete = { confirmTrash = note }
                                 )
                             }
                             if (trashedMatches.isNotEmpty()) {
@@ -391,6 +384,26 @@ fun NotesListScreen(navController: NavController) {
                 onClick = { navController.navigate("note/new") }
             )
         }
+    }
+
+    confirmTrash?.let { note ->
+        val (title, _) = noteTitleAndPreview(note)
+        ShowAlertDialog(
+            onDismiss = { confirmTrash = null },
+            title = "Mettre « $title » à la corbeille ?",
+            onCancel = { confirmTrash = null },
+            onConfirm = {
+                confirmTrash = null
+                scope.launch {
+                    dao.trashNote(note.id)
+                    AppSnackbar.show(
+                        message = "Note dans la corbeille",
+                        actionLabel = "Annuler",
+                        onAction = { dao.restoreNote(note.id) }
+                    )
+                }
+            }
+        )
     }
 
     confirmDelete?.let { note ->
