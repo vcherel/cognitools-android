@@ -32,6 +32,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -90,6 +94,15 @@ fun FullPlayerSheet(
 
     // Keep the favorites cache warm so the heart reflects the real like-state.
     LaunchedEffect(Unit) { runCatching { repo.ensureFavorites() } }
+
+    // Same for the diamond: it is filled when the track is already in Best pépites, and tapping it
+    // then takes the track back out. [pepitesTick] re-reads it after the toggle has landed.
+    var pepitesTick by remember { mutableIntStateOf(0) }
+    var inPepites by remember { mutableStateOf(false) }
+    LaunchedEffect(state.sngId, pepitesTick) {
+        runCatching { repo.ensureBestPepitesLoaded() }
+        inPepites = state.sngId != null && repo.bestPepitesContains(state.sngId) == true
+    }
 
     Box(
         modifier = Modifier
@@ -150,10 +163,15 @@ fun FullPlayerSheet(
                 IconButton(onClick = {
                     val track = currentTrack(repo, state) ?: return@IconButton
                     scope.launch {
-                        Toast.makeText(context, addToBestPepitesMessage(repo, track), Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, toggleBestPepitesMessage(repo, track), Toast.LENGTH_SHORT).show()
+                        pepitesTick++
                     }
                 }) {
-                    Icon(Icons.Filled.Diamond, contentDescription = "Ajouter à Best pépites", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Icon(
+                        Icons.Filled.Diamond,
+                        contentDescription = if (inPepites) "Retirer de Best pépites" else "Ajouter à Best pépites",
+                        tint = if (inPepites) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
                 IconButton(onClick = {
                     val track = currentTrack(repo, state) ?: return@IconButton

@@ -101,10 +101,10 @@ fun DeezerTrackListScreen(
                                 Toast.makeText(context, addToQueueMessage(repo, track), Toast.LENGTH_SHORT).show()
                             }
                         },
-                        onAddToBestPepites = if (isBestPepites) null else {
+                        onToggleBestPepites = if (isBestPepites) null else {
                             {
                                 scope.launch {
-                                    Toast.makeText(context, addToBestPepitesMessage(repo, track), Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, toggleBestPepitesMessage(repo, track), Toast.LENGTH_SHORT).show()
                                 }
                             }
                         },

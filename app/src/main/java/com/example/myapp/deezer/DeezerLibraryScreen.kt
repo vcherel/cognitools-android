@@ -37,6 +37,7 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -62,6 +63,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
 import com.example.myapp.ErrorText
+import com.example.myapp.deezerRepository
 import com.example.myapp.MediaArt
 import com.example.myapp.MediaListRow
 import com.example.myapp.MediaRowSubtitle
@@ -471,8 +473,8 @@ private fun PlaylistRow(playlist: DeezerPlaylist, isPlaying: Boolean, onOpen: ()
 
 /**
  * Shared: one tappable track line. Tap plays. When [showActions] is on, a heart (like/unlike, filled
- * when [isFavorite]) sits on the right, plus a three dot menu with the rest: add to queue, add to Best
- * pépites, add to a playlist, and, only if [onRemoveFromPlaylist] is provided, remove from the current
+ * when [isFavorite]) sits on the right, plus a three dot menu with the rest: add to queue, add to or
+ * remove from Best pépites, add to a playlist, and, only if [onRemoveFromPlaylist] is provided, remove from the current
  * playlist. [isPlaying] tints the row and adds a playing icon for the track currently loaded in the player.
  * [note] adds a third tinted line under the artist, and [onDismiss] a cross that throws the row away.
  */
@@ -486,12 +488,21 @@ fun TrackRow(
     note: String? = null,
     onToggleFavorite: (() -> Unit)? = null,
     onAddToQueue: (() -> Unit)? = null,
-    onAddToBestPepites: (() -> Unit)? = null,
+    onToggleBestPepites: (() -> Unit)? = null,
     onAddToPlaylist: (() -> Unit)? = null,
     onRemoveFromPlaylist: (() -> Unit)? = null,
     onDismiss: (() -> Unit)? = null
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
+    // Read when the menu opens rather than per row: the whole point of the diamond is that a list of
+    // a thousand tracks costs nothing until one of them is actually acted on.
+    val repo = LocalContext.current.deezerRepository
+    var inPepites by remember(track.sngId) { mutableStateOf(false) }
+    LaunchedEffect(menuExpanded, track.sngId) {
+        if (!menuExpanded) return@LaunchedEffect
+        runCatching { repo.ensureBestPepitesLoaded() }
+        inPepites = repo.bestPepitesContains(track.sngId) == true
+    }
     MediaListRow(
         artworkUrl = track.coverUrl(),
         title = track.title,
@@ -529,11 +540,17 @@ fun TrackRow(
                             onClick = { menuExpanded = false; onAddToQueue() }
                         )
                     }
-                    if (onAddToBestPepites != null) {
+                    if (onToggleBestPepites != null) {
                         DropdownMenuItem(
-                            text = { Text("Ajouter à Best pépites") },
-                            leadingIcon = { Icon(Icons.Filled.Diamond, contentDescription = null) },
-                            onClick = { menuExpanded = false; onAddToBestPepites() }
+                            text = { Text(if (inPepites) "Retirer de Best pépites" else "Ajouter à Best pépites") },
+                            leadingIcon = {
+                                Icon(
+                                    Icons.Filled.Diamond,
+                                    contentDescription = null,
+                                    tint = if (inPepites) MaterialTheme.colorScheme.primary else LocalContentColor.current
+                                )
+                            },
+                            onClick = { menuExpanded = false; onToggleBestPepites() }
                         )
                     }
                     if (onAddToPlaylist != null) {
@@ -573,20 +590,22 @@ suspend fun addToQueueMessage(repo: DeezerRepository, track: DeezerTrack): Strin
     )
 
 /**
- * Shared: runs the "add to Best pépites" action and returns the toast to show. Every entry point (row
- * action, now playing sheet, notification) reports the same three outcomes, duplicate included.
+ * Shared: runs the diamond action and returns the toast to show. Every entry point (row menu, now
+ * playing sheet, notification) toggles: a track already in Best pépites comes back out of it.
  */
-suspend fun addToBestPepitesMessage(repo: DeezerRepository, track: DeezerTrack): String =
-    runCatching { repo.addToBestPepites(track) }.fold(
-        onSuccess = {
-            when (it) {
-                PlaylistAddResult.ADDED -> "Ajouté à Best pépites"
-                PlaylistAddResult.DUPLICATE -> "Déjà dans Best pépites"
-                PlaylistAddResult.NO_PLAYLIST -> "Playlist Best pépites introuvable"
-            }
-        },
-        onFailure = { "Échec de l'ajout" }
-    )
+suspend fun toggleBestPepitesMessage(repo: DeezerRepository, track: DeezerTrack): String =
+    runCatching {
+        // Without the membership loaded the track would look absent and be added a second time.
+        runCatching { repo.ensureBestPepitesLoaded() }
+        if (repo.bestPepitesContains(track.sngId) == true) {
+            if (repo.removeFromBestPepites(track.sngId)) "Retiré de Best pépites"
+            else "Playlist Best pépites introuvable"
+        } else when (repo.addToBestPepites(track)) {
+            PlaylistAddResult.ADDED -> "Ajouté à Best pépites"
+            PlaylistAddResult.DUPLICATE -> "Déjà dans Best pépites"
+            PlaylistAddResult.NO_PLAYLIST -> "Playlist Best pépites introuvable"
+        }
+    }.getOrElse { "Échec de l'action" }
 
 /** Shared: same for the playlist picked in [PlaylistPickerDialog]. */
 suspend fun addToPlaylistMessage(repo: DeezerRepository, playlist: DeezerPlaylist, track: DeezerTrack): String =
