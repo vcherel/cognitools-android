@@ -39,6 +39,8 @@ FULL_MAX = 240
 MIN_SEGMENT = 12
 # A synonym nobody has heard of is a worse clue than the definition it replaces (Lexique, per million).
 MIN_RELATED_FREQ = 1.0
+# How many synonyms and how many antonyms a word keeps.
+MAX_RELATED = 2
 
 POS_SECTIONS = {
     "nom": "n",
@@ -247,7 +249,9 @@ def usable_senses(senses, word):
         score = (
             rank * 6
             + len(definition) / 6
-            + (25 if len(definition) > CLUE_MAX else 0)
+            # A definition that has to be ellipsized to fit a cell is what makes a grid read like a
+            # dictionary, so a shorter sense wins over the main one by a wide margin.
+            + (45 if len(definition) > CLUE_MAX else 0)
             + (60 if RARE_MARKER.search(definition) else 0)
         )
         kept.append((score, pos, definition))
@@ -322,21 +326,25 @@ def collect(candidates, cache):
 
 
 def related_clues(entry, word, frequencies):
-    """The crossword idiom: the most common synonym and antonym the page offers, if any."""
+    """The crossword idiom: the most common synonyms and antonyms the page offers.
+
+    A grid reads like a grid when its clues are these, not dictionary sentences, so several are
+    kept per word: the more of them a word carries, the more often one comes out of the draw.
+    """
     clues = []
     for kind, label in (("syn", "Synonyme"), ("ant", "Contraire")):
-        options = [
+        options = {
             other
             for other in entry.get(kind, [])
             if 2 < len(other) < 25
             and not gives_it_away(other, word)
             and not gives_it_away(word, other)
             and frequencies.get(strip_accents(other).lower(), 0) >= MIN_RELATED_FREQ
-        ]
-        if options:
-            best = max(options, key=lambda other: frequencies[strip_accents(other).lower()])
-            elided = strip_accents(best[0]).lower() in "aeiou"
-            clues.append(f"{label} d'{best}" if elided else f"{label} de {best}")
+        }
+        best = sorted(options, key=lambda other: -frequencies[strip_accents(other).lower()])
+        for other in best[:MAX_RELATED]:
+            elided = strip_accents(other[0]).lower() in "aeiou"
+            clues.append(f"{label} d'{other}" if elided else f"{label} de {other}")
     return clues
 
 
@@ -349,11 +357,11 @@ def write_asset(candidates, cache, frequencies):
             full = definition[:FULL_MAX].rsplit(" ", 1)[0] if len(definition) > FULL_MAX else definition
             # Rank is the frequency order: the grid generator uses it to pick a difficulty.
             rows.append(f"{form}\t{rank}\t{pos}\t{shorten(definition)}\t{full}")
-        # Only alongside a definition: on its own a synonym is too thin a clue to build a grid on.
-        if senses:
-            pos = senses[0][0]
-            for clue in related_clues(entry, word, frequencies):
-                rows.append(f"{form}\t{rank}\t{pos}\t{clue}\t{clue}")
+        # A synonym clue stands on its own: it is how a grid reads, and a word whose definitions
+        # were all thrown out still deserves to be in one.
+        pos = senses[0][0] if senses else "n"
+        for clue in related_clues(entry, word, frequencies):
+            rows.append(f"{form}\t{rank}\t{pos}\t{clue}\t{clue}")
     # Plain text on purpose: the Android build unpacks a .gz asset at packaging time, and the APK
     # deflates whatever it ships anyway.
     with open(OUTPUT_PATH, "w", encoding="utf-8") as handle:
