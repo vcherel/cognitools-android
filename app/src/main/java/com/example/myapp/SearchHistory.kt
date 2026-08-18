@@ -45,7 +45,7 @@ private val Context.searchHistoryDataStore by preferencesDataStore("search_histo
 // Newline separated, most recent first. A query can't contain a newline (every search field here is
 // singleLine), so no escaping is needed.
 private const val SEPARATOR = "\n"
-private const val MAX_ENTRIES = 8
+private const val MAX_ENTRIES = 4
 
 /**
  * The searches each search field remembers, one independent list per [SearchSurface]. Kept in its
@@ -76,6 +76,7 @@ object SearchHistory {
                 ?.split(SEPARATOR)
                 ?.filter { it.isNotBlank() }
                 .orEmpty()
+                .take(MAX_ENTRIES)
         }
 
     /**
