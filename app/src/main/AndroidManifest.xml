@@ -86,6 +86,16 @@
              no target for a media button once the session is gone (the service stops on pause), so
              a play/pause from a Bluetooth speaker or a headset is simply dropped. The receiver
              forwards the key to DeezerPlaybackService and restarts it if needed. -->
+        <!-- Content uris for the files the explorer opens or shares with other apps. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
         <receiver
             android:name="androidx.media3.session.MediaButtonReceiver"
             android:exported="true">

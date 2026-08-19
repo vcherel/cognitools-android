@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The file explorer hands arbitrary files to other apps, so the provider covers the whole tree. -->
+<paths>
+    <root-path name="root" path="/" />
+</paths>
