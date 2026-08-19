@@ -65,11 +65,11 @@ data class DiscoveryState(
  * Two sources feed it:
  *  - new releases from the artists on his Deezer profile and from every artist in his favorites or
  *    in Best pépites, found by diffing each artist's public discography against the album ids we
- *    have already seen. They have priority and fill the batch as
- *    far as they go, newest first; what doesn't fit queues up in a backlog for the following days.
+ *    have already seen. They take up to half the batch, the artists he has the most tracks from
+ *    first; what doesn't fit queues up in a backlog for the following days.
  *  - discoveries from Deezer's own personalized recommendations: Flow ([DeezerApi.flowTracks]), topped
- *    up with the track mix of a few random favorites when Flow runs thin after filtering. These only
- *    fill what the releases left free, so a heavy release week can leave none at all.
+ *    up with the track mix of a few random favorites when Flow runs thin after filtering. They fill
+ *    whatever the releases left, which is half the batch at the very least.
  *
  * Nothing already in his favorites, in Best pépites, or ever proposed before can appear. There is
  * deliberately no play tracking: Deezer's own listening history is a rolling window of 100 plays,
@@ -79,6 +79,8 @@ class DeezerDiscoveries(private val appContext: Context, private val repo: Deeze
 
     companion object {
         const val BATCH_SIZE = 20
+        /** Half the batch at most, so a heavy release week still leaves room for real discoveries. */
+        private const val RELEASE_SLOTS = BATCH_SIZE / 2
         private const val RELEASE_WINDOW_DAYS = 60L
         private const val FLOW_CALLS = 8
         private const val MIX_SEEDS = 4
@@ -255,18 +257,24 @@ class DeezerDiscoveries(private val appContext: Context, private val repo: Deeze
                     .onFailure { Log.w(TAG, "New release scan failed", it) }
             }
 
-            // New releases first, newest release date first, then the personalized discoveries.
+            // New releases first, best known artist first, then the personalized discoveries.
             val excluded = excludedKeys(pepites)
             // Your artists put out roughly nine releases a day, far more than the daily slots, so the
             // backlog has to stay honest: anything liked or handled in the meantime is dead weight.
             backlog.removeAll { key(it.track) in excluded }
             val collector = BatchCollector(excluded, kept)
-            // New releases come first and take as much of the batch as the backlog can fill, so a heavy
-            // release week can be all releases and Flow only gets what is left over.
-            backlog.sortByDescending { it.releaseDate }
+            // Releases come first but only up to [RELEASE_SLOTS], and the best known artists lead:
+            // scanning every artist in the library turns up plenty of releases from artists behind a
+            // single liked track, which are not worth a whole batch.
+            val known = familiarity(pepites)
+            backlog.sortWith(
+                compareByDescending<DiscoveryTrack> { known[it.track.artist.matchNormalized()] ?: 0 }
+                    .thenByDescending { it.releaseDate }
+            )
+            var releaseSlots = RELEASE_SLOTS - kept.count { it.isNewRelease }
             for (item in backlog) {
-                if (collector.full) break
-                collector.offer(item)
+                if (collector.full || releaseSlots <= 0) break
+                if (collector.offer(item)) releaseSlots--
             }
             fillWithDiscoveries(collector, base = if (needsScan) SCAN_WEIGHT else 0)
 
@@ -399,6 +407,12 @@ class DeezerDiscoveries(private val appContext: Context, private val repo: Deeze
         backlog.sortByDescending { it.releaseDate }
         while (backlog.size > BACKLOG_CAP) backlog.removeAt(backlog.lastIndex)
     }
+
+    /** How many tracks the library holds per artist, i.e. how well Valentin knows them. */
+    private fun familiarity(pepites: List<DeezerTrack>): Map<String, Int> =
+        ((repo.favorites.value ?: emptyList()) + pepites)
+            .groupingBy { it.artist.matchNormalized() }
+            .eachCount()
 
     /** Everything that must never be proposed: already liked, already in Best pépites, already offered. */
     private fun excludedKeys(pepites: List<DeezerTrack>): Set<String> {
