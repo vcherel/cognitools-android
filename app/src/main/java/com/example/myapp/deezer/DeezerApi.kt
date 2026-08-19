@@ -2,6 +2,8 @@ package com.example.myapp.deezer
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
@@ -26,6 +28,8 @@ class DeezerApiException(message: String, val tokenError: Boolean = false) : Exc
 class DeezerApi {
 
     private val json = Json { ignoreUnknownKeys = true; isLenient = true }
+    private val backgroundGate = Mutex()
+    private var lastBackgroundCallMs = 0L
     private val cookies = linkedMapOf<String, String>()
 
     // A realistic desktop browser UA; a scraper-looking UA can get blocked on gw calls.
@@ -38,6 +42,9 @@ class DeezerApi {
         val TOKEN_ERRORS = listOf("VALID_TOKEN_REQUIRED", "INVALID_TOKEN", "GATEWAY_ERROR", "CSRF_TOKEN")
         const val QUOTA_RETRIES = 4
         const val QUOTA_BACKOFF_MS = 1500L
+        const val FOREGROUND_BACKOFF_MS = 400L
+        /** ~8 calls a second, under Deezer's ~50 per 5 s, with room to spare for the foreground. */
+        const val BACKGROUND_SPACING_MS = 120L
     }
 
     /** Bootstraps a session from the ARL. Throws [DeezerApiException] if the ARL is expired (guest session). */
@@ -204,7 +211,10 @@ class DeezerApi {
         withContext(Dispatchers.IO) {
             val out = ArrayList<DeezerRelease>()
             for (page in 0 until pages) {
-                val data = fetchDataArray("https://api.deezer.com/artist/$artistId/albums?limit=100&index=${page * 100}")
+                val data = fetchDataArray(
+                    "https://api.deezer.com/artist/$artistId/albums?limit=100&index=${page * 100}",
+                    background = true
+                )
                 data.forEach { el ->
                     val o = el.jsonObject
                     val id = o["id"]?.jsonPrimitive?.content ?: return@forEach
@@ -228,7 +238,7 @@ class DeezerApi {
      * already nested under one), so [release] fills that in.
      */
     suspend fun albumTracks(release: DeezerRelease, limit: Int = 50): List<DeezerTrack> = withContext(Dispatchers.IO) {
-        fetchDataArray("https://api.deezer.com/album/${release.albumId}/tracks?limit=$limit").mapNotNull {
+        fetchDataArray("https://api.deezer.com/album/${release.albumId}/tracks?limit=$limit", background = true).mapNotNull {
             parsePublicTrack(it.jsonObject)?.copy(
                 album = release.title,
                 artist = it.jsonObject["artist"]?.jsonObject?.get("name")?.jsonPrimitive?.content?.ifBlank { null }
@@ -388,23 +398,36 @@ class DeezerApi {
 
     // ---- HTTP ----
 
-    /** GETs [url] and returns the "data" array of a public api.deezer.com JSON response; empty on any non-2xx status. */
     /**
      * One public API list call. Deezer answers 200 with an error object rather than an HTTP status
-     * when the ~50 calls per 5 s quota is hit, and the release scan walks hundreds of artists, so it
-     * does trip it; returning an empty list there would read exactly like "this artist released
-     * nothing", which is why a quota answer is waited out and retried instead.
+     * when the ~50 calls per 5 s quota is hit, and returning an empty list there reads exactly like
+     * "this artist released nothing", so a quota answer is waited out and retried.
+     *
+     * [background] is the release scan, which walks hundreds of artists: its calls are spaced to stay
+     * under the quota and it waits patiently when it still trips it. A foreground call (a search the
+     * user is watching) is never spaced and gives up after one short retry, because coming back
+     * empty beats making them wait fifteen seconds behind the scan.
      */
-    private suspend fun fetchDataArray(url: String): List<JsonElement> {
-        repeat(QUOTA_RETRIES) { attempt ->
+    private suspend fun fetchDataArray(url: String, background: Boolean = false): List<JsonElement> {
+        if (background) spaceBackgroundCall()
+        val retries = if (background) QUOTA_RETRIES else 2
+        val backoff = if (background) QUOTA_BACKOFF_MS else FOREGROUND_BACKOFF_MS
+        repeat(retries) { attempt ->
             val conn = open(url, "GET")
             if (conn.responseCode !in 200..299) return emptyList()
             val root = json.parseToJsonElement(readBody(conn)).jsonObject
             root["data"]?.jsonArray?.let { return it }
             if (root["error"]?.toString()?.contains("quota", ignoreCase = true) != true) return emptyList()
-            delay(QUOTA_BACKOFF_MS * (attempt + 1))
+            delay(backoff * (attempt + 1))
         }
         return emptyList()
+    }
+
+    /** Holds background calls to [BACKGROUND_SPACING_MS] apart, leaving quota for what the user is doing. */
+    private suspend fun spaceBackgroundCall() = backgroundGate.withLock {
+        val wait = BACKGROUND_SPACING_MS - (System.currentTimeMillis() - lastBackgroundCallMs)
+        if (wait > 0) delay(wait)
+        lastBackgroundCallMs = System.currentTimeMillis()
     }
 
     private fun gw(method: String, body: String, apiToken: String): kotlinx.serialization.json.JsonElement {
