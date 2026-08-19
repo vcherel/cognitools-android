@@ -295,6 +295,7 @@ private fun ShuffleActionCard(icon: ImageVector, label: String, onShuffle: () ->
 private fun DiscoveriesCard(state: DiscoveryState, onOpen: () -> Unit) {
     val subtitle = when {
         state.generating && state.tracks.isEmpty() -> "Recherche en cours… ${state.progress} %"
+        state.generating -> "Renouvellement… ${state.progress} %"
         state.newReleaseCount > 0 ->
             "${state.tracks.size} titres · ${state.newReleaseCount} nouveauté${if (state.newReleaseCount > 1) "s" else ""}"
         else -> "${state.tracks.size} titres à découvrir"
