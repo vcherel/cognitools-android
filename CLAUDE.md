@@ -74,6 +74,10 @@ Root package (shared/misc):
 - `PodcastNowPlaying.kt`: PodcastFullPlayerSheet, the mark-heard toggle, the sleep timer dialog and its coverage badge
 - `PodcastEpisodesScreen.kt`: one followed show's episode list (play, download, mark heard, unfollow)
 
+`files/` (file explorer, one folder at a time):
+- `FileOps.kt`: the java.io.File side; listing/sorting a folder, the breadcrumb chain, size/date formatting, rename/create/delete/copy/move, and the FileProvider intents that open or share a file
+- `FilesScreen.kt`: the screen; breadcrumb, long press selection with its action bar, the cut/copy clipboard bar, the rename and new-folder dialogs
+
 `flashcards/` (spaced repetition flashcards tool):
 - `Models.kt`: FlashcardList/FlashcardElement data classes, JSON (de)serialization, stats helpers
 - `AddToFlashcards.kt`: the shared filing dialog (list picker + editable card) the translator and the mots fleches clue bar both open
@@ -165,6 +169,7 @@ The map above is by feature. These are the ones you won't find by feature name:
 - **Singletons**: `MyApplication` holds FlashcardRepository, DeezerRepository and PodcastRepository. Screens reach them as `context.flashcardRepository` / `context.deezerRepository` / `context.podcastRepository` (extensions declared in `MyApplication.kt`), never by casting. Anything long lived hangs off there, not off an object/DI graph.
 - **App start work**: `MyApplication.onCreate` purges the expired trashed notes, calls `FlashcardRepository.seedAndPurge()` (seeds the builtin flashcard lists on a fresh install, drops mastered cards outside them), primes the saved discoveries batch, and sweeps the stream cache of heard podcast episodes. The repositories themselves assume this has been kicked off.
 - **HTTP**: `Http.kt`'s `httpGet` serves Weather, Wikipedia and the podcast feeds/directory. Deezer has its own client in `deezer/DeezerApi.kt`, podcast episode audio is fetched by hand in `PodcastRepository.openAudio` (tracking prefixes need manual redirect following), Gallery does no networking.
+- **All files access**: `gallery/GalleryPermissions.kt` owns the MANAGE_EXTERNAL_STORAGE check and the settings requester; the file explorer reads them from there rather than duplicating the check.
 - **Foreground services**: `Volume.kt` (volume booster), `deezer/DeezerPlaybackService.kt` and `podcasts/PodcastPlaybackService.kt`. The Deezer offline sync and the podcast downloads deliberately have none.
 - **30 day trash**: two different mechanisms. Notes carry a `deletedAt` timestamp and are purged by `MyApplication.onCreate`. The gallery uses MediaStore's own trash (`IS_TRASHED`, `performTrashBatch`/`performRestoreBatch`), which Android empties by itself; it only exists from API 30 on, below that a delete stays permanent.
 - **Media consent launcher**: registered once in `MainActivity` and passed down through `LocalMediaConsent`, so an undo posted after its screen is gone can still show the system dialog. Gallery screens read it instead of calling `rememberIntentSenderRequester` themselves.

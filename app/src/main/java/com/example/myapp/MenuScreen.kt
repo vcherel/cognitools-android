@@ -65,6 +65,7 @@ fun MenuScreen(
     onOpenVolume: () -> Unit,
     onOpenRandom: () -> Unit,
     onOpenWikipedia: () -> Unit,
+    onOpenFiles: () -> Unit,
     onOpenGallery: () -> Unit,
     onOpenWallet: () -> Unit,
     onOpenPinnedPictures: () -> Unit
@@ -131,7 +132,8 @@ fun MenuScreen(
                     onOpenVolume = onOpenVolume,
                     onOpenUndercover = onOpenUndercover,
                     onOpenRandom = onOpenRandom,
-                    onOpenWikipedia = onOpenWikipedia
+                    onOpenWikipedia = onOpenWikipedia,
+                    onOpenFiles = onOpenFiles
                 )
             }
             Spacer(modifier = Modifier.height(spaceHeight))
@@ -173,7 +175,8 @@ private fun OtherToolsSheet(
     onOpenVolume: () -> Unit,
     onOpenUndercover: () -> Unit,
     onOpenRandom: () -> Unit,
-    onOpenWikipedia: () -> Unit
+    onOpenWikipedia: () -> Unit,
+    onOpenFiles: () -> Unit
 ) {
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -192,6 +195,7 @@ private fun OtherToolsSheet(
             MyButton(text = "Undercover", height = 72.dp, onClick = { onDismiss(); onOpenUndercover() })
             MyButton(text = "Wiki", height = 72.dp, onClick = { onDismiss(); onOpenWikipedia() })
             MyButton(text = "Random", height = 72.dp, onClick = { onDismiss(); onOpenRandom() })
+            MyButton(text = "Fichiers", height = 72.dp, onClick = { onDismiss(); onOpenFiles() })
         }
     }
 }

@@ -19,6 +19,7 @@ import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.myapp.deezer.DeezerScreen
+import com.example.myapp.files.FilesScreen
 import com.example.myapp.flashcards.AppDatabase
 import com.example.myapp.flashcards.FlashcardDetailScreen
 import com.example.myapp.flashcards.FlashcardGameScreen
@@ -127,6 +128,7 @@ fun MainScreen(
                             onOpenVolume = { navController.navigate("volumeBooster") },
                             onOpenRandom = { navController.navigate("randomGenerator") },
                             onOpenWikipedia = { navController.navigate("wikipedia") },
+                            onOpenFiles = { navController.navigate("files") },
                             onOpenGallery = { navController.navigate("gallery") },
                             onOpenWallet = { navController.navigate("gallery/wallet") },
                             onOpenPinnedPictures = { navController.navigate("gallery/pinned") }
@@ -136,6 +138,7 @@ fun MainScreen(
                     composable("volumeBooster") { VolumeBoosterScreen(onBack = back) }
                     composable("undercover") { UndercoverScreen(onBack = back) }
                     composable("wikipedia") { WikipediaScreen(onBack = back) }
+                    composable("files") { FilesScreen(onBack = back) }
                     composable("weather") { WeatherScreen(onBack = back) }
                     composable("motsFleches") { MotsFlechesScreen(onBack = back) }
                     composable("translate") { TranslateScreen(onBack = back) }
