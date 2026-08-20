@@ -49,6 +49,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.IntOffset
@@ -77,7 +78,8 @@ data class NoteLineActions(
 fun NoteViewMode(
     textFieldState: TextFieldState,
     title: String,
-    actions: NoteLineActions
+    actions: NoteLineActions,
+    searchTerms: List<String> = emptyList()
 ) {
     val isIngredientsNote = title.equals(INGREDIENTS_TITLE, ignoreCase = true)
     val isCoursesNote = title.equals(COURSES_TITLE, ignoreCase = true)
@@ -180,6 +182,7 @@ fun NoteViewMode(
                     isClaudeNote = isClaudeNote,
                     hasResumeAfter = lines.getOrNull(lineIndex + 1) == RESUME_LINE,
                     actions = actions,
+                    searchTerms = searchTerms,
                     onSizeChanged = { lineHeights[lineIndex] = it },
                     onDragStart = {
                         draggedLine = lineIndex
@@ -214,6 +217,7 @@ private fun NoteLine(
     isClaudeNote: Boolean,
     hasResumeAfter: Boolean,
     actions: NoteLineActions,
+    searchTerms: List<String>,
     onSizeChanged: (Int) -> Unit,
     onDragStart: () -> Unit,
     onDrag: (Float) -> Unit,
@@ -262,7 +266,7 @@ private fun NoteLine(
                 HorizontalDivider(modifier = Modifier.weight(1f))
                 if (name.isNotEmpty()) {
                     Text(
-                        name.uppercase(),
+                        withSearchHighlight(AnnotatedString(name.uppercase()), searchTerms),
                         style = MaterialTheme.typography.labelMedium,
                         color = Color.Gray,
                         modifier = Modifier.padding(horizontal = 12.dp)
@@ -282,7 +286,7 @@ private fun NoteLine(
             ) {
                 Checkbox(checked = checked, onCheckedChange = { actions.onToggleLine(lineIndex) })
                 Text(
-                    text.formatInline(),
+                    withSearchHighlight(text.formatInline(), searchTerms),
                     style = MaterialTheme.typography.bodyLarge,
                     textDecoration = if (checked) TextDecoration.LineThrough else TextDecoration.None,
                     color = if (checked) Color.Gray else MaterialTheme.colorScheme.onBackground,
@@ -332,7 +336,7 @@ private fun NoteLine(
             Column(modifier = Modifier.fillMaxWidth()) {
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                     Text(
-                        (if (line.isEmpty()) " " else line).formatInline(),
+                        withSearchHighlight((if (line.isEmpty()) " " else line).formatInline(), searchTerms),
                         style = MaterialTheme.typography.bodyLarge,
                         onTextLayout = { textLayout = it },
                         modifier = Modifier

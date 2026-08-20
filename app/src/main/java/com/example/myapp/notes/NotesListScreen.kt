@@ -1,5 +1,6 @@
 package com.example.myapp.notes
 
+import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
@@ -317,7 +318,8 @@ fun NotesListScreen(navController: NavController) {
                                     searchTerms = searchTerms,
                                     onNavigate = {
                                         recordSearch()
-                                        navController.navigate("note/${note.id}")
+                                        val search = if (searchActive) Uri.encode(searchQuery) else ""
+                                        navController.navigate("note/${note.id}?search=$search")
                                     },
                                     onRecolor = {
                                         // Keep updatedAt so recoloring does not reorder the list
