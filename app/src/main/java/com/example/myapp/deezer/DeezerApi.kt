@@ -423,11 +423,20 @@ class DeezerApi {
         return emptyList()
     }
 
-    /** Holds background calls to [BACKGROUND_SPACING_MS] apart, leaving quota for what the user is doing. */
-    private suspend fun spaceBackgroundCall() = backgroundGate.withLock {
-        val wait = BACKGROUND_SPACING_MS - (System.currentTimeMillis() - lastBackgroundCallMs)
+    /**
+     * Holds background calls to [BACKGROUND_SPACING_MS] apart, leaving quota for what the user is
+     * doing. Each caller reserves its own slot under the lock and then waits for it on its own, so
+     * the requests overlap: waiting inside the lock instead would serialize the whole round trip and
+     * make the spacing cost the request latency on top, which is what made the release scan crawl.
+     */
+    private suspend fun spaceBackgroundCall() {
+        val slot = backgroundGate.withLock {
+            val next = maxOf(System.currentTimeMillis(), lastBackgroundCallMs + BACKGROUND_SPACING_MS)
+            lastBackgroundCallMs = next
+            next
+        }
+        val wait = slot - System.currentTimeMillis()
         if (wait > 0) delay(wait)
-        lastBackgroundCallMs = System.currentTimeMillis()
     }
 
     private fun gw(method: String, body: String, apiToken: String): kotlinx.serialization.json.JsonElement {
