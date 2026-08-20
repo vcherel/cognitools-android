@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.InsertDriveFile
 import androidx.compose.material.icons.filled.Audiotrack
@@ -34,12 +35,15 @@ import androidx.compose.material.icons.filled.DriveFileRenameOutline
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.FolderZip
 import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.SelectAll
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -49,6 +53,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -101,6 +106,12 @@ fun FilesScreen(onBack: () -> Unit) {
     var clipboard by remember { mutableStateOf<Clipboard?>(null) }
     var busy by remember { mutableStateOf(false) }
 
+    // Which app opens which extension, chosen the first time a file of that kind was opened.
+    val defaults by FileDefaults.flow(context).collectAsState(initial = emptyMap())
+    fun defaultFor(file: File): String? = defaults[file.extension.lowercase(Locale.ROOT)]
+
+    var showMenu by remember { mutableStateOf(false) }
+    var showDefaults by remember { mutableStateOf(false) }
     var toRename by remember { mutableStateOf<FileEntry?>(null) }
     var showNewFolder by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
@@ -141,6 +152,33 @@ fun FilesScreen(onBack: () -> Unit) {
             Box(Modifier.weight(1f))
             IconButton(onClick = { showNewFolder = true }, enabled = hasAccess) {
                 Icon(Icons.Filled.CreateNewFolder, contentDescription = "Nouveau dossier")
+            }
+            Box {
+                IconButton(onClick = { showMenu = true }) {
+                    Icon(Icons.Filled.MoreVert, contentDescription = "Menu")
+                }
+                val singleFile = selectedEntries.singleOrNull()?.takeIf { !it.isDirectory }
+                DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+                    DropdownMenuItem(
+                        text = { Text("Ouvrir avec…") },
+                        enabled = singleFile != null,
+                        onClick = {
+                            showMenu = false
+                            val file = singleFile ?: return@DropdownMenuItem
+                            selected = emptySet()
+                            if (!openFile(context, file.file, forceChooser = true)) {
+                                AppSnackbar.show("Aucune application pour ce fichier")
+                            }
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Applications par défaut") },
+                        onClick = {
+                            showMenu = false
+                            showDefaults = true
+                        }
+                    )
+                }
             }
         }
 
@@ -230,7 +268,7 @@ fun FilesScreen(onBack: () -> Unit) {
                                     selected = if (entry.path in selected) selected - entry.path
                                     else selected + entry.path
                                 entry.isDirectory -> currentDir = entry.file
-                                !openFile(context, entry.file) ->
+                                !openFile(context, entry.file, defaultFor(entry.file)) ->
                                     AppSnackbar.show("Aucune application pour ce fichier")
                             }
                         },
@@ -258,6 +296,14 @@ fun FilesScreen(onBack: () -> Unit) {
                     if (ok) "" else "Renommage impossible"
                 }
             }
+        )
+    }
+
+    if (showDefaults) {
+        DefaultAppsDialog(
+            defaults = defaults,
+            onForget = { extension -> scope.launch { FileDefaults.forget(context, extension) } },
+            onDismiss = { showDefaults = false }
         )
     }
 
@@ -499,6 +545,56 @@ private fun iconFor(entry: FileEntry): ImageVector {
         "zip", "rar", "7z", "tar", "gz", "apk" -> Icons.Filled.FolderZip
         "txt", "md", "json", "xml", "csv", "log", "doc", "docx", "epub" -> Icons.Filled.Description
         else -> Icons.AutoMirrored.Filled.InsertDriveFile
+    }
+}
+
+/** The saved "this extension opens with that app" choices, each removable. */
+@Composable
+private fun DefaultAppsDialog(
+    defaults: Map<String, String>,
+    onForget: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val context = LocalContext.current
+    AppDialog(onDismiss = onDismiss) {
+        Text("Applications par défaut", style = MaterialTheme.typography.titleMedium)
+        Spacer(Modifier.height(12.dp))
+        if (defaults.isEmpty()) {
+            Text(
+                "Aucune pour l'instant : l'application choisie à la première ouverture d'un type de fichier est retenue ici.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        } else {
+            Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
+                defaults.entries.sortedBy { it.key }.forEach { (extension, component) ->
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = ".$extension",
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.width(80.dp)
+                        )
+                        Text(
+                            text = appLabelFor(context, component),
+                            style = MaterialTheme.typography.bodyMedium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f)
+                        )
+                        IconButton(onClick = { onForget(extension) }) {
+                            Icon(Icons.Filled.Close, contentDescription = "Oublier ce choix")
+                        }
+                    }
+                }
+            }
+        }
+        Spacer(Modifier.height(16.dp))
+        MyButton(
+            text = "Fermer",
+            modifier = Modifier.fillMaxWidth().height(50.dp),
+            fontSize = 14.sp,
+            onClick = onDismiss
+        )
     }
 }
 

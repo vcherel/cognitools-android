@@ -61,7 +61,12 @@ private data class NoteSnapshot(val title: String, val content: String)
 private enum class AddItemTarget { INGREDIENT, COURSE }
 
 @Composable
-fun NoteEditorScreen(noteId: String, initialEditOffset: Int = -1, onBack: () -> Unit) {
+fun NoteEditorScreen(
+    noteId: String,
+    initialEditOffset: Int = -1,
+    searchQuery: String = "",
+    onBack: () -> Unit
+) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val dao = remember { AppDatabase.get(context).noteDao() }
@@ -69,6 +74,8 @@ fun NoteEditorScreen(noteId: String, initialEditOffset: Int = -1, onBack: () -> 
     val id = remember { if (isNew) UUID.randomUUID().toString() else noteId }
 
     var isEditing by remember { mutableStateOf(isNew) }
+    // Set when the note was opened from the notes search: its words stay painted while reading.
+    val searchTerms = remember(searchQuery) { searchTermsOf(searchQuery) }
     val titleFieldState = remember { TextFieldState() }
     val textFieldState = remember { TextFieldState() }
     var editPadding by remember { mutableStateOf(EditPadding()) }
@@ -405,6 +412,7 @@ fun NoteEditorScreen(noteId: String, initialEditOffset: Int = -1, onBack: () -> 
                     NoteViewMode(
                         textFieldState = textFieldState,
                         title = title,
+                        searchTerms = searchTerms,
                         actions = NoteLineActions(
                             onToggleLine = lineEdits::toggleLine,
                             onDeleteLine = lineEdits::deleteLine,

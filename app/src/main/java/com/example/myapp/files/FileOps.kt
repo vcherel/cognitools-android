@@ -1,9 +1,12 @@
 package com.example.myapp.files
 
+import android.app.PendingIntent
 import android.content.ActivityNotFoundException
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import android.os.Environment
 import android.webkit.MimeTypeMap
 import androidx.core.content.FileProvider
@@ -110,18 +113,52 @@ fun mimeTypeOf(file: File): String {
 private fun uriFor(context: Context, file: File): Uri =
     FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
 
-/** Hands the file to whatever app can show it. False when nothing on the phone can. */
-fun openFile(context: Context, file: File): Boolean {
+/**
+ * Hands the file to whatever app can show it. False when nothing on the phone can.
+ *
+ * [defaultComponent] is the app already chosen for this extension (see [FileDefaults]): it opens
+ * without asking anything. Without one, or with [forceChooser], the system sheet asks instead and
+ * reports what was picked to [FileOpenChoiceReceiver], which remembers it for next time.
+ */
+fun openFile(
+    context: Context,
+    file: File,
+    defaultComponent: String? = null,
+    forceChooser: Boolean = false
+): Boolean {
     val intent = Intent(Intent.ACTION_VIEW).apply {
         setDataAndType(uriFor(context, file), mimeTypeOf(file))
         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
     }
+    val extension = file.extension.lowercase(Locale.ROOT)
+    if (!forceChooser && defaultComponent != null) {
+        val component = ComponentName.unflattenFromString(defaultComponent)
+        if (component != null) {
+            try {
+                context.startActivity(Intent(intent).setComponent(component))
+                return true
+            } catch (e: ActivityNotFoundException) {
+                // The app was uninstalled or no longer handles this: fall back to asking again.
+            }
+        }
+    }
+    val chooser = if (extension.isEmpty()) Intent.createChooser(intent, "Ouvrir avec")
+    else Intent.createChooser(intent, "Ouvrir avec", chosenAppCallback(context, extension).intentSender)
     return try {
-        context.startActivity(Intent.createChooser(intent, "Ouvrir avec").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        context.startActivity(chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         true
     } catch (e: ActivityNotFoundException) {
         false
     }
+}
+
+private fun chosenAppCallback(context: Context, extension: String): PendingIntent {
+    val callback = Intent(context, FileOpenChoiceReceiver::class.java)
+        .putExtra(EXTRA_OPENED_EXTENSION, extension)
+    // Mutable on purpose: the chooser is what fills EXTRA_CHOSEN_COMPONENT in.
+    val flags = PendingIntent.FLAG_UPDATE_CURRENT or
+        (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) PendingIntent.FLAG_MUTABLE else 0)
+    return PendingIntent.getBroadcast(context, extension.hashCode(), callback, flags)
 }
 
 fun shareFiles(context: Context, files: List<File>): Boolean {

@@ -198,12 +198,21 @@ fun MainScreen(
                     composable("notes") { NotesListScreen(navController = navController) }
                     composable("notes/trash") { NotesTrashScreen(onBack = back) }
                     composable(
-                        "note/{noteId}?editAt={editAt}",
-                        arguments = listOf(navArgument("editAt") { type = NavType.IntType; defaultValue = -1 })
+                        "note/{noteId}?editAt={editAt}&search={search}",
+                        arguments = listOf(
+                            navArgument("editAt") { type = NavType.IntType; defaultValue = -1 },
+                            navArgument("search") { type = NavType.StringType; defaultValue = "" }
+                        )
                     ) { backStackEntry ->
                         val noteId = backStackEntry.arguments?.getString("noteId") ?: "new"
                         val editAt = backStackEntry.arguments?.getInt("editAt") ?: -1
-                        NoteEditorScreen(noteId = noteId, initialEditOffset = editAt, onBack = back)
+                        val search = backStackEntry.arguments?.getString("search").orEmpty()
+                        NoteEditorScreen(
+                            noteId = noteId,
+                            initialEditOffset = editAt,
+                            searchQuery = search,
+                            onBack = back
+                        )
                     }
                     navigation(startDestination = "lists", route = "flashcards") {
                         composable("lists") { FlashcardListsScreen(navController = navController) }

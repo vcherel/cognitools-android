@@ -96,6 +96,10 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths" />
         </provider>
+        <!-- Told by the "Ouvrir avec" sheet which app was picked, so the explorer can reuse it. -->
+        <receiver
+            android:name=".files.FileOpenChoiceReceiver"
+            android:exported="false" />
         <receiver
             android:name="androidx.media3.session.MediaButtonReceiver"
             android:exported="true">

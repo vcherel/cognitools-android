@@ -175,9 +175,17 @@ private val SEARCH_HIGHLIGHT_STYLE = SpanStyle(
 )
 
 /** [text] with every hit of [terms] painted, for the search result cards. */
-fun highlightedSearchText(text: String, terms: List<String>): AnnotatedString {
-    val ranges = searchMatchRanges(text, terms)
-    if (ranges.isEmpty()) return AnnotatedString(text)
+fun highlightedSearchText(text: String, terms: List<String>): AnnotatedString =
+    withSearchHighlight(AnnotatedString(text), terms)
+
+/**
+ * The same painting on already formatted text, so a note opened from a search can keep the terms
+ * highlighted without losing its inline formatting.
+ */
+fun withSearchHighlight(text: AnnotatedString, terms: List<String>): AnnotatedString {
+    if (terms.isEmpty()) return text
+    val ranges = searchMatchRanges(text.text, terms)
+    if (ranges.isEmpty()) return text
     return buildAnnotatedString {
         append(text)
         ranges.forEach { range -> addStyle(SEARCH_HIGHLIGHT_STYLE, range.first, range.last + 1) }
