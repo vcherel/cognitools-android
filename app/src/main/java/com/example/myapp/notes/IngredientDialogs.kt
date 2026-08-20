@@ -39,14 +39,16 @@ import com.example.myapp.AppDialog
 // know, and the plain name prompt for adding one by hand. The logic they drive lives in
 // IngredientSync.kt, the flows that open them in NoteSyncActions.kt.
 
-private enum class ReconcileStep { Choose, Group, Existing }
+private enum class ReconcileStep { Choose, Group, NewGroup, Existing }
 
 /**
  * Shown for an item whose name isn't in the model. Lets the user add it as a new entry
  * (choosing which group, or a new group when `allowNewGroup`), map it to an existing model
  * entry (for a misspelling or variant spelling), or skip it. Within the chosen group the
  * entry is placed alphabetically, so only the group needs picking. `groupLabels`, when
- * given, names each group in the picker instead of listing its members.
+ * given, names each group in the picker instead of listing its members. `onAddNewGroup`,
+ * when given, adds a "Nouvelle catégorie" choice: a name to type and a position in the
+ * existing order (used by Courses, whose groups are named sections).
  */
 @Composable
 fun IngredientReconcileDialog(
@@ -54,6 +56,7 @@ fun IngredientReconcileDialog(
     groups: List<List<String>>,
     groupLabels: List<String>? = null,
     allowNewGroup: Boolean = true,
+    onAddNewGroup: ((name: String, beforeIndex: Int) -> Unit)? = null,
     onAddNew: (groupIndex: Int) -> Unit,
     onMapExisting: (String) -> Unit,
     onSkip: () -> Unit,
@@ -99,9 +102,48 @@ fun IngredientReconcileDialog(
                             PositionRow("Nouveau groupe", bold = true) { onAddNew(-1) }
                         }
                     }
+                    if (onAddNewGroup != null) {
+                        item {
+                            PositionRow("Nouvelle catégorie", bold = true) { step = ReconcileStep.NewGroup }
+                        }
+                    }
                 }
                 Spacer(Modifier.height(8.dp))
                 BackRow { step = ReconcileStep.Choose }
+            }
+
+            ReconcileStep.NewGroup -> {
+                var name by remember { mutableStateOf("") }
+                Text("Nouvelle catégorie", style = MaterialTheme.typography.titleMedium)
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    placeholder = { Text("Nom") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(Modifier.height(12.dp))
+                Text(
+                    "Placer avant :",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                LazyColumn(modifier = Modifier.heightIn(max = 300.dp)) {
+                    itemsIndexed(groups) { i, g ->
+                        PositionRow(groupLabels?.getOrNull(i)?.ifEmpty { null } ?: g.joinToString(", ")) {
+                            if (name.isNotBlank()) onAddNewGroup?.invoke(name.trim(), i)
+                        }
+                        HorizontalDivider()
+                    }
+                    item {
+                        PositionRow("À la fin", bold = true) {
+                            if (name.isNotBlank()) onAddNewGroup?.invoke(name.trim(), groups.size)
+                        }
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
+                BackRow { step = ReconcileStep.Group }
             }
 
             ReconcileStep.Existing -> {

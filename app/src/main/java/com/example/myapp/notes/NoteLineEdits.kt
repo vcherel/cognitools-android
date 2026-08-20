@@ -73,6 +73,11 @@ class NoteLineEdits(
         saveContent(textFieldState.text.toString().withLineMarkerToggled(index, marker))
     }
 
+    /** Turns a whole line into a title, or back into plain text when it already is one. */
+    fun toggleTitleLine(index: Int) {
+        saveContent(textFieldState.text.toString().withTitleLineToggled(index))
+    }
+
     /** Adds/removes the "Resume" marker right after a category title, in the Claude note. */
     fun toggleResumeAfter(index: Int) = editLines { lines ->
         if (lines.getOrNull(index + 1) == RESUME_LINE) lines.removeAt(index + 1)

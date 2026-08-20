@@ -29,6 +29,7 @@ import androidx.compose.material.icons.filled.FormatItalic
 import androidx.compose.material.icons.filled.FormatUnderlined
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.ShoppingCart
+import androidx.compose.material.icons.filled.Title
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -67,6 +68,7 @@ data class NoteLineActions(
     val onAdvanceMuscu: (Int) -> Unit,
     val onRemoveDateSuffix: (Int) -> Unit,
     val onToggleLineMarker: (index: Int, marker: String) -> Unit,
+    val onToggleTitleLine: (Int) -> Unit,
     val onToggleResume: (Int) -> Unit,
     val onEnterEditAt: (offset: Int) -> Unit,
     val onReorder: (newContent: String) -> Unit
@@ -374,6 +376,9 @@ private fun NoteLine(
                         }
                         LineIconButton(Icons.Default.FormatUnderlined, "Souligné") {
                             actions.onToggleLineMarker(lineIndex, "__")
+                        }
+                        LineIconButton(Icons.Default.Title, "Titre") {
+                            actions.onToggleTitleLine(lineIndex)
                         }
                         if (isIngredientsNote) {
                             LineIconButton(Icons.Default.ShoppingCart, "Déplacer vers Courses") {

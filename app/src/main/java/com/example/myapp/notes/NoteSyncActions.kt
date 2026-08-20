@@ -349,6 +349,49 @@ class NoteSyncActions(
     }
 
     /**
+     * Reconcile choice (Courses only): the current unknown item starts a brand-new named section
+     * of Modèle courses, placed just before the group at [beforeIndex] (or at the end when the
+     * index is past the last group), and lands in that new section of the Courses note.
+     */
+    fun reconcileAddNewCourseGroup(groupName: String, beforeIndex: Int) {
+        val currentBatch = batch ?: return
+        val current = currentBatch.pending.firstOrNull() ?: return
+        scope.launch {
+            val modelNote = dao.getNote(currentBatch.modelId)
+            val targetNote = dao.getNote(currentBatch.targetId)
+            if (modelNote == null || targetNote == null || current.name.isEmpty() || groupName.isEmpty()) {
+                advancePending(moved = false)
+                return@launch
+            }
+            val modelContent = if (currentBatch.modelId == noteId) content else modelNote.content
+            val newModelContent = addCourseGroupToModel(modelContent, beforeIndex, groupName, current.name)
+            updateNoteContent(currentBatch.modelId, newModelContent)
+
+            val newGroups = parseCourseGroups(newModelContent)
+            val targetContent = if (currentBatch.targetId == noteId) content else targetNote.content
+            val newTargetContent = if (current.inTarget) {
+                renderCoursesSection(presentCourseLines(targetContent), newGroups)
+            } else {
+                insertCourseLine(
+                    targetContent,
+                    newGroups,
+                    courseGroupIndexOf(newGroups, current.name),
+                    UNCHECKED_PREFIX + current.name
+                )
+            }
+            updateNoteContent(currentBatch.targetId, newTargetContent)
+
+            // The remaining unknown items are offered the new category too.
+            batch = currentBatch.copy(
+                groups = newGroups.map { it.items },
+                groupNames = newGroups.map { it.name }
+            )
+            removeSourceLine(current)
+            advancePending(moved = true)
+        }
+    }
+
+    /**
      * Reconcile choice: the current unknown item is really an existing model entry written
      * differently; splice that canonical name in and remove it from the source note if it came
      * from one.
