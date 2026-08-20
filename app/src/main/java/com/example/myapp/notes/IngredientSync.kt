@@ -257,6 +257,34 @@ fun insertCourseLine(content: String, groups: List<CourseGroup>, groupIndex: Int
     return lines.joinToString("\n")
 }
 
+/**
+ * Adds a brand-new named section to the Modèle courses note, holding `itemName` as its only
+ * entry, placed just before the group at `beforeIndex` (or at the end when the index is past
+ * the last group), so the model keeps its shop order.
+ */
+fun addCourseGroupToModel(modelContent: String, beforeIndex: Int, groupName: String, itemName: String): String {
+    val lines = modelContent.split("\n").toMutableList()
+    // First line of each group parseCourseGroups would return: its "--- Nom" header when it
+    // has one, otherwise its first item line.
+    val starts = mutableListOf<Int>()
+    var header: Int? = null
+    var inBlock = false
+    for ((i, raw) in lines.withIndex()) {
+        val t = raw.trim()
+        if (t.isEmpty()) continue
+        if (t.isSeparatorLine()) {
+            header = i
+            inBlock = false
+        } else if (!inBlock) {
+            starts.add(header ?: i)
+            inBlock = true
+        }
+    }
+    val at = starts.getOrNull(beforeIndex) ?: lines.size
+    lines.addAll(at, listOf(SEPARATOR_PREFIX + groupName, itemName))
+    return lines.joinToString("\n")
+}
+
 /** Inserts `name` alphabetically into the model's group at `groupIndex` (a blank-line
  *  separated block), leaving the rest of the model verbatim. Falls back to a new group
  *  when the index is out of range. */

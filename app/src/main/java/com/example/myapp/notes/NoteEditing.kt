@@ -131,6 +131,15 @@ internal fun String.withLineMarkerToggled(index: Int, marker: String): String {
     return lines.joinToString("\n")
 }
 
+// Same title toggle as toggleTitleLine below, on a line picked by index rather than by
+// where the cursor is: what the read-only view's line actions need.
+internal fun String.withTitleLineToggled(index: Int): String {
+    val lines = split("\n").toMutableList()
+    val line = lines[index]
+    lines[index] = if (line.isTitleLine()) line.substring(4, line.length - 4) else "**__" + line + "__**"
+    return lines.joinToString("\n")
+}
+
 // The whole line the cursor sits on becomes a title (or stops being one), with the same
 // "**__ ... __**" markers the /titre command inserts. Line level rather than selection level,
 // because a title is a line, and the cursor is left after the text.

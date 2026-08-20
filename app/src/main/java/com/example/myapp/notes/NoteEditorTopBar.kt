@@ -169,14 +169,14 @@ fun NoteEditorTopBar(
                         onClick = { actions.onToggleInlineMarker("*") }
                     )
                     DropdownMenuItem(
-                        text = { Text("Titre") },
-                        leadingIcon = { Icon(Icons.Default.Title, contentDescription = null) },
-                        onClick = { actions.onToggleTitle() }
-                    )
-                    DropdownMenuItem(
                         text = { Text("Souligné") },
                         leadingIcon = { Icon(Icons.Default.FormatUnderlined, contentDescription = null) },
                         onClick = { actions.onToggleInlineMarker("__") }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Titre") },
+                        leadingIcon = { Icon(Icons.Default.Title, contentDescription = null) },
+                        onClick = { actions.onToggleTitle() }
                     )
                 }
             }

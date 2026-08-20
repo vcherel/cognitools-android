@@ -421,6 +421,7 @@ fun NoteEditorScreen(
                             onAdvanceMuscu = lineEdits::advanceMuscuDay,
                             onRemoveDateSuffix = lineEdits::removeDateSuffix,
                             onToggleLineMarker = lineEdits::toggleLineMarker,
+                            onToggleTitleLine = lineEdits::toggleTitleLine,
                             onToggleResume = lineEdits::toggleResumeAfter,
                             onEnterEditAt = { enterEditAt(it) },
                             onReorder = { saveContent(it) }
@@ -460,6 +461,9 @@ fun NoteEditorScreen(
                     groups = batch.groups,
                     groupLabels = batch.groupNames,
                     allowNewGroup = batch.kind == SyncKind.INGREDIENT,
+                    onAddNewGroup = if (batch.kind == SyncKind.COURSE) {
+                        { name, beforeIndex -> sync.reconcileAddNewCourseGroup(name, beforeIndex) }
+                    } else null,
                     onAddNew = { sync.reconcileAddNew(it) },
                     onMapExisting = { sync.reconcileMapExisting(it) },
                     onSkip = { sync.reconcileSkip() },
