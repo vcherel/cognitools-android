@@ -47,6 +47,49 @@ data class PodcastEpisodeProgress(
     val updatedAt: Long
 )
 
+/**
+ * A downloaded episode's metadata. The audio file alone is a hash-named blob, so without this row
+ * nothing could name what is on disk: this is what lets the downloaded list and the offline fallback
+ * show real episodes when no feed can be fetched. Written when a download completes, dropped when it
+ * is deleted, so it never outlives the file.
+ */
+@Entity(tableName = "podcast_downloads")
+data class PodcastDownload(
+    @PrimaryKey val episodeId: String,
+    val podcastId: String,
+    val podcastTitle: String,
+    val podcastArtworkUrl: String?,
+    val title: String,
+    val pubDate: Long,
+    val audioUrl: String,
+    val durationSec: Int?,
+    val downloadedAt: Long
+)
+
+fun PodcastEpisode.toDownload(): PodcastDownload = PodcastDownload(
+    episodeId = id,
+    podcastId = podcastId,
+    podcastTitle = podcastTitle,
+    podcastArtworkUrl = podcastArtworkUrl,
+    title = title,
+    pubDate = pubDate,
+    audioUrl = audioUrl,
+    durationSec = durationSec,
+    downloadedAt = System.currentTimeMillis()
+)
+
+fun PodcastDownload.toEpisode(seen: Boolean): PodcastEpisode = PodcastEpisode(
+    id = episodeId,
+    podcastId = podcastId,
+    podcastTitle = podcastTitle,
+    podcastArtworkUrl = podcastArtworkUrl,
+    title = title,
+    pubDate = pubDate,
+    audioUrl = audioUrl,
+    durationSec = durationSec,
+    seen = seen
+)
+
 @Dao
 interface PodcastDao {
     @Query("SELECT * FROM podcast_favorites ORDER BY addedAt")
@@ -78,6 +121,17 @@ interface PodcastDao {
 
     @Query("DELETE FROM podcast_episode_progress WHERE episodeId = :id")
     suspend fun deleteProgress(id: String)
+
+    @Query("SELECT * FROM podcast_downloads ORDER BY pubDate DESC")
+    fun observeDownloads(): Flow<List<PodcastDownload>>
+
+    @Query("SELECT * FROM podcast_downloads ORDER BY pubDate DESC")
+    suspend fun getDownloads(): List<PodcastDownload>
+
+    @Upsert suspend fun upsertDownload(row: PodcastDownload)
+
+    @Query("DELETE FROM podcast_downloads WHERE episodeId = :id")
+    suspend fun deleteDownload(id: String)
 }
 
 /** A podcast from either directory, not yet (or already) a favorite. Powers both search results and recommendations. */

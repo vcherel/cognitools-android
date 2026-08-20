@@ -66,11 +66,13 @@ Root package (shared/misc):
 - `DeezerDiscoveriesScreen.kt`: the batch's list screen (add, ignore, add all, ignore all, regenerate)
 
 `podcasts/` (podcast subscriptions and playback, surfaced inside the Musique tool):
-- `Models.kt`: PodcastFavorite/PodcastEpisode/PodcastCatalogItem/PodcastEpisodeProgress and PodcastDao
+- `Models.kt`: PodcastFavorite/PodcastEpisode/PodcastCatalogItem/PodcastEpisodeProgress/PodcastDownload and PodcastDao
 - `PodcastApi.kt`: the iTunes directory search and the RSS feed parsing
 - `PodcastRepository.kt`: the singleton; followed shows (Room), the merged episode list re-fetched live from each feed, heard/seen state, downloads, listening progress, the sleep timer and its pre-fetch, the MediaController
 - `PodcastStreamCache.kt`: the episode stream disk cache, shared by playback and the sleep timer pre-fetch
 - `PodcastPlaybackService.kt`: MediaSessionService owning the episode ExoPlayer; its own notification id and channel, distinct from the Deezer one
+- `PodcastDownloadService.kt`: foreground service holding the download notification (progress, cancel) and a wake lock, so a download survives the lock screen and the app closing. The work itself stays in the repository
+- `PodcastDownloadsScreen.kt`: every downloaded episode, all shows merged, read from the downloads table
 - `PodcastNowPlaying.kt`: PodcastFullPlayerSheet, the mark-heard toggle, the sleep timer dialog and its coverage badge
 - `PodcastEpisodesScreen.kt`: one followed show's episode list (play, download, mark heard, unfollow)
 
@@ -162,7 +164,7 @@ Root package (shared/misc):
 ## Cross-cutting things, and where they actually live
 The map above is by feature. These are the ones you won't find by feature name:
 
-- **Room**: one database for the whole app, declared in `flashcards/Database.kt` (version 12). The notes `Note` entity and `NoteDao` are registered there too but defined in `notes/Models.kt`; same for the gallery's `PinnedMediaItem`/`PinnedMediaItemDao` in `gallery/GalleryPins.kt`, the podcasts' tables in `podcasts/`, and the reader's `Book`/`BookDao` in `reader/BookModels.kt`.
+- **Room**: one database for the whole app, declared in `flashcards/Database.kt` (version 13). The notes `Note` entity and `NoteDao` are registered there too but defined in `notes/Models.kt`; same for the gallery's `PinnedMediaItem`/`PinnedMediaItemDao` in `gallery/GalleryPins.kt`, the podcasts' tables in `podcasts/`, and the reader's `Book`/`BookDao` in `reader/BookModels.kt`.
 - **Word to flashcard loop**: the reader, the translator and the flashcards are one chain. Long pressing a word in `reader/ReaderScreen.kt` opens `translate/WordLookupSheet`, which writes a `FlashcardElement` into the list used last (remembered in `TranslateStore`). The reader is also the only screen that calls `SuppressIdleReset`.
 - **Media notification and lockscreen buttons**: `deezer/DeezerPlaybackService.kt`, `actionButtons()`. Media3 draws the notification; the buttons are `CommandButton`s handled in `SessionCallback.onCustomCommand`, so they act without opening the app. `podcasts/PodcastPlaybackService.kt` does the same with its ±30 s pair.
 - **Two playback stacks, one player at a time**: music (`deezer/`) and podcasts (`podcasts/`) each have their own repository, service, notification and mini-player, and they are deliberately mutually exclusive: `DeezerRepository.stopPodcastPlayback()` and `PodcastRepository.playEpisode()` stop the other one, because two foreground services fighting over audio focus used to take the app down. Their two services must also keep **different notification ids and channels** (see either `onCreate`). What they share lives in the root package: `PlayerUi.kt` (every surface) and `MediaControllerHolder.kt` (the connection and the stop).
@@ -171,7 +173,7 @@ The map above is by feature. These are the ones you won't find by feature name:
 - **App start work**: `MyApplication.onCreate` purges the expired trashed notes, calls `FlashcardRepository.seedAndPurge()` (seeds the builtin flashcard lists on a fresh install, drops mastered cards outside them), primes the saved discoveries batch, and sweeps the stream cache of heard podcast episodes. The repositories themselves assume this has been kicked off.
 - **HTTP**: `Http.kt`'s `httpGet` serves Weather, Wikipedia and the podcast feeds/directory. Deezer has its own client in `deezer/DeezerApi.kt`, podcast episode audio is fetched by hand in `PodcastRepository.openAudio` (tracking prefixes need manual redirect following), Gallery does no networking.
 - **All files access**: `gallery/GalleryPermissions.kt` owns the MANAGE_EXTERNAL_STORAGE check and the settings requester; the file explorer reads them from there rather than duplicating the check.
-- **Foreground services**: `Volume.kt` (volume booster), `deezer/DeezerPlaybackService.kt` and `podcasts/PodcastPlaybackService.kt`. The Deezer offline sync and the podcast downloads deliberately have none.
+- **Foreground services**: `Volume.kt` (volume booster), `deezer/DeezerPlaybackService.kt`, `podcasts/PodcastPlaybackService.kt` and `podcasts/PodcastDownloadService.kt`. The Deezer offline sync deliberately has none.
 - **30 day trash**: two different mechanisms. Notes carry a `deletedAt` timestamp and are purged by `MyApplication.onCreate`. The gallery uses MediaStore's own trash (`IS_TRASHED`, `performTrashBatch`/`performRestoreBatch`), which Android empties by itself; it only exists from API 30 on, below that a delete stays permanent.
 - **Media consent launcher**: registered once in `MainActivity` and passed down through `LocalMediaConsent`, so an undo posted after its screen is gone can still show the system dialog. Gallery screens read it instead of calling `rememberIntentSenderRequester` themselves.
 - **Text folding**: any "are these the same thing?" comparison goes through `Normalize.kt`. `deaccented()` is the base (NFD, marks stripped, lowercased), `matchNormalized()` also drops punctuation and is what `DeezerTrack.matchKey` and the podcast title matching use, `slugified()` builds URL path segments. Do not hand-roll another Normalizer call.

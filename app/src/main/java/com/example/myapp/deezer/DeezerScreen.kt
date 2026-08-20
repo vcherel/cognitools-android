@@ -18,6 +18,7 @@ import com.example.myapp.MiniPlayerBar
 import com.example.myapp.deezerRepository
 import com.example.myapp.podcastRepository
 import com.example.myapp.popBackStackOnce
+import com.example.myapp.podcasts.PodcastDownloadsScreen
 import com.example.myapp.podcasts.PodcastEpisodesScreen
 import com.example.myapp.podcasts.PodcastFullPlayerSheet
 
@@ -62,6 +63,7 @@ fun DeezerScreen(
                         onOpenSearch = { nav.navigate("search") },
                         onOpenPlaylist = { pl -> nav.navigate("playlist/${pl.id}/${java.net.URLEncoder.encode(pl.title, "UTF-8")}") },
                         onOpenPodcast = { fav -> nav.navigate("podcast/${java.net.URLEncoder.encode(fav.id, "UTF-8")}") },
+                        onOpenPodcastDownloads = { nav.navigate("podcastDownloads") },
                         onOpenDiscoveries = { nav.navigate("discoveries") },
                         onOpenVolume = onOpenVolume
                     )
@@ -76,6 +78,9 @@ fun DeezerScreen(
                     val favoriteId = entry.arguments?.getString("favoriteId")
                         ?.let { java.net.URLDecoder.decode(it, "UTF-8") }.orEmpty()
                     PodcastEpisodesScreen(repo = podcastRepo, favoriteId = favoriteId, onBack = { nav.popBackStackOnce() })
+                }
+                composable("podcastDownloads") {
+                    PodcastDownloadsScreen(repo = podcastRepo, onBack = { nav.popBackStackOnce() })
                 }
                 composable("playlist/{id}/{title}") { entry ->
                     val id = entry.arguments?.getString("id").orEmpty()
