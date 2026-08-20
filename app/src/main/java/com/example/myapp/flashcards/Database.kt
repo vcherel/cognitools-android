@@ -14,6 +14,7 @@ import com.example.myapp.gallery.PinnedMediaItemDao
 import com.example.myapp.notes.Note
 import com.example.myapp.notes.NoteDao
 import com.example.myapp.podcasts.PodcastDao
+import com.example.myapp.podcasts.PodcastDownload
 import com.example.myapp.podcasts.PodcastEpisodeProgress
 import com.example.myapp.podcasts.PodcastFavorite
 import com.example.myapp.podcasts.PodcastSeenEpisode
@@ -76,9 +77,10 @@ interface FlashcardDao {
 @Database(
     entities = [
         FlashcardList::class, FlashcardElement::class, Note::class, PinnedMediaItem::class,
-        PodcastFavorite::class, PodcastSeenEpisode::class, PodcastEpisodeProgress::class, Book::class
+        PodcastFavorite::class, PodcastSeenEpisode::class, PodcastEpisodeProgress::class,
+        PodcastDownload::class, Book::class
     ],
-    version = 12
+    version = 13
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun flashcardDao(): FlashcardDao
@@ -203,6 +205,24 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_12_13 = object : Migration(12, 13) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `podcast_downloads` (" +
+                        "`episodeId` TEXT NOT NULL, " +
+                        "`podcastId` TEXT NOT NULL, " +
+                        "`podcastTitle` TEXT NOT NULL, " +
+                        "`podcastArtworkUrl` TEXT, " +
+                        "`title` TEXT NOT NULL, " +
+                        "`pubDate` INTEGER NOT NULL, " +
+                        "`audioUrl` TEXT NOT NULL, " +
+                        "`durationSec` INTEGER, " +
+                        "`downloadedAt` INTEGER NOT NULL, " +
+                        "PRIMARY KEY(`episodeId`))"
+                )
+            }
+        }
+
         fun get(context: Context): AppDatabase =
             instance ?: synchronized(this) {
                 instance ?: Room.databaseBuilder(
@@ -211,7 +231,7 @@ abstract class AppDatabase : RoomDatabase() {
                     "flashcards.db"
                 ).addMigrations(
                     MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7,
-                    MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12
+                    MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13
                 )
                     .build().also { instance = it }
             }

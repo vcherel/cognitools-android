@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -69,7 +70,13 @@ fun PodcastEpisodesScreen(repo: PodcastRepository, favoriteId: String, onBack: (
     var loading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
     var showAll by remember { mutableStateOf(false) }
+    var downloadedOnly by remember { mutableStateOf(false) }
     var confirmUnfollow by remember { mutableStateOf(false) }
+    var confirmRemoveDownload by remember { mutableStateOf<PodcastEpisode?>(null) }
+    // Set by the "marqué comme écouté" undo: the episode comes back where it was, and the list
+    // scrolls to it, otherwise undoing the top one looks like nothing happened.
+    var scrollBackTo by remember { mutableStateOf<String?>(null) }
+    val listState = rememberLazyListState()
 
     LaunchedEffect(favoriteId) {
         loading = true
@@ -78,11 +85,33 @@ fun PodcastEpisodesScreen(repo: PodcastRepository, favoriteId: String, onBack: (
     }
 
     val allEpisodes = episodes.filter { it.podcastId == favoriteId }.sortedByDescending { it.pubDate }
-    val showEpisodes = if (showAll) allEpisodes else allEpisodes.filterNot { it.seen }
+    val showEpisodes = allEpisodes
+        .filter { showAll || !it.seen }
+        .filter { !downloadedOnly || repo.isDownloaded(it.id, downloadedKeys) }
+
+    LaunchedEffect(scrollBackTo, showEpisodes) {
+        val id = scrollBackTo ?: return@LaunchedEffect
+        val index = showEpisodes.indexOfFirst { it.id == id }
+        if (index < 0) return@LaunchedEffect
+        listState.animateScrollToItem(index)
+        scrollBackTo = null
+    }
 
     Column(Modifier.fillMaxSize()) {
-        ScreenTopBar(title = favorite?.title ?: "Podcast", onBack = onBack) {
-            Spacer(Modifier.weight(1f))
+        ScreenTopBar(
+            title = favorite?.title ?: "Podcast",
+            onBack = onBack,
+            titleStyle = MaterialTheme.typography.titleLarge,
+            titleMaxLines = 2,
+            titleWeight = true
+        ) {
+            IconButton(onClick = { downloadedOnly = !downloadedOnly }) {
+                Icon(
+                    if (downloadedOnly) Icons.Filled.DownloadDone else Icons.Filled.Download,
+                    contentDescription = if (downloadedOnly) "Afficher tous les épisodes" else "Afficher seulement les téléchargés",
+                    tint = if (downloadedOnly) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
             IconButton(onClick = { showAll = !showAll }) {
                 Icon(
                     if (showAll) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
@@ -122,6 +151,20 @@ fun PodcastEpisodesScreen(repo: PodcastRepository, favoriteId: String, onBack: (
             )
         }
 
+        confirmRemoveDownload?.let { episode ->
+            ShowAlertDialog(
+                onDismiss = { confirmRemoveDownload = null },
+                title = "Supprimer le téléchargement de « ${episode.title} » ?",
+                onCancel = { confirmRemoveDownload = null },
+                onConfirm = {
+                    confirmRemoveDownload = null
+                    scope.launch { repo.removeDownload(episode.id) }
+                },
+                cancelText = "Annuler",
+                confirmText = "Supprimer"
+            )
+        }
+
         if (loading && showEpisodes.isEmpty()) {
             LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
         }
@@ -130,16 +173,20 @@ fun PodcastEpisodesScreen(repo: PodcastRepository, favoriteId: String, onBack: (
         }
 
         if (showEpisodes.isEmpty() && !loading) {
-            val allHeard = allEpisodes.isNotEmpty() && !showAll
+            val allHeard = allEpisodes.isNotEmpty() && !showAll && !downloadedOnly
             Box(Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
                 Text(
-                    if (allHeard) "Tout est écouté !" else "Aucun épisode.",
+                    when {
+                        downloadedOnly -> "Aucun épisode téléchargé."
+                        allHeard -> "Tout est écouté !"
+                        else -> "Aucun épisode."
+                    },
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         } else {
-            LazyColumn(Modifier.fillMaxSize()) {
+            LazyColumn(Modifier.fillMaxSize(), state = listState) {
                 items(showEpisodes, key = { it.id }) { episode ->
                     PodcastEpisodeRow(
                         episode = episode,
@@ -155,13 +202,10 @@ fun PodcastEpisodesScreen(repo: PodcastRepository, favoriteId: String, onBack: (
                             }
                         },
                         onToggleDownload = {
-                            if (repo.isDownloaded(episode.id, downloadedKeys)) {
-                                repo.removeDownload(episode.id)
-                            } else {
-                                scope.launch {
-                                    runCatching { repo.downloadEpisode(episode) }
-                                        .onFailure { AppSnackbar.show("Échec du téléchargement: ${it.message}") }
-                                }
+                            when {
+                                repo.isDownloaded(episode.id, downloadedKeys) -> confirmRemoveDownload = episode
+                                episode.id in downloadingIds -> repo.cancelDownload(episode.id)
+                                else -> repo.enqueueDownload(episode)
                             }
                         },
                         onToggleSeen = {
@@ -173,7 +217,10 @@ fun PodcastEpisodesScreen(repo: PodcastRepository, favoriteId: String, onBack: (
                                     AppSnackbar.show(
                                         message = "Marqué comme écouté",
                                         actionLabel = "Annuler",
-                                        onAction = { repo.markUnseen(episode.id) }
+                                        onAction = {
+                                            repo.markUnseen(episode.id)
+                                            scrollBackTo = episode.id
+                                        }
                                     )
                                 }
                             }
@@ -192,6 +239,8 @@ private val episodeDateFormat = SimpleDateFormat("d MMM yyyy", Locale.FRENCH)
 fun PodcastEpisodeRow(
     episode: PodcastEpisode,
     isPlaying: Boolean,
+    /** Shown ahead of the date on the cross-show downloaded list, where the show isn't obvious. */
+    withPodcastTitle: Boolean = false,
     isDownloaded: Boolean,
     isDownloading: Boolean,
     downloadProgress: Float?,
@@ -210,7 +259,7 @@ fun PodcastEpisodeRow(
         textAlpha = if (episode.seen) 0.55f else 1f,
         below = {
             Text(
-                episodeSubtitle(episode, listeningProgress),
+                episodeSubtitle(episode, listeningProgress, withPodcastTitle),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1
@@ -276,14 +325,19 @@ fun PodcastEpisodeRow(
     )
 }
 
-private fun episodeSubtitle(episode: PodcastEpisode, progress: PodcastEpisodeProgress?): String {
+private fun episodeSubtitle(
+    episode: PodcastEpisode,
+    progress: PodcastEpisodeProgress?,
+    withPodcastTitle: Boolean = false
+): String {
+    val show = episode.podcastTitle.takeIf { withPodcastTitle && it.isNotBlank() }
     val date = if (episode.pubDate > 0) episodeDateFormat.format(episode.pubDate) else null
     val duration = episode.durationSec?.let { formatDuration(it) }
     val remaining = progress?.let {
         val totalMs = episodeDurationMs(episode, it)
         if (totalMs <= 0) null else "reste ${formatDuration(((totalMs - it.positionMs) / 1000L).toInt().coerceAtLeast(60))}"
     }
-    return listOfNotNull(date, duration, remaining).joinToString(" · ")
+    return listOfNotNull(show, date, duration, remaining).joinToString(" · ")
 }
 
 /** How far into the episode the saved position sits, 0..1, or null when there is nothing to show. */

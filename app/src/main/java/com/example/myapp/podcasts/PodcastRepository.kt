@@ -32,7 +32,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.sync.Mutex
@@ -134,7 +136,9 @@ class PodcastRepository(private val appContext: Context) {
                     .awaitAll()
                     .flatten()
             }
-            _episodes.value = raw.map { it.copy(seen = it.id in seen) }.sortedByDescending { it.pubDate }
+            _episodes.value = withDownloadedFallback(raw.map { it.copy(seen = it.id in seen) }, seen)
+                .sortedByDescending { it.pubDate }
+            backfillDownloadMetadata()
         } finally {
             _loading.value = false
         }
@@ -146,10 +150,38 @@ class PodcastRepository(private val appContext: Context) {
     suspend fun refreshFavorite(favoriteId: String) {
         val fav = dao().getFavorites().firstOrNull { it.id == favoriteId } ?: return
         val seen = dao().getSeenIds().toSet()
-        val fresh = withContext(Dispatchers.IO) {
+        val fetched = withContext(Dispatchers.IO) {
             runCatching { fetchEpisodesFor(fav) }.getOrDefault(emptyList())
         }.map { it.copy(seen = it.id in seen) }
+        val fresh = withDownloadedFallback(fetched, seen).filter { it.podcastId == favoriteId }
         refreshMutex.withLock { replaceEpisodesOf(favoriteId, fresh) }
+    }
+
+    /**
+     * Files metadata for downloads made before that table existed: a hash-named file can't be traced
+     * back to its episode, but a fresh feed read can, so the first refresh that sees them fills them in.
+     */
+    private suspend fun backfillDownloadMetadata() {
+        val known = dao().getDownloads().map { it.episodeId }.toSet()
+        _episodes.value
+            .filter { it.id !in known && isDownloaded(it.id) }
+            .forEach { dao().upsertDownload(it.toDownload()) }
+    }
+
+    /**
+     * Adds back the downloaded episodes [fetched] does not already contain. With no connection every
+     * feed read fails and comes back empty, and the screens would show "Aucun épisode" while the
+     * episodes are sitting on the phone, playable. Also covers a single feed being down.
+     */
+    private suspend fun withDownloadedFallback(
+        fetched: List<PodcastEpisode>,
+        seen: Set<String>
+    ): List<PodcastEpisode> {
+        val known = fetched.map { it.id }.toSet()
+        val missing = dao().getDownloads()
+            .filter { it.episodeId !in known && isDownloaded(it.episodeId) }
+            .map { it.toEpisode(seen = it.episodeId in seen) }
+        return if (missing.isEmpty()) fetched else fetched + missing
     }
 
     /** Swaps in one podcast's episodes, keeping the merged list ordered newest first. */
@@ -301,13 +333,20 @@ class PodcastRepository(private val appContext: Context) {
     }
 
     // ---- Downloads ----
-    // Episodes are downloaded straight to a file, no separate DB table: "downloaded" is derived from
-    // the file's presence, so it can never drift out of sync with what's actually on disk. The file is
+    // The audio goes straight to a file and "downloaded" is derived from that file's presence, so it
+    // can never drift out of sync with what's actually on disk; the podcast_downloads table only
+    // carries the episode's metadata alongside it, since a hash-named blob names nothing. The file is
     // named after a hash of the episode id rather than the id itself: an episode id *is* its audio URL,
     // and its slashes (plus its length) make it an unusable file name, which is why writing the
     // download used to fail outright for every episode.
 
     private val downloadsDir: File by lazy { File(appContext.filesDir, "podcast_downloads").apply { mkdirs() } }
+
+    /** Outlives every screen: a download keeps going with the app closed and the phone locked. */
+    private val downloadScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val downloadJobs = mutableMapOf<String, Job>()
+    /** One download at a time: several large episodes over mobile data help nobody. */
+    private val downloadMutex = Mutex()
 
     /** File-system safe, stable name for [episodeId]. Public: screens match it against [downloadedKeys]. */
     fun downloadKey(episodeId: String): String =
@@ -321,23 +360,76 @@ class PodcastRepository(private val appContext: Context) {
     )
     val downloadedKeys: StateFlow<Set<String>> = _downloadedKeys
 
-    private val _downloadingIds = MutableStateFlow<Set<String>>(emptySet())
-    val downloadingIds: StateFlow<Set<String>> = _downloadingIds
+    /**
+     * Episodes currently downloading, in the order they were queued: the running one first. The
+     * notification reads this, which is why it holds whole episodes and not just ids.
+     */
+    private val _downloading = MutableStateFlow<List<PodcastEpisode>>(emptyList())
+    val downloading: StateFlow<List<PodcastEpisode>> = _downloading
+
+    val downloadingIds: StateFlow<Set<String>> = _downloading
+        .map { list -> list.map { it.id }.toSet() }
+        .stateIn(downloadScope, SharingStarted.Eagerly, emptySet())
 
     /** How much of each running download is on disk, 0..1, keyed by episode id. */
     private val _downloadProgress = MutableStateFlow<Map<String, Float>>(emptyMap())
     val downloadProgress: StateFlow<Map<String, Float>> = _downloadProgress
 
+    /** Every downloaded episode's metadata, newest first. What the downloaded list and the offline
+     *  fallback read: the audio files themselves are hash-named and say nothing about the episode. */
+    val downloads: kotlinx.coroutines.flow.Flow<List<PodcastDownload>> get() = dao().observeDownloads()
+
     /** [keys] is passed in so a composable reading [downloadedKeys] recomposes when it changes. */
     fun isDownloaded(episodeId: String, keys: Set<String> = _downloadedKeys.value): Boolean =
         downloadKey(episodeId) in keys
 
-    /** Downloads [episode]'s audio to disk so it can play with no connection. No-op if already downloaded/downloading. */
-    suspend fun downloadEpisode(episode: PodcastEpisode) {
-        if (isDownloaded(episode.id) || episode.id in _downloadingIds.value) return
+    /**
+     * Queues [episode] for download and makes sure [PodcastDownloadService] is up. The work runs in
+     * the repository's own scope, not the caller's: leaving the screen, locking the phone or closing
+     * the app used to cancel the download halfway. Downloads run one at a time.
+     */
+    fun enqueueDownload(episode: PodcastEpisode) {
+        if (isDownloaded(episode.id) || downloadJobs.containsKey(episode.id)) return
+        if (episode.audioUrl.isBlank()) {
+            AppSnackbar.show("Pas de flux audio pour cet épisode")
+            return
+        }
+        _downloading.update { it + episode }
+        PodcastDownloadService.start(appContext)
+        downloadJobs[episode.id] = downloadScope.launch {
+            try {
+                downloadMutex.withLock { downloadEpisode(episode) }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w(TAG, "Download failed for ${episode.title}", e)
+                AppSnackbar.show("Échec du téléchargement: ${e.message}")
+            } finally {
+                downloadJobs.remove(episode.id)
+                _downloading.update { list -> list.filterNot { it.id == episode.id } }
+                _downloadProgress.update { it - episode.id }
+            }
+        }
+    }
+
+    /** Stops [episodeId]'s download, running or still queued, and cleans up its partial file. */
+    fun cancelDownload(episodeId: String) {
+        downloadJobs.remove(episodeId)?.cancel()
+        _downloading.update { list -> list.filterNot { it.id == episodeId } }
+        _downloadProgress.update { it - episodeId }
+        downloadScope.launch { runCatching { File(downloadsDir, "${downloadKey(episodeId)}.tmp").delete() } }
+    }
+
+    /** Cancels everything queued. What the notification's action does. */
+    fun cancelAllDownloads() {
+        _downloading.value.map { it.id }.forEach { cancelDownload(it) }
+    }
+
+    /** Downloads [episode]'s audio to disk so it can play with no connection. No-op if already downloaded. */
+    private suspend fun downloadEpisode(episode: PodcastEpisode) {
+        if (isDownloaded(episode.id)) return
         if (episode.audioUrl.isBlank()) throw IOException("Pas de flux audio pour cet épisode")
         val tmp = File(downloadsDir, "${downloadKey(episode.id)}.tmp")
-        _downloadingIds.update { it + episode.id }
         try {
             withContext(Dispatchers.IO) {
                 val conn = openAudio(episode.audioUrl)
@@ -376,13 +468,11 @@ class PodcastRepository(private val appContext: Context) {
                 if (!tmp.renameTo(downloadFile(episode.id))) throw IOException("Impossible d'enregistrer le téléchargement")
             }
             _downloadedKeys.update { it + downloadKey(episode.id) }
+            dao().upsertDownload(episode.toDownload())
             playFromFileIfCurrent(episode)
         } catch (e: Exception) {
             runCatching { tmp.delete() }
             throw e
-        } finally {
-            _downloadingIds.update { it - episode.id }
-            _downloadProgress.update { it - episode.id }
         }
     }
 
@@ -434,10 +524,11 @@ class PodcastRepository(private val appContext: Context) {
         if (wasPlaying) c.play()
     }
 
-    /** Deletes [episodeId]'s downloaded file, if any. */
-    fun removeDownload(episodeId: String) {
+    /** Deletes [episodeId]'s downloaded file and its metadata row, if any. */
+    suspend fun removeDownload(episodeId: String) {
         downloadFile(episodeId).delete()
         _downloadedKeys.update { it - downloadKey(episodeId) }
+        dao().deleteDownload(episodeId)
     }
 
     // ---- Player ----
@@ -760,7 +851,7 @@ class PodcastRepository(private val appContext: Context) {
         try {
             // A manual download of the same episode already running would make downloadEpisode a
             // no-op, so wait it out instead of calling the night secured the moment it returns.
-            if (episode.id in _downloadingIds.value) {
+            if (episode.id in downloadingIds.value) {
                 _downloadedKeys.first { downloadKey(episode.id) in it }
             } else {
                 downloadEpisode(episode)

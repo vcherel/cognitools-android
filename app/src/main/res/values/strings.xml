@@ -4,4 +4,5 @@
          notification id would make each service's notification cancel the other's. -->
     <string name="music_notification_channel">Lecture musique</string>
     <string name="podcast_notification_channel">Lecture podcast</string>
+    <string name="podcast_download_channel">Téléchargement podcast</string>
 </resources>

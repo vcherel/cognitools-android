@@ -24,6 +24,7 @@ import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CloudDownload
+import androidx.compose.material.icons.filled.DownloadDone
 import androidx.compose.material.icons.filled.Diamond
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
@@ -81,6 +82,7 @@ fun DeezerLibraryScreen(
     onOpenSearch: () -> Unit,
     onOpenPlaylist: (DeezerPlaylist) -> Unit,
     onOpenPodcast: (PodcastFavorite) -> Unit,
+    onOpenPodcastDownloads: () -> Unit,
     onOpenDiscoveries: () -> Unit,
     onOpenVolume: () -> Unit
 ) {
@@ -91,6 +93,7 @@ fun DeezerLibraryScreen(
     val podcastFavorites by podcastRepo.favorites.collectAsState(initial = emptyList())
     val podcastEpisodes by podcastRepo.episodes.collectAsState()
     val podcastPlayerState by podcastRepo.playerState.collectAsState()
+    val podcastDownloads by podcastRepo.downloads.collectAsState(initial = emptyList())
     val favorites by repo.favorites.collectAsState()
     val playlists by repo.playlists.collectAsState()
     val offlineState by repo.offline.state.collectAsState()
@@ -203,7 +206,7 @@ fun DeezerLibraryScreen(
                 }
             }
 
-            if (podcastFavorites.isNotEmpty()) {
+            if (podcastFavorites.isNotEmpty() || podcastDownloads.isNotEmpty()) {
                 Spacer(Modifier.height(16.dp))
                 SectionHeader(title = "Podcasts")
                 Column(Modifier.padding(vertical = 4.dp)) {
@@ -222,6 +225,9 @@ fun DeezerLibraryScreen(
                                 }
                             }
                         )
+                    }
+                    if (podcastDownloads.isNotEmpty()) {
+                        PodcastDownloadsRow(count = podcastDownloads.size, onOpen = onOpenPodcastDownloads)
                     }
                 }
             }
@@ -410,6 +416,25 @@ private fun PodcastRow(
             }
         }
     )
+}
+
+/** Entry to the cross-show downloaded episode list, right under the followed podcasts. */
+@Composable
+private fun PodcastDownloadsRow(count: Int, onOpen: () -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp)
+            .clip(RoundedCornerShape(8.dp))
+            .clickable(onClick = onOpen)
+            .padding(horizontal = 8.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(Icons.Filled.DownloadDone, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+        Spacer(Modifier.width(12.dp))
+        val plural = if (count > 1) "s" else ""
+        Text("Téléchargés · $count épisode$plural", style = MaterialTheme.typography.bodyLarge)
+    }
 }
 
 /**
