@@ -327,10 +327,9 @@ class DeezerPlaybackService : MediaSessionService() {
         /**
          * A favorited/playlisted track's pinned sngId can be a release Deezer refuses to serve while a
          * different release of the same song streams fine. Searches for one and, if it actually
-         * resolves, swaps it into the queue right now so playback isn't interrupted, without touching
-         * favorites/the playlist. The snackbar names both tracks and offers "Corriger" to make it
-         * permanent: only then does the broken release get removed and the working one added in its
-         * place at its source.
+         * resolves, swaps it into the queue right now so playback isn't interrupted, and makes the
+         * swap permanent at its source straight away: [DeezerRepository.findReplacement] only accepts
+         * a candidate whose normalized artist + title are identical, so there is nothing to confirm.
          */
         private fun findAndApplyReplacement(track: DeezerTrack, source: TrackSource) {
             scope.launch {
@@ -343,16 +342,13 @@ class DeezerPlaybackService : MediaSessionService() {
                 player.replaceMediaItem(index, repo.mediaItemFor(replacement, source))
                 player.prepare()
                 player.play()
-                // The swapped-in release isn't in the real favorites list until "Corriger" is tapped:
-                // without this the heart (and the notification's like button) would read as "not
-                // liked" for a song the user does like, just under a different sngId.
-                if (source is TrackSource.Favorites) repo.markTemporaryFavorite(replacement.sngId)
-                AppSnackbar.show(
-                    message = "« ${track.title} » de ${track.artist} indisponible, remplacé par " +
-                        "« ${replacement.title} » de ${replacement.artist} le temps de la lecture",
-                    actionLabel = "Corriger",
-                    onAction = { runCatching { repo.applyReplacement(track, replacement, source) } }
-                )
+                val applied = runCatching { repo.applyReplacement(track, replacement, source) }.isSuccess
+                // If the write failed (offline, stale token), the swapped-in release still isn't in
+                // the real favorites list: without this the heart (and the notification's like button)
+                // would read as "not liked" for a song the user does like, just under another sngId.
+                if (!applied && source is TrackSource.Favorites) repo.markTemporaryFavorite(replacement.sngId)
+                AppSnackbar.show("« ${track.title} » indisponible, remplacé par une autre version")
+                refreshActionButtons()
             }
         }
 

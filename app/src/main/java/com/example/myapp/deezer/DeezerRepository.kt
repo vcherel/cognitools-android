@@ -2,6 +2,7 @@ package com.example.myapp.deezer
 
 import android.content.Context
 import android.net.ConnectivityManager
+import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.Uri
 import android.os.Bundle
@@ -347,16 +348,32 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
         persistSnapshot()
 
         val add = !liked
-        if (!hasNetwork()) {
-            queuePendingFavorite(track.sngId, add)
-            return
-        }
+        // Queued first, cleared on success, rather than queued only once the call has failed: the
+        // process is killed the moment the app goes away, and a call left hanging on a connection
+        // that looks alive but isn't would otherwise take the like with it.
+        queuePendingFavorite(track.sngId, add)
+        if (!hasNetwork()) return
         try {
             withTokenRetry { if (add) api.addFavorite(it, track.sngId) else api.removeFavorite(it, track.sngId) }
             clearPendingFavorite(track.sngId)
-        } catch (e: IOException) {
-            queuePendingFavorite(track.sngId, add)
+        } catch (e: Exception) {
+            Log.w(TAG, "Favorite ${if (add) "add" else "remove"} for ${track.sngId} left queued", e)
         }
+    }
+
+    /**
+     * Likes every track in [tracks] at once. Every like is written to the local list and to the
+     * durable queue in one pass up front, before a single request goes out, so "tout ajouter" holds
+     * even offline or with the app left straight away; the queue is then drained here, and whatever
+     * it doesn't manage waits for [flushPendingFavorites] on the next connection.
+     */
+    suspend fun addFavorites(tracks: List<DeezerTrack>) {
+        val fresh = tracks.filterNot { isFavorite(it.sngId) }.distinctBy { it.sngId }
+        if (fresh.isEmpty()) return
+        setFavorites(fresh + (_favorites.value ?: emptyList()))
+        persistSnapshot()
+        queuePendingFavorites(fresh.map { it.sngId }, add = true)
+        flushPendingFavorites()
     }
 
     // ---- Pending favorites (offline like/unlike) ----
@@ -393,11 +410,16 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
         }
     }
 
-    private suspend fun queuePendingFavorite(sngId: String, add: Boolean): Unit = pendingFavoritesMutex.withLock {
-        val map = pendingFavoritesMap()
-        map[sngId] = add
-        writePendingFavorites(map)
-    }
+    private suspend fun queuePendingFavorite(sngId: String, add: Boolean): Unit =
+        queuePendingFavorites(listOf(sngId), add)
+
+    /** Queues a whole run of like/unlike intents in one disk write. */
+    private suspend fun queuePendingFavorites(sngIds: List<String>, add: Boolean): Unit =
+        pendingFavoritesMutex.withLock {
+            val map = pendingFavoritesMap()
+            sngIds.forEach { map[it] = add }
+            writePendingFavorites(map)
+        }
 
     private suspend fun clearPendingFavorite(sngId: String): Unit = pendingFavoritesMutex.withLock {
         val map = pendingFavoritesMap()
@@ -419,11 +441,14 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
             try {
                 withTokenRetry { if (add) api.addFavorite(it, sngId) else api.removeFavorite(it, sngId) }
                 iter.remove()
-            } catch (e: IOException) {
-                break
             } catch (e: DeezerApiException) {
+                // A dead session is not the track's fault: everything still queued waits for a
+                // working one instead of being thrown away one by one.
+                if (e.tokenError) break
                 Log.w(TAG, "Dropping pending favorite $sngId after API error", e)
                 iter.remove()
+            } catch (e: Exception) {
+                break
             }
         }
         writePendingFavorites(map)
@@ -773,6 +798,34 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
     init {
         playedTracksLoaded = loadPlayedTracksAsync()
         purgeStaleQualityCacheAsync()
+        flushPendingFavoritesOnNetwork()
+    }
+
+    /**
+     * Sends whatever the offline queue still holds as soon as the phone has real internet again,
+     * and once at startup. Without this a like made offline waits for the next visit to a Deezer
+     * screen, which can be days.
+     */
+    private fun flushPendingFavoritesOnNetwork() {
+        ioScope.launch { runCatching { flushPendingFavorites() } }
+        val cm = appContext.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager ?: return
+        runCatching {
+            cm.registerDefaultNetworkCallback(object : ConnectivityManager.NetworkCallback() {
+                // Capabilities change constantly (bandwidth estimates), so only the transition into
+                // validated internet counts, not every notification.
+                private var validated = false
+
+                override fun onCapabilitiesChanged(network: Network, caps: NetworkCapabilities) {
+                    val now = caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+                    if (now && !validated) ioScope.launch { runCatching { flushPendingFavorites() } }
+                    validated = now
+                }
+
+                override fun onLost(network: Network) {
+                    validated = false
+                }
+            })
+        }.onFailure { Log.w(TAG, "Could not watch the network for pending favorites", it) }
     }
 
     private fun loadPlayedTracksAsync(): Job = ioScope.launch {

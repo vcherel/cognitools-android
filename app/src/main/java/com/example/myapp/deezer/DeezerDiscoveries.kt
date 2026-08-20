@@ -89,7 +89,17 @@ class DeezerDiscoveries(private val appContext: Context, private val repo: Deeze
         private const val BACKLOG_CAP = 120
         private const val PROPOSED_CAP = 4000
         private const val SEEN_ALBUMS_CAP = 4000
-        private const val ARTIST_PARALLELISM = 4
+        private const val ARTIST_PARALLELISM = 6
+        /**
+         * How many automatic generations a day may attempt at most. A finished one claims the day and
+         * nothing else runs; this only bounds the retries after a run that died before claiming it.
+         */
+        private const val MAX_DAILY_ATTEMPTS = 4
+        /** An artist's releases are re-read at most this often: well inside [RELEASE_WINDOW_DAYS]. */
+        private const val ARTIST_RESCAN_DAYS = 4L
+        /** Artists whose releases are read on one scan, the best known first, the rest rotating in. */
+        private const val ARTISTS_PER_SCAN = 150
+        private const val ARTIST_SCANS_CAP = 4000
         /** Share of the progress bar owned by the daily release scan, and by its artist pass within that. */
         private const val SCAN_WEIGHT = 85
         private const val ARTIST_WEIGHT = 65
@@ -112,6 +122,11 @@ class DeezerDiscoveries(private val appContext: Context, private val repo: Deeze
     private var proposed: LinkedHashSet<String> = LinkedHashSet()
     private var seenAlbums: LinkedHashSet<String> = LinkedHashSet()
     private var lastScanDate: String = ""
+    /** The day the last automatic generations were attempted, and how many were attempted that day. */
+    private var attemptDate: String = ""
+    private var attempts: Int = 0
+    /** When each artist's discography was last read, so a scan can skip the ones read recently. */
+    private var artistScans: LinkedHashMap<String, String> = LinkedHashMap()
 
     /** Rows already gone from the screen whose real removal has not been written yet. */
     private val pendingRemoval: MutableSet<String> = ConcurrentHashMap.newKeySet()
@@ -129,11 +144,16 @@ class DeezerDiscoveries(private val appContext: Context, private val repo: Deeze
     /**
      * Builds today's batch if there isn't one yet, otherwise just republishes it. Safe to call on every
      * entry into the music screen; only the first call of a new day does any network work.
+     *
+     * A batch that was built claims the day on disk, so nothing here can hand out a second selection.
+     * A run that died before claiming it (the scan takes minutes and the process is killed with the
+     * screen off all the time) is retried, but only up to [MAX_DAILY_ATTEMPTS] times a day.
      */
     fun ensureToday() {
         launchExclusive {
             load()
-            if (batchDate == today()) publish() else generate(keepNewReleases = false)
+            val exhausted = attemptDate == today() && attempts >= MAX_DAILY_ATTEMPTS
+            if (batchDate == today() || exhausted) publish() else generate(keepNewReleases = false, automatic = true)
         }
     }
 
@@ -145,7 +165,7 @@ class DeezerDiscoveries(private val appContext: Context, private val repo: Deeze
     fun regenerate() {
         launchExclusive {
             load()
-            generate(keepNewReleases = true)
+            generate(keepNewReleases = true, automatic = false)
         }
     }
 
@@ -163,14 +183,18 @@ class DeezerDiscoveries(private val appContext: Context, private val repo: Deeze
 
     /**
      * Likes every remaining track. Returns how many are on their way in. The list empties on screen at
-     * once and the likes are sent behind it, one at a time and never twenty in parallel:
-     * [DeezerRepository.toggleFavorite] reads the favorites list and writes it back, so concurrent
-     * likes would drop each other's entries.
+     * once, and [DeezerRepository.addFavorites] records all of the likes (locally and in the offline
+     * queue) before sending anything, so the choice holds even made offline or with the app left
+     * straight after: the queue goes out on its own once there is a connection again.
      */
     fun addAll(): Int {
         val items = _state.value.tracks
         dropFromView(items)
-        scope.launch { items.forEach { addOne(it) } }
+        scope.launch {
+            runCatching { repo.addFavorites(items.map { it.track }) }
+                .onFailure { _state.value = _state.value.copy(error = it.message) }
+            items.forEach { handle(it) }
+        }
         return items.size
     }
 
@@ -228,7 +252,9 @@ class DeezerDiscoveries(private val appContext: Context, private val repo: Deeze
 
     private fun publish() {
         _state.value = DiscoveryState(
-            tracks = batch.filterNot { it.track.sngId in pendingRemoval },
+            // Anything already liked is gone from the batch even if its removal never got written:
+            // a bulk add killed halfway through must not hand the same tracks back.
+            tracks = batch.filterNot { it.track.sngId in pendingRemoval || repo.isFavorite(it.track.sngId) },
             generating = false,
             error = _state.value.error
         )
@@ -240,10 +266,17 @@ class DeezerDiscoveries(private val appContext: Context, private val repo: Deeze
 
     // ---- Generation ----
 
-    private suspend fun generate(keepNewReleases: Boolean) {
+    private suspend fun generate(keepNewReleases: Boolean, automatic: Boolean) {
         val kept = if (keepNewReleases) batch.filter { it.isNewRelease } else emptyList()
         pendingRemoval.clear()
         _state.value = DiscoveryState(tracks = kept, generating = true)
+        // Written before any network work: an attempt that dies mid scan still counts, which is what
+        // keeps a killed process from starting over from zero every time the app is opened.
+        if (automatic) {
+            if (attemptDate != today()) { attemptDate = today(); attempts = 0 }
+            attempts++
+            save()
+        }
         try {
             // Favorites drive both the exclusion set and the track mix seeds, so they must be loaded.
             runCatching { repo.ensureFavorites() }
@@ -252,8 +285,10 @@ class DeezerDiscoveries(private val appContext: Context, private val repo: Deeze
             // bar. A regenerate later the same day skips it and the bar is all Flow.
             val needsScan = lastScanDate != today()
             if (needsScan) {
-                runCatching { scanNewReleases() }
-                    .onSuccess { lastScanDate = today() }
+                runCatching { scanNewReleases(familiarity(pepites)) }
+                    // Checkpointed right here: the scan is the expensive part, and a process killed
+                    // during the Flow calls that follow must not make tomorrow redo it.
+                    .onSuccess { lastScanDate = today(); save() }
                     .onFailure { Log.w(TAG, "New release scan failed", it) }
             }
 
@@ -284,7 +319,9 @@ class DeezerDiscoveries(private val appContext: Context, private val repo: Deeze
             collector.items.filterNot { it.isNewRelease }.forEach { remember(it) }
 
             batch = collector.items
-            batchDate = today()
+            // Only a batch with something in it claims the day. An offline run turns up nothing, and
+            // that must not cost the whole day's discoveries.
+            if (batch.isNotEmpty()) batchDate = today()
             save()
             publish()
         } catch (e: Exception) {
@@ -338,11 +375,15 @@ class DeezerDiscoveries(private val appContext: Context, private val repo: Deeze
     }
 
     /**
-     * Diffs every known artist's discography against [seenAlbums] and turns anything released inside
-     * the window into backlog entries. Bounded per run: the newest [ALBUMS_PER_SCAN] candidates get
-     * their lead track fetched and marked seen, the rest stay unseen for the next scan.
+     * Diffs the known artists' discographies against [seenAlbums] and turns anything released inside
+     * the window into backlog entries. Bounded twice over, because this is what makes the batch slow:
+     * only [ARTISTS_PER_SCAN] artists are read per run, the best known ([known]) first and the rest
+     * rotating in oldest-read first, and an artist read less than [ARTIST_RESCAN_DAYS] ago is skipped
+     * outright (the release window is fifteen times that, so nothing is missed). Of what that turns
+     * up, the newest [ALBUMS_PER_SCAN] candidates get their lead track fetched and marked seen, the
+     * rest stay unseen for the next scan.
      */
-    private suspend fun scanNewReleases() = withContext(Dispatchers.IO) {
+    private suspend fun scanNewReleases(known: Map<String, Int>) = withContext(Dispatchers.IO) {
         // Two sources, because neither covers the other: the profile tab is Deezer's own view of who
         // Valentin listens to and skips artists he only has a track or two from, while the library
         // artists are exactly the ones he liked, whatever Deezer thinks of his habits.
@@ -354,10 +395,19 @@ class DeezerDiscoveries(private val appContext: Context, private val repo: Deeze
             Log.w(TAG, "Library artists failed", it)
             emptyList()
         }
-        val artists = (profile + library).distinctBy { it.id }
-        if (artists.isEmpty()) return@withContext
+        val all = (profile + library).distinctBy { it.id }
         val cutoff = LocalDate.now().minusDays(RELEASE_WINDOW_DAYS).toString()
         val today = today()
+        val staleBefore = LocalDate.now().minusDays(ARTIST_RESCAN_DAYS).toString()
+
+        val artists = all
+            .filter { (artistScans[it.id] ?: "") < staleBefore }
+            .sortedWith(
+                compareByDescending<DeezerArtist> { known[it.name.matchNormalized()] ?: 0 }
+                    .thenBy { artistScans[it.id] ?: "" }
+            )
+            .take(ARTISTS_PER_SCAN)
+        if (artists.isEmpty()) return@withContext
 
         val gate = Semaphore(ARTIST_PARALLELISM)
         val scanned = AtomicInteger()
@@ -403,6 +453,10 @@ class DeezerDiscoveries(private val appContext: Context, private val repo: Deeze
                 backlog += DiscoveryTrack(lead, isNewRelease = true, releaseDate = release.releaseDate)
             }
         }
+        // Recorded once the whole pass is through, off the parallel coroutines: a scan cut short by a
+        // failure is worth redoing, and the map is not thread safe.
+        artists.forEach { artistScans.remove(it.id); artistScans[it.id] = today }
+        while (artistScans.size > ARTIST_SCANS_CAP) artistScans.remove(artistScans.keys.first())
         while (seenAlbums.size > SEEN_ALBUMS_CAP) seenAlbums.remove(seenAlbums.first())
         backlog.sortByDescending { it.releaseDate }
         while (backlog.size > BACKLOG_CAP) backlog.removeAt(backlog.lastIndex)
@@ -451,6 +505,10 @@ class DeezerDiscoveries(private val appContext: Context, private val repo: Deeze
         val root = DeezerLibraryCache.json.parseToJsonElement(from.readText()).jsonObject
         batchDate = root["date"]?.jsonPrimitive?.content.orEmpty()
         lastScanDate = root["scan"]?.jsonPrimitive?.content.orEmpty()
+        attemptDate = root["adate"]?.jsonPrimitive?.content.orEmpty()
+        attempts = root["acount"]?.jsonPrimitive?.content?.toIntOrNull() ?: 0
+        artistScans = root["artistScans"]?.jsonObject.orEmpty()
+            .entries.associateTo(LinkedHashMap()) { (id, date) -> id to date.jsonPrimitive.content }
         batch = root["tracks"]?.jsonArray.orEmpty().mapTo(mutableListOf()) { itemFromJson(it.jsonObject) }
         backlog = root["backlog"]?.jsonArray.orEmpty().mapTo(mutableListOf()) { itemFromJson(it.jsonObject) }
         proposed = root["proposed"]?.jsonArray.orEmpty()
@@ -472,6 +530,9 @@ class DeezerDiscoveries(private val appContext: Context, private val repo: Deeze
         val root = buildJsonObject {
             put("date", batchDate)
             put("scan", lastScanDate)
+            put("adate", attemptDate)
+            put("acount", attempts)
+            put("artistScans", buildJsonObject { artistScans.forEach { (id, date) -> put(id, date) } })
             put("tracks", buildJsonArray { batch.forEach { add(itemToJson(it)) } })
             put("backlog", buildJsonArray { backlog.forEach { add(itemToJson(it)) } })
             put("proposed", buildJsonArray { proposed.forEach { add(it) } })
