@@ -4,9 +4,10 @@ import java.io.InputStream
 
 /**
  * A definition: the short form printed in the grid cell, and the whole sentence it was cut from,
- * which is what the clue bar shows.
+ * which is what the clue bar shows. [related] marks the "Synonyme de ..." / "Contraire de ..."
+ * clues, which the generator uses sparingly.
  */
-data class Clue(val text: String, val explanation: String)
+data class Clue(val text: String, val explanation: String, val related: Boolean = false)
 
 /**
  * The words the grids are filled with, indexed so the generator can ask "which words of length 5
@@ -136,6 +137,10 @@ class ClueDictionary private constructor(
     companion object {
         private const val ALPHABET = 26
 
+        /** The French asset's crossword style clues, the only ones not written as a definition. */
+        private fun isRelatedClue(text: String): Boolean =
+            text.startsWith("Synonyme ") || text.startsWith("Contraire ")
+
         /** Reads the asset. Cheap enough to do once on a background thread when the tool opens. */
         fun load(input: InputStream): ClueDictionary {
             val words = ArrayList<String>()
@@ -147,7 +152,7 @@ class ClueDictionary private constructor(
                 val parts = line.split('\t')
                 if (parts.size < 5) return@forEachLine
                 val word = parts[0]
-                val clue = Clue(parts[3], parts[4])
+                val clue = Clue(parts[3], parts[4], related = isRelatedClue(parts[3]))
                 // The asset lists a word's definitions on consecutive lines.
                 if (word == lastWord) {
                     clues.last().add(clue)
