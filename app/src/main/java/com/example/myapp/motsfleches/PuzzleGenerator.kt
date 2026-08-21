@@ -28,6 +28,9 @@ object PuzzleGenerator {
     /** Keeps the fill from always picking the single most common word that fits. */
     private const val RANK_NOISE = 4_000
 
+    /** How often a word that also has a real definition is clued by a synonym or an antonym. */
+    private const val RELATED_CLUE_CHANCE = 0.15
+
     /** Parses the bundled `motsfleches_layouts.txt`: blocks of "width height" then the rows. */
     fun parseLayouts(text: String): List<Layout> = text.split("\n\n").mapNotNull { block ->
         val lines = block.trim().lines().filter { it.isNotBlank() }
@@ -121,7 +124,7 @@ object PuzzleGenerator {
 
         val slots = shapes.mapIndexed { index, shape ->
             val wordId = answers[index]
-            val clue = dictionary.clues(wordId).random(rng)
+            val clue = pickClue(dictionary.clues(wordId), rng)
             Slot(
                 row = shape.row,
                 col = shape.col,
@@ -132,6 +135,19 @@ object PuzzleGenerator {
             )
         }
         return Puzzle(layout.width, layout.height, layout.definitionCells, slots)
+    }
+
+    /**
+     * The clue a word goes in the grid with. A grid where every other definition reads "Synonyme
+     * de ..." gets tiring, so a real definition wins whenever the word has one; synonyms and
+     * antonyms come up now and then, and carry the words that have no usable definition.
+     */
+    private fun pickClue(clues: List<Clue>, rng: Random): Clue {
+        val definitions = clues.filterNot { it.related }
+        if (definitions.isEmpty()) return clues.random(rng)
+        val related = clues.filter { it.related }
+        if (related.isNotEmpty() && rng.nextDouble() < RELATED_CLUE_CHANCE) return related.random(rng)
+        return definitions.random(rng)
     }
 
     /**
