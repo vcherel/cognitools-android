@@ -423,6 +423,7 @@ fun NoteEditorScreen(
                             onToggleLineMarker = lineEdits::toggleLineMarker,
                             onToggleTitleLine = lineEdits::toggleTitleLine,
                             onToggleResume = lineEdits::toggleResumeAfter,
+                            onToggleEnhance = lineEdits::toggleEnhanceAtEnd,
                             onEnterEditAt = { enterEditAt(it) },
                             onReorder = { saveContent(it) }
                         )
