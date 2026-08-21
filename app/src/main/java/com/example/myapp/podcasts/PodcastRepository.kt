@@ -29,7 +29,6 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.SharingStarted
@@ -65,6 +64,9 @@ private data class SleepCoverage(val url: String, val startByte: Long, val endBy
 
 /** Under this much playback, an "end of episode" is a source that stopped short, not a real end. */
 private const val INSTANT_END_MS = 5_000L
+
+/** How far before the saved position an episode restarts when resuming there ended it on the spot. */
+private const val SHORT_SOURCE_BACK_MS = 60_000L
 
 private const val PROGRESS_SAVE_INTERVAL_MS = 5_000L
 /** Under this, an episode counts as not really started and resumes from zero. */
@@ -296,21 +298,36 @@ class PodcastRepository(private val appContext: Context) {
     private suspend fun freeEpisodeStorage(episodeId: String) {
         // Never pull the ground from under the player: an episode is marked heard once its last
         // [PROGRESS_FINISHED_MARGIN_MS] start playing, and those bytes are still being read. The
-        // cleanup then happens on the pause, the transition to the next episode, or the next launch.
+        // cleanup is then queued and run by [flushPendingStorageCleanup] the moment playback stops
+        // or moves on, so a finished episode never waits for the next launch to leave the downloads.
         val stillPlaying = withContext(Dispatchers.Main) {
             val c = controller ?: return@withContext false
             c.currentMediaItem?.mediaId == episodeId && c.isPlaying
         }
-        if (stillPlaying) return
+        if (stillPlaying) {
+            pendingStorageCleanup += episodeId
+            return
+        }
+        pendingStorageCleanup -= episodeId
         withContext(Dispatchers.IO) {
+            if (isDownloaded(episodeId)) removeDownload(episodeId)
             // An RSS episode id is its audio URL, which is the key the stream cache files it under.
-            // A Deezer-sourced one is a numeric id with nothing cached against it, so it has nothing
-            // to free here beyond a download it can't have either.
+            // A Deezer-sourced one is a numeric id with nothing cached against it, and an episode
+            // gone from the merged list can't be traced back to its URL: only the cache is skipped
+            // then, the download above is keyed by the id alone and goes either way.
             val url = _episodes.value.firstOrNull { it.id == episodeId }?.audioUrl
                 ?.takeIf { it.isNotBlank() } ?: return@withContext
             PodcastStreamCache.remove(appContext, url)
-            if (isDownloaded(episodeId)) removeDownload(episodeId)
         }
+    }
+
+    /** Episodes marked heard while the player was still on them, waiting for it to move off. */
+    private val pendingStorageCleanup = mutableSetOf<String>()
+
+    /** Runs the cleanups that were queued while their episode was playing. */
+    private suspend fun flushPendingStorageCleanup() {
+        if (pendingStorageCleanup.isEmpty()) return
+        pendingStorageCleanup.toList().forEach { freeEpisodeStorage(it) }
     }
 
     /**
@@ -540,7 +557,10 @@ class PodcastRepository(private val appContext: Context) {
         override fun onIsPlayingChanged(isPlaying: Boolean) {
             refreshPlayerState()
             // A pause is the most likely last thing before the process dies, so don't wait for the ticker.
-            if (!isPlaying) saveCurrentProgress()
+            if (!isPlaying) {
+                saveCurrentProgress()
+                progressScope.launch { flushPendingStorageCleanup() }
+            }
             trackProgressWhilePlaying(isPlaying)
         }
 
@@ -552,6 +572,8 @@ class PodcastRepository(private val appContext: Context) {
             if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO) trackedEpisodeId?.let { finishEpisode(it) }
             trackEpisode(mediaItem?.mediaId)
             refreshPlayerState()
+            // The player has moved off whatever was waiting on it to let go of its file.
+            progressScope.launch { flushPendingStorageCleanup() }
         }
 
         override fun onPlaybackStateChanged(playbackState: Int) {
@@ -612,8 +634,8 @@ class PodcastRepository(private val appContext: Context) {
     /** When the player moved onto [trackedEpisodeId], to tell a real end of episode from a short source. */
     private var trackedSinceMs: Long = 0L
 
-    /** Episodes already given one retry after ending on the spot, so a bad source can't loop. */
-    private val shortSourceRetried = mutableSetOf<String>()
+    /** How many times each episode was replayed after ending on the spot, so a bad source can't loop. */
+    private val shortSourceRetries = mutableMapOf<String, Int>()
 
     private fun trackEpisode(episodeId: String?) {
         trackedEpisodeId = episodeId
@@ -658,22 +680,43 @@ class PodcastRepository(private val appContext: Context) {
 
     /**
      * Plays [episodeId] again after removing what made it end on the spot: a download that can only be
-     * truncated, or a saved position the stream doesn't reach. Once per episode and per session, so a
-     * source that keeps ending short stops rather than looping.
+     * truncated, or a saved position the stream doesn't reach.
+     *
+     * Where it was left off is worth more than one failed attempt, so the saved position survives the
+     * first try: the episode restarts a minute before it, which is enough when the position is only
+     * slightly past what the media really holds. Only a second failure gives up on resuming and starts
+     * over from the beginning, and nothing is tried a third time, so a source that keeps ending short
+     * stops rather than looping.
      */
     private fun recoverFromShortSource(episodeId: String) {
         Log.w(TAG, "Episode $episodeId ended right after it started, not marking it heard")
-        if (!shortSourceRetried.add(episodeId)) return
+        val attempt = (shortSourceRetries[episodeId] ?: 0) + 1
+        if (attempt > 2) return
         val episode = _episodes.value.firstOrNull { it.id == episodeId } ?: return
+        shortSourceRetries[episodeId] = attempt
         progressScope.launch {
+            // A downloaded file that ends on the spot is truncated, whatever the position: it goes,
+            // and the same position is tried again on the stream.
             if (isDownloaded(episodeId)) {
                 removeDownload(episodeId)
                 AppSnackbar.show("Téléchargement incomplet, lecture en ligne")
-            } else {
-                dao().deleteProgress(episodeId)
-                AppSnackbar.show("Reprise impossible, l'épisode redémarre au début")
+                runCatching { playEpisode(episode) }
+                return@launch
             }
-            runCatching { playEpisode(episode) }
+            val savedMs = dao().getProgress(episodeId)?.positionMs ?: 0L
+            when {
+                // Nothing was resumed, so the position isn't what ended it: the source itself is bad.
+                savedMs <= 0L -> AppSnackbar.show("Lecture impossible pour cet épisode")
+                attempt == 1 -> {
+                    val retryFromMs = (savedMs - SHORT_SOURCE_BACK_MS).coerceAtLeast(0L)
+                    runCatching { playEpisode(episode, startPositionMsOverride = retryFromMs) }
+                }
+                else -> {
+                    dao().deleteProgress(episodeId)
+                    AppSnackbar.show("Reprise impossible, l'épisode redémarre au début")
+                    runCatching { playEpisode(episode, startPositionMsOverride = 0L) }
+                }
+            }
         }
     }
 
@@ -698,7 +741,11 @@ class PodcastRepository(private val appContext: Context) {
      * [resolveDeezerShowToRss]): addFavorite no longer creates these, but a favorite followed before
      * that fix still has this source on disk until re-followed, so this fails clearly instead of crashing.
      */
-    suspend fun playEpisode(episode: PodcastEpisode, queue: List<PodcastEpisode> = listOf(episode)) {
+    suspend fun playEpisode(
+        episode: PodcastEpisode,
+        queue: List<PodcastEpisode> = listOf(episode),
+        startPositionMsOverride: Long? = null
+    ) {
         if (episode.source == PodcastSource.DEEZER) {
             throw IllegalStateException("Ce podcast doit être réajouté depuis la recherche pour pouvoir être lu")
         }
@@ -713,7 +760,9 @@ class PodcastRepository(private val appContext: Context) {
         // has no saved row and starts at zero. Kept inside what the feed says the episode lasts: a
         // position at or past the end makes the player end the episode on the spot, which reads as
         // "finished" and skips to the next one.
-        val savedMs = (dao().getProgress(episode.id)?.positionMs ?: 0L).coerceAtLeast(0L)
+        // [startPositionMsOverride] is what a retry after an instant end plays from, saved row or not.
+        val savedMs = (startPositionMsOverride ?: dao().getProgress(episode.id)?.positionMs ?: 0L)
+            .coerceAtLeast(0L)
         val feedDurationMs = (episode.durationSec ?: 0) * 1000L
         val startPositionMs = if (feedDurationMs > 0) {
             savedMs.coerceAtMost((feedDurationMs - PROGRESS_FINISHED_MARGIN_MS).coerceAtLeast(0L))
@@ -763,6 +812,17 @@ class PodcastRepository(private val appContext: Context) {
      */
     private val _sleepCacheProgress = MutableStateFlow<Float?>(null)
     val sleepCacheProgress: StateFlow<Float?> = _sleepCacheProgress
+
+    /**
+     * Raises the badge to [value], never lowers it. Securing the night can take two passes (a partial
+     * pre-fetch, then the whole episode when that one can't be trusted), and each pass counts its own
+     * bytes from zero: driving the badge straight from them made it fill up twice for one timer.
+     * Only starting a pass, or cancelling the timer, puts it back down.
+     */
+    private fun raiseSleepProgress(value: Float) {
+        val capped = value.coerceIn(0f, 1f)
+        _sleepCacheProgress.update { current -> maxOf(current ?: 0f, capped) }
+    }
 
     /** Pauses playback in [minutes]. Replaces any timer already running. */
     fun startSleepTimer(minutes: Int) {
@@ -815,7 +875,7 @@ class PodcastRepository(private val appContext: Context) {
             // nothing trustworthy to fetch, falls back to the whole episode instead of claiming 100%.
             sleepCoverage = coverage
             if (coverage != null) {
-                _sleepCacheProgress.value = 1f
+                raiseSleepProgress(1f)
             } else {
                 Log.w(TAG, "Sleep pre-fetch did not secure ${episode.title}, downloading it whole")
                 downloadWholeForSleepTimer(episode, positionMs, durationMs, minutes)
@@ -828,6 +888,10 @@ class PodcastRepository(private val appContext: Context) {
      * Fallback when the partial pre-fetch can't be done, typically a host that doesn't serve byte
      * ranges: the whole episode is downloaded instead. That costs more data and does show it as a
      * downloaded episode, which is the price of being sure it plays through the night.
+     *
+     * It goes through the normal download queue rather than calling [downloadEpisode] itself: that
+     * gives it the same mutex, the same notification and the same cancel action as any download, and
+     * it can no longer end up writing the same temp file as a download started by hand.
      */
     private suspend fun downloadWholeForSleepTimer(
         episode: PodcastEpisode,
@@ -843,26 +907,17 @@ class PodcastRepository(private val appContext: Context) {
         val neededFraction = if (knownDurationMs > 0) neededMs.toFloat() / knownDurationMs else 1f
         val mirror = launch {
             downloadProgress.collect { progress ->
-                progress[episode.id]?.let { done ->
-                    _sleepCacheProgress.value = (done / neededFraction).coerceIn(0f, 1f)
-                }
+                progress[episode.id]?.let { done -> raiseSleepProgress(done / neededFraction) }
             }
         }
         try {
-            // A manual download of the same episode already running would make downloadEpisode a
-            // no-op, so wait it out instead of calling the night secured the moment it returns.
-            if (episode.id in downloadingIds.value) {
-                _downloadedKeys.first { downloadKey(episode.id) in it }
-            } else {
-                downloadEpisode(episode)
-            }
-            _sleepCacheProgress.value = 1f
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            // Progress stays where it stopped: below 100% is exactly the warning that airplane mode
-            // would cut the episode off.
-            Log.w(TAG, "Sleep download failed for ${episode.title}", e)
+            // A manual download of the same episode already running makes this a no-op, so wait it
+            // out instead of calling the night secured the moment enqueueDownload returns.
+            enqueueDownload(episode)
+            // Progress stays where it stopped when a download fails: below 100% is exactly the
+            // warning that airplane mode would cut the episode off.
+            while (!isDownloaded(episode.id) && episode.id in downloadingIds.value) delay(500)
+            if (isDownloaded(episode.id)) raiseSleepProgress(1f)
         } finally {
             mirror.cancel()
         }
@@ -910,9 +965,7 @@ class PodcastRepository(private val appContext: Context) {
             spec,
             null,
             CacheWriter.ProgressListener { requestLength, bytesCached, _ ->
-                if (requestLength > 0) {
-                    _sleepCacheProgress.value = (bytesCached.toFloat() / requestLength).coerceIn(0f, 1f)
-                }
+                if (requestLength > 0) raiseSleepProgress(bytesCached.toFloat() / requestLength)
             }
         )
         // runInterruptible so cancelling the timer actually aborts the fetch in flight.
