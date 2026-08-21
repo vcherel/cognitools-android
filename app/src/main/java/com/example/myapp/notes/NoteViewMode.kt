@@ -20,6 +20,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkBorder
+import androidx.compose.material.icons.filled.Code
+import androidx.compose.material.icons.filled.CodeOff
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.EventBusy
@@ -70,6 +72,7 @@ data class NoteLineActions(
     val onToggleLineMarker: (index: Int, marker: String) -> Unit,
     val onToggleTitleLine: (Int) -> Unit,
     val onToggleResume: (Int) -> Unit,
+    val onToggleEnhance: (Int) -> Unit,
     val onEnterEditAt: (offset: Int) -> Unit,
     val onReorder: (newContent: String) -> Unit
 )
@@ -182,7 +185,9 @@ fun NoteViewMode(
                     isCoursesNote = isCoursesNote,
                     isTodoListNote = isTodoListNote,
                     isClaudeNote = isClaudeNote,
-                    hasResumeAfter = lines.getOrNull(lineIndex + 1) == RESUME_LINE,
+                    hasResumeAfter = lines.getOrNull(lineIndex + 1)?.isMarkerLine(RESUME_LINE) == true,
+                    hasEnhanceAfter = lines[lineIndex].isTitleLine() &&
+                        lines.categoryAfter(lineIndex).any { it.isMarkerLine(ENHANCE_LINE) },
                     actions = actions,
                     searchTerms = searchTerms,
                     onSizeChanged = { lineHeights[lineIndex] = it },
@@ -218,6 +223,7 @@ private fun NoteLine(
     isTodoListNote: Boolean,
     isClaudeNote: Boolean,
     hasResumeAfter: Boolean,
+    hasEnhanceAfter: Boolean,
     actions: NoteLineActions,
     searchTerms: List<String>,
     onSizeChanged: (Int) -> Unit,
@@ -364,6 +370,10 @@ private fun NoteLine(
                             if (hasResumeAfter) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
                             if (hasResumeAfter) "Retirer Reprendre" else "Marquer à reprendre"
                         ) { actions.onToggleResume(lineIndex) }
+                        LineIconButton(
+                            if (hasEnhanceAfter) Icons.Default.Code else Icons.Default.CodeOff,
+                            if (hasEnhanceAfter) "Retirer Enhance code" else "Ajouter Enhance code"
+                        ) { actions.onToggleEnhance(lineIndex) }
                     }
                 }
                 if (selected) {

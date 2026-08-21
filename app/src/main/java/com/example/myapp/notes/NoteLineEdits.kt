@@ -80,8 +80,25 @@ class NoteLineEdits(
 
     /** Adds/removes the "Resume" marker right after a category title, in the Claude note. */
     fun toggleResumeAfter(index: Int) = editLines { lines ->
-        if (lines.getOrNull(index + 1) == RESUME_LINE) lines.removeAt(index + 1)
+        if (lines.getOrNull(index + 1)?.isMarkerLine(RESUME_LINE) == true) lines.removeAt(index + 1)
         else lines.add(index + 1, RESUME_LINE)
+    }
+
+    /**
+     * Adds/removes the "Enhance code" marker at the end of a category, in the Claude note:
+     * after the category's last non-empty line, before the blank line and the next title.
+     */
+    fun toggleEnhanceAtEnd(index: Int) = editLines { lines ->
+        val existing = (index + 1 until lines.size)
+            .takeWhile { !lines[it].isTitleLine() }
+            .firstOrNull { lines[it].isMarkerLine(ENHANCE_LINE) }
+        if (existing != null) {
+            lines.removeAt(existing)
+            return@editLines
+        }
+        var end = index + 1 + lines.categoryAfter(index).size
+        while (end > index + 1 && lines[end - 1].isBlank()) end--
+        lines.add(end, ENHANCE_LINE)
     }
 
     fun deleteLine(index: Int) {
