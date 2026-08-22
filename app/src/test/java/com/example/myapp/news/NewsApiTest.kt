@@ -84,6 +84,34 @@ class NewsApiTest {
     }
 
     @Test
+    fun `prefers the body block over the article wrapping the teasers and the newsletter`() {
+        val body = "Ceci est un vrai paragraphe qui dépasse largement la longueur minimale exigée."
+        val html = """
+            <html><body><article id="js--content">
+              <div class="notification__body"><p>Activez les notifications franceinfo et ne manquez rien</p></div>
+              <p>Pour sauvegarder cet article, connectez-vous ou créez un compte franceinfo</p>
+              <div class="c-body"><p>$body</p>
+                <p>Ce texte correspond à une partie de la retranscription du reportage ci-dessus.</p></div>
+              <div class="reco"><p><a href="/x">Une agente d'influenceurs proche de Léna Situations cyberharcelée</a></p></div>
+              <p><a href="/y">Julian Alaphilippe prend sa retraite à 34 ans, après une belle carrière</a></p>
+            </article></body></html>
+        """.trimIndent()
+        assertEquals(listOf(body), extractArticle(html, "https://a.fr/x").paragraphs)
+    }
+
+    @Test
+    fun `drops the shop links an outlet ends on`() {
+        val body = "Ceci est un vrai paragraphe qui dépasse largement la longueur minimale exigée."
+        val html = """
+            <html><body><div class="article__content"><p>$body</p>
+              <p><a href="/1">Les meilleures gourdes pour rester hydraté cet été</a></p>
+              <p><a href="/2">Emportez Le Monde partout avec vous, où que vous alliez</a></p>
+            </div></body></html>
+        """.trimIndent()
+        assertEquals(listOf(body), extractArticle(html, "https://a.fr/x").paragraphs)
+    }
+
+    @Test
     fun `merging keeps one line per story, preferring the one with a picture`() {
         val withoutImage = NewsArticle("https://a.fr/1", "Le même titre !", "", null, "A", "une", 200L)
         val withImage = NewsArticle("https://b.fr/1", "Le meme titre", "", "https://b.fr/i.jpg", "B", "une", 100L)
