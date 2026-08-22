@@ -1,5 +1,6 @@
 package com.example.myapp
 
+import android.net.Uri
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
@@ -34,6 +35,9 @@ import com.example.myapp.gallery.ViewerSource
 import com.example.myapp.gallery.GalleryViewerScreen
 import com.example.myapp.gallery.rememberIntentSenderRequester
 import com.example.myapp.motsfleches.MotsFlechesScreen
+import com.example.myapp.news.NewsArticleScreen
+import com.example.myapp.news.NewsSavedScreen
+import com.example.myapp.news.NewsScreen
 import com.example.myapp.notes.NoteEditorScreen
 import com.example.myapp.notes.NotesListScreen
 import com.example.myapp.notes.NotesTrashScreen
@@ -129,6 +133,7 @@ fun MainScreen(
                             onOpenRandom = { navController.navigate("randomGenerator") },
                             onOpenWikipedia = { navController.navigate("wikipedia") },
                             onOpenFiles = { navController.navigate("files") },
+                            onOpenNews = { navController.navigate("news") },
                             onOpenGallery = { navController.navigate("gallery") },
                             onOpenWallet = { navController.navigate("gallery/wallet") },
                             onOpenPinnedPictures = { navController.navigate("gallery/pinned") }
@@ -140,6 +145,23 @@ fun MainScreen(
                     composable("wikipedia") { WikipediaScreen(onBack = back) }
                     composable("files") { FilesScreen(onBack = back) }
                     composable("weather") { WeatherScreen(onBack = back) }
+                    composable("news") {
+                        NewsScreen(
+                            onBack = back,
+                            onOpenArticle = { link -> navController.navigate("news/article/${Uri.encode(link)}") },
+                            onOpenSaved = { navController.navigate("news/saved") }
+                        )
+                    }
+                    composable("news/saved") {
+                        NewsSavedScreen(
+                            onBack = back,
+                            onOpenArticle = { link -> navController.navigate("news/article/${Uri.encode(link)}") }
+                        )
+                    }
+                    composable("news/article/{link}") { backStackEntry ->
+                        val link = backStackEntry.arguments?.getString("link").orEmpty()
+                        NewsArticleScreen(link = link, onBack = back)
+                    }
                     composable("motsFleches") { MotsFlechesScreen(onBack = back) }
                     composable("translate") { TranslateScreen(onBack = back) }
                     composable("reader") {

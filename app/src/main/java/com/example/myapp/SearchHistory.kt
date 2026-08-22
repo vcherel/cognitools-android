@@ -55,7 +55,8 @@ enum class SearchSurface(internal val key: String) {
     MUSIC("music"),
     PODCAST("podcast"),
     NOTES("notes"),
-    CITY("city")
+    CITY("city"),
+    NEWS("news")
 }
 
 object SearchHistory {

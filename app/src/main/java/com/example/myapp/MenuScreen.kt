@@ -66,6 +66,7 @@ fun MenuScreen(
     onOpenRandom: () -> Unit,
     onOpenWikipedia: () -> Unit,
     onOpenFiles: () -> Unit,
+    onOpenNews: () -> Unit,
     onOpenGallery: () -> Unit,
     onOpenWallet: () -> Unit,
     onOpenPinnedPictures: () -> Unit
@@ -86,7 +87,8 @@ fun MenuScreen(
         MenuTool("undercover", "Undercover", onOpenUndercover),
         MenuTool("wikipedia", "Wiki", onOpenWikipedia),
         MenuTool("random", "Random", onOpenRandom),
-        MenuTool("files", "Fichiers", onOpenFiles)
+        MenuTool("files", "Fichiers", onOpenFiles),
+        MenuTool("news", "Actus", onOpenNews)
     )
     // Most used first, alphabetical between tools opened as often (so a fresh install is A to Z).
     val orderedTools = tools.sortedWith(

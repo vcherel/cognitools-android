@@ -10,6 +10,8 @@ import coil3.video.VideoFrameDecoder
 import com.example.myapp.deezer.DeezerRepository
 import com.example.myapp.flashcards.AppDatabase
 import com.example.myapp.flashcards.FlashcardRepository
+import com.example.myapp.news.NEWS_READ_RETENTION_DAYS
+import com.example.myapp.news.NewsRepository
 import com.example.myapp.notes.NOTES_TRASH_RETENTION_DAYS
 import com.example.myapp.podcasts.PodcastRepository
 import kotlinx.coroutines.CoroutineScope
@@ -20,6 +22,7 @@ class MyApplication : Application(), SingletonImageLoader.Factory {
     val flashcardRepository: FlashcardRepository by lazy { FlashcardRepository(this) }
     val deezerRepository: DeezerRepository by lazy { DeezerRepository(this) }
     val podcastRepository: PodcastRepository by lazy { PodcastRepository(this) }
+    val newsRepository: NewsRepository by lazy { NewsRepository(this) }
 
     // The notes trash keeps its own retention window; the gallery trash is MediaStore's, which
     // Android empties on its own.
@@ -35,6 +38,9 @@ class MyApplication : Application(), SingletonImageLoader.Factory {
             deezerRepository.discoveries.prime()
             // Heard episodes keep nothing on disk: their cached stream and their download go.
             runCatching { podcastRepository.purgeHeardFromCache() }
+            // Read news articles are only remembered long enough for the feeds to move past them.
+            AppDatabase.get(this@MyApplication).newsDao()
+                .purgeReadBefore(System.currentTimeMillis() - NEWS_READ_RETENTION_DAYS * 24L * 60L * 60L * 1000L)
         }
     }
 
@@ -58,3 +64,6 @@ val Context.deezerRepository: DeezerRepository
 
 val Context.podcastRepository: PodcastRepository
     get() = (applicationContext as MyApplication).podcastRepository
+
+val Context.newsRepository: NewsRepository
+    get() = (applicationContext as MyApplication).newsRepository
