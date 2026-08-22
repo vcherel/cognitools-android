@@ -22,13 +22,10 @@ import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Shuffle
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -48,6 +45,8 @@ import com.example.myapp.flashcards.AppDatabase
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
+
+private class MenuTool(val id: String, val label: String, val onClick: () -> Unit)
 
 @Composable
 fun MenuScreen(
@@ -73,6 +72,26 @@ fun MenuScreen(
 ) {
     val spaceHeight = 20.dp
     val buttonHeight = 84.dp
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val usageStore = remember(context) { MenuUsageStore(context) }
+    val usage by usageStore.counts.collectAsState(initial = emptyMap())
+
+    val tools = listOf(
+        MenuTool("weather", "Météo", onOpenWeather),
+        MenuTool("motsFleches", "Mots fléchés", onOpenMotsFleches),
+        MenuTool("translate", "Traducteur", onOpenTranslate),
+        MenuTool("reader", "Lecture", onOpenReader),
+        MenuTool("volume", "Volume", onOpenVolume),
+        MenuTool("undercover", "Undercover", onOpenUndercover),
+        MenuTool("wikipedia", "Wiki", onOpenWikipedia),
+        MenuTool("random", "Random", onOpenRandom),
+        MenuTool("files", "Fichiers", onOpenFiles)
+    )
+    // Most used first, alphabetical between tools opened as often (so a fresh install is A to Z).
+    val orderedTools = tools.sortedWith(
+        compareByDescending<MenuTool> { usage[it.id] ?: 0 }.thenBy { it.label.deaccented() }
+    )
 
     Box(
         modifier = Modifier
@@ -81,8 +100,8 @@ fun MenuScreen(
     ) {
         Column(
             modifier = Modifier
-                .align(Alignment.Center)
-                .fillMaxWidth(),
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
@@ -116,29 +135,6 @@ fun MenuScreen(
                 onRightClick = onPlayFlashcards
             )
             Spacer(modifier = Modifier.height(spaceHeight))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                MyButton(text = "Météo", modifier = Modifier.weight(1f), height = buttonHeight, onClick = onOpenWeather)
-                MyButton(text = "Mots fléchés", modifier = Modifier.weight(1f), height = buttonHeight, fontSize = 20.sp, onClick = onOpenMotsFleches)
-            }
-            Spacer(modifier = Modifier.height(spaceHeight))
-            var showOtherTools by remember { mutableStateOf(false) }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                MyButton(text = "Traducteur", modifier = Modifier.weight(1f), height = buttonHeight, fontSize = 20.sp, onClick = onOpenTranslate)
-                MyButton(text = "Divers", modifier = Modifier.weight(1f), height = buttonHeight, onClick = { showOtherTools = true })
-            }
-            if (showOtherTools) {
-                OtherToolsSheet(
-                    onDismiss = { showOtherTools = false },
-                    onOpenReader = onOpenReader,
-                    onOpenVolume = onOpenVolume,
-                    onOpenUndercover = onOpenUndercover,
-                    onOpenRandom = onOpenRandom,
-                    onOpenWikipedia = onOpenWikipedia,
-                    onOpenFiles = onOpenFiles
-                )
-            }
-            Spacer(modifier = Modifier.height(spaceHeight))
-            val context = LocalContext.current
             val pinDao = remember { AppDatabase.get(context).pinnedMediaItemDao() }
             val pinnedRows by pinDao.observePinned().collectAsState(initial = emptyList())
             val somethingPinned = pinnedRows.isNotEmpty()
@@ -149,6 +145,28 @@ fun MenuScreen(
                 onMainClick = onOpenGallery,
                 onRightClick = if (somethingPinned) onOpenPinnedPictures else onOpenWallet
             )
+            Spacer(modifier = Modifier.height(spaceHeight))
+            orderedTools.chunked(2).forEach { row ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    row.forEach { tool ->
+                        MyButton(
+                            text = tool.label,
+                            modifier = Modifier.weight(1f),
+                            height = buttonHeight,
+                            fontSize = 20.sp,
+                            onClick = {
+                                scope.launch { usageStore.recordClick(tool.id) }
+                                tool.onClick()
+                            }
+                        )
+                    }
+                    repeat(2 - row.size) { Spacer(modifier = Modifier.weight(1f)) }
+                }
+                Spacer(modifier = Modifier.height(spaceHeight))
+            }
         }
 
         IconButton(
@@ -161,42 +179,6 @@ fun MenuScreen(
                 imageVector = if (isDarkMode) Icons.Default.LightMode else Icons.Default.DarkMode,
                 contentDescription = if (isDarkMode) "Mode clair" else "Mode sombre"
             )
-        }
-    }
-}
-
-// The tools that get opened once in a while live behind one button, so the ones used daily keep
-// the room. A sheet rather than a screen: one tap in, one tap back out. Always fully expanded, or
-// a list this long opens at half height and the last tools sit below the fold.
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun OtherToolsSheet(
-    onDismiss: () -> Unit,
-    onOpenReader: () -> Unit,
-    onOpenVolume: () -> Unit,
-    onOpenUndercover: () -> Unit,
-    onOpenRandom: () -> Unit,
-    onOpenWikipedia: () -> Unit,
-    onOpenFiles: () -> Unit
-) {
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp)
-                .padding(bottom = 32.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            MyButton(text = "Lecture", height = 72.dp, onClick = { onDismiss(); onOpenReader() })
-            MyButton(text = "Volume", height = 72.dp, onClick = { onDismiss(); onOpenVolume() })
-            MyButton(text = "Undercover", height = 72.dp, onClick = { onDismiss(); onOpenUndercover() })
-            MyButton(text = "Wiki", height = 72.dp, onClick = { onDismiss(); onOpenWikipedia() })
-            MyButton(text = "Random", height = 72.dp, onClick = { onDismiss(); onOpenRandom() })
-            MyButton(text = "Fichiers", height = 72.dp, onClick = { onDismiss(); onOpenFiles() })
         }
     }
 }

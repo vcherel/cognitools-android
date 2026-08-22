@@ -26,7 +26,8 @@ The independent tools live under `app/src/main/java/com/example/myapp/`. Use thi
 Root package (shared/misc):
 - `MainActivity.kt`: app entry point; the window, the intents it is launched with, and the locked-over-the-keyguard quick view
 - `AppNavHost.kt`: MainScreen, the whole app's nav graph plus the composition locals and the snackbar host every screen reads
-- `MenuScreen.kt`: the main menu, one explicit callback per destination
+- `MenuScreen.kt`: the main menu, one explicit callback per destination; the big tools on top, the rest a scrolling grid ranked by use
+- `MenuUsage.kt`: MenuUsageStore, the per-tool tap counters that order the menu grid
 - `Theme.kt`: ThemeManager (dark mode DataStore), AppTheme, LocalIsDarkMode
 - `MyApplication.kt`: Application class, holds the FlashcardRepository / DeezerRepository / PodcastRepository singletons plus their `Context.<name>Repository` extensions, and the app start housekeeping
 - `Buttons.kt`: shared composables, MyButton, SplitMyButton, MySwitch, ShowAlertDialog, ErrorText, AppDialog (the buttons all built on RaisedSurface, the custom dialogs all on AppDialog)
