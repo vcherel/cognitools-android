@@ -311,10 +311,10 @@ class PodcastRepository(private val appContext: Context) {
         pendingStorageCleanup -= episodeId
         withContext(Dispatchers.IO) {
             if (isDownloaded(episodeId)) removeDownload(episodeId)
-            // An RSS episode id is its audio URL, which is the key the stream cache files it under.
-            // A Deezer-sourced one is a numeric id with nothing cached against it, and an episode
-            // gone from the merged list can't be traced back to its URL: only the cache is skipped
-            // then, the download above is keyed by the id alone and goes either way.
+            // An RSS episode id is its audio URL, which is the key the cache files it under. A
+            // Deezer-sourced one is a numeric id with nothing cached against it, and an episode gone
+            // from the merged list can't be traced back to its URL: only the cache is skipped then,
+            // the download above is keyed by the id alone and goes either way.
             val url = _episodes.value.firstOrNull { it.id == episodeId }?.audioUrl
                 ?.takeIf { it.isNotBlank() } ?: return@withContext
             PodcastStreamCache.remove(appContext, url)
@@ -350,14 +350,17 @@ class PodcastRepository(private val appContext: Context) {
     }
 
     // ---- Downloads ----
-    // The audio goes straight to a file and "downloaded" is derived from that file's presence, so it
-    // can never drift out of sync with what's actually on disk; the podcast_downloads table only
-    // carries the episode's metadata alongside it, since a hash-named blob names nothing. The file is
-    // named after a hash of the episode id rather than the id itself: an episode id *is* its audio URL,
-    // and its slashes (plus its length) make it an unusable file name, which is why writing the
-    // download used to fail outright for every episode.
+    // A download is the whole episode held in [PodcastStreamCache], protected from eviction, plus a
+    // row in podcast_downloads for its metadata (the cache names nothing). One store for everything
+    // means the three things that fetch audio feed each other: playing an episode fills the cache the
+    // download would have fetched, downloading one covers the sleep timer's night, and a download
+    // started over an episode already streamed only pulls what is missing.
+    //
+    // "Downloaded" stays derived from the bytes actually held, never from a flag: [refreshDownloads]
+    // drops any row whose audio is no longer whole.
 
-    private val downloadsDir: File by lazy { File(appContext.filesDir, "podcast_downloads").apply { mkdirs() } }
+    /** Where downloads lived before the cache took them over. Emptied by [migrateLegacyDownloads]. */
+    private val legacyDownloadsDir: File by lazy { File(appContext.filesDir, "podcast_downloads") }
 
     /** Outlives every screen: a download keeps going with the app closed and the phone locked. */
     private val downloadScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -365,17 +368,55 @@ class PodcastRepository(private val appContext: Context) {
     /** One download at a time: several large episodes over mobile data help nobody. */
     private val downloadMutex = Mutex()
 
-    /** File-system safe, stable name for [episodeId]. Public: screens match it against [downloadedKeys]. */
+    /** Stable, opaque name for [episodeId]. Public: screens match it against [downloadedKeys]. */
     fun downloadKey(episodeId: String): String =
         MessageDigest.getInstance("SHA-256").digest(episodeId.toByteArray())
             .joinToString("") { "%02x".format(it) }
 
-    private fun downloadFile(episodeId: String): File = File(downloadsDir, "${downloadKey(episodeId)}.audio")
-
-    private val _downloadedKeys = MutableStateFlow(
-        downloadsDir.listFiles()?.filter { it.extension == "audio" }?.map { it.nameWithoutExtension }?.toSet() ?: emptySet()
-    )
+    private val _downloadedKeys = MutableStateFlow<Set<String>>(emptySet())
     val downloadedKeys: StateFlow<Set<String>> = _downloadedKeys
+
+    init {
+        downloadScope.launch {
+            migrateLegacyDownloads()
+            refreshDownloads()
+        }
+    }
+
+    /**
+     * Rebuilds what counts as downloaded from the bytes actually held, and protects them from the
+     * cache's evictor. A row whose audio is gone (a manual cache wipe, a reinstall of the media3
+     * index) stops being a download rather than showing an episode that would not play offline.
+     */
+    private suspend fun refreshDownloads() {
+        val rows = dao().getDownloads()
+        val whole = rows.filter { PodcastStreamCache.holdsWholeResource(appContext, it.audioUrl) }
+        whole.forEach { PodcastStreamCache.setProtected(appContext, it.audioUrl, true) }
+        (rows - whole.toSet()).forEach { dao().deleteDownload(it.episodeId) }
+        _downloadedKeys.value = whole.map { downloadKey(it.episodeId) }.toSet()
+    }
+
+    /**
+     * Moves the downloads made back when they were plain files into the cache, once. Re-downloading
+     * them instead would silently cost the user every episode they had put aside for a trip.
+     */
+    private suspend fun migrateLegacyDownloads() = withContext(Dispatchers.IO) {
+        val files = legacyDownloadsDir.listFiles()?.filter { it.extension == "audio" } ?: return@withContext
+        if (files.isEmpty()) return@withContext
+        val byKey = dao().getDownloads().associateBy { downloadKey(it.episodeId) }
+        files.forEach { file ->
+            val row = byKey[file.nameWithoutExtension]
+            // A file with no row names no episode and no URL: there is nothing to file it under.
+            if (row != null && PodcastStreamCache.importFile(appContext, row.audioUrl, file)) {
+                Log.i(TAG, "Migrated download into the cache: ${row.title}")
+            } else if (row != null) {
+                Log.w(TAG, "Could not migrate download, it will have to be fetched again: ${row.title}")
+                dao().deleteDownload(row.episodeId)
+            }
+            file.delete()
+        }
+        legacyDownloadsDir.delete()
+    }
 
     /**
      * Episodes currently downloading, in the order they were queued: the running one first. The
@@ -429,12 +470,16 @@ class PodcastRepository(private val appContext: Context) {
         }
     }
 
-    /** Stops [episodeId]'s download, running or still queued, and cleans up its partial file. */
+    /**
+     * Stops [episodeId]'s download, running or still queued. What it had already fetched stays in the
+     * cache as ordinary streaming bytes: it still plays offline, and the evictor may reclaim it.
+     */
     fun cancelDownload(episodeId: String) {
         downloadJobs.remove(episodeId)?.cancel()
+        val url = _downloading.value.firstOrNull { it.id == episodeId }?.audioUrl
         _downloading.update { list -> list.filterNot { it.id == episodeId } }
         _downloadProgress.update { it - episodeId }
-        downloadScope.launch { runCatching { File(downloadsDir, "${downloadKey(episodeId)}.tmp").delete() } }
+        if (url != null) PodcastStreamCache.setProtected(appContext, url, false)
     }
 
     /** Cancels everything queued. What the notification's action does. */
@@ -442,53 +487,49 @@ class PodcastRepository(private val appContext: Context) {
         _downloading.value.map { it.id }.forEach { cancelDownload(it) }
     }
 
-    /** Downloads [episode]'s audio to disk so it can play with no connection. No-op if already downloaded. */
+    /**
+     * Pulls the whole episode into the shared cache and keeps it there. Bytes already held, whether
+     * from playing it or from a sleep pre-fetch, are not fetched again. No-op if already downloaded.
+     */
     private suspend fun downloadEpisode(episode: PodcastEpisode) {
         if (isDownloaded(episode.id)) return
         if (episode.audioUrl.isBlank()) throw IOException("Pas de flux audio pour cet épisode")
-        val tmp = File(downloadsDir, "${downloadKey(episode.id)}.tmp")
+        // Protected up front: the fetch itself must not be evicted by what playback caches meanwhile.
+        PodcastStreamCache.setProtected(appContext, episode.audioUrl, true)
         try {
             withContext(Dispatchers.IO) {
-                val conn = openAudio(episode.audioUrl)
-                var written = 0L
-                var total = 0L
-                try {
-                    total = conn.contentLengthLong
-                    conn.inputStream.use { input ->
-                        tmp.outputStream().use { output ->
-                            val buffer = ByteArray(64 * 1024)
-                            var lastPercent = -1
-                            while (true) {
-                                val read = input.read(buffer)
-                                if (read < 0) break
-                                output.write(buffer, 0, read)
-                                written += read
-                                if (total <= 0) continue
-                                val percent = (written * 100 / total).toInt()
-                                if (percent != lastPercent) {
-                                    lastPercent = percent
-                                    _downloadProgress.update {
-                                        it + (episode.id to (percent / 100f).coerceIn(0f, 1f))
-                                    }
-                                }
+                val spec = DataSpec.Builder()
+                    .setUri(Uri.parse(episode.audioUrl))
+                    .setPosition(0)
+                    .setLength(C.LENGTH_UNSET.toLong())
+                    .build()
+                val writer = CacheWriter(
+                    PodcastStreamCache.cacheDataSourceFactory(appContext).createDataSource(),
+                    spec,
+                    null,
+                    CacheWriter.ProgressListener { requestLength, bytesCached, _ ->
+                        if (requestLength > 0) {
+                            _downloadProgress.update {
+                                it + (episode.id to (bytesCached.toFloat() / requestLength).coerceIn(0f, 1f))
                             }
                         }
                     }
-                } finally {
-                    conn.disconnect()
+                )
+                // runInterruptible so cancelling actually aborts the fetch in flight.
+                runInterruptible { writer.cache() }
+                // A connection cut mid-transfer can end the fetch on a plain EOF instead of throwing,
+                // and a truncated episode kept as a download is worse than none: it plays up to where
+                // it stops, the player calls that the end, and the episode gets marked heard.
+                if (!PodcastStreamCache.holdsWholeResource(appContext, episode.audioUrl)) {
+                    throw IOException("Téléchargement incomplet")
                 }
-                // A connection cut mid-transfer often ends the stream on a plain EOF instead of
-                // throwing, and a truncated file kept as a download is worse than no download at all:
-                // it plays up to where it stops, the player calls that the end of the episode, and the
-                // episode gets marked heard and skipped. Short of what the server announced, it goes.
-                if (total > 0 && written < total) throw IOException("Téléchargement incomplet")
-                if (!tmp.renameTo(downloadFile(episode.id))) throw IOException("Impossible d'enregistrer le téléchargement")
             }
-            _downloadedKeys.update { it + downloadKey(episode.id) }
             dao().upsertDownload(episode.toDownload())
-            playFromFileIfCurrent(episode)
+            _downloadedKeys.update { it + downloadKey(episode.id) }
         } catch (e: Exception) {
-            runCatching { tmp.delete() }
+            // What was fetched stays in the cache, unprotected: it is still worth having for playback
+            // and for the next attempt, and the evictor is free to reclaim it.
+            PodcastStreamCache.setProtected(appContext, episode.audioUrl, false)
             throw e
         }
     }
@@ -525,27 +566,12 @@ class PodcastRepository(private val appContext: Context) {
         throw IOException("Trop de redirections")
     }
 
-    /**
-     * Swaps the streaming source for the file just downloaded, at the same position. Without it the
-     * episode would sit on disk while the player keeps pulling the network stream it started with,
-     * so playback would still die the moment the phone goes offline.
-     */
-    private suspend fun playFromFileIfCurrent(episode: PodcastEpisode) = withContext(Dispatchers.Main) {
-        val c = controller ?: return@withContext
-        if (c.currentMediaItem?.mediaId != episode.id) return@withContext
-        val position = c.currentPosition
-        val wasPlaying = c.playWhenReady
-        c.replaceMediaItem(c.currentMediaItemIndex, buildMediaItem(episode))
-        c.seekTo(position)
-        c.prepare()
-        if (wasPlaying) c.play()
-    }
-
-    /** Deletes [episodeId]'s downloaded file and its metadata row, if any. */
+    /** Drops [episodeId]'s downloaded audio and its metadata row, if any. */
     suspend fun removeDownload(episodeId: String) {
-        downloadFile(episodeId).delete()
+        val url = dao().getDownloads().firstOrNull { it.episodeId == episodeId }?.audioUrl
         _downloadedKeys.update { it - downloadKey(episodeId) }
         dao().deleteDownload(episodeId)
+        if (url != null) PodcastStreamCache.remove(appContext, url)
     }
 
     // ---- Player ----
@@ -803,6 +829,24 @@ class PodcastRepository(private val appContext: Context) {
     /** The range the pre-fetch secured, so the watchdog knows what it has to still find in the cache. */
     private var sleepCoverage: SleepCoverage? = null
 
+    /** The episode whose bytes are held against eviction for as long as the timer runs. */
+    private var sleepProtectedEpisode: PodcastEpisode? = null
+
+    /** Keeps what the night needs out of the evictor's reach, instead of only noticing it went. */
+    private fun protectForSleep(episode: PodcastEpisode) {
+        releaseSleepProtection()
+        if (episode.audioUrl.isBlank()) return
+        sleepProtectedEpisode = episode
+        PodcastStreamCache.setProtected(appContext, episode.audioUrl, true)
+    }
+
+    /** A downloaded episode keeps its own protection: only the timer's is given back here. */
+    private fun releaseSleepProtection() {
+        val episode = sleepProtectedEpisode ?: return
+        sleepProtectedEpisode = null
+        if (!isDownloaded(episode.id)) PodcastStreamCache.setProtected(appContext, episode.audioUrl, false)
+    }
+
     private val _sleepTimerEndAt = MutableStateFlow<Long?>(null)
     val sleepTimerEndAt: StateFlow<Long?> = _sleepTimerEndAt
 
@@ -835,6 +879,7 @@ class PodcastRepository(private val appContext: Context) {
             _sleepCacheProgress.value = null
             sleepWatchdogJob?.cancel()
             sleepCoverage = null
+            releaseSleepProtection()
         }
         preloadForSleepTimer(minutes)
     }
@@ -852,7 +897,8 @@ class PodcastRepository(private val appContext: Context) {
             _sleepCacheProgress.value = null
             return
         }
-        // A fully downloaded episode plays from its own file, with nothing left to secure.
+        protectForSleep(episode)
+        // A fully downloaded episode is held whole already, with nothing left to secure.
         if (isDownloaded(episode.id)) {
             sleepCoverage = null
             _sleepCacheProgress.value = 1f
@@ -865,19 +911,26 @@ class PodcastRepository(private val appContext: Context) {
                 val c = controller
                 (c?.currentPosition ?: 0L) to (c?.duration ?: C.TIME_UNSET)
             }
-            val coverage = runCatching { cacheForSleepTimer(episode, positionMs, durationMs, minutes) }
-                .onFailure { e ->
-                    if (e is CancellationException) throw e
-                    Log.w(TAG, "Sleep pre-fetch failed for ${episode.title}", e)
-                }
-                .getOrNull()
+            // A download of this very episode is already pulling the whole thing into the same cache:
+            // waiting on it beats fetching an overlapping range next to it.
+            val alreadyDownloading = episode.id in downloadingIds.value
+            val coverage = if (alreadyDownloading) null else {
+                runCatching { cacheForSleepTimer(episode, positionMs, durationMs, minutes) }
+                    .onFailure { e ->
+                        if (e is CancellationException) throw e
+                        Log.w(TAG, "Sleep pre-fetch failed for ${episode.title}", e)
+                    }
+                    .getOrNull()
+            }
             // Only a verified range counts as secured. Anything else, including a pre-fetch that had
             // nothing trustworthy to fetch, falls back to the whole episode instead of claiming 100%.
             sleepCoverage = coverage
             if (coverage != null) {
                 raiseSleepProgress(1f)
             } else {
-                Log.w(TAG, "Sleep pre-fetch did not secure ${episode.title}, downloading it whole")
+                if (!alreadyDownloading) {
+                    Log.w(TAG, "Sleep pre-fetch did not secure ${episode.title}, downloading it whole")
+                }
                 downloadWholeForSleepTimer(episode, positionMs, durationMs, minutes)
             }
             if (_sleepCacheProgress.value == 1f) startSleepCoverageWatchdog(episode)
@@ -1026,6 +1079,7 @@ class PodcastRepository(private val appContext: Context) {
         sleepWatchdogJob?.cancel()
         sleepWatchdogJob = null
         sleepCoverage = null
+        releaseSleepProtection()
         _sleepTimerEndAt.value = null
         _sleepCacheProgress.value = null
     }
@@ -1036,10 +1090,10 @@ class PodcastRepository(private val appContext: Context) {
             .setArtist(episode.podcastTitle)
             .setArtworkUri(episode.podcastArtworkUrl?.let { Uri.parse(it) })
             .build()
-        val localFile = downloadFile(episode.id)
-        val uri = if (localFile.exists()) Uri.fromFile(localFile) else Uri.parse(episode.audioUrl)
+        // Always the audio URL: downloaded or not, the player reads it through the cache, which
+        // serves whatever is held and streams the rest.
         return MediaItem.Builder()
-            .setUri(uri)
+            .setUri(Uri.parse(episode.audioUrl))
             .setMediaId(episode.id)
             .setMediaMetadata(metadata)
             .build()

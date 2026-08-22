@@ -17,8 +17,13 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -75,7 +80,14 @@ fun NoteEditorScreen(
 
     var isEditing by remember { mutableStateOf(isNew) }
     // Set when the note was opened from the notes search: its words stay painted while reading.
-    val searchTerms = remember(searchQuery) { searchTermsOf(searchQuery) }
+    val listSearchTerms = remember(searchQuery) { searchTermsOf(searchQuery) }
+    // The note's own search bar, which takes over the highlighting while it is open.
+    var searchOpen by remember { mutableStateOf(false) }
+    var noteQuery by remember { mutableStateOf("") }
+    var matchPos by remember { mutableStateOf(0) }
+    // Bumped on every jump so asking for the same match twice still scrolls back to it.
+    var focusNonce by remember { mutableStateOf(0) }
+    val searchFocusRequester = remember { FocusRequester() }
     val titleFieldState = remember { TextFieldState() }
     val textFieldState = remember { TextFieldState() }
     var editPadding by remember { mutableStateOf(EditPadding()) }
@@ -312,6 +324,24 @@ fun NoteEditorScreen(
             val isIngredientsNote = !isEditing && title.equals(INGREDIENTS_TITLE, ignoreCase = true)
             val isIngredientModelNote = !isEditing && title.equals(INGREDIENT_MODEL_TITLE, ignoreCase = true)
 
+            val searchTerms = if (searchOpen) remember(noteQuery) { searchTermsOf(noteQuery) } else listSearchTerms
+            // The lines holding any of the searched words, in order: what the arrows step through.
+            val matchLines = remember(content, searchTerms) {
+                if (searchTerms.isEmpty()) emptyList()
+                else content.split("\n").mapIndexedNotNull { index, line ->
+                    val normalized = normalizeForSearch(line)
+                    index.takeIf { searchTerms.any { term -> normalized.contains(term) } }
+                }
+            }
+            LaunchedEffect(matchLines) {
+                matchPos = 0
+                if (matchLines.isNotEmpty()) focusNonce++
+            }
+            LaunchedEffect(searchOpen) {
+                if (searchOpen) searchFocusRequester.requestFocus()
+            }
+            BackHandler(enabled = searchOpen) { searchOpen = false; noteQuery = "" }
+
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -327,6 +357,7 @@ fun NoteEditorScreen(
                     state = NoteEditorBarState(
                         isEditing = isEditing,
                         locked = locked,
+                        searchOpen = searchOpen,
                         canUndo = undoStack.isNotEmpty(),
                         hasBlankEdgeLines = content != content.trimBlankEdgeLines(),
                         hasCheckboxLine = content.hasCheckboxLine(),
@@ -338,6 +369,10 @@ fun NoteEditorScreen(
                     actions = NoteEditorBarActions(
                         onBack = { goBack() },
                         onUndo = { performUndo() },
+                        onToggleSearch = {
+                            searchOpen = !searchOpen
+                            if (!searchOpen) noteQuery = ""
+                        },
                         onToggleLock = {
                             if (locked) persistLock(false)
                             else scope.launch {
@@ -356,6 +391,53 @@ fun NoteEditorScreen(
                         onToggleTitle = { textFieldState.toggleTitleLine() }
                     )
                 )
+
+                if (searchOpen && !isEditing && !titleFocused) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        OutlinedTextField(
+                            value = noteQuery,
+                            onValueChange = { noteQuery = it },
+                            modifier = Modifier.weight(1f).focusRequester(searchFocusRequester),
+                            placeholder = { Text("Rechercher dans la note") },
+                            singleLine = true,
+                            trailingIcon = {
+                                if (noteQuery.isNotEmpty()) {
+                                    IconButton(onClick = { noteQuery = "" }) {
+                                        Icon(Icons.Default.Close, contentDescription = "Effacer")
+                                    }
+                                }
+                            }
+                        )
+                        if (noteQuery.isNotBlank()) {
+                            Text(
+                                if (matchLines.isEmpty()) "0" else "${matchPos + 1}/${matchLines.size}",
+                                style = MaterialTheme.typography.bodyMedium,
+                                modifier = Modifier.padding(horizontal = 8.dp)
+                            )
+                            IconButton(
+                                onClick = {
+                                    matchPos = (matchPos - 1 + matchLines.size) % matchLines.size
+                                    focusNonce++
+                                },
+                                enabled = matchLines.isNotEmpty()
+                            ) {
+                                Icon(Icons.Default.KeyboardArrowUp, contentDescription = "Résultat précédent")
+                            }
+                            IconButton(
+                                onClick = {
+                                    matchPos = (matchPos + 1) % matchLines.size
+                                    focusNonce++
+                                },
+                                enabled = matchLines.isNotEmpty()
+                            ) {
+                                Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Résultat suivant")
+                            }
+                        }
+                    }
+                }
 
                 if (!isEditing && !titleFocused && isCoursesNote) {
                     val itemCount = content.totalItemCount()
@@ -413,6 +495,8 @@ fun NoteEditorScreen(
                         textFieldState = textFieldState,
                         title = title,
                         searchTerms = searchTerms,
+                        focusedLine = if (searchOpen) matchLines.getOrNull(matchPos) ?: -1 else -1,
+                        focusNonce = focusNonce,
                         actions = NoteLineActions(
                             onToggleLine = lineEdits::toggleLine,
                             onDeleteLine = lineEdits::deleteLine,

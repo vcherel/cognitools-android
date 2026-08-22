@@ -40,6 +40,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateMapOf
@@ -58,7 +59,11 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
+import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
+
+/** How much of the note is kept visible above a search match jumped to. */
+private const val MATCH_SCROLL_MARGIN_PX = 200
 
 /** Everything a rendered line can ask the editor to do, by line index. */
 @Immutable
@@ -84,7 +89,9 @@ fun NoteViewMode(
     textFieldState: TextFieldState,
     title: String,
     actions: NoteLineActions,
-    searchTerms: List<String> = emptyList()
+    searchTerms: List<String> = emptyList(),
+    focusedLine: Int = -1,
+    focusNonce: Int = 0
 ) {
     val isIngredientsNote = title.equals(INGREDIENTS_TITLE, ignoreCase = true)
     val isCoursesNote = title.equals(COURSES_TITLE, ignoreCase = true)
@@ -115,6 +122,24 @@ fun NoteViewMode(
     var draggedLine by remember { mutableStateOf(-1) }
     var dragOffset by remember { mutableStateOf(0f) }
     val lineHeights = remember { mutableStateMapOf<Int, Int>() }
+
+    // Jumping to a search match: the lines are laid out in a plain Column, so a match's y position is
+    // the heights of the lines above it. Those fill in as the lines get measured, which the first jump
+    // right after the search bar opens can still be waiting on.
+    val scrollState = rememberScrollState()
+    LaunchedEffect(focusNonce, focusedLine) {
+        if (focusedLine <= 0) {
+            if (focusedLine == 0) scrollState.animateScrollTo(0)
+            return@LaunchedEffect
+        }
+        var waited = 0
+        while (waited < 20 && (0 until focusedLine).any { lineHeights[it] == null }) {
+            delay(16)
+            waited++
+        }
+        val target = (0 until focusedLine).sumOf { lineHeights[it] ?: 0 }
+        scrollState.animateScrollTo((target - MATCH_SCROLL_MARGIN_PX).coerceAtLeast(0))
+    }
 
     fun endDrag(commit: Boolean) {
         val order = displayOrder
@@ -164,7 +189,7 @@ fun NoteViewMode(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
+            .verticalScroll(scrollState)
             .pointerInput(Unit) {
                 detectTapGestures(
                     onTap = { selectedLine = -1 },
@@ -179,6 +204,7 @@ fun NoteViewMode(
                     line = lines[lineIndex],
                     lineStart = lineStarts[lineIndex],
                     isDragged = lineIndex == draggedLine,
+                    isFocusedMatch = lineIndex == focusedLine,
                     dragOffsetPx = if (lineIndex == draggedLine) dragOffset.roundToInt() else 0,
                     selected = lineIndex == selectedLine,
                     isIngredientsNote = isIngredientsNote,
@@ -216,6 +242,7 @@ private fun NoteLine(
     line: String,
     lineStart: Int,
     isDragged: Boolean,
+    isFocusedMatch: Boolean,
     dragOffsetPx: Int,
     selected: Boolean,
     isIngredientsNote: Boolean,
@@ -243,8 +270,11 @@ private fun NoteLine(
             .offset { IntOffset(0, dragOffsetPx) }
             .onSizeChanged { onSizeChanged(it.height) }
             .background(
-                if (isDragged) MaterialTheme.colorScheme.surfaceVariant
-                else Color.Transparent
+                when {
+                    isDragged -> MaterialTheme.colorScheme.surfaceVariant
+                    isFocusedMatch -> MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                    else -> Color.Transparent
+                }
             )
             .pointerInput(Unit) {
                 detectDragGesturesAfterLongPress(

@@ -69,7 +69,7 @@ Root package (shared/misc):
 - `Models.kt`: PodcastFavorite/PodcastEpisode/PodcastCatalogItem/PodcastEpisodeProgress/PodcastDownload and PodcastDao
 - `PodcastApi.kt`: the iTunes directory search and the RSS feed parsing
 - `PodcastRepository.kt`: the singleton; followed shows (Room), the merged episode list re-fetched live from each feed, heard/seen state, downloads, listening progress, the sleep timer and its pre-fetch, the MediaController
-- `PodcastStreamCache.kt`: the episode stream disk cache, shared by playback and the sleep timer pre-fetch
+- `PodcastStreamCache.kt`: the one store for podcast audio, keyed by the episode's audio URL, read and written by playback, the sleep timer pre-fetch and the downloads alike. A download is the whole resource held plus a protected key, which its custom evictor never evicts and never counts against the LRU cap
 - `PodcastPlaybackService.kt`: MediaSessionService owning the episode ExoPlayer; its own notification id and channel, distinct from the Deezer one
 - `PodcastDownloadService.kt`: foreground service holding the download notification (progress, cancel) and a wake lock, so a download survives the lock screen and the app closing. The work itself stays in the repository
 - `PodcastDownloadsScreen.kt`: every downloaded episode, all shows merged, read from the downloads table
