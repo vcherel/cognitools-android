@@ -358,10 +358,10 @@ fun NoteEditorScreen(
                 )
 
                 if (!isEditing && !titleFocused && isCoursesNote) {
-                    val itemCount = content.uncheckedItemCount()
+                    val itemCount = content.totalItemCount()
                     if (itemCount > 0) {
                         Text(
-                            "$itemCount article${if (itemCount > 1) "s" else ""} à acheter",
+                            "${content.checkedItemCount()} / $itemCount article${if (itemCount > 1) "s" else ""}",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
                             modifier = Modifier.padding(start = 8.dp, top = 4.dp)
@@ -468,6 +468,7 @@ fun NoteEditorScreen(
                     onAddNew = { sync.reconcileAddNew(it) },
                     onMapExisting = { sync.reconcileMapExisting(it) },
                     onSkip = { sync.reconcileSkip() },
+                    skipLabel = if (current.sourceLine != null) "Supprimer" else "Ignorer",
                     onDismiss = { sync.dismissBatch() }
                 )
             }

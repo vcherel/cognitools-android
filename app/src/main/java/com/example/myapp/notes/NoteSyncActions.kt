@@ -439,8 +439,15 @@ class NoteSyncActions(
         }
     }
 
-    /** Reconcile choice: leave the item as is and move on. */
-    fun reconcileSkip() = advancePending(moved = false)
+    /**
+     * Reconcile choice: drop the item. It never reaches the target note, and the line it came
+     * from (a checked Courses line) is removed, so ignoring an item while filling the fridge
+     * takes it off the shopping list rather than leaving it checked there.
+     */
+    fun reconcileSkip() {
+        batch?.pending?.firstOrNull()?.let { removeSourceLine(it) }
+        advancePending(moved = false)
+    }
 
     /** Stops reconciling: keep what is already resolved and leave the rest as is. */
     fun dismissBatch() {
