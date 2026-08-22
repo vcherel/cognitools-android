@@ -18,6 +18,7 @@ import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.LightMode
+import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Shuffle
@@ -200,22 +201,37 @@ private fun OtherToolsSheet(
     }
 }
 
-// The right half shuffles the favorites straight from the menu, and spins until a new track is
-// actually playing, since connecting to the service and resolving the first stream takes a moment.
+// The right half reflects what is playing, music or podcast: pause while it plays, play to resume a
+// loaded track, and shuffle the favorites when nothing is loaded. The shuffle spins until a new track
+// is actually playing, since connecting to the service and resolving the first stream takes a moment.
 @Composable
 private fun DeezerMenuButton(height: Dp, onOpenDeezer: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var isShuffleLoading by remember { mutableStateOf(false) }
+    val musicState by context.deezerRepository.playerState.collectAsState()
+    val podcastState by context.podcastRepository.playerState.collectAsState()
+
+    // The two stacks are mutually exclusive, so at most one is really loaded; whichever is playing
+    // still wins, in case the other one left a stale item behind.
+    val onPodcast = podcastState.isPlaying || (podcastState.hasItem && !musicState.isPlaying)
+    val loaded = if (onPodcast) podcastState.hasItem else musicState.hasItem
+    val isPlaying = if (onPodcast) podcastState.isPlaying else musicState.isPlaying
 
     SplitMyButton(
         text = "Musique",
-        rightIcon = Icons.Default.Shuffle,
+        rightIcon = when {
+            !loaded -> Icons.Default.Shuffle
+            isPlaying -> Icons.Default.Pause
+            else -> Icons.Default.PlayArrow
+        },
         height = height,
         rightLoading = isShuffleLoading,
         onMainClick = onOpenDeezer,
         onRightClick = {
-            if (!isShuffleLoading) {
+            if (loaded) {
+                if (onPodcast) context.podcastRepository.togglePlay() else context.deezerRepository.togglePlay()
+            } else if (!isShuffleLoading) {
                 val repo = context.deezerRepository
                 val previousSngId = repo.playerState.value.sngId
                 isShuffleLoading = true

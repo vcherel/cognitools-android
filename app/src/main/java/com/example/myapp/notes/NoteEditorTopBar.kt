@@ -22,11 +22,13 @@ import androidx.compose.material.icons.filled.Kitchen
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Title
 import androidx.compose.material.icons.filled.VerticalAlignCenter
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -48,6 +50,7 @@ import com.example.myapp.BackIconButton
 data class NoteEditorBarState(
     val isEditing: Boolean,
     val locked: Boolean,
+    val searchOpen: Boolean,
     val canUndo: Boolean,
     val hasBlankEdgeLines: Boolean,
     val hasCheckboxLine: Boolean,
@@ -61,6 +64,7 @@ data class NoteEditorBarState(
 data class NoteEditorBarActions(
     val onBack: () -> Unit,
     val onUndo: () -> Unit,
+    val onToggleSearch: () -> Unit,
     val onToggleLock: () -> Unit,
     val onTrimBlankEdgeLines: () -> Unit,
     val onSendCheckedToIngredients: () -> Unit,
@@ -147,6 +151,14 @@ fun NoteEditorTopBar(
                 IconButton(onClick = actions.onAddCourseItem) {
                     Icon(Icons.Default.Add, contentDescription = "Ajouter un article")
                 }
+            }
+            IconButton(onClick = actions.onToggleSearch) {
+                Icon(
+                    Icons.Default.Search,
+                    contentDescription = "Rechercher dans la note",
+                    tint = if (state.searchOpen) MaterialTheme.colorScheme.primary
+                    else LocalContentColor.current
+                )
             }
         }
         IconButton(onClick = actions.onUndo, enabled = state.canUndo) {
