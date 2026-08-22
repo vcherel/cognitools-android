@@ -250,9 +250,14 @@ fun String.hasDateSuffix(): Boolean =
 /** The text with its trailing non-numeric "(...)" suffix removed. */
 fun String.withoutDateSuffix(): String = if (hasDateSuffix()) DATE_SUFFIX.replace(this, "").trimEnd() else this
 
-/** Sum of quantities of unchecked checkbox lines, honoring the "(N)" suffix. */
-fun String.uncheckedItemCount(): Int = lineSequence()
-    .filter { it.isCheckboxLine() && !it.isCheckedLine() }
+/** Sum of quantities of checked checkbox lines, honoring the "(N)" suffix. */
+fun String.checkedItemCount(): Int = lineSequence()
+    .filter { it.isCheckedLine() }
+    .sumOf { it.checkboxText().itemQuantity() }
+
+/** Sum of quantities of every checkbox line, checked or not. */
+fun String.totalItemCount(): Int = lineSequence()
+    .filter { it.isCheckboxLine() }
     .sumOf { it.checkboxText().itemQuantity() }
 
 /** Content with every checkbox line set to the given state. */

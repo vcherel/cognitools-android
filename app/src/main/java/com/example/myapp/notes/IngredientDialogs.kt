@@ -44,7 +44,8 @@ private enum class ReconcileStep { Choose, Group, NewGroup, Existing }
 /**
  * Shown for an item whose name isn't in the model. Lets the user add it as a new entry
  * (choosing which group, or a new group when `allowNewGroup`), map it to an existing model
- * entry (for a misspelling or variant spelling), or skip it. Within the chosen group the
+ * entry (for a misspelling or variant spelling), or skip it (`skipLabel` names that choice,
+ * which drops the item). Within the chosen group the
  * entry is placed alphabetically, so only the group needs picking. `groupLabels`, when
  * given, names each group in the picker instead of listing its members. `onAddNewGroup`,
  * when given, adds a "Nouvelle catégorie" choice: a name to type and a position in the
@@ -60,6 +61,7 @@ fun IngredientReconcileDialog(
     onAddNew: (groupIndex: Int) -> Unit,
     onMapExisting: (String) -> Unit,
     onSkip: () -> Unit,
+    skipLabel: String = "Ignorer",
     onDismiss: () -> Unit
 ) {
     var step by remember(itemName) { mutableStateOf(ReconcileStep.Choose) }
@@ -81,7 +83,7 @@ fun IngredientReconcileDialog(
                 ChoiceRow("C'est déjà dans le modèle", Icons.Default.Edit) {
                     step = ReconcileStep.Existing
                 }
-                ChoiceRow("Ignorer", Icons.Default.Close, onSkip)
+                ChoiceRow(skipLabel, Icons.Default.Close, onSkip)
             }
 
             ReconcileStep.Group -> {
