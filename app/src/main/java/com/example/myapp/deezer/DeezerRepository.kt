@@ -654,15 +654,31 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
      * slot (see [addToQueue] and the playback service's error recovery), which breaks "play next" and
      * makes "previous" lose tracks whenever the queue changes after the fact. A shuffled play is instead
      * a plain queue whose order was already randomized in Kotlin before it gets here.
+     *
+     * When [shuffle] is on (the saved default), the tapped track still starts right away and only the
+     * rest of the list is randomized behind it. [tracks] is kept in its original order in
+     * [orderedQueue], which is what turning shuffle back off restores.
      */
-    suspend fun playTracks(tracks: List<DeezerTrack>, startIndex: Int, source: TrackSource? = null) {
+    suspend fun playTracks(
+        tracks: List<DeezerTrack>,
+        startIndex: Int,
+        source: TrackSource? = null,
+        shuffle: Boolean = _shuffleEnabled.value
+    ) {
         if (tracks.isEmpty()) return
         stopPodcastPlayback()
         val controller = ensureController()
         queuedTracks.clear()
-        val items = tracks.map { buildMediaItem(it, source = source) }
+        orderedQueue = tracks
+        queueSource = source
+        val order = if (shuffle) {
+            listOf(tracks[startIndex]) + tracks.filterIndexed { i, _ -> i != startIndex }.shuffled()
+        } else {
+            tracks
+        }
+        val items = order.map { buildMediaItem(it, source = source) }
         withContext(Dispatchers.Main) {
-            controller.setMediaItems(items, startIndex, 0L)
+            controller.setMediaItems(items, if (shuffle) 0 else startIndex, 0L)
             controller.prepare()
             controller.play()
         }
@@ -674,9 +690,61 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
     /** Loads [playlistId]'s tracks and plays them shuffled, starting from a random one. */
     suspend fun shufflePlaylist(playlistId: String) = shuffleTracks(playlistTracks(playlistId), TrackSource.Playlist(playlistId))
 
-    /** Shuffles [list] in Kotlin and queues the result, so the whole queue's order is fixed from the start. */
-    suspend fun shuffleTracks(list: List<DeezerTrack>, source: TrackSource? = null) =
-        playTracks(list.shuffled(), 0, source)
+    /**
+     * Plays [list] at random, starting from a random track. An explicit shuffle also turns the saved
+     * setting on, so the player's shuffle button never claims the queue is in order when it isn't.
+     */
+    suspend fun shuffleTracks(list: List<DeezerTrack>, source: TrackSource? = null) {
+        if (list.isEmpty()) return
+        setShuffleSetting(true)
+        playTracks(list, list.indices.random(), source, shuffle = true)
+    }
+
+    // ---- Shuffle ----
+
+    private val _shuffleEnabled = MutableStateFlow(true)
+
+    /** Whether playback shuffles. Saved, and applied to every list started from anywhere in the tool. */
+    val shuffleEnabled: StateFlow<Boolean> = _shuffleEnabled
+
+    /** The current queue as its source gave it, before any shuffling: what [setShuffle] restores. */
+    @Volatile private var orderedQueue: List<DeezerTrack>? = null
+    @Volatile private var queueSource: TrackSource? = null
+
+    private fun setShuffleSetting(enabled: Boolean) {
+        if (_shuffleEnabled.value == enabled) return
+        _shuffleEnabled.value = enabled
+        ioScope.launch { runCatching { settings.setShuffle(enabled) } }
+    }
+
+    /**
+     * Flips the setting and reorders what is left of the current queue to match. The playing track is
+     * never touched, only the items around it are removed and re-added, so nothing re-buffers.
+     */
+    suspend fun setShuffle(enabled: Boolean) {
+        setShuffleSetting(enabled)
+        val controller = controller ?: return
+        val ordered = orderedQueue ?: return
+        withContext(Dispatchers.Main) {
+            val currentId = controller.currentMediaItem?.mediaId ?: return@withContext
+            val index = ordered.indexOfFirst { it.sngId == currentId }
+            if (index < 0) return@withContext
+            val before: List<DeezerTrack>
+            val after: List<DeezerTrack>
+            if (enabled) {
+                before = emptyList()
+                after = ordered.filterIndexed { i, _ -> i != index }.shuffled()
+            } else {
+                before = ordered.take(index)
+                after = ordered.drop(index + 1)
+            }
+            val current = controller.currentMediaItemIndex
+            controller.removeMediaItems(current + 1, controller.mediaItemCount)
+            controller.removeMediaItems(0, current)
+            controller.addMediaItems(after.map { buildMediaItem(it, source = queueSource) })
+            controller.addMediaItems(0, before.map { buildMediaItem(it, source = queueSource) })
+        }
+    }
 
     /**
      * Every track fully present on disk right now, from anywhere: the Best pépites mirror and the
@@ -789,6 +857,7 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
         playedTracksLoaded = loadPlayedTracksAsync()
         purgeStaleQualityCacheAsync()
         flushPendingFavoritesOnNetwork()
+        ioScope.launch { runCatching { _shuffleEnabled.value = settings.shuffle.first() } }
     }
 
     /**

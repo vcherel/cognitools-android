@@ -74,12 +74,13 @@ import com.example.myapp.podcastRepository
 import com.example.myapp.podcasts.PodcastFavorite
 import kotlinx.coroutines.launch
 
-/** Landing screen: search entry, a Favoris card (count + shuffle), a Playlists preview row, and followed podcasts. */
+/** Landing screen: search entry, a Favoris card (count, open, shuffle), a Playlists preview row, and followed podcasts. */
 @Composable
 fun DeezerLibraryScreen(
     repo: DeezerRepository,
     onBack: () -> Unit,
     onOpenSearch: () -> Unit,
+    onOpenFavorites: () -> Unit,
     onOpenPlaylist: (DeezerPlaylist) -> Unit,
     onOpenPodcast: (PodcastFavorite) -> Unit,
     onOpenPodcastDownloads: () -> Unit,
@@ -183,7 +184,8 @@ fun DeezerLibraryScreen(
             SectionHeader(title = "Favoris")
             FavoritesCard(
                 count = favorites?.size,
-                onShuffle = { scope.launch { runCatching { repo.shuffleFavorites() }.onFailure { error = it.message } } }
+                onShuffle = { scope.launch { runCatching { repo.shuffleFavorites() }.onFailure { error = it.message } } },
+                onOpen = onOpenFavorites
             )
 
             Spacer(Modifier.height(16.dp))
@@ -271,25 +273,34 @@ private fun SectionHeader(title: String) {
     )
 }
 
-/** Shared: a tappable card row with a leading icon and label, whole card taps to shuffle. */
+/**
+ * Shared: a tappable card row with a leading icon and label. Without [onOpen] the whole card shuffles;
+ * with it the card opens the list and the shuffle moves into its own button on the right.
+ */
 @Composable
-private fun ShuffleActionCard(icon: ImageVector, label: String, onShuffle: () -> Unit) {
+private fun ShuffleActionCard(icon: ImageVector, label: String, onShuffle: () -> Unit, onOpen: (() -> Unit)? = null) {
     Row(
         Modifier
             .fillMaxWidth()
             .padding(vertical = 8.dp)
             .clip(RoundedCornerShape(12.dp))
             .background(MaterialTheme.colorScheme.surfaceVariant)
-            .clickable(onClick = onShuffle)
-            .padding(16.dp),
+            .clickable(onClick = onOpen ?: onShuffle)
+            .padding(start = 16.dp, end = if (onOpen == null) 16.dp else 4.dp, top = if (onOpen == null) 16.dp else 6.dp, bottom = if (onOpen == null) 16.dp else 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
         Spacer(Modifier.width(12.dp))
         Text(label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
-        Icon(Icons.Filled.Shuffle, contentDescription = "Lecture aléatoire", tint = MaterialTheme.colorScheme.primary)
-        Spacer(Modifier.width(6.dp))
-        Text("Aléatoire", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
+        if (onOpen == null) {
+            Icon(Icons.Filled.Shuffle, contentDescription = "Lecture aléatoire", tint = MaterialTheme.colorScheme.primary)
+            Spacer(Modifier.width(6.dp))
+            Text("Aléatoire", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
+        } else {
+            IconButton(onClick = onShuffle) {
+                Icon(Icons.Filled.Shuffle, contentDescription = "Lecture aléatoire", tint = MaterialTheme.colorScheme.primary)
+            }
+        }
     }
 }
 
@@ -368,10 +379,10 @@ private fun DiscoveriesRefreshRow(onClick: () -> Unit) {
     }
 }
 
-/** Favoris surface: no track list, just the total count and a shuffle-all entry point. */
+/** Favoris surface: the total count, tapping opens the list, the button on the right shuffles it. */
 @Composable
-private fun FavoritesCard(count: Int?, onShuffle: () -> Unit) {
-    ShuffleActionCard(Icons.Filled.Favorite, count?.let { "$it titres" } ?: "…", onShuffle)
+private fun FavoritesCard(count: Int?, onShuffle: () -> Unit, onOpen: () -> Unit) {
+    ShuffleActionCard(Icons.Filled.Favorite, count?.let { "$it titres" } ?: "…", onShuffle, onOpen)
 }
 
 /**
