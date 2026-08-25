@@ -53,7 +53,8 @@ import kotlinx.coroutines.launch
 /**
  * The news tool: one tab per category, each merging several outlets' RSS feeds. Tapping an article
  * opens it read in the app; the search field looks through everything already loaded, whatever tab
- * it came from.
+ * it came from. The last article left unfinished sits on top of the list, one tap from where it was
+ * put down.
  */
 @Composable
 fun NewsScreen(onBack: () -> Unit, onOpenArticle: (String) -> Unit, onOpenSaved: () -> Unit) {
@@ -72,6 +73,7 @@ fun NewsScreen(onBack: () -> Unit, onOpenArticle: (String) -> Unit, onOpenSaved:
     val readLinks by repo.readLinks.collectAsState()
     val saved by repo.saved.collectAsState(initial = emptyList())
     val savedLinks = remember(saved) { saved.map { it.link }.toSet() }
+    val resumable by repo.resumable.collectAsState(initial = null)
     val listState = rememberLazyListState()
     val focusRequester = remember { FocusRequester() }
 
@@ -173,6 +175,12 @@ fun NewsScreen(onBack: () -> Unit, onOpenArticle: (String) -> Unit, onOpenSaved:
             }
         } else {
             LazyColumn(Modifier.fillMaxSize(), state = listState) {
+                // Not while searching: the results are the answer to the query, nothing else.
+                resumable?.takeIf { !searching }?.let { progress ->
+                    item(key = "resume") {
+                        NewsResumeCard(progress = progress, onClick = { onOpenArticle(progress.link) })
+                    }
+                }
                 items(shown, key = { it.link }) { article ->
                     NewsArticleRow(
                         article = article,

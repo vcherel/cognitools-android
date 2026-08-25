@@ -70,6 +70,47 @@ fun NewsSaved.toArticle(): NewsArticle = NewsArticle(
     publishedAt = publishedAt
 )
 
+/**
+ * Where an article was left, as a 0..1 fraction of its scrollable height. A row exists only while
+ * the article is unfinished: reaching the end deletes it, which keeps the table down to the handful
+ * of articles actually in progress. The article's own fields are copied in the way [NewsSaved] does
+ * them, so the resume card can be drawn whatever tab happens to be loaded.
+ */
+@Entity(tableName = "news_progress")
+data class NewsProgress(
+    @PrimaryKey val link: String,
+    val title: String,
+    val summary: String,
+    val imageUrl: String?,
+    val source: String,
+    val categoryId: String,
+    val publishedAt: Long,
+    val ratio: Float,
+    val updatedAt: Long
+)
+
+fun NewsArticle.toProgress(ratio: Float): NewsProgress = NewsProgress(
+    link = link,
+    title = title,
+    summary = summary,
+    imageUrl = imageUrl,
+    source = source,
+    categoryId = categoryId,
+    publishedAt = publishedAt,
+    ratio = ratio,
+    updatedAt = System.currentTimeMillis()
+)
+
+fun NewsProgress.toArticle(): NewsArticle = NewsArticle(
+    link = link,
+    title = title,
+    summary = summary,
+    imageUrl = imageUrl,
+    source = source,
+    categoryId = categoryId,
+    publishedAt = publishedAt
+)
+
 @Dao
 interface NewsDao {
     @Query("SELECT link FROM news_read")
@@ -93,7 +134,25 @@ interface NewsDao {
 
     @Query("DELETE FROM news_saved WHERE link = :link")
     suspend fun deleteSaved(link: String)
+
+    @Query("SELECT * FROM news_progress ORDER BY updatedAt DESC LIMIT 1")
+    fun observeLatestProgress(): Flow<NewsProgress?>
+
+    @Query("SELECT * FROM news_progress WHERE link = :link")
+    suspend fun getProgress(link: String): NewsProgress?
+
+    @Upsert suspend fun upsertProgress(row: NewsProgress)
+
+    @Query("DELETE FROM news_progress WHERE link = :link")
+    suspend fun deleteProgress(link: String)
+
+    @Query("DELETE FROM news_progress WHERE updatedAt < :cutoff")
+    suspend fun purgeProgressBefore(cutoff: Long)
 }
 
-/** How long an article stays marked read, the feeds having long dropped it by then. */
-const val NEWS_READ_RETENTION_DAYS = 30
+/**
+ * How long an article stays marked read, and how long an unfinished one keeps its position. The
+ * feeds carry a few days at most, so a week is already past anything still reachable, and it keeps
+ * both tables from growing without bound.
+ */
+const val NEWS_READ_RETENTION_DAYS = 7

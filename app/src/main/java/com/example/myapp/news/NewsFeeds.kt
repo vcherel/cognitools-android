@@ -15,8 +15,7 @@ val NEWS_CATEGORIES = listOf(
         listOf(
             NewsFeed("Le Monde", "https://www.lemonde.fr/rss/une.xml"),
             NewsFeed("franceinfo", "https://www.franceinfo.fr/titres.rss"),
-            NewsFeed("Le Figaro", "https://www.lefigaro.fr/rss/figaro_actualites.xml"),
-            NewsFeed("France 24", "https://www.france24.com/fr/rss")
+            NewsFeed("Le Figaro", "https://www.lefigaro.fr/rss/figaro_actualites.xml")
         )
     ),
     NewsCategory(
@@ -24,8 +23,7 @@ val NEWS_CATEGORIES = listOf(
         listOf(
             NewsFeed("franceinfo", "https://www.franceinfo.fr/france.rss"),
             NewsFeed("franceinfo", "https://www.franceinfo.fr/politique.rss"),
-            NewsFeed("Le Monde", "https://www.lemonde.fr/politique/rss_full.xml"),
-            NewsFeed("France 24", "https://www.france24.com/fr/france/rss")
+            NewsFeed("Le Monde", "https://www.lemonde.fr/politique/rss_full.xml")
         )
     ),
     NewsCategory(
@@ -33,8 +31,7 @@ val NEWS_CATEGORIES = listOf(
         listOf(
             NewsFeed("Le Monde", "https://www.lemonde.fr/international/rss_full.xml"),
             NewsFeed("franceinfo", "https://www.franceinfo.fr/monde.rss"),
-            NewsFeed("Le Figaro", "https://www.lefigaro.fr/rss/figaro_international.xml"),
-            NewsFeed("France 24", "https://www.france24.com/fr/rss")
+            NewsFeed("Le Figaro", "https://www.lefigaro.fr/rss/figaro_international.xml")
         )
     ),
     NewsCategory(

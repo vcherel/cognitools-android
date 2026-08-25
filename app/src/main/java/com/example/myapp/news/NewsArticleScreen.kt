@@ -16,21 +16,25 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.OpenInBrowser
-import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -45,12 +49,16 @@ import com.example.myapp.ErrorText
 import com.example.myapp.MyButton
 import com.example.myapp.ScreenTopBar
 import com.example.myapp.newsRepository
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 
 /**
  * One article, read in the app: the body pulled out of the page, the picture, and the actions on it
- * (save, share, open the real page). Opening it marks it read; when the extraction comes back too
- * thin (a paywall), the browser is offered instead of pretending the article is there.
+ * (save, open the real page). Opening it marks it read; when the extraction comes back too thin (a
+ * paywall), the browser is offered instead of pretending the article is there. The bar under the
+ * header says how much is left, and where the article was left is remembered, so it reopens where
+ * it was put down.
  */
 @Composable
 fun NewsArticleScreen(link: String, onBack: () -> Unit) {
@@ -70,6 +78,21 @@ fun NewsArticleScreen(link: String, onBack: () -> Unit) {
     var loading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
 
+    val scrollState = rememberScrollState()
+    var restored by remember(link) { mutableStateOf(false) }
+    // An article that fits on one screen has nothing left to read, so it reads as done rather than
+    // as untouched; while it is still loading there is simply nothing to measure yet.
+    val readRatio by remember(loading) {
+        derivedStateOf {
+            val max = scrollState.maxValue
+            when {
+                max > 0 -> (scrollState.value.toFloat() / max).coerceIn(0f, 1f)
+                loading -> 0f
+                else -> 1f
+            }
+        }
+    }
+
     LaunchedEffect(link) {
         repo.markRead(link)
         loading = true
@@ -77,6 +100,36 @@ fun NewsArticleScreen(link: String, onBack: () -> Unit) {
             .onSuccess { content = it }
             .onFailure { error = it.message }
         loading = false
+    }
+
+    // Jump back to where the article was left, but only once the paragraphs and the picture have
+    // finished laying out: until maxValue stops growing, the same fraction lands somewhere else.
+    LaunchedEffect(link, content) {
+        if (restored || content == null) return@LaunchedEffect
+        val target = repo.progressRatio(link)
+        if (target != null) {
+            var settled = -1
+            while (scrollState.maxValue != settled) {
+                settled = scrollState.maxValue
+                delay(120)
+            }
+            if (settled > 0) scrollState.scrollTo((target * settled).toInt())
+        }
+        restored = true
+    }
+
+    // Recorded every 5 %, not every scrolled pixel; the exact position is caught on the way out.
+    // Waiting for the restore matters: otherwise the jump's own starting point is written first.
+    LaunchedEffect(link, restored) {
+        if (!restored) return@LaunchedEffect
+        snapshotFlow { (readRatio * 20).toInt() }
+            .distinctUntilChanged()
+            .collect { repo.recordProgress(article, it / 20f) }
+    }
+
+    val ratioOnLeave by rememberUpdatedState(readRatio)
+    DisposableEffect(link) {
+        onDispose { if (restored) repo.recordProgress(article, ratioOnLeave) }
     }
 
     Column(Modifier.fillMaxSize()) {
@@ -103,18 +156,22 @@ fun NewsArticleScreen(link: String, onBack: () -> Unit) {
                     tint = if (savedRow != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            IconButton(onClick = { shareArticle(context, article) }) {
-                Icon(Icons.Filled.Share, contentDescription = "Partager l'article")
-            }
             IconButton(onClick = { openInBrowser(context, link) }) {
                 Icon(Icons.Filled.OpenInBrowser, contentDescription = "Ouvrir dans le navigateur")
             }
         }
 
+        LinearProgressIndicator(
+            progress = { readRatio },
+            trackColor = MaterialTheme.colorScheme.surfaceVariant,
+            drawStopIndicator = {},
+            modifier = Modifier.fillMaxWidth().height(3.dp)
+        )
+
         Column(
             Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(scrollState)
                 .padding(horizontal = 16.dp)
         ) {
             (article.imageUrl ?: content?.imageUrl)?.let { url ->

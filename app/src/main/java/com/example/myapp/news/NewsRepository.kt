@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.IOException
 
@@ -24,6 +25,15 @@ private const val FRESH_FOR_MS = 10 * 60 * 1000L
 
 /** Articles kept per category: enough to scroll a while, not enough to make the list state heavy. */
 private const val MAX_PER_CATEGORY = 120
+
+/**
+ * How far down an article counts as read to the end. Not 1f: the last screenful is the byline, the
+ * tags and whatever the outlet pads the page with, and stopping just short of the bottom is normal.
+ */
+private const val FINISHED_RATIO = 0.95f
+
+/** Below this, the article was opened and not really started; nothing worth resuming. */
+private const val STARTED_RATIO = 0.03f
 
 /**
  * The news tool's one source of truth: the merged articles per category, the read state and the
@@ -47,6 +57,9 @@ class NewsRepository(context: Context) {
         .stateIn(scope, SharingStarted.Eagerly, emptySet())
 
     val saved: Flow<List<NewsSaved>> = dao.observeSaved()
+
+    /** The article to offer picking back up: the last one left unfinished, if any. */
+    val resumable: Flow<NewsProgress?> = dao.observeLatestProgress()
 
     /** Every article loaded so far, whatever the tab: what the search field looks through. */
     fun allLoaded(): List<NewsArticle> =
@@ -93,6 +106,21 @@ class NewsRepository(context: Context) {
     suspend fun save(article: NewsArticle, text: String?) = dao.upsertSaved(article.toSaved(text))
 
     suspend fun unsave(link: String) = dao.deleteSaved(link)
+
+    /** Where [link] was left, or null if it was never started or was read to the end. */
+    suspend fun progressRatio(link: String): Float? = dao.getProgress(link)?.ratio
+
+    /**
+     * Remembers how far into [article] the reader got. Runs on the repository's own scope so the
+     * article screen can record a last position on its way out, once its own scope is gone. Reaching
+     * the end (or scrolling back to the top) drops the row instead of storing a useless one.
+     */
+    fun recordProgress(article: NewsArticle, ratio: Float) {
+        scope.launch {
+            if (ratio in STARTED_RATIO..FINISHED_RATIO) dao.upsertProgress(article.toProgress(ratio))
+            else dao.deleteProgress(article.link)
+        }
+    }
 
     /** The article's body, from the network, falling back to the copy kept with a saved article. */
     suspend fun loadArticle(link: String): NewsArticleContent = withContext(Dispatchers.IO) {
