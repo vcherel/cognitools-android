@@ -351,7 +351,7 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
         // Queued first, cleared on success, rather than queued only once the call has failed: the
         // process is killed the moment the app goes away, and a call left hanging on a connection
         // that looks alive but isn't would otherwise take the like with it.
-        queuePendingFavorite(track.sngId, add)
+        queuePendingFavorites(listOf(track.sngId), add)
         if (!hasNetwork()) return
         try {
             withTokenRetry { if (add) api.addFavorite(it, track.sngId) else api.removeFavorite(it, track.sngId) }
@@ -409,9 +409,6 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
             )
         }
     }
-
-    private suspend fun queuePendingFavorite(sngId: String, add: Boolean): Unit =
-        queuePendingFavorites(listOf(sngId), add)
 
     /** Queues a whole run of like/unlike intents in one disk write. */
     private suspend fun queuePendingFavorites(sngIds: List<String>, add: Boolean): Unit =
@@ -658,7 +655,8 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
      * makes "previous" lose tracks whenever the queue changes after the fact. A shuffled play is instead
      * a plain queue whose order was already randomized in Kotlin before it gets here.
      */
-    private suspend fun setQueue(tracks: List<DeezerTrack>, startIndex: Int, source: TrackSource?) {
+    suspend fun playTracks(tracks: List<DeezerTrack>, startIndex: Int, source: TrackSource? = null) {
+        if (tracks.isEmpty()) return
         stopPodcastPlayback()
         val controller = ensureController()
         queuedTracks.clear()
@@ -670,12 +668,6 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
         }
     }
 
-    /** Sets the queue to [tracks] starting at [startIndex] and plays in order. */
-    suspend fun playTracks(tracks: List<DeezerTrack>, startIndex: Int, source: TrackSource? = null) {
-        if (tracks.isEmpty()) return
-        setQueue(tracks, startIndex, source)
-    }
-
     /** Queues every favorite and plays them shuffled, starting from a random one. */
     suspend fun shuffleFavorites() = shuffleTracks(ensureFavorites(), TrackSource.Favorites)
 
@@ -683,10 +675,8 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
     suspend fun shufflePlaylist(playlistId: String) = shuffleTracks(playlistTracks(playlistId), TrackSource.Playlist(playlistId))
 
     /** Shuffles [list] in Kotlin and queues the result, so the whole queue's order is fixed from the start. */
-    suspend fun shuffleTracks(list: List<DeezerTrack>, source: TrackSource? = null) {
-        if (list.isEmpty()) return
-        setQueue(list.shuffled(), 0, source)
-    }
+    suspend fun shuffleTracks(list: List<DeezerTrack>, source: TrackSource? = null) =
+        playTracks(list.shuffled(), 0, source)
 
     /**
      * Every track fully present on disk right now, from anywhere: the Best pépites mirror and the
@@ -858,9 +848,6 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
         }
     }
 
-    /** Builds a queued MediaItem for [track], tagged with [source] so a stream failure can be corrected at its origin. */
-    fun mediaItemFor(track: DeezerTrack, source: TrackSource?): MediaItem = buildMediaItem(track, source = source)
-
     /** The [TrackSource] a queued MediaItem was tagged with, if any. */
     fun sourceOf(mediaItem: MediaItem): TrackSource? {
         val extras = mediaItem.mediaMetadata.extras ?: return null
@@ -871,7 +858,8 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
         }
     }
 
-    private fun buildMediaItem(
+    /** Builds a queued MediaItem for [track], tagged with [source] so a stream failure can be corrected at its origin. */
+    internal fun buildMediaItem(
         track: DeezerTrack,
         queuedNext: Boolean = false,
         source: TrackSource? = null

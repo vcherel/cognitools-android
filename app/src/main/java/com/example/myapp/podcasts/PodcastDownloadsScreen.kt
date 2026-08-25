@@ -31,16 +31,16 @@ import kotlinx.coroutines.launch
 @Composable
 fun PodcastDownloadsScreen(repo: PodcastRepository, onBack: () -> Unit) {
     val scope = rememberCoroutineScope()
-    val downloads by repo.downloads.collectAsState(initial = emptyList())
+    val downloads by repo.downloads.episodes.collectAsState(initial = emptyList())
     val episodes by repo.episodes.collectAsState()
     val podcastPlayerState by repo.playerState.collectAsState()
-    val downloadedKeys by repo.downloadedKeys.collectAsState()
+    val downloadedIds by repo.downloads.ids.collectAsState()
     val listeningProgress by repo.progress.collectAsState(initial = emptyMap())
     var confirmRemove by remember { mutableStateOf<PodcastEpisode?>(null) }
 
     // The live episode carries the seen state; the stored row is the fallback when no feed was read.
     val downloadedEpisodes = downloads
-        .filter { repo.isDownloaded(it.episodeId, downloadedKeys) }
+        .filter { repo.downloads.isDownloaded(it.episodeId, downloadedIds) }
         .map { row -> episodes.firstOrNull { it.id == row.episodeId } ?: row.toEpisode(seen = false) }
 
     Column(Modifier.fillMaxSize()) {
@@ -53,7 +53,7 @@ fun PodcastDownloadsScreen(repo: PodcastRepository, onBack: () -> Unit) {
                 onCancel = { confirmRemove = null },
                 onConfirm = {
                     confirmRemove = null
-                    scope.launch { repo.removeDownload(episode.id) }
+                    scope.launch { repo.downloads.remove(episode.id) }
                 },
                 cancelText = "Annuler",
                 confirmText = "Supprimer"

@@ -93,7 +93,7 @@ fun DeezerLibraryScreen(
     val podcastFavorites by podcastRepo.favorites.collectAsState(initial = emptyList())
     val podcastEpisodes by podcastRepo.episodes.collectAsState()
     val podcastPlayerState by podcastRepo.playerState.collectAsState()
-    val podcastDownloads by podcastRepo.downloads.collectAsState(initial = emptyList())
+    val podcastDownloads by podcastRepo.downloads.episodes.collectAsState(initial = emptyList())
     val favorites by repo.favorites.collectAsState()
     val playlists by repo.playlists.collectAsState()
     val offlineState by repo.offline.state.collectAsState()

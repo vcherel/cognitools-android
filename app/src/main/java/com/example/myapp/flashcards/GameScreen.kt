@@ -173,7 +173,6 @@ fun FlashcardGameScreen(listId: String, navController: NavController) {
         isProcessingSwipe = true
 
         currentCard?.let { card ->
-            // Save state for undo
             lastCard = card
             lastShowFront = showFront
 
@@ -212,14 +211,12 @@ fun FlashcardGameScreen(listId: String, navController: NavController) {
 
     fun handleUndo() {
         lastCard?.let { card ->
-            // Restore the card to its previous state
             localUpdates = localUpdates + (card.id to card)
 
             scope.launch {
                 repository.updateElement(card)
             }
 
-            // Restore the current card and state
             currentCard = card
             showFront = lastShowFront
             showDefinition = false
@@ -227,52 +224,16 @@ fun FlashcardGameScreen(listId: String, navController: NavController) {
             // If the answer had graduated the card, put it back in the working set
             if (card.score < 2) activeDifficultCards = activeDifficultCards + card.id
 
-            // Clear undo state
             canUndo = false
             lastCard = null
         }
     }
 
-    // Box that display gradients when swiping. cardOffset is read in drawBehind,
-    // not in composition, so dragging only invalidates the draw phase.
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            .drawBehind {
-                val offset = cardOffset
-                if (offset == 0f) return@drawBehind
-
-                val swipeProgress = (abs(offset) / 200f).coerceIn(0f, 1f)
-                val shadowColor = if (offset < 0) greenColor else redColor
-                val containerWidth = size.width
-
-                // Gradient width grows with swipe, max half the screen
-                val gradientWidth = min(abs(offset) * 2f, containerWidth / 2f)
-
-                val brush = if (offset < 0) {
-                    // Left swipe (green)
-                    Brush.horizontalGradient(
-                        colors = listOf(
-                            shadowColor.copy(alpha = swipeProgress * 0.6f),
-                            Color.Transparent
-                        ),
-                        startX = 0f,
-                        endX = gradientWidth
-                    )
-                } else {
-                    // Right swipe (red)
-                    Brush.horizontalGradient(
-                        colors = listOf(
-                            Color.Transparent,
-                            shadowColor.copy(alpha = swipeProgress * 0.6f)
-                        ),
-                        startX = containerWidth - gradientWidth,
-                        endX = containerWidth
-                    )
-                }
-                drawRect(brush)
-            }
+            .swipeVerdictGradient({ cardOffset }, greenColor, redColor)
     ) {
         Column(
             modifier = Modifier
@@ -420,6 +381,31 @@ fun FlashcardGameScreen(listId: String, navController: NavController) {
  * What the card shows: the side being asked, the other one once revealed, its score in the corner,
  * and, when playing across every list ([listName] non-null), which list it came from.
  */
+/**
+ * Washes the edge the card is being dragged towards in its verdict's color, deepening with the
+ * drag. [offset] is read in the draw phase, not in composition, so dragging only invalidates the
+ * draw and never recomposes the card.
+ */
+private fun Modifier.swipeVerdictGradient(offset: () -> Float, green: Color, red: Color): Modifier =
+    drawBehind {
+        val current = offset()
+        if (current == 0f) return@drawBehind
+        val progress = (abs(current) / 200f).coerceIn(0f, 1f)
+        val tint = (if (current < 0) green else red).copy(alpha = progress * 0.6f)
+        // Grows with the swipe, up to half the screen.
+        val width = min(abs(current) * 2f, size.width / 2f)
+        val brush = if (current < 0) {
+            Brush.horizontalGradient(listOf(tint, Color.Transparent), startX = 0f, endX = width)
+        } else {
+            Brush.horizontalGradient(
+                listOf(Color.Transparent, tint),
+                startX = size.width - width,
+                endX = size.width
+            )
+        }
+        drawRect(brush)
+    }
+
 @Composable
 private fun CardFace(
     card: FlashcardElement,

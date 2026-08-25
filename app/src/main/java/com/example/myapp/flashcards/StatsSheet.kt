@@ -55,14 +55,13 @@ fun StatsSheet(
             Text(title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(20.dp))
 
-            if (stats == null) {
+            val s = stats
+            if (s == null) {
                 Box(
                     modifier = Modifier.fillMaxWidth().height(80.dp),
                     contentAlignment = Alignment.Center
                 ) { CircularProgressIndicator() }
             } else {
-                val s = stats!!
-
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceEvenly
@@ -71,11 +70,11 @@ fun StatsSheet(
                     StatSummaryItem("À réviser", s.dueCards.toString())
                     StatSummaryItem(
                         "Taux",
-                        if (s.winRate < 0) "–" else "${(s.winRate * 100).toInt()}%"
+                        if (s.winRate < 0) "-" else "${(s.winRate * 100).toInt()}%"
                     )
                     StatSummaryItem(
                         "Délai moyen",
-                        if (s.meanTimeUntilNextReviewMs < 0) "–"
+                        if (s.meanTimeUntilNextReviewMs < 0) "-"
                         else formatDuration(s.meanTimeUntilNextReviewMs)
                     )
                 }

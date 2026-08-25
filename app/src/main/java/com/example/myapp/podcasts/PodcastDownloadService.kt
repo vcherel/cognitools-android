@@ -43,7 +43,7 @@ class PodcastDownloadService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_CANCEL) {
-            applicationContext.podcastRepository.cancelAllDownloads()
+            applicationContext.podcastRepository.downloads.cancelAll()
             stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
             return START_NOT_STICKY
@@ -59,7 +59,7 @@ class PodcastDownloadService : Service() {
         if (watchJob?.isActive == true) return
         val repo = applicationContext.podcastRepository
         watchJob = scope.launch {
-            combine(repo.downloading, repo.downloadProgress) { queue, progress -> queue to progress }
+            combine(repo.downloads.active, repo.downloads.progress) { queue, progress -> queue to progress }
                 .collect { (queue, progress) ->
                     if (queue.isEmpty()) {
                         stopForeground(STOP_FOREGROUND_REMOVE)

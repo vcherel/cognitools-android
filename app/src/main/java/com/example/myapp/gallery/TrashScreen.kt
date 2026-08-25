@@ -232,10 +232,31 @@ fun GalleryTrashScreen(onBack: () -> Unit) {
 }
 
 /**
+ * Trashes [items] and tells the user, refreshing every gallery screen in between. The one way in:
+ * a call site that trashed on its own could forget the refresh, and then the grid it came from
+ * would keep showing what is no longer there. [onTrashed] runs after the write and before the
+ * refresh, for a screen that has its own list to fix up first. Returns false, having said nothing,
+ * when the write did not go through.
+ */
+suspend fun trashAndAnnounce(
+    context: Context,
+    items: List<MediaItem>,
+    requestConsent: suspend (IntentSender) -> Boolean,
+    onTrashed: suspend () -> Unit = {},
+    onRestored: suspend () -> Unit = {}
+): Boolean {
+    if (!performTrashBatch(context, items, requestConsent)) return false
+    onTrashed()
+    GalleryRefresh.bump()
+    showTrashedSnackbar(context, items, requestConsent, onRestored)
+    return true
+}
+
+/**
  * Confirms a delete that just moved items to the trash, with the undo that puts them back. Below
  * API 30 the delete was permanent, so there is nothing to undo and the message says so.
  */
-fun showTrashedSnackbar(
+private fun showTrashedSnackbar(
     context: Context,
     items: List<MediaItem>,
     requestConsent: suspend (IntentSender) -> Boolean,

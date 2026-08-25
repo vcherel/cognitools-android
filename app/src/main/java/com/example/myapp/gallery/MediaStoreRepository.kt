@@ -325,7 +325,9 @@ private fun renameMediaItem(context: Context, item: MediaItem, newName: String):
         context.contentResolver.update(item.uri, values, null, null) > 0
     }
 
-suspend fun performMove(
+// One item's move. Callers go through performMoveBatch, which is what handles the shared consent
+// dialog; this is the per-item work it and the pre-Q path fall back on.
+private suspend fun performMove(
     context: Context,
     item: MediaItem,
     targetRelativePath: String,
@@ -412,7 +414,9 @@ private fun moveMediaItemLegacy(context: Context, item: MediaItem, targetRelativ
     }
 }
 
-suspend fun performDelete(
+// One item's delete. Callers go through performDeleteBatch; this is what it and the copy-then-delete
+// move fall back on per item.
+private suspend fun performDelete(
     context: Context,
     item: MediaItem,
     requestConsent: suspend (IntentSender) -> Boolean

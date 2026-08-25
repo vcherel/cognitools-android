@@ -63,9 +63,9 @@ fun PodcastEpisodesScreen(repo: PodcastRepository, favoriteId: String, onBack: (
     val favorite = favorites.firstOrNull { it.id == favoriteId }
     val episodes by repo.episodes.collectAsState()
     val podcastPlayerState by repo.playerState.collectAsState()
-    val downloadedKeys by repo.downloadedKeys.collectAsState()
-    val downloadingIds by repo.downloadingIds.collectAsState()
-    val downloadProgress by repo.downloadProgress.collectAsState()
+    val downloadedIds by repo.downloads.ids.collectAsState()
+    val downloadingIds by repo.downloads.activeIds.collectAsState()
+    val downloadProgress by repo.downloads.progress.collectAsState()
     val listeningProgress by repo.progress.collectAsState(initial = emptyMap())
     var loading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
@@ -87,7 +87,7 @@ fun PodcastEpisodesScreen(repo: PodcastRepository, favoriteId: String, onBack: (
     val allEpisodes = episodes.filter { it.podcastId == favoriteId }.sortedByDescending { it.pubDate }
     val showEpisodes = allEpisodes
         .filter { showAll || !it.seen }
-        .filter { !downloadedOnly || repo.isDownloaded(it.id, downloadedKeys) }
+        .filter { !downloadedOnly || repo.downloads.isDownloaded(it.id, downloadedIds) }
 
     LaunchedEffect(scrollBackTo, showEpisodes) {
         val id = scrollBackTo ?: return@LaunchedEffect
@@ -158,7 +158,7 @@ fun PodcastEpisodesScreen(repo: PodcastRepository, favoriteId: String, onBack: (
                 onCancel = { confirmRemoveDownload = null },
                 onConfirm = {
                     confirmRemoveDownload = null
-                    scope.launch { repo.removeDownload(episode.id) }
+                    scope.launch { repo.downloads.remove(episode.id) }
                 },
                 cancelText = "Annuler",
                 confirmText = "Supprimer"
@@ -191,7 +191,7 @@ fun PodcastEpisodesScreen(repo: PodcastRepository, favoriteId: String, onBack: (
                     PodcastEpisodeRow(
                         episode = episode,
                         isPlaying = podcastPlayerState.episodeId == episode.id,
-                        isDownloaded = repo.isDownloaded(episode.id, downloadedKeys),
+                        isDownloaded = repo.downloads.isDownloaded(episode.id, downloadedIds),
                         isDownloading = episode.id in downloadingIds,
                         downloadProgress = downloadProgress[episode.id],
                         listeningProgress = listeningProgress[episode.id],
@@ -203,9 +203,9 @@ fun PodcastEpisodesScreen(repo: PodcastRepository, favoriteId: String, onBack: (
                         },
                         onToggleDownload = {
                             when {
-                                repo.isDownloaded(episode.id, downloadedKeys) -> confirmRemoveDownload = episode
-                                episode.id in downloadingIds -> repo.cancelDownload(episode.id)
-                                else -> repo.enqueueDownload(episode)
+                                repo.downloads.isDownloaded(episode.id, downloadedIds) -> confirmRemoveDownload = episode
+                                episode.id in downloadingIds -> repo.downloads.cancel(episode.id)
+                                else -> repo.downloads.enqueue(episode)
                             }
                         },
                         onToggleSeen = {

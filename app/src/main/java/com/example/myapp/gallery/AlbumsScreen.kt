@@ -24,7 +24,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -46,6 +49,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.myapp.AppSnackbar
 import com.example.myapp.MyButton
 import com.example.myapp.ScreenTopBar
 import com.example.myapp.ShowAlertDialog
@@ -58,7 +62,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /** What entering the code is about to do to an album (see the long press and the tap on a lock). */
-private enum class LockAction { Open, Lock, Unlock }
+private enum class LockAction { Open, Lock, Unlock, DeleteContent }
 
 @Composable
 fun GalleryAlbumsScreen(
@@ -69,6 +73,7 @@ fun GalleryAlbumsScreen(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val requestConsent = LocalMediaConsent.current
     var hasPermission by remember { mutableStateOf(hasReadMediaPermission(context)) }
     var hasAllFiles by remember { mutableStateOf(hasAllFilesAccess()) }
     var albums by remember { mutableStateOf<List<Album>?>(null) }
@@ -81,8 +86,9 @@ fun GalleryAlbumsScreen(
     val lockedBuckets by remember { GalleryLock.lockedBucketIds(context) }.collectAsState(initial = emptySet())
     // The album the code prompt is about, and what entering it will do.
     var pinRequest by remember { mutableStateOf<Pair<Album, LockAction>?>(null) }
-    var confirmLock by remember { mutableStateOf<Album?>(null) }
-    var confirmUnlock by remember { mutableStateOf<Album?>(null) }
+    // The album a "are you sure?" is waiting on, and which action it would carry out. Only ever one
+    // of Lock, Unlock and DeleteContent: opening a locked album asks for the code, not a confirmation.
+    var pendingConfirm by remember { mutableStateOf<Pair<Album, LockAction>?>(null) }
     // Locking the first album with no code set yet is where the code gets chosen.
     var hasPin by remember { mutableStateOf(true) }
 
@@ -114,31 +120,48 @@ fun GalleryAlbumsScreen(
 
     BackHandler { onBack() }
 
-    confirmLock?.let { album ->
+    pendingConfirm?.let { (album, action) ->
+        val plural = album.itemCount > 1
+        val body = when (action) {
+            LockAction.Lock -> "Le dossier ne s'ouvrira plus qu'avec le code des notes."
+            LockAction.DeleteContent ->
+                "${album.itemCount} élément${if (plural) "s" else ""} " +
+                    "${if (plural) "partiront" else "partira"} à la corbeille."
+            else -> null
+        }
         ShowAlertDialog(
-            onDismiss = { confirmLock = null },
-            title = "Verrouiller « ${album.name} » ?",
-            textContent = { Text("Le dossier ne s'ouvrira plus qu'avec le code des notes.") },
-            confirmText = "Verrouiller",
-            onCancel = { confirmLock = null },
+            onDismiss = { pendingConfirm = null },
+            title = when (action) {
+                LockAction.Lock -> "Verrouiller « ${album.name} » ?"
+                LockAction.Unlock -> "Déverrouiller « ${album.name} » ?"
+                else -> "Supprimer le contenu de « ${album.name} » ?"
+            },
+            textContent = if (body == null) null else {
+                { Text(body) }
+            },
+            confirmText = when (action) {
+                LockAction.Lock -> "Verrouiller"
+                LockAction.Unlock -> "Déverrouiller"
+                else -> "Supprimer"
+            },
+            onCancel = { pendingConfirm = null },
             onConfirm = {
-                confirmLock = null
-                // With no code set yet, choosing one is part of locking the first album.
-                if (hasPin) scope.launch { GalleryLock.setLocked(context, album.bucketId, true) }
-                else pinRequest = album to LockAction.Lock
-            }
-        )
-    }
-
-    confirmUnlock?.let { album ->
-        ShowAlertDialog(
-            onDismiss = { confirmUnlock = null },
-            title = "Déverrouiller « ${album.name} » ?",
-            confirmText = "Déverrouiller",
-            onCancel = { confirmUnlock = null },
-            onConfirm = {
-                confirmUnlock = null
-                pinRequest = album to LockAction.Unlock
+                pendingConfirm = null
+                when (action) {
+                    // With no code set yet, choosing one is part of locking the first album.
+                    LockAction.Lock ->
+                        if (hasPin) scope.launch { GalleryLock.setLocked(context, album.bucketId, true) }
+                        else pinRequest = album to LockAction.Lock
+                    LockAction.Unlock -> pinRequest = album to LockAction.Unlock
+                    else -> scope.launch {
+                        val toTrash = withContext(Dispatchers.IO) {
+                            queryMediaItems(context, bucketId = album.bucketId)
+                        }
+                        if (!trashAndAnnounce(context, toTrash, requestConsent)) {
+                            AppSnackbar.show("Suppression impossible")
+                        }
+                    }
+                }
             }
         )
     }
@@ -156,6 +179,7 @@ fun GalleryAlbumsScreen(
                         GalleryLock.setLocked(context, album.bucketId, true)
                     }
                     LockAction.Unlock -> scope.launch { GalleryLock.setLocked(context, album.bucketId, false) }
+                    LockAction.DeleteContent -> pendingConfirm = album to LockAction.DeleteContent
                 }
             }
         )
@@ -177,6 +201,7 @@ fun GalleryAlbumsScreen(
             )
         }
 
+        val loadedAlbums = albums
         when {
             !hasPermission -> Box(
                 modifier = Modifier.fillMaxSize().padding(24.dp),
@@ -187,18 +212,18 @@ fun GalleryAlbumsScreen(
                     textAlign = TextAlign.Center
                 )
             }
-            albums == null -> Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            loadedAlbums == null -> Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator()
             }
-            albums!!.isEmpty() && trashCount == 0 -> Box(
+            loadedAlbums.isEmpty() && trashCount == 0 -> Box(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center
             ) {
                 Text("Aucune photo ou vidéo trouvée")
             }
             else -> {
-                // Tapping a locked album asks for the code before opening it, a long press is where
-                // the lock itself is put on or taken off.
+                // Tapping a locked album asks for the code before opening it, a long press opens the
+                // menu where the lock is put on or taken off and where the album is emptied.
                 val albumCard: @Composable (Album) -> Unit = { album ->
                     val locked = album.bucketId in lockedBuckets
                     AlbumCard(
@@ -207,11 +232,18 @@ fun GalleryAlbumsScreen(
                         onClick = {
                             if (locked) pinRequest = album to LockAction.Open else onOpenAlbum(album.bucketId)
                         },
-                        onLongClick = { if (locked) confirmUnlock = album else confirmLock = album }
+                        onToggleLock = {
+                            pendingConfirm = album to if (locked) LockAction.Unlock else LockAction.Lock
+                        },
+                        // Emptying a locked album goes through the code too, like opening it does.
+                        onDeleteContent = {
+                            if (locked) pinRequest = album to LockAction.DeleteContent
+                            else pendingConfirm = album to LockAction.DeleteContent
+                        }
                     )
                 }
-                val walletAlbum = albums!!.firstOrNull { it.name.equals(WALLET_ALBUM_NAME, ignoreCase = true) }
-                val regularAlbums = if (walletAlbum != null) albums!! - walletAlbum else albums!!
+                val walletAlbum = loadedAlbums.firstOrNull { it.name.equals(WALLET_ALBUM_NAME, ignoreCase = true) }
+                val regularAlbums = if (walletAlbum != null) loadedAlbums - walletAlbum else loadedAlbums
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(2),
                     contentPadding = PaddingValues(16.dp),
@@ -324,12 +356,33 @@ private fun PinnedHeroCard(item: MediaItem, pinnedCount: Int, onClick: () -> Uni
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun AlbumCard(album: Album, locked: Boolean, onClick: () -> Unit, onLongClick: () -> Unit) {
+private fun AlbumCard(
+    album: Album,
+    locked: Boolean,
+    onClick: () -> Unit,
+    onToggleLock: () -> Unit,
+    onDeleteContent: () -> Unit
+) {
+    var menuOpen by remember { mutableStateOf(false) }
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
+            .combinedClickable(onClick = onClick, onLongClick = { menuOpen = true })
     ) {
+        DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+            DropdownMenuItem(
+                text = { Text(if (locked) "Déverrouiller" else "Verrouiller") },
+                leadingIcon = {
+                    Icon(if (locked) Icons.Default.LockOpen else Icons.Default.Lock, contentDescription = null)
+                },
+                onClick = { menuOpen = false; onToggleLock() }
+            )
+            DropdownMenuItem(
+                text = { Text("Supprimer le contenu") },
+                leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null) },
+                onClick = { menuOpen = false; onDeleteContent() }
+            )
+        }
         // A locked album shows no cover at all: the thumbnail alone would give away what is inside.
         if (locked) {
             Box(
