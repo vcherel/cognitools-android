@@ -15,3 +15,9 @@ notebook = ["ipykernel"]
 
 [tool.uv]
 package = false
+
+[tool.ruff]
+line-length = 110
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]

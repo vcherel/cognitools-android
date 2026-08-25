@@ -343,40 +343,7 @@ fun FlashcardDetailScreen(
     }
 
     selectedElement?.let { element ->
-        ShowAlertDialog(
-            onDismiss = { selectedElement = null },
-            title = element.name,
-            textContent = {
-                Column(
-                    modifier = Modifier
-                        .padding(vertical = 16.dp, horizontal = 8.dp)
-                        .fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text(
-                        text = "Nombre total de réponses: ${element.totalWins + element.totalLosses}",
-                        style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
-                        textAlign = TextAlign.Center
-                    )
-                    Text(
-                        text = "Bonnes réponses: ${element.totalWins}",
-                        color = Color(0xFF37A13B),
-                        style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
-                        textAlign = TextAlign.Center
-                    )
-                    Text(
-                        text = "Mauvaises réponses: ${element.totalLosses}",
-                        color = Color(0xFFC4362D),
-                        style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
-                        textAlign = TextAlign.Center
-                    )
-                }
-            },
-            onCancel = { selectedElement = null },
-            onConfirm = { selectedElement = null },
-            cancelText = "Fermer"
-        )
+        ElementScoreDialog(element = element, onDismiss = { selectedElement = null })
     }
 
     elementToDelete?.let { element ->
@@ -440,6 +407,46 @@ fun FlashcardDetailScreen(
             loadStats = { repository.getStats(if (isAllLists) null else listId) }
         )
     }
+}
+
+/** How a single card has scored so far, opened by tapping it in the list. */
+@Composable
+private fun ElementScoreDialog(element: FlashcardElement, onDismiss: () -> Unit) {
+    ShowAlertDialog(
+        onDismiss = onDismiss,
+        title = element.name,
+        textContent = {
+            Column(
+                modifier = Modifier
+                    .padding(vertical = 16.dp, horizontal = 8.dp)
+                    .fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                val bold = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold)
+                Text(
+                    text = "Nombre total de réponses: ${element.totalWins + element.totalLosses}",
+                    style = bold,
+                    textAlign = TextAlign.Center
+                )
+                Text(
+                    text = "Bonnes réponses: ${element.totalWins}",
+                    color = Color(0xFF37A13B),
+                    style = bold,
+                    textAlign = TextAlign.Center
+                )
+                Text(
+                    text = "Mauvaises réponses: ${element.totalLosses}",
+                    color = Color(0xFFC4362D),
+                    style = bold,
+                    textAlign = TextAlign.Center
+                )
+            }
+        },
+        onCancel = onDismiss,
+        onConfirm = onDismiss,
+        cancelText = "Fermer"
+    )
 }
 
 /** Back arrow + list name (tap for stats), then the one-face toggle, the sort menu and the due count. */

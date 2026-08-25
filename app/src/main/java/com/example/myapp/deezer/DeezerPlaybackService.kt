@@ -339,7 +339,7 @@ class DeezerPlaybackService : MediaSessionService() {
                     return@launch
                 }
                 val index = player.currentMediaItemIndex
-                player.replaceMediaItem(index, repo.mediaItemFor(replacement, source))
+                player.replaceMediaItem(index, repo.buildMediaItem(replacement, source = source))
                 player.prepare()
                 player.play()
                 val applied = runCatching { repo.applyReplacement(track, replacement, source) }.isSuccess

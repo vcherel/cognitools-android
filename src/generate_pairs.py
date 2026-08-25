@@ -1,9 +1,9 @@
 import json
 import re
 
+import faiss
 import fasttext
 import fasttext.util
-import faiss
 import numpy as np
 import pandas as pd
 
@@ -58,7 +58,7 @@ def build_pairs(df, ft, neighbors=300, threshold=0.43):
 
     pairs = []
     for i, word in enumerate(words):
-        for j, sim in zip(indices[i], similarities[i]):
+        for j, sim in zip(indices[i], similarities[i], strict=False):
             if i >= j:  # skip self pairs and mirror duplicates
                 continue
             if sim > threshold and df.loc[i, "cgram"] == df.loc[j, "cgram"]:

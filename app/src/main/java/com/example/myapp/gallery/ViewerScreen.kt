@@ -157,10 +157,8 @@ fun GalleryViewerScreen(
     }
     val pagerState = rememberPagerState(initialPage = initialIndex) { items.size }
     var isZoomed by remember { mutableStateOf(false) }
-    var showRenameDialog by remember { mutableStateOf(false) }
-    var showMoveDialog by remember { mutableStateOf(false) }
-    var showShareDialog by remember { mutableStateOf(false) }
-    var showInfoDialog by remember { mutableStateOf(false) }
+    // One at a time, so the tools bar just names the one it opens instead of juggling four flags.
+    var openDialog by remember { mutableStateOf<ViewerDialog?>(null) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
     val currentItem = items[pagerState.currentPage.coerceIn(items.indices)]
@@ -306,8 +304,8 @@ fun GalleryViewerScreen(
                 item = currentItem,
                 isPinned = currentItem.id in pinnedIds,
                 isHero = currentItem.id == heroId,
-                onRename = { showRenameDialog = true },
-                onMove = { showMoveDialog = true },
+                onRename = { openDialog = ViewerDialog.Rename },
+                onMove = { openDialog = ViewerDialog.Move },
                 onCrop = { onCrop(currentItem.id) },
                 onTrim = { onTrim(currentItem.id) },
                 onTogglePin = {
@@ -341,8 +339,8 @@ fun GalleryViewerScreen(
                         AppSnackbar.show("Photo mise en avant")
                     }
                 },
-                onShare = { showShareDialog = true },
-                onShowInfo = { showInfoDialog = true },
+                onShare = { openDialog = ViewerDialog.Share },
+                onShowInfo = { openDialog = ViewerDialog.Info },
                 onDelete = {
                     // No confirmation: the item goes to the trash, the pager moves on to the next
                     // one, and the snackbar offers the undo. The item is spliced out of the local
@@ -353,30 +351,28 @@ fun GalleryViewerScreen(
                     val deletedItem = currentItem
                     val deletedIndex = items.indexOfFirst { it.id == currentItem.id }
                     scope.launch {
-                        if (performTrashBatch(context, toTrash, requestConsent)) {
-                            val remaining = items.filterNot { it.id == currentItem.id }
-                            items = remaining
-                            if (remaining.isEmpty()) {
-                                leave()
-                            } else {
-                                pagerState.scrollToPage(deletedIndex.coerceIn(0, remaining.size - 1))
-                            }
-                            GalleryRefresh.bump()
-                            showTrashedSnackbar(
-                                context, toTrash, requestConsent,
-                                // Undo puts the item back where it was and returns the pager to it,
-                                // instead of leaving the view on whatever it advanced to.
-                                onRestored = {
-                                    if (!hasLeft) {
-                                        val restoreIndex = deletedIndex.coerceIn(0, items.size)
-                                        items = items.toMutableList().apply { add(restoreIndex, deletedItem) }
-                                        pagerState.scrollToPage(restoreIndex)
-                                    }
+                        val trashed = trashAndAnnounce(
+                            context, toTrash, requestConsent,
+                            onTrashed = {
+                                val remaining = items.filterNot { it.id == currentItem.id }
+                                items = remaining
+                                if (remaining.isEmpty()) {
+                                    leave()
+                                } else {
+                                    pagerState.scrollToPage(deletedIndex.coerceIn(0, remaining.size - 1))
                                 }
-                            )
-                        } else {
-                            errorMessage = "Suppression impossible"
-                        }
+                            },
+                            // Undo puts the item back where it was and returns the pager to it,
+                            // instead of leaving the view on whatever it advanced to.
+                            onRestored = {
+                                if (!hasLeft) {
+                                    val restoreIndex = deletedIndex.coerceIn(0, items.size)
+                                    items = items.toMutableList().apply { add(restoreIndex, deletedItem) }
+                                    pagerState.scrollToPage(restoreIndex)
+                                }
+                            }
+                        )
+                        if (!trashed) errorMessage = "Suppression impossible"
                     }
                 },
                 modifier = Modifier
@@ -388,58 +384,14 @@ fun GalleryViewerScreen(
         }
     }
 
-    if (showRenameDialog) {
-        RenameDialog(
-            item = currentItem,
-            onDismiss = { showRenameDialog = false },
-            onConfirm = { newName ->
-                showRenameDialog = false
-                scope.launch {
-                    val ok = performRename(context, currentItem, newName, requestConsent)
-                    if (ok) GalleryRefresh.bump() else errorMessage = "Renommage impossible"
-                }
-            }
-        )
-    }
-
-    if (showMoveDialog) {
-        MoveDialog(
-            // A single-item viewer has no album of its own to exclude, so it goes by the item's.
-            currentBucketId = when (source) {
-                is ViewerSource.Album -> source.bucketId
-                is ViewerSource.Single -> currentItem.bucketId
-                else -> -1L
-            },
-            onDismiss = { showMoveDialog = false },
-            onConfirm = { targetRelativePath ->
-                showMoveDialog = false
-                scope.launch {
-                    val ok = performMove(context, currentItem, targetRelativePath, requestConsent)
-                    if (ok) {
-                        GalleryRefresh.bump()
-                        leave()
-                    } else {
-                        errorMessage = "Déplacement impossible"
-                    }
-                }
-            }
-        )
-    }
-
-    if (showShareDialog) {
-        ShareDialog(
-            item = currentItem,
-            onDismiss = { showShareDialog = false },
-            onError = { errorMessage = it }
-        )
-    }
-
-    if (showInfoDialog) {
-        InfoDialog(
-            item = currentItem,
-            onDismiss = { showInfoDialog = false }
-        )
-    }
+    ViewerDialogs(
+        dialog = openDialog,
+        item = currentItem,
+        source = source,
+        onDismiss = { openDialog = null },
+        onMoved = leave,
+        onError = { errorMessage = it }
+    )
 
     errorMessage?.let { message ->
         ShowAlertDialog(

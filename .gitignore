@@ -19,7 +19,13 @@ local.properties
 cc*
 .kotlin/sessions
 venv
+.venv
 backups/
-# Deezer ARL credential for the Phase 0 spike, never commit
+# Deezer ARL credential, never commit
 .deezer_arl.local
 __pycache__/
+
+# Wiktionary scrape cache for the mots fleches dictionary. Not tracked: it is 12 MB, it is only an
+# input to regenerating the shipped asset (which is tracked), and generate_motsfleches.py refetches
+# whatever is missing in a couple of minutes.
+data/motsfleches_senses.json

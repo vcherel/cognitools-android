@@ -20,6 +20,7 @@ import androidx.compose.material.icons.automirrored.filled.DriveFileMove
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.PushPin
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -57,6 +58,7 @@ fun GalleryAlbumGridScreen(bucketId: Long, onBack: () -> Unit, onOpenItem: (Long
     var albumName by remember { mutableStateOf("") }
     var selectedIds by remember { mutableStateOf<Set<Long>>(emptySet()) }
     var showMoveDialog by remember { mutableStateOf(false) }
+    var showShareDialog by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     // A plain clickable still fires on release however long the press was, so a long press would
     // select a thumbnail and the release would immediately toggle it back off. This swallows that
@@ -73,6 +75,7 @@ fun GalleryAlbumGridScreen(bucketId: Long, onBack: () -> Unit, onOpenItem: (Long
     }
 
     val selectionMode = selectedIds.isNotEmpty()
+    val selectedItems = items.orEmpty().filter { it.id in selectedIds }
 
     BackHandler {
         if (selectionMode) selectedIds = emptySet() else onBack()
@@ -84,6 +87,7 @@ fun GalleryAlbumGridScreen(bucketId: Long, onBack: () -> Unit, onOpenItem: (Long
                 count = selectedIds.size,
                 onClose = { selectedIds = emptySet() },
                 onMove = { showMoveDialog = true },
+                onShare = { showShareDialog = true },
                 onPin = {
                     val toPin = selectedIds.toList()
                     scope.launch {
@@ -97,15 +101,13 @@ fun GalleryAlbumGridScreen(bucketId: Long, onBack: () -> Unit, onOpenItem: (Long
                 onDelete = {
                     // Straight to the trash, no confirmation: the snackbar undo and the trash
                     // itself are the safety net.
-                    val toTrash = (items ?: emptyList()).filter { it.id in selectedIds }
+                    val toTrash = selectedItems
                     scope.launch {
-                        if (performTrashBatch(context, toTrash, requestConsent)) {
-                            selectedIds = emptySet()
-                            GalleryRefresh.bump()
-                            showTrashedSnackbar(context, toTrash, requestConsent)
-                        } else {
-                            errorMessage = "Suppression impossible"
-                        }
+                        val trashed = trashAndAnnounce(
+                            context, toTrash, requestConsent,
+                            onTrashed = { selectedIds = emptySet() }
+                        )
+                        if (!trashed) errorMessage = "Suppression impossible"
                     }
                 }
             )
@@ -160,13 +162,21 @@ fun GalleryAlbumGridScreen(bucketId: Long, onBack: () -> Unit, onOpenItem: (Long
         }
     }
 
+    if (showShareDialog) {
+        ShareDialog(
+            items = selectedItems,
+            onDismiss = { showShareDialog = false },
+            onError = { errorMessage = it }
+        )
+    }
+
     if (showMoveDialog) {
         MoveDialog(
             currentBucketId = bucketId,
             onDismiss = { showMoveDialog = false },
             onConfirm = { targetRelativePath ->
                 showMoveDialog = false
-                val toMove = (items ?: emptyList()).filter { it.id in selectedIds }
+                val toMove = selectedItems
                 scope.launch {
                     val ok = performMoveBatch(context, toMove, targetRelativePath, requestConsent)
                     if (ok) {
@@ -194,6 +204,7 @@ private fun SelectionTopBar(
     count: Int,
     onClose: () -> Unit,
     onMove: () -> Unit,
+    onShare: () -> Unit,
     onPin: () -> Unit,
     onDelete: () -> Unit
 ) {
@@ -209,6 +220,9 @@ private fun SelectionTopBar(
             style = MaterialTheme.typography.titleMedium,
             modifier = Modifier.padding(start = 8.dp).weight(1f)
         )
+        IconButton(onClick = onShare) {
+            Icon(Icons.Default.Share, contentDescription = "Partager")
+        }
         IconButton(onClick = onMove) {
             Icon(Icons.AutoMirrored.Filled.DriveFileMove, contentDescription = "Déplacer")
         }

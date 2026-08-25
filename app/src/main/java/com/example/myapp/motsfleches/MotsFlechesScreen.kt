@@ -313,53 +313,67 @@ fun MotsFlechesScreen(onBack: () -> Unit) {
         )
     }
 
+    val startNewGrid: () -> Unit = {
+        state = null
+        scope.launch { lang?.let { start(MotsFlechesStore.newGrid(context, it)) } }
+    }
+
     if (confirmNewGrid) {
-        AppDialog(onDismiss = { confirmNewGrid = false }) {
-            Text("Abandonner cette grille ?", style = MaterialTheme.typography.titleMedium)
-            Spacer(Modifier.height(8.dp))
-            Text(
-                "La grille en cours sera remplacée par une nouvelle.",
-                style = MaterialTheme.typography.bodyMedium
-            )
-            Spacer(Modifier.height(16.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                MyButton(
-                    text = "Annuler",
-                    modifier = Modifier.weight(1f).height(50.dp),
-                    fontSize = 14.sp,
-                    onClick = { confirmNewGrid = false }
-                )
-                MyButton(
-                    text = "Nouvelle grille",
-                    modifier = Modifier.weight(1f).height(50.dp),
-                    fontSize = 14.sp,
-                    onClick = {
-                        confirmNewGrid = false
-                        state = null
-                        scope.launch { lang?.let { start(MotsFlechesStore.newGrid(context, it)) } }
-                    }
-                )
-            }
-        }
+        AbandonGridDialog(
+            onDismiss = { confirmNewGrid = false },
+            onNewGrid = { confirmNewGrid = false; startNewGrid() }
+        )
     }
 
     if (solved) {
-        AppDialog(onDismiss = { solved = false }) {
-            Text("Grille terminée !", style = MaterialTheme.typography.headlineSmall)
-            Spacer(Modifier.height(8.dp))
-            Text("Bien joué. Une nouvelle grille t'attend.", style = MaterialTheme.typography.bodyMedium)
-            Spacer(Modifier.height(16.dp))
+        GridSolvedDialog(
+            onDismiss = { solved = false },
+            onNewGrid = { solved = false; startNewGrid() }
+        )
+    }
+}
+
+/** Asked before a grid still in progress is thrown away for a fresh one. */
+@Composable
+private fun AbandonGridDialog(onDismiss: () -> Unit, onNewGrid: () -> Unit) {
+    AppDialog(onDismiss = onDismiss) {
+        Text("Abandonner cette grille ?", style = MaterialTheme.typography.titleMedium)
+        Spacer(Modifier.height(8.dp))
+        Text(
+            "La grille en cours sera remplacée par une nouvelle.",
+            style = MaterialTheme.typography.bodyMedium
+        )
+        Spacer(Modifier.height(16.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            MyButton(
+                text = "Annuler",
+                modifier = Modifier.weight(1f).height(50.dp),
+                fontSize = 14.sp,
+                onClick = onDismiss
+            )
             MyButton(
                 text = "Nouvelle grille",
-                modifier = Modifier.fillMaxWidth().height(50.dp),
-                fontSize = 16.sp,
-                onClick = {
-                    solved = false
-                    state = null
-                    scope.launch { lang?.let { start(MotsFlechesStore.newGrid(context, it)) } }
-                }
+                modifier = Modifier.weight(1f).height(50.dp),
+                fontSize = 14.sp,
+                onClick = onNewGrid
             )
         }
+    }
+}
+
+@Composable
+private fun GridSolvedDialog(onDismiss: () -> Unit, onNewGrid: () -> Unit) {
+    AppDialog(onDismiss = onDismiss) {
+        Text("Grille terminée !", style = MaterialTheme.typography.headlineSmall)
+        Spacer(Modifier.height(8.dp))
+        Text("Bien joué. Une nouvelle grille t'attend.", style = MaterialTheme.typography.bodyMedium)
+        Spacer(Modifier.height(16.dp))
+        MyButton(
+            text = "Nouvelle grille",
+            modifier = Modifier.fillMaxWidth().height(50.dp),
+            fontSize = 16.sp,
+            onClick = onNewGrid
+        )
     }
 }
 

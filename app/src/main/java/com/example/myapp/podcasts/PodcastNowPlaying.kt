@@ -66,8 +66,8 @@ fun PodcastFullPlayerSheet(
     val goHome = LocalGoHome.current
     val episodes by repo.episodes.collectAsState()
     val isSeen = episodes.firstOrNull { it.id == state.episodeId }?.seen == true
-    val sleepCacheProgress by repo.sleepCacheProgress.collectAsState()
-    val sleepTimerEndAt by repo.sleepTimerEndAt.collectAsState()
+    val sleepCacheProgress by repo.sleepTimer.cacheProgress.collectAsState()
+    val sleepTimerEndAt by repo.sleepTimer.endAt.collectAsState()
     var showSleepTimerDialog by remember { mutableStateOf(false) }
     var sleepTimerRemainingMs by remember { mutableStateOf<Long?>(null) }
 
@@ -166,8 +166,8 @@ fun PodcastFullPlayerSheet(
         SleepTimerDialog(
             isRunning = sleepTimerEndAt != null,
             onDismiss = { showSleepTimerDialog = false },
-            onStart = { minutes -> repo.startSleepTimer(minutes); showSleepTimerDialog = false },
-            onCancel = { repo.cancelSleepTimer(); showSleepTimerDialog = false }
+            onStart = { minutes -> repo.sleepTimer.start(minutes); showSleepTimerDialog = false },
+            onCancel = { repo.sleepTimer.cancel(); showSleepTimerDialog = false }
         )
     }
 }

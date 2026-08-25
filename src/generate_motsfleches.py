@@ -192,7 +192,7 @@ def parse_page(wikitext):
         if pos is None:
             continue
         for line in block.splitlines():
-            if line.startswith("# ") or (line.startswith("#") and not line[1:2] in ("*", ":", "#")):
+            if line.startswith("# ") or (line.startswith("#") and line[1:2] not in ("*", ":", "#")):
                 definition = clean_wikitext(line.lstrip("# ").strip())
                 if definition:
                     page["senses"].append((pos, definition))

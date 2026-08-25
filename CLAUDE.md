@@ -21,7 +21,9 @@ adb install -r app/build/outputs/apk/release/app-release.apk
 Always install release builds, never debug (performance matters on device). Debug is only for `run-as` access, e.g. DB inspection.
 
 ## Codebase map
-The independent tools live under `app/src/main/java/com/example/myapp/`. Use this map to jump straight to the right file with Read/Grep instead of spawning an exploration agent.
+The independent tools live under `app/src/main/java/com/example/myapp/`. Use this map to jump straight to the right file with Read/Grep instead of spawning an exploration agent. Keep it current when files are added or renamed: a stale map misleads more than no map.
+
+Outside that package: `src/` holds the Python asset generators (see the README), `data/` their inputs, `app/src/test/` the JVM unit tests, `baselineprofile/` the startup profile module.
 
 Root package (shared/misc):
 - `MainActivity.kt`: app entry point; the window, the intents it is launched with, and the locked-over-the-keyguard quick view
@@ -37,6 +39,7 @@ Root package (shared/misc):
 - `MediaControllerHolder.kt`: the MediaController connect-once/stop-the-service plumbing both playback repositories use
 - `Normalize.kt`: `deaccented` / `matchNormalized` / `slugified`, the one place text is folded for comparison
 - `Http.kt`: shared httpGet helper and User-Agent (Weather + Wikipedia + podcast feeds + news)
+- `Share.kt`: `shareUrisIntent`, the one place an ACTION_SEND / ACTION_SEND_MULTIPLE is built (gallery + file explorer)
 - `BottomFadeOverlay.kt`: shared fade out gradient overlay composable
 - `Snackbar.kt`: AppSnackbar, the app wide snackbar screens post undo actions through
 - `SearchHistory.kt`: recent search terms per surface (notes, cities, Deezer, news) and the RecentSearchChips row
@@ -69,7 +72,9 @@ Root package (shared/misc):
 `podcasts/` (podcast subscriptions and playback, surfaced inside the Musique tool):
 - `Models.kt`: PodcastFavorite/PodcastEpisode/PodcastCatalogItem/PodcastEpisodeProgress/PodcastDownload and PodcastDao
 - `PodcastApi.kt`: the iTunes directory search and the RSS feed parsing
-- `PodcastRepository.kt`: the singleton; followed shows (Room), the merged episode list re-fetched live from each feed, heard/seen state, downloads, listening progress, the sleep timer and its pre-fetch, the MediaController
+- `PodcastRepository.kt`: the singleton; followed shows (Room), the merged episode list re-fetched live from each feed, heard/seen state, listening progress, the MediaController. Downloads and the sleep timer are the two objects below, reached as `repo.downloads` and `repo.sleepTimer`
+- `PodcastDownloads.kt`: the download queue and what counts as downloaded (derived from the bytes held, never a flag), the one-at-a-time worker, the migration off the old file-per-download layout, and `openAudio` (the by-hand redirect following podcast enclosures need)
+- `PodcastSleepTimer.kt`: the timer that pauses playback, plus the pre-fetch, the coverage badge and the watchdog that make sure the audio to reach its end is on the phone
 - `PodcastStreamCache.kt`: the one store for podcast audio, keyed by the episode's audio URL, read and written by playback, the sleep timer pre-fetch and the downloads alike. A download is the whole resource held plus a protected key, which its custom evictor never evicts and never counts against the LRU cap
 - `PodcastPlaybackService.kt`: MediaSessionService owning the episode ExoPlayer; its own notification id and channel, distinct from the Deezer one
 - `PodcastDownloadService.kt`: foreground service holding the download notification (progress, cancel) and a wake lock, so a download survives the lock screen and the app closing. The work itself stays in the repository
@@ -106,7 +111,7 @@ Root package (shared/misc):
 - `AlbumsScreen.kt`: album list, plus the pinned-picture hero card at the top
 - `AlbumGridScreen.kt`: thumbnail grid, batch actions, and `sweepSelection`, the long-press-and-drag multi-select the trash grid reuses
 - `ViewerScreen.kt`: full screen pager (ViewerSource: an album, the pinned set, the Wallet album or a single item), image zoom and video playback, per-item tools including pin/unpin and set-as-hero
-- `ViewerDialogs.kt`: the viewer's share, rename and move dialogs (MoveDialog is also used by the album grid)
+- `ViewerDialogs.kt`: `ViewerDialog`/`ViewerDialogs`, the viewer's whole dialog run, plus the share, rename, move and info dialogs themselves (MoveDialog is also used by the album grid)
 - `GalleryPins.kt`: PinnedMediaItem Room entity/DAO and pin/unpin/setHero/resolve helpers
 - `GalleryLock.kt`: the albums put behind the notes PIN, kept as a set of bucket ids in DataStore
 - `CropScreen.kt`: image crop editor
@@ -182,7 +187,7 @@ The map above is by feature. These are the ones you won't find by feature name:
 - **Icons**: screens use Compose `Icons.*` (material-icons-extended). `res/drawable/` only holds what the framework needs as a real resource: the launcher and the notification action icons. Media3 has no icon constant for most things, so a custom button icon means a vector in `res/drawable/` passed to `setCustomIconResId`.
 - **Singletons**: `MyApplication` holds FlashcardRepository, DeezerRepository, PodcastRepository and NewsRepository. Screens reach them as `context.flashcardRepository` / `context.deezerRepository` / `context.podcastRepository` / `context.newsRepository` (extensions declared in `MyApplication.kt`), never by casting. Anything long lived hangs off there, not off an object/DI graph.
 - **App start work**: `MyApplication.onCreate` purges the expired trashed notes and the expired news read marks, calls `FlashcardRepository.seedAndPurge()` (seeds the builtin flashcard lists on a fresh install, drops mastered cards outside them), primes the saved discoveries batch, and sweeps the stream cache of heard podcast episodes. The repositories themselves assume this has been kicked off.
-- **HTTP**: `Http.kt`'s `httpGet` serves Weather, Wikipedia, the podcast feeds/directory and the news feeds/pages. Deezer has its own client in `deezer/DeezerApi.kt`, podcast episode audio is fetched by hand in `PodcastRepository.openAudio` (tracking prefixes need manual redirect following), Gallery does no networking.
+- **HTTP**: `Http.kt`'s `httpGet` serves Weather, Wikipedia, the podcast feeds/directory and the news feeds/pages. Deezer has its own client in `deezer/DeezerApi.kt`, podcast episode audio is fetched by hand in `PodcastDownloads.openAudio` (tracking prefixes need manual redirect following), Gallery does no networking.
 - **All files access**: `gallery/GalleryPermissions.kt` owns the MANAGE_EXTERNAL_STORAGE check and the settings requester; the file explorer reads them from there rather than duplicating the check.
 - **Foreground services**: `Volume.kt` (volume booster), `deezer/DeezerPlaybackService.kt`, `podcasts/PodcastPlaybackService.kt` and `podcasts/PodcastDownloadService.kt`. The Deezer offline sync deliberately has none.
 - **30 day trash**: two different mechanisms. Notes carry a `deletedAt` timestamp and are purged by `MyApplication.onCreate`. The gallery uses MediaStore's own trash (`IS_TRASHED`, `performTrashBatch`/`performRestoreBatch`), which Android empties by itself; it only exists from API 30 on, below that a delete stays permanent.

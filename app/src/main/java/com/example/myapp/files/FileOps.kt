@@ -10,6 +10,7 @@ import android.os.Build
 import android.os.Environment
 import android.webkit.MimeTypeMap
 import androidx.core.content.FileProvider
+import com.example.myapp.shareUrisIntent
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -163,21 +164,8 @@ private fun chosenAppCallback(context: Context, extension: String): PendingInten
 
 fun shareFiles(context: Context, files: List<File>): Boolean {
     if (files.isEmpty()) return false
-    val uris = ArrayList(files.map { uriFor(context, it) })
-    val mimeTypes = files.map { mimeTypeOf(it) }.distinct()
-    val type = if (mimeTypes.size == 1) mimeTypes.first() else "*/*"
-    val intent = if (uris.size == 1) {
-        Intent(Intent.ACTION_SEND).apply {
-            putExtra(Intent.EXTRA_STREAM, uris.first())
-            setType(type)
-        }
-    } else {
-        Intent(Intent.ACTION_SEND_MULTIPLE).apply {
-            putParcelableArrayListExtra(Intent.EXTRA_STREAM, uris)
-            setType(type)
-        }
-    }
-    intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    val type = files.map { mimeTypeOf(it) }.distinct().singleOrNull() ?: "*/*"
+    val intent = shareUrisIntent(files.map { uriFor(context, it) }, type)
     return try {
         context.startActivity(Intent.createChooser(intent, "Partager").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         true

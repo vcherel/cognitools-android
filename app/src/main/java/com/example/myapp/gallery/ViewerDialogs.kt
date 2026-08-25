@@ -29,6 +29,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -42,7 +43,9 @@ import androidx.compose.ui.unit.dp
 import androidx.core.graphics.drawable.toBitmap
 import com.example.myapp.AppDialog
 import com.example.myapp.ShowAlertDialog
+import com.example.myapp.shareUrisIntent
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -50,6 +53,64 @@ import java.util.Locale
 
 // The dialogs the full screen viewer opens on the current item: sharing it, renaming it, and
 // moving it to another album. MoveDialog is also used by the album grid's batch move.
+
+/** Which of the viewer's dialogs is open. Never more than one, so the viewer holds a single state. */
+enum class ViewerDialog { Rename, Move, Share, Info }
+
+/**
+ * The viewer's dialog run, kept out of GalleryViewerScreen: it needs nothing from that screen
+ * beyond the item in view and where it came from. [onMoved] is what leaves the viewer once the
+ * item is no longer in the album being shown.
+ */
+@Composable
+fun ViewerDialogs(
+    dialog: ViewerDialog?,
+    item: MediaItem,
+    source: ViewerSource,
+    onDismiss: () -> Unit,
+    onMoved: () -> Unit,
+    onError: (String) -> Unit
+) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val requestConsent = LocalMediaConsent.current
+    when (dialog) {
+        null -> return
+        ViewerDialog.Rename -> RenameDialog(
+            item = item,
+            onDismiss = onDismiss,
+            onConfirm = { newName ->
+                onDismiss()
+                scope.launch {
+                    if (performRename(context, item, newName, requestConsent)) GalleryRefresh.bump()
+                    else onError("Renommage impossible")
+                }
+            }
+        )
+        ViewerDialog.Move -> MoveDialog(
+            // A single-item viewer has no album of its own to exclude, so it goes by the item's.
+            currentBucketId = when (source) {
+                is ViewerSource.Album -> source.bucketId
+                is ViewerSource.Single -> item.bucketId
+                else -> -1L
+            },
+            onDismiss = onDismiss,
+            onConfirm = { targetRelativePath ->
+                onDismiss()
+                scope.launch {
+                    if (performMoveBatch(context, listOf(item), targetRelativePath, requestConsent)) {
+                        GalleryRefresh.bump()
+                        onMoved()
+                    } else {
+                        onError("Déplacement impossible")
+                    }
+                }
+            }
+        )
+        ViewerDialog.Share -> ShareDialog(items = listOf(item), onDismiss = onDismiss, onError = onError)
+        ViewerDialog.Info -> InfoDialog(item = item, onDismiss = onDismiss)
+    }
+}
 
 // The only apps Valentin ever shares photos/videos to. Restricting to these instead of the
 // full system share sheet keeps the picker to a single tap on the app that's actually wanted.
@@ -63,7 +124,7 @@ private val shareTargets = listOf(
 )
 
 @Composable
-fun ShareDialog(item: MediaItem, onDismiss: () -> Unit, onError: (String) -> Unit) {
+fun ShareDialog(items: List<MediaItem>, onDismiss: () -> Unit, onError: (String) -> Unit) {
     val context = LocalContext.current
     val packageManager = context.packageManager
     val installedTargets = remember {
@@ -78,7 +139,10 @@ fun ShareDialog(item: MediaItem, onDismiss: () -> Unit, onError: (String) -> Uni
     }
 
     AppDialog(onDismiss = onDismiss) {
-        Text("Partager", style = MaterialTheme.typography.titleMedium)
+        Text(
+            if (items.size > 1) "Partager ${items.size} fichiers" else "Partager",
+            style = MaterialTheme.typography.titleMedium
+        )
         Spacer(Modifier.height(16.dp))
         if (installedTargets.isEmpty()) {
             Text("Aucune application compatible installée")
@@ -93,7 +157,7 @@ fun ShareDialog(item: MediaItem, onDismiss: () -> Unit, onError: (String) -> Uni
                         onClick = {
                             onDismiss()
                             try {
-                                shareItemTo(context, item, target.packageName)
+                                shareItemsTo(context, items, target.packageName)
                             } catch (e: ActivityNotFoundException) {
                                 onError("Partage impossible")
                             }
@@ -131,18 +195,25 @@ private fun ShareTargetIcon(target: ShareTarget, onClick: () -> Unit) {
     }
 }
 
-private fun shareItemTo(context: Context, item: MediaItem, packageName: String) {
-    val mimeType = item.mimeType.ifBlank {
-        if (item.type == MediaType.VIDEO) "video/*" else "image/*"
-    }
-    val intent = Intent(Intent.ACTION_SEND).apply {
-        type = mimeType
-        putExtra(Intent.EXTRA_STREAM, item.uri)
-        setPackage(packageName)
-        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-    }
+private fun shareItemsTo(context: Context, items: List<MediaItem>, packageName: String) {
+    if (items.isEmpty()) return
+    val intent = shareUrisIntent(items.map { it.uri }, shareMimeType(items)).setPackage(packageName)
     context.startActivity(intent)
 }
+
+// One mime type has to cover the whole batch: the exact type when they all share it (a blank one
+// makes that impossible), the generic image/video type when only the kind matches, and */* for a
+// mix of photos and videos.
+private fun shareMimeType(items: List<MediaItem>): String {
+    items.map { it.mimeType }.distinct().singleOrNull()?.takeIf { it.isNotBlank() }?.let { return it }
+    val kinds = items.map { it.type }.distinct()
+    return when {
+        kinds.size > 1 -> "*/*"
+        kinds.first() == MediaType.VIDEO -> "video/*"
+        else -> "image/*"
+    }
+}
+
 @Composable
 fun InfoDialog(item: MediaItem, onDismiss: () -> Unit) {
     // dateTaken is millis, dateAdded is seconds (MediaStore convention); dateTaken is 0 when the
