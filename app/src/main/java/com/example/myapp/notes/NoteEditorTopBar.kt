@@ -15,6 +15,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckBox
 import androidx.compose.material.icons.filled.CheckBoxOutlineBlank
 import androidx.compose.material.icons.filled.DeleteSweep
+import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.FormatBold
 import androidx.compose.material.icons.filled.FormatItalic
 import androidx.compose.material.icons.filled.FormatUnderlined
@@ -55,6 +56,7 @@ data class NoteEditorBarState(
     val hasBlankEdgeLines: Boolean,
     val hasCheckboxLine: Boolean,
     val hasCheckedLine: Boolean,
+    val hasContent: Boolean,
     val isCoursesNote: Boolean,
     val isIngredientsNote: Boolean,
     val isIngredientModelNote: Boolean
@@ -74,6 +76,7 @@ data class NoteEditorBarActions(
     val onResortCourses: () -> Unit,
     val onSetAllCheckboxes: (Boolean) -> Unit,
     val onRemoveChecked: () -> Unit,
+    val onClearContent: () -> Unit,
     val onToggleInlineMarker: (String) -> Unit,
     val onToggleTitle: () -> Unit
 )
@@ -208,6 +211,13 @@ fun NoteEditorTopBar(
                     },
                     onClick = { showMoreMenu = false; actions.onToggleLock() }
                 )
+                if (state.hasContent) {
+                    DropdownMenuItem(
+                        text = { Text("Vider la note") },
+                        leadingIcon = { Icon(Icons.Default.DeleteOutline, contentDescription = null) },
+                        onClick = { showMoreMenu = false; actions.onClearContent() }
+                    )
+                }
                 if (state.isEditing) return@DropdownMenu
                 if (state.hasCheckboxLine) {
                     DropdownMenuItem(

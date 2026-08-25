@@ -365,6 +365,7 @@ fun NoteEditorScreen(
                         hasBlankEdgeLines = content != content.trimBlankEdgeLines(),
                         hasCheckboxLine = content.hasCheckboxLine(),
                         hasCheckedLine = content.hasCheckedLine(),
+                        hasContent = content.isNotEmpty(),
                         isCoursesNote = isCoursesNote,
                         isIngredientsNote = isIngredientsNote,
                         isIngredientModelNote = isIngredientModelNote
@@ -393,6 +394,7 @@ fun NoteEditorScreen(
                             val stripped = removeCheckedCheckboxes(content)
                             saveContent(if (isCoursesNote) dropEmptyCourseSections(stripped) else stripped)
                         },
+                        onClearContent = { saveContent("") },
                         onToggleInlineMarker = { textFieldState.toggleInlineMarker(it) },
                         onToggleTitle = { textFieldState.toggleTitleLine() }
                     )

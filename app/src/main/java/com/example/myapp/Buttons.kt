@@ -149,7 +149,6 @@ fun SplitMyButton(
     rightIcon: ImageVector,
     modifier: Modifier = Modifier,
     rightText: String? = null,
-    rightTextDimmed: Boolean = false,
     height: Dp = 90.dp,
     rightLoading: Boolean = false,
     rightEnabled: Boolean = true,
@@ -188,7 +187,7 @@ fun SplitMyButton(
             } else if (rightText != null) {
                 Text(
                     rightText,
-                    color = if (rightTextDimmed) textColor.copy(alpha = 0.4f) else textColor,
+                    color = textColor,
                     fontSize = 28.sp,
                     fontWeight = FontWeight.SemiBold
                 )
