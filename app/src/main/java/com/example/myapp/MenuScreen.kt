@@ -149,7 +149,7 @@ fun MenuScreen(
                 text = "Flashcards",
                 rightIcon = Icons.Default.PlayArrow,
                 rightText = dueCount.toString(),
-                rightTextDimmed = dueCount == 0,
+                rightEnabled = dueCount > 0,
                 height = buttonHeight,
                 onMainClick = onOpenFlashcards,
                 onRightClick = onPlayFlashcards
