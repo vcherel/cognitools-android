@@ -20,6 +20,7 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.filled.Stop
@@ -91,6 +92,7 @@ fun FullPlayerSheet(
     val goHome = LocalGoHome.current
     val favoriteIds by repo.favoriteIds.collectAsState()
     val isFav = state.sngId != null && favoriteIds.contains(state.sngId)
+    val shuffle by repo.shuffleEnabled.collectAsState()
 
     // Keep the favorites cache warm so the heart reflects the real like-state.
     LaunchedEffect(Unit) { runCatching { repo.ensureFavorites() } }
@@ -178,6 +180,15 @@ fun FullPlayerSheet(
                     shareTrack(context, track)
                 }) {
                     Icon(Icons.Filled.Share, contentDescription = "Partager", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                // Lit when the queue is playing at random. Tapping it reorders what is left of the
+                // queue right away, and is the saved default for every list started afterwards.
+                IconButton(onClick = { scope.launch { repo.setShuffle(!shuffle) } }) {
+                    Icon(
+                        Icons.Filled.Shuffle,
+                        contentDescription = if (shuffle) "Lecture aléatoire activée" else "Lecture dans l'ordre",
+                        tint = if (shuffle) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
 
