@@ -28,7 +28,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -42,6 +44,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.myapp.flashcards.AppDatabase
+import com.example.myapp.flashcards.isDue
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
@@ -129,9 +133,23 @@ fun MenuScreen(
             Spacer(modifier = Modifier.height(spaceHeight))
             DeezerMenuButton(height = buttonHeight, onOpenDeezer = onOpenDeezer)
             Spacer(modifier = Modifier.height(spaceHeight))
+            // The right half shows how many cards are due right now instead of a play icon.
+            val allCards by context.flashcardRepository.observeAllElements().collectAsState(initial = emptyList())
+            // Cards come due while the menu sits open (the app returns to it when idle), so the
+            // count is recomputed every minute rather than only when the list itself changes.
+            var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
+            LaunchedEffect(Unit) {
+                while (true) {
+                    delay(60_000)
+                    now = System.currentTimeMillis()
+                }
+            }
+            val dueCount = allCards.count { isDue(it, now) }
             SplitMyButton(
                 text = "Flashcards",
                 rightIcon = Icons.Default.PlayArrow,
+                rightText = dueCount.toString(),
+                rightTextDimmed = dueCount == 0,
                 height = buttonHeight,
                 onMainClick = onOpenFlashcards,
                 onRightClick = onPlayFlashcards

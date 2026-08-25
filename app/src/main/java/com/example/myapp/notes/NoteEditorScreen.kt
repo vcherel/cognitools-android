@@ -205,7 +205,10 @@ fun NoteEditorScreen(
         textFieldState = textFieldState,
         snackbar = snackbarHostState,
         scope = scope,
-        saveContent = { saveContent(it) }
+        saveContent = { saveContent(it) },
+        isCoursesNote = {
+            titleFieldState.text.toString().trim().equals(COURSES_TITLE, ignoreCase = true)
+        }
     )
 
     val sync = rememberNoteSyncActions(
@@ -386,7 +389,10 @@ fun NoteEditorScreen(
                         onResortIngredients = { sync.resortIngredients() },
                         onResortCourses = { sync.resortCourses() },
                         onSetAllCheckboxes = { saveContent(setAllCheckboxes(content, it)) },
-                        onRemoveChecked = { saveContent(removeCheckedCheckboxes(content)) },
+                        onRemoveChecked = {
+                            val stripped = removeCheckedCheckboxes(content)
+                            saveContent(if (isCoursesNote) dropEmptyCourseSections(stripped) else stripped)
+                        },
                         onToggleInlineMarker = { textFieldState.toggleInlineMarker(it) },
                         onToggleTitle = { textFieldState.toggleTitleLine() }
                     )

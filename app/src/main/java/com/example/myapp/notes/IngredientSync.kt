@@ -342,3 +342,16 @@ fun rankIngredientsByCloseness(model: List<String>, query: String): List<String>
         )
     )
 }
+
+/**
+ * The Courses note with every section header that has no item left under it removed, so a
+ * category disappears as soon as its last article leaves the list.
+ */
+fun dropEmptyCourseSections(content: String): String {
+    val lines = content.split("\n")
+    return lines.filterIndexed { i, line ->
+        if (!line.trim().isSeparatorLine()) return@filterIndexed true
+        val next = (i + 1 until lines.size).firstOrNull { lines[it].isNotBlank() }
+        next != null && !lines[next].trim().isSeparatorLine()
+    }.joinToString("\n")
+}

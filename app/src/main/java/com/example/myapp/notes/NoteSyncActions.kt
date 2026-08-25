@@ -81,7 +81,7 @@ class NoteSyncActions(
                 updateNoteContent(ingredientsNote.id, renderIntoIngredientsNote(ingredientsNote.content, newPresent, groups))
             }
             if (matchedLines.isNotEmpty()) {
-                saveContent(removeFirstLines(content, matchedLines))
+                saveContent(dropEmptyCourseSections(removeFirstLines(content, matchedLines)))
             }
 
             startBatch(
@@ -500,7 +500,7 @@ class NoteSyncActions(
 
     private fun removeSourceLine(item: ReconcileItem) {
         val line = item.sourceLine ?: return
-        saveContent(removeFirstLines(content, listOf(line)))
+        saveContent(dropEmptyCourseSections(removeFirstLines(content, listOf(line))))
     }
 
     // Writes new content to a note: through the live text field when it is the one currently open
