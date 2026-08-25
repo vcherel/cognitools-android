@@ -83,6 +83,11 @@ fun IngredientReconcileDialog(
                 ChoiceRow("C'est déjà dans le modèle", Icons.Default.Edit) {
                     step = ReconcileStep.Existing
                 }
+                // The closest model entries, so an obvious variant spelling can be picked without
+                // opening the full list.
+                rankIngredientsByCloseness(groups.flatten(), itemName).take(3).forEach { ingredient ->
+                    SuggestionRow(ingredient) { onMapExisting(ingredient) }
+                }
                 ChoiceRow(skipLabel, Icons.Default.Close, onSkip)
             }
 
@@ -212,6 +217,19 @@ private fun ChoiceRow(label: String, icon: ImageVector, onClick: () -> Unit) {
         Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
         Text(label, style = MaterialTheme.typography.bodyLarge)
     }
+}
+
+@Composable
+private fun SuggestionRow(label: String, onClick: () -> Unit) {
+    Text(
+        label,
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(start = 40.dp, top = 6.dp, bottom = 6.dp)
+    )
 }
 
 @Composable

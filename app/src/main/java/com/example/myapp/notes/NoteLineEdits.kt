@@ -20,7 +20,8 @@ class NoteLineEdits(
     private val textFieldState: TextFieldState,
     private val saveContent: (String) -> Unit,
     private val snackbar: SnackbarHostState,
-    private val scope: CoroutineScope
+    private val scope: CoroutineScope,
+    private val isCoursesNote: () -> Boolean
 ) {
     /** Rewrites the note's lines in place: the single shape every per-line action shares. */
     private inline fun editLines(block: (MutableList<String>) -> Unit) {
@@ -102,8 +103,12 @@ class NoteLineEdits(
     }
 
     fun deleteLine(index: Int) {
-        var removed = ""
-        editLines { lines -> removed = lines.removeAt(index) }
+        val before = textFieldState.text.toString()
+        val lines = before.split("\n").toMutableList()
+        lines.removeAt(index)
+        // On the Courses note, a section whose last article just left goes with it.
+        val updated = lines.joinToString("\n")
+        saveContent(if (isCoursesNote()) dropEmptyCourseSections(updated) else updated)
         scope.launch {
             // Replace any snackbar from a previous delete instead of queueing
             snackbar.currentSnackbarData?.dismiss()
@@ -114,7 +119,7 @@ class NoteLineEdits(
                 duration = SnackbarDuration.Short
             )
             if (result == SnackbarResult.ActionPerformed) {
-                editLines { lines -> lines.add(index.coerceAtMost(lines.size), removed) }
+                saveContent(before)
             }
         }
     }
@@ -125,7 +130,8 @@ fun rememberNoteLineEdits(
     textFieldState: TextFieldState,
     snackbar: SnackbarHostState,
     scope: CoroutineScope,
-    saveContent: (String) -> Unit
+    saveContent: (String) -> Unit,
+    isCoursesNote: () -> Boolean
 ): NoteLineEdits = remember(textFieldState, snackbar) {
-    NoteLineEdits(textFieldState, saveContent, snackbar, scope)
+    NoteLineEdits(textFieldState, saveContent, snackbar, scope, isCoursesNote)
 }
