@@ -5,6 +5,7 @@ import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,7 +20,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -115,6 +118,52 @@ fun NewsArticleRow(
     }
 }
 
+/**
+ * The card offering to pick the last unfinished article back up, drawn above the list. Only one is
+ * ever shown: the point is one tap back into what was being read, not a second reading list.
+ */
+@Composable
+fun NewsResumeCard(progress: NewsProgress, onClick: () -> Unit) {
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        shape = RoundedCornerShape(10.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 8.dp)
+            .clickable(onClick = onClick)
+    ) {
+        Column(Modifier.padding(12.dp)) {
+            Text(
+                "Reprendre la lecture",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.primary
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                progress.title,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+            Spacer(Modifier.height(8.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    "${progress.source} \u00b7 ${(progress.ratio * 100).toInt()} %",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.width(10.dp))
+                LinearProgressIndicator(
+                    progress = { progress.ratio },
+                    drawStopIndicator = {},
+                    modifier = Modifier.weight(1f).height(4.dp)
+                )
+            }
+        }
+    }
+}
+
 private val newsDateFormat = SimpleDateFormat("d MMM", Locale.FRENCH)
 private val newsFullDateFormat = SimpleDateFormat("d MMMM yyyy 'à' HH:mm", Locale.FRENCH)
 
@@ -136,13 +185,4 @@ fun newsFullDate(publishedAt: Long): String =
 
 fun openInBrowser(context: Context, url: String) {
     context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
-}
-
-fun shareArticle(context: Context, article: NewsArticle) {
-    val intent = Intent(Intent.ACTION_SEND).apply {
-        type = "text/plain"
-        putExtra(Intent.EXTRA_SUBJECT, article.title)
-        putExtra(Intent.EXTRA_TEXT, "${article.title}\n${article.link}")
-    }
-    context.startActivity(Intent.createChooser(intent, "Partager l'article"))
 }

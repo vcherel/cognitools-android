@@ -13,6 +13,7 @@ import com.example.myapp.gallery.PinnedMediaItem
 import com.example.myapp.gallery.PinnedMediaItemDao
 import com.example.myapp.notes.Note
 import com.example.myapp.news.NewsDao
+import com.example.myapp.news.NewsProgress
 import com.example.myapp.news.NewsRead
 import com.example.myapp.news.NewsSaved
 import com.example.myapp.notes.NoteDao
@@ -81,9 +82,10 @@ interface FlashcardDao {
     entities = [
         FlashcardList::class, FlashcardElement::class, Note::class, PinnedMediaItem::class,
         PodcastFavorite::class, PodcastSeenEpisode::class, PodcastEpisodeProgress::class,
-        PodcastDownload::class, Book::class, NewsRead::class, NewsSaved::class
+        PodcastDownload::class, Book::class, NewsRead::class, NewsSaved::class,
+        NewsProgress::class
     ],
-    version = 14
+    version = 15
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun flashcardDao(): FlashcardDao
@@ -251,6 +253,24 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_14_15 = object : Migration(14, 15) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `news_progress` (" +
+                        "`link` TEXT NOT NULL, " +
+                        "`title` TEXT NOT NULL, " +
+                        "`summary` TEXT NOT NULL, " +
+                        "`imageUrl` TEXT, " +
+                        "`source` TEXT NOT NULL, " +
+                        "`categoryId` TEXT NOT NULL, " +
+                        "`publishedAt` INTEGER NOT NULL, " +
+                        "`ratio` REAL NOT NULL, " +
+                        "`updatedAt` INTEGER NOT NULL, " +
+                        "PRIMARY KEY(`link`))"
+                )
+            }
+        }
+
         fun get(context: Context): AppDatabase =
             instance ?: synchronized(this) {
                 instance ?: Room.databaseBuilder(
@@ -260,7 +280,7 @@ abstract class AppDatabase : RoomDatabase() {
                 ).addMigrations(
                     MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7,
                     MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13,
-                    MIGRATION_13_14
+                    MIGRATION_13_14, MIGRATION_14_15
                 )
                     .build().also { instance = it }
             }

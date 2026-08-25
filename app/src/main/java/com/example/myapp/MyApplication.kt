@@ -38,9 +38,14 @@ class MyApplication : Application(), SingletonImageLoader.Factory {
             deezerRepository.discoveries.prime()
             // Heard episodes keep nothing on disk: their cached stream and their download go.
             runCatching { podcastRepository.purgeHeardFromCache() }
-            // Read news articles are only remembered long enough for the feeds to move past them.
-            AppDatabase.get(this@MyApplication).newsDao()
-                .purgeReadBefore(System.currentTimeMillis() - NEWS_READ_RETENTION_DAYS * 24L * 60L * 60L * 1000L)
+            // Read news articles, and the position an unfinished one was left at, are only
+            // remembered long enough for the feeds to move past them.
+            val newsCutoff = System.currentTimeMillis() -
+                NEWS_READ_RETENTION_DAYS * 24L * 60L * 60L * 1000L
+            AppDatabase.get(this@MyApplication).newsDao().run {
+                purgeReadBefore(newsCutoff)
+                purgeProgressBefore(newsCutoff)
+            }
         }
     }
 
