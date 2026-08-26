@@ -530,8 +530,10 @@ private fun TodoWidgetCard(
         bodyLines.forEach { (index, line) ->
             if (line.isCheckboxLine()) {
                 val checked = line.isCheckedLine()
+                // Same as the editor: a wrapped item keeps its box and its delete
+                // button on the first line.
                 Row(
-                    verticalAlignment = Alignment.CenterVertically,
+                    verticalAlignment = Alignment.Top,
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable { onToggleLine(index) }
@@ -542,9 +544,14 @@ private fun TodoWidgetCard(
                         style = MaterialTheme.typography.bodyMedium,
                         textDecoration = if (checked) TextDecoration.LineThrough else TextDecoration.None,
                         color = if (checked) Color.Gray else MaterialTheme.colorScheme.onBackground,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(top = 14.dp)
                     )
-                    DeleteLineButton(onClick = { onDeleteLine(index) })
+                    DeleteLineButton(
+                        onClick = { onDeleteLine(index) },
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
                 }
             } else {
                 Row(
@@ -582,10 +589,10 @@ private fun TodoWidgetCard(
 
 /** Small trailing "x" to remove a single line of the Todo widget, checked or not. */
 @Composable
-private fun DeleteLineButton(onClick: () -> Unit) {
+private fun DeleteLineButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
     IconButton(
         onClick = onClick,
-        modifier = Modifier.size(32.dp)
+        modifier = modifier.size(32.dp)
     ) {
         Icon(
             Icons.Default.Close,
