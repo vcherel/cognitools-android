@@ -36,19 +36,6 @@ private const val TAG = "PodcastRepository"
 
 private val RADIO_FRANCE_STATIONS = listOf("franceinter", "franceculture", "franceinfo", "francemusique", "mouv", "fip")
 
-// Secured past the timer's end, so nodding off with a couple of minutes left over still plays out.
-private const val SLEEP_PRELOAD_MARGIN_MS = 120_000L
-
-// And secured a little behind the player too: a playback position maps to a byte offset only
-// approximately (see cacheForSleepTimer), and the fetched range must not start after what is playing.
-private const val SLEEP_PRELOAD_BACK_MARGIN_MS = 60_000L
-
-/** How often the secured stretch is checked again while the timer runs. */
-private const val SLEEP_COVERAGE_CHECK_INTERVAL_MS = 30_000L
-
-/** What the sleep pre-fetch secured: the byte range it holds in the cache, and how it mapped time to it. */
-private data class SleepCoverage(val url: String, val startByte: Long, val endByte: Long, val bytesPerMs: Double)
-
 /** Under this much playback, an "end of episode" is a source that stopped short, not a real end. */
 private const val INSTANT_END_MS = 5_000L
 

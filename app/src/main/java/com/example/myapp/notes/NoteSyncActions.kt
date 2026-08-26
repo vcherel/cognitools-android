@@ -10,6 +10,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import com.example.myapp.plural
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
@@ -485,10 +486,9 @@ class NoteSyncActions(
         if (finished.movedCount == 0) return
         scope.launch {
             val count = finished.movedCount
-            val plural = if (count > 1) "s" else ""
             val noun = if (finished.kind == SyncKind.COURSE) "article" else "ingrédient"
             val verb = if (finished.reorder) "réordonné" else "ajouté"
-            if (showUndoSnackbar("$count $noun$plural $verb$plural")) {
+            if (showUndoSnackbar("$count $noun${plural(count)} $verb${plural(count)}")) {
                 if (finished.sourceId != null && finished.sourceSnapshot != null) {
                     updateNoteContent(finished.sourceId, finished.sourceSnapshot)
                 }

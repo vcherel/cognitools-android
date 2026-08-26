@@ -81,12 +81,6 @@ object PodcastStreamCache {
         return isFullyCached(context, url, 0L, total)
     }
 
-    /** How much of [url]'s audio is on the phone, 0..1, or null while its size is unknown. */
-    fun cachedFraction(context: Context, url: String): Float? {
-        val total = knownContentLength(context, url).takeIf { it > 0 } ?: return null
-        return (cache(context).getCachedBytes(url, 0L, total).toFloat() / total).coerceIn(0f, 1f)
-    }
-
     /** Keeps [url]'s bytes from ever being evicted, or gives them back to the LRU pool. */
     fun setProtected(context: Context, url: String, protectedNow: Boolean) {
         if (url.isBlank()) return

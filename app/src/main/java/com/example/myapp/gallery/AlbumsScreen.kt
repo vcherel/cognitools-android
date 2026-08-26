@@ -57,6 +57,7 @@ import com.example.myapp.flashcards.AppDatabase
 import com.example.myapp.notes.NoteLock
 import com.example.myapp.notes.PinDialog
 import com.example.myapp.notes.PinPurpose
+import com.example.myapp.plural
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -315,7 +316,7 @@ private fun TrashCard(itemCount: Int, onClick: () -> Unit) {
             modifier = Modifier.padding(top = 6.dp)
         )
         Text(
-            "$itemCount élément${if (itemCount > 1) "s" else ""}",
+            "$itemCount élément${plural(itemCount)}",
             style = MaterialTheme.typography.bodySmall,
             color = Color.Gray
         )
@@ -420,7 +421,7 @@ private fun AlbumCard(
             modifier = Modifier.padding(top = 6.dp)
         )
         Text(
-            if (locked) "Verrouillé" else "${album.itemCount} élément${if (album.itemCount > 1) "s" else ""}",
+            if (locked) "Verrouillé" else "${album.itemCount} élément${plural(album.itemCount)}",
             style = MaterialTheme.typography.bodySmall,
             color = Color.Gray
         )

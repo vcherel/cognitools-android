@@ -8,7 +8,6 @@ Run with:
     uv run --no-project --with nltk --with wordfreq src/generate_motsfleches_en.py
 """
 
-import os
 import re
 import sys
 
@@ -16,18 +15,23 @@ import nltk
 from nltk.corpus import wordnet
 from wordfreq import top_n_list, word_frequency
 
+from motsfleches_common import (
+    CLUE_MAX,
+    MAX_LENGTH,
+    MAX_SENSES,
+    MAX_WORDS,
+    MIN_LENGTH,
+    cut_at_semicolon,
+    full_definition,
+    gives_it_away,
+    shorten,
+    write_asset,
+)
+
 OUTPUT_PATH = "app/src/main/assets/motsfleches_dict_en.txt"
 
-MIN_LENGTH = 3
-MAX_LENGTH = 11
-# Read down the frequency list until this many usable words are found.
-MAX_WORDS = 34000
+# Read down the frequency list until MAX_WORDS usable words are found.
 FREQUENCY_POOL = 120000
-MAX_SENSES = 2
-CLUE_MAX = 48
-FULL_MAX = 240
-# What is left of a gloss once it is cut at its first semicolon has to still say something.
-MIN_SEGMENT = 12
 # A synonym rarer than this makes a worse clue than the gloss it replaces.
 MIN_RELATED_FREQ = 2e-6
 
@@ -49,35 +53,6 @@ def grid_form(word):
     if not re.fullmatch(r"[A-Z]+", upper):
         return None
     return upper
-
-
-def gives_it_away(definition, word):
-    """True when the definition contains the answer (or an obvious inflection of it)."""
-    stem = word.lower()[: max(4, len(word) - 2)]
-    return any(token.startswith(stem) for token in re.findall(r"[a-z]+", definition.lower()))
-
-
-def cut_at_semicolon(definition):
-    """A gloss that goes on after a semicolon is really several: the first one is the clue."""
-    parts = definition.split(";")
-    if len(parts) == 1:
-        return definition
-    kept = ""
-    for part in parts:
-        kept = f"{kept};{part}" if kept else part
-        if len(kept.strip()) >= MIN_SEGMENT:
-            break
-    return kept.strip(" ,;:")
-
-
-def shorten(definition):
-    if len(definition) <= CLUE_MAX:
-        return definition
-    for separator in (": ", ", "):
-        cut = definition.find(separator)
-        if 18 <= cut <= CLUE_MAX:
-            return definition[:cut]
-    return definition[:CLUE_MAX].rsplit(" ", 1)[0] + "…"
 
 
 def clean(gloss):
@@ -168,26 +143,19 @@ def build_rows():
             continue
         seen.add(form)
         for pos, definition in senses:
-            full = definition[:FULL_MAX].rsplit(" ", 1)[0] if len(definition) > FULL_MAX else definition
             # Rank is the frequency order: the grid generator uses it to pick a difficulty.
-            rows.append(f"{form}\t{words}\t{pos}\t{shorten(definition)}\t{full}")
+            rows.append(f"{form}\t{words}\t{pos}\t{shorten(definition)}\t{full_definition(definition)}")
         for clue in related_clues(word):
             rows.append(f"{form}\t{words}\t{senses[0][0]}\t{clue}\t{clue}")
         words += 1
         if words % 5000 == 0:
             print(f"  {words} words", flush=True)
-    return rows, words
+    return rows
 
 
 def main():
     nltk.download("wordnet", quiet=True)
-    rows, words = build_rows()
-    # Plain text on purpose: the Android build unpacks a .gz asset at packaging time, and the APK
-    # deflates whatever it ships anyway.
-    with open(OUTPUT_PATH, "w", encoding="utf-8") as handle:
-        handle.write("\n".join(rows))
-    size = os.path.getsize(OUTPUT_PATH)
-    print(f"Wrote {len(rows)} clues for {words} words to {OUTPUT_PATH} ({size / 1e6:.1f} MB)")
+    write_asset(build_rows(), OUTPUT_PATH)
 
 
 if __name__ == "__main__":

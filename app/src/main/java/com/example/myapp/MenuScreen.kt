@@ -50,7 +50,9 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 
-private class MenuTool(val id: String, val label: String, val onClick: () -> Unit)
+// One of the small grid tools. [id] is what the usage counters are keyed by and never changes;
+// [route] is where tapping it goes, which is the same string for all but two of them.
+private class MenuTool(val id: String, val label: String, val route: String = id)
 
 @Composable
 fun MenuScreen(
@@ -61,19 +63,10 @@ fun MenuScreen(
     onOpenDeezer: () -> Unit,
     onOpenFlashcards: () -> Unit,
     onPlayFlashcards: () -> Unit,
-    onOpenWeather: () -> Unit,
-    onOpenMotsFleches: () -> Unit,
-    onOpenTranslate: () -> Unit,
-    onOpenReader: () -> Unit,
-    onOpenUndercover: () -> Unit,
-    onOpenVolume: () -> Unit,
-    onOpenRandom: () -> Unit,
-    onOpenWikipedia: () -> Unit,
-    onOpenFiles: () -> Unit,
-    onOpenNews: () -> Unit,
     onOpenGallery: () -> Unit,
     onOpenWallet: () -> Unit,
-    onOpenPinnedPictures: () -> Unit
+    onOpenPinnedPictures: () -> Unit,
+    onOpenTool: (route: String) -> Unit
 ) {
     val spaceHeight = 20.dp
     val buttonHeight = 84.dp
@@ -83,16 +76,16 @@ fun MenuScreen(
     val usage by usageStore.counts.collectAsState(initial = emptyMap())
 
     val tools = listOf(
-        MenuTool("weather", "Météo", onOpenWeather),
-        MenuTool("motsFleches", "Mots fléchés", onOpenMotsFleches),
-        MenuTool("translate", "Traducteur", onOpenTranslate),
-        MenuTool("reader", "Lecture", onOpenReader),
-        MenuTool("volume", "Volume", onOpenVolume),
-        MenuTool("undercover", "Undercover", onOpenUndercover),
-        MenuTool("wikipedia", "Wiki", onOpenWikipedia),
-        MenuTool("random", "Random", onOpenRandom),
-        MenuTool("files", "Fichiers", onOpenFiles),
-        MenuTool("news", "Actus", onOpenNews)
+        MenuTool("weather", "Météo"),
+        MenuTool("motsFleches", "Mots fléchés"),
+        MenuTool("translate", "Traducteur"),
+        MenuTool("reader", "Lecture"),
+        MenuTool("volume", "Volume", route = "volumeBooster"),
+        MenuTool("undercover", "Undercover"),
+        MenuTool("wikipedia", "Wiki"),
+        MenuTool("random", "Random", route = "randomGenerator"),
+        MenuTool("files", "Fichiers"),
+        MenuTool("news", "Actus")
     )
     // Most used first, alphabetical between tools opened as often (so a fresh install is A to Z).
     val orderedTools = tools.sortedWith(
@@ -179,7 +172,7 @@ fun MenuScreen(
                             fontSize = 20.sp,
                             onClick = {
                                 scope.launch { usageStore.recordClick(tool.id) }
-                                tool.onClick()
+                                onOpenTool(tool.route)
                             }
                         )
                     }

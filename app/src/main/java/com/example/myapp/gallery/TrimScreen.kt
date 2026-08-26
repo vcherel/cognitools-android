@@ -37,6 +37,7 @@ import androidx.media3.transformer.Transformer
 import com.example.myapp.MyButton
 import com.example.myapp.ScreenTopBar
 import com.example.myapp.ShowAlertDialog
+import com.example.myapp.formatPlaybackTime
 import kotlinx.coroutines.CancellableContinuation
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -83,8 +84,8 @@ fun GalleryTrimScreen(itemId: Long, onBack: () -> Unit) {
 
             Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text(formatMs(range.start.toLong()), style = MaterialTheme.typography.bodyMedium)
-                    Text(formatMs(range.endInclusive.toLong()), style = MaterialTheme.typography.bodyMedium)
+                    Text(formatPlaybackTime(range.start.toLong()), style = MaterialTheme.typography.bodyMedium)
+                    Text(formatPlaybackTime(range.endInclusive.toLong()), style = MaterialTheme.typography.bodyMedium)
                 }
                 RangeSlider(
                     value = range,
@@ -92,7 +93,7 @@ fun GalleryTrimScreen(itemId: Long, onBack: () -> Unit) {
                     valueRange = 0f..durationMs.toFloat()
                 )
                 Text(
-                    "Durée sélectionnée : ${formatMs((range.endInclusive - range.start).toLong())}",
+                    "Durée sélectionnée : ${formatPlaybackTime((range.endInclusive - range.start).toLong())}",
                     style = MaterialTheme.typography.bodySmall
                 )
             }
@@ -174,13 +175,6 @@ private fun readDurationMs(context: android.content.Context, uri: Uri): Long {
     } finally {
         retriever.release()
     }
-}
-
-private fun formatMs(ms: Long): String {
-    val totalSeconds = ms / 1000
-    val minutes = totalSeconds / 60
-    val seconds = totalSeconds % 60
-    return "%d:%02d".format(minutes, seconds)
 }
 
 private suspend fun trimVideo(context: android.content.Context, uri: Uri, startMs: Long, endMs: Long, outputFile: File): Boolean =
