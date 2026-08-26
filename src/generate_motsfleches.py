@@ -18,9 +18,22 @@ import os
 import re
 import sys
 import time
-import unicodedata
 import urllib.parse
 import urllib.request
+
+from motsfleches_common import (
+    CLUE_MAX,
+    MAX_LENGTH,
+    MAX_SENSES,
+    MAX_WORDS,
+    MIN_LENGTH,
+    cut_at_semicolon,
+    full_definition,
+    gives_it_away,
+    shorten,
+    strip_accents,
+    write_asset,
+)
 
 LEXIQUE_PATH = "data/lexique.tsv"
 CACHE_PATH = "data/motsfleches_senses.json"
@@ -29,14 +42,6 @@ OUTPUT_PATH = "app/src/main/assets/motsfleches_dict_fr.txt"
 API = "https://fr.wiktionary.org/w/api.php"
 USER_AGENT = "CogniTools/1.0 (personal offline crossword app; valentin.cherel22@yahoo.com)"
 
-MIN_LENGTH = 3
-MAX_LENGTH = 11
-MAX_WORDS = 34000
-MAX_SENSES = 2
-CLUE_MAX = 48
-FULL_MAX = 240
-# What is left of a definition once it is cut at its first semicolon has to still say something.
-MIN_SEGMENT = 12
 # A synonym nobody has heard of is a worse clue than the definition it replaces (Lexique, per million).
 MIN_RELATED_FREQ = 1.0
 # How many synonyms and how many antonyms a word keeps.
@@ -69,11 +74,6 @@ RARE_MARKER = re.compile(
 
 DOMAIN_TEMPLATES = {"info lex", "lexique", "term", "contexte", "domaine", "term/2"}
 TEXT_TEMPLATES = {"lien", "l", "w", "wsp", "polytonique", "recons", "smo"}
-
-
-def strip_accents(text):
-    decomposed = unicodedata.normalize("NFD", text)
-    return "".join(c for c in decomposed if unicodedata.category(c) != "Mn")
 
 
 def grid_form(word):
@@ -199,40 +199,6 @@ def parse_page(wikitext):
     return page
 
 
-def gives_it_away(definition, word):
-    """True when the definition contains the answer (or an obvious inflection of it)."""
-    plain = strip_accents(definition).lower()
-    stem = strip_accents(word).lower()[: max(4, len(word) - 2)]
-    return any(token.startswith(stem) for token in re.findall(r"[a-z]+", plain))
-
-
-def cut_at_semicolon(definition):
-    """A definition that goes on after a semicolon is really several: the first one is the clue.
-
-    Applied to the whole definition, not only to the ones too long for a cell, so the clue bar
-    never shows a sentence with three senses strung together either.
-    """
-    parts = definition.split(";")
-    if len(parts) == 1:
-        return definition
-    kept = ""
-    for part in parts:
-        kept = f"{kept};{part}" if kept else part
-        if len(kept.strip()) >= MIN_SEGMENT:
-            break
-    return kept.strip(" ,;:")
-
-
-def shorten(definition):
-    if len(definition) <= CLUE_MAX:
-        return definition
-    for separator in (" : ", ", "):
-        cut = definition.find(separator)
-        if 18 <= cut <= CLUE_MAX:
-            return definition[:cut]
-    return definition[:CLUE_MAX].rsplit(" ", 1)[0] + "…"
-
-
 def usable_senses(senses, word):
     kept = []
     for rank, (pos, raw) in enumerate(senses):
@@ -348,33 +314,29 @@ def related_clues(entry, word, frequencies):
     return clues
 
 
-def write_asset(candidates, cache, frequencies):
+def build_rows(candidates, cache, frequencies):
+    """One row per clue: the grid form, its frequency rank, the part of speech, the clue and the
+    full definition behind it."""
     rows = []
     for rank, (form, word) in enumerate(candidates):
         entry = entry_of(cache, word)
         senses = usable_senses(entry["senses"], word)
         for pos, definition in senses:
-            full = definition[:FULL_MAX].rsplit(" ", 1)[0] if len(definition) > FULL_MAX else definition
             # Rank is the frequency order: the grid generator uses it to pick a difficulty.
-            rows.append(f"{form}\t{rank}\t{pos}\t{shorten(definition)}\t{full}")
+            clue = shorten(definition, (" : ", ", "))
+            rows.append(f"{form}\t{rank}\t{pos}\t{clue}\t{full_definition(definition)}")
         # A synonym clue stands on its own: it is how a grid reads, and a word whose definitions
         # were all thrown out still deserves to be in one.
         pos = senses[0][0] if senses else "n"
         for clue in related_clues(entry, word, frequencies):
             rows.append(f"{form}\t{rank}\t{pos}\t{clue}\t{clue}")
-    # Plain text on purpose: the Android build unpacks a .gz asset at packaging time, and the APK
-    # deflates whatever it ships anyway.
-    with open(OUTPUT_PATH, "w", encoding="utf-8") as handle:
-        handle.write("\n".join(rows))
-    words = len({row.split("\t", 1)[0] for row in rows})
-    size = os.path.getsize(OUTPUT_PATH)
-    print(f"Wrote {len(rows)} clues for {words} words to {OUTPUT_PATH} ({size / 1e6:.1f} MB)")
+    return rows
 
 
 def main():
     candidates, frequencies = load_candidates()
     cache = collect(candidates, load_cache())
-    write_asset(candidates, cache, frequencies)
+    write_asset(build_rows(candidates, cache, frequencies), OUTPUT_PATH)
 
 
 if __name__ == "__main__":

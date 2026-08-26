@@ -163,6 +163,18 @@ fun GalleryViewerScreen(
 
     val currentItem = items[pagerState.currentPage.coerceIn(items.indices)]
 
+    // Takes an item out of the pager right away rather than waiting on the MediaStore requery or the
+    // pins Flow to come back: those land late enough that the viewer would snap back to the grid in
+    // the meantime. The pager moves onto whatever took its place, or the viewer leaves if it was the
+    // last one.
+    suspend fun removeItemLocally(itemId: Long) {
+        val removedIndex = items.indexOfFirst { it.id == itemId }
+        val remaining = items.filterNot { it.id == itemId }
+        items = remaining
+        if (remaining.isEmpty()) leave()
+        else pagerState.scrollToPage(removedIndex.coerceIn(0, remaining.size - 1))
+    }
+
     // The photo opens clean (no tools). A single tap toggles the top/bottom bars and, with them,
     // the Android system bars for a true immersive fullscreen view.
     var chromeVisible by remember { mutableStateOf(false) }
@@ -314,19 +326,8 @@ fun GalleryViewerScreen(
                     scope.launch {
                         if (wasPinned) {
                             unpinItem(context, id)
-                            // Browsing the pinned pager itself: splice the now unpinned item out
-                            // locally right away instead of waiting on the Room Flow update, same
-                            // reasoning as the delete flow below.
-                            if (source is ViewerSource.Pinned) {
-                                val removedIndex = items.indexOfFirst { it.id == id }
-                                val remaining = items.filterNot { it.id == id }
-                                items = remaining
-                                if (remaining.isEmpty()) {
-                                    leave()
-                                } else {
-                                    pagerState.scrollToPage(removedIndex.coerceIn(0, remaining.size - 1))
-                                }
-                            }
+                            // Browsing the pinned pager itself: the unpinned item is gone from it.
+                            if (source is ViewerSource.Pinned) removeItemLocally(id)
                         } else {
                             pinItems(context, listOf(id))
                         }
@@ -343,25 +344,13 @@ fun GalleryViewerScreen(
                 onShowInfo = { openDialog = ViewerDialog.Info },
                 onDelete = {
                     // No confirmation: the item goes to the trash, the pager moves on to the next
-                    // one, and the snackbar offers the undo. The item is spliced out of the local
-                    // list and the pager explicitly moved right away, instead of waiting on the
-                    // MediaStore requery triggered by GalleryRefresh: that one lands late enough
-                    // that the pager was snapping back to the album grid in the meantime.
-                    val toTrash = listOf(currentItem)
+                    // one, and the snackbar offers the undo.
                     val deletedItem = currentItem
                     val deletedIndex = items.indexOfFirst { it.id == currentItem.id }
                     scope.launch {
                         val trashed = trashAndAnnounce(
-                            context, toTrash, requestConsent,
-                            onTrashed = {
-                                val remaining = items.filterNot { it.id == currentItem.id }
-                                items = remaining
-                                if (remaining.isEmpty()) {
-                                    leave()
-                                } else {
-                                    pagerState.scrollToPage(deletedIndex.coerceIn(0, remaining.size - 1))
-                                }
-                            },
+                            context, listOf(deletedItem), requestConsent,
+                            onTrashed = { removeItemLocally(deletedItem.id) },
                             // Undo puts the item back where it was and returns the pager to it,
                             // instead of leaving the view on whatever it advanced to.
                             onRestored = {

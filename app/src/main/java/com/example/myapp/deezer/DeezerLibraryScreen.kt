@@ -64,12 +64,13 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
 import com.example.myapp.ErrorText
-import com.example.myapp.deezerRepository
+import com.example.myapp.LocalGoHome
 import com.example.myapp.MediaArt
 import com.example.myapp.MediaListRow
 import com.example.myapp.MediaRowSubtitle
-import com.example.myapp.LocalGoHome
 import com.example.myapp.ScreenTopBar
+import com.example.myapp.deezerRepository
+import com.example.myapp.plural
 import com.example.myapp.podcastRepository
 import com.example.myapp.podcasts.PodcastFavorite
 import kotlinx.coroutines.launch
@@ -314,7 +315,7 @@ private fun DiscoveriesCard(state: DiscoveryState, onOpen: () -> Unit) {
         state.generating && state.tracks.isEmpty() -> "Recherche en cours… ${state.progress} %"
         state.generating -> "Renouvellement… ${state.progress} %"
         state.newReleaseCount > 0 ->
-            "${state.tracks.size} titres · ${state.newReleaseCount} nouveauté${if (state.newReleaseCount > 1) "s" else ""}"
+            "${state.tracks.size} titres · ${state.newReleaseCount} nouveauté${plural(state.newReleaseCount)}"
         else -> "${state.tracks.size} titres à découvrir"
     }
     Row(
@@ -415,8 +416,7 @@ private fun PodcastRow(
         contentPadding = 8.dp,
         below = {
             if (unseenCount > 0) {
-                val plural = if (unseenCount > 1) "s" else ""
-                MediaRowSubtitle("$unseenCount épisode$plural non écouté$plural")
+                MediaRowSubtitle("$unseenCount épisode${plural(unseenCount)} non écouté${plural(unseenCount)}")
             }
         },
         trailing = {
@@ -443,8 +443,7 @@ private fun PodcastDownloadsRow(count: Int, onOpen: () -> Unit) {
     ) {
         Icon(Icons.Filled.DownloadDone, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
         Spacer(Modifier.width(12.dp))
-        val plural = if (count > 1) "s" else ""
-        Text("Téléchargés · $count épisode$plural", style = MaterialTheme.typography.bodyLarge)
+        Text("Téléchargés · $count épisode${plural(count)}", style = MaterialTheme.typography.bodyLarge)
     }
 }
 

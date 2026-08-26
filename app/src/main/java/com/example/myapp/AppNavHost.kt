@@ -1,6 +1,7 @@
 package com.example.myapp
 
 import android.net.Uri
+import android.os.Bundle
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
@@ -12,6 +13,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -124,19 +126,10 @@ fun MainScreen(
                                 navController.navigate("lists")
                                 navController.navigate("game/all")
                             },
-                            onOpenWeather = { navController.navigate("weather") },
-                            onOpenMotsFleches = { navController.navigate("motsFleches") },
-                            onOpenTranslate = { navController.navigate("translate") },
-                            onOpenReader = { navController.navigate("reader") },
-                            onOpenUndercover = { navController.navigate("undercover") },
-                            onOpenVolume = { navController.navigate("volumeBooster") },
-                            onOpenRandom = { navController.navigate("randomGenerator") },
-                            onOpenWikipedia = { navController.navigate("wikipedia") },
-                            onOpenFiles = { navController.navigate("files") },
-                            onOpenNews = { navController.navigate("news") },
                             onOpenGallery = { navController.navigate("gallery") },
                             onOpenWallet = { navController.navigate("gallery/wallet") },
-                            onOpenPinnedPictures = { navController.navigate("gallery/pinned") }
+                            onOpenPinnedPictures = { navController.navigate("gallery/pinned") },
+                            onOpenTool = { route -> navController.navigate(route) }
                         )
                     }
                     composable("randomGenerator") { RandomGeneratorScreen(onBack = back) }
@@ -260,9 +253,9 @@ fun MainScreen(
 /** A GalleryViewerScreen destination: [source] reads the route's arguments into what it should show. */
 private fun NavGraphBuilder.viewerRoute(
     route: String,
-    navController: androidx.navigation.NavController,
+    navController: NavController,
     onBack: () -> Unit,
-    source: (android.os.Bundle?) -> Pair<ViewerSource, Long>
+    source: (Bundle?) -> Pair<ViewerSource, Long>
 ) = composable(route) { backStackEntry ->
     val (viewerSource, initialItemId) = source(backStackEntry.arguments)
     GalleryViewerScreen(

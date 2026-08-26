@@ -57,6 +57,7 @@ import com.example.myapp.AppSnackbar
 import com.example.myapp.MyButton
 import com.example.myapp.ScreenTopBar
 import com.example.myapp.flashcards.AddToFlashcardsDialog
+import com.example.myapp.plural
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
@@ -616,4 +617,3 @@ private fun retreat(puzzle: Puzzle, selection: Selection): Selection {
     )
 }
 
-private fun plural(count: Int) = if (count > 1) "s" else ""

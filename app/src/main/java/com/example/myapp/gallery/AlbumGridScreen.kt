@@ -44,6 +44,7 @@ import androidx.compose.ui.unit.dp
 import com.example.myapp.AppSnackbar
 import com.example.myapp.ScreenTopBar
 import com.example.myapp.ShowAlertDialog
+import com.example.myapp.plural
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -216,7 +217,7 @@ private fun SelectionTopBar(
             Icon(Icons.Default.Close, contentDescription = "Annuler la sélection")
         }
         Text(
-            "$count sélectionné${if (count > 1) "s" else ""}",
+            "$count sélectionné${plural(count)}",
             style = MaterialTheme.typography.titleMedium,
             modifier = Modifier.padding(start = 8.dp).weight(1f)
         )

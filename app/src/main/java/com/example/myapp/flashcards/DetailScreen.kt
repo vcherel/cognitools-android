@@ -110,6 +110,12 @@ private fun List<FlashcardElement>.filteredAndSorted(query: String, mode: SortMo
     }
 }
 
+// What the edit dialog is open on. Null means closed, [EditTarget.New] is the "Ajouter" button.
+private sealed interface EditTarget {
+    data object New : EditTarget
+    data class Existing(val element: FlashcardElement) : EditTarget
+}
+
 @Composable
 fun FlashcardDetailScreen(
     listId: String,
@@ -121,8 +127,7 @@ fun FlashcardDetailScreen(
     val listState = rememberLazyListState()
     val repository = context.flashcardRepository
 
-    var showEditDialog by remember { mutableStateOf(false) }
-    var editingElement by remember { mutableStateOf<FlashcardElement?>(null) }
+    var editTarget by remember { mutableStateOf<EditTarget?>(null) }
     var searchQuery by remember { mutableStateOf("") }
     var elementToDelete by remember { mutableStateOf<FlashcardElement?>(null) }
     var selectedElement by remember { mutableStateOf<FlashcardElement?>(null) }
@@ -144,6 +149,10 @@ fun FlashcardDetailScreen(
 
     // Every card of the list, mutated in place so an edit shows up without waiting on the database.
     val elementsState = remember { mutableStateListOf<FlashcardElement>() }
+    fun replaceElement(updated: FlashcardElement) {
+        val index = elementsState.indexOfFirst { it.id == updated.id }
+        if (index != -1) elementsState[index] = updated
+    }
     // Bumped whenever elementsState is mutated, so the filter/sort effect below can key off a
     // cheap int instead of copying and diffing the whole list on every recomposition.
     var elementsVersion by remember { mutableStateOf(0) }
@@ -286,17 +295,11 @@ fun FlashcardDetailScreen(
                                     lists.find { it.id == element.listId }?.name
                                 } else null,
                                 onClick = { selectedElement = element },
-                                onEdit = {
-                                    editingElement = element
-                                    showEditDialog = true
-                                },
+                                onEdit = { editTarget = EditTarget.Existing(element) },
                                 onDelete = { elementToDelete = element },
                                 onReset = {
                                     scope.launch {
-                                        val idx = elementsState.indexOfFirst { it.id == element.id }
-                                        if (idx != -1) {
-                                            elementsState[idx] = element.resetProgress()
-                                        }
+                                        replaceElement(element.resetProgress())
                                         repository.resetElement(element.id)
                                     }
                                 }
@@ -333,10 +336,7 @@ fun FlashcardDetailScreen(
                     MyButton(
                         text = "Ajouter",
                         modifier = Modifier.weight(1f).height(100.dp)
-                    ) {
-                        editingElement = null
-                        showEditDialog = true
-                    }
+                    ) { editTarget = EditTarget.New }
                 }
             }
         }
@@ -363,14 +363,14 @@ fun FlashcardDetailScreen(
         )
     }
 
-    if (showEditDialog) {
+    editTarget?.let { target ->
+        val editing = (target as? EditTarget.Existing)?.element
         ElementEditDialog(
-            element = editingElement,
+            element = editing,
             defaultRandomSide = !listFixedSide,
-            onDismiss = { showEditDialog = false },
+            onDismiss = { editTarget = null },
             onSave = { name, definition, randomSide ->
                 scope.launch {
-                    val editing = editingElement
                     if (editing == null) {
                         val newElement = FlashcardElement(
                             listId = listId,
@@ -388,14 +388,11 @@ fun FlashcardDetailScreen(
                             normalizedDefinition = definition.deaccented(),
                             randomSide = randomSide
                         )
-                        val idx = elementsState.indexOfFirst { it.id == editing.id }
-                        if (idx != -1) {
-                            elementsState[idx] = updatedElement
-                        }
+                        replaceElement(updatedElement)
                         repository.updateElement(updatedElement)
                     }
                 }
-                showEditDialog = false
+                editTarget = null
             }
         )
     }

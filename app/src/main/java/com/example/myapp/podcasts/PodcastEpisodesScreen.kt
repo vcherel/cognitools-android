@@ -353,7 +353,7 @@ private fun episodeDurationMs(episode: PodcastEpisode, progress: PodcastEpisodeP
     progress.durationMs.takeIf { it > 0 } ?: ((episode.durationSec ?: 0) * 1000L)
 
 private fun formatDuration(totalSec: Int): String {
-    val h = totalSec / 3600
-    val m = (totalSec % 3600) / 60
-    return if (h > 0) "${h} h ${m} min" else "${m} min"
+    val hours = totalSec / 3600
+    val minutes = (totalSec % 3600) / 60
+    return if (hours > 0) "$hours h $minutes min" else "$minutes min"
 }

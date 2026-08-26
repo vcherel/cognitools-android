@@ -42,6 +42,7 @@ import androidx.compose.ui.unit.dp
 import com.example.myapp.AppSnackbar
 import com.example.myapp.ScreenTopBar
 import com.example.myapp.ShowAlertDialog
+import com.example.myapp.plural
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -91,7 +92,7 @@ fun GalleryTrashScreen(onBack: () -> Unit) {
                     Icon(Icons.Default.Close, contentDescription = "Annuler la sélection")
                 }
                 Text(
-                    "${selectedIds.size} sélectionné${if (selectedIds.size > 1) "s" else ""}",
+                    "${selectedIds.size} sélectionné${plural(selectedIds.size)}",
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.padding(start = 8.dp).weight(1f)
                 )

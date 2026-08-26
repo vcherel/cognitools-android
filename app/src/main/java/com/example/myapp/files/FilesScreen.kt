@@ -76,6 +76,7 @@ import com.example.myapp.ScreenTopBar
 import com.example.myapp.ShowAlertDialog
 import com.example.myapp.gallery.hasAllFilesAccess
 import com.example.myapp.gallery.rememberAllFilesAccessRequester
+import com.example.myapp.plural
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -124,15 +125,13 @@ fun FilesScreen(onBack: () -> Unit) {
 
     val selectedEntries = entries.orEmpty().filter { it.path in selected }
 
-    fun reload() { refreshKey++ }
-
     fun runOnFiles(action: suspend () -> String) {
         busy = true
         scope.launch {
             val message = action()
             busy = false
             selected = emptySet()
-            reload()
+            refreshKey++
             if (message.isNotEmpty()) AppSnackbar.show(message)
         }
     }
@@ -225,10 +224,7 @@ fun FilesScreen(onBack: () -> Unit) {
                             else copyEntries(pending.files, destination)
                         }
                         clipboard = null
-                        val verb = if (pending.move) "déplacé" else "copié"
-                        val plural = if (done > 1) "s" else ""
-                        if (done == pending.files.size) "$done élément$plural $verb$plural"
-                        else "$done / ${pending.files.size} élément$plural $verb$plural"
+                        countMessage(done, pending.files.size, if (pending.move) "déplacé" else "copié")
                     }
                 }
             )
@@ -340,9 +336,7 @@ fun FilesScreen(onBack: () -> Unit) {
                 val files = selectedEntries.map { it.file }
                 runOnFiles {
                     val done = withContext(Dispatchers.IO) { deleteEntries(files) }
-                    val plural = if (done > 1) "s" else ""
-                    if (done == files.size) "$done élément$plural supprimé$plural"
-                    else "$done / ${files.size} élément$plural supprimé$plural"
+                    countMessage(done, files.size, "supprimé")
                 }
             }
         )
@@ -524,11 +518,17 @@ private fun FileRow(
     }
 }
 
+/** "3 éléments supprimés", or "2 / 3 éléments supprimés" when some of them failed. */
+private fun countMessage(done: Int, total: Int, verb: String): String {
+    val counted = if (done == total) "$done" else "$done / $total"
+    return "$counted élément${plural(done)} $verb${plural(done)}"
+}
+
 private fun subtitleFor(entry: FileEntry): String {
     val date = formatFileDate(entry.lastModified)
     if (entry.isDirectory) {
         val count = entry.childCount
-        val label = if (count == 1) "1 élément" else "$count éléments"
+        val label = "$count élément${plural(count)}"
         return if (date.isEmpty()) label else "$label · $date"
     }
     val size = formatFileSize(entry.size)
