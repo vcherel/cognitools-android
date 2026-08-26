@@ -244,8 +244,14 @@ fun NotesListScreen(navController: NavController) {
                 contentAlignment = Alignment.Center
             ) {
                 val currentNotes = notes
-                val displayedNotes = remember(currentNotes, searchTerms) {
-                    currentNotes.orEmpty().filter { noteMatchesSearch(it, searchTerms) }
+                // Each note's searchable text, folded once per edit rather than once per keystroke:
+                // normalizing every note's whole body is what a search actually costs.
+                val searchable = remember(currentNotes) {
+                    currentNotes.orEmpty().map { it to searchHaystackOf(it) }
+                }
+                val displayedNotes = remember(searchable, searchTerms) {
+                    if (searchTerms.isEmpty()) searchable.map { it.first }
+                    else searchable.filter { haystackMatches(it.second, searchTerms) }.map { it.first }
                 }
                 // Something deleted by mistake stays findable without opening the trash screen.
                 val trashedMatches = remember(trashedNotes, searchTerms) {
@@ -617,7 +623,7 @@ private fun NoteItem(
     val shownLine = remember(note, searchTerms) {
         matchingLineOf(note, searchTerms) ?: preview
     }
-    val highlighted = highlightedSearchText(shownLine, searchTerms)
+    val highlighted = remember(shownLine, searchTerms) { highlightedSearchText(shownLine, searchTerms) }
 
     NoteCard(note = note, onClick = onNavigate) {
         if (note.locked) {

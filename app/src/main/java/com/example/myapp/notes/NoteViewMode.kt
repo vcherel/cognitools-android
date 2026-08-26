@@ -102,10 +102,19 @@ fun NoteViewMode(
     val isCoursesNote = title.equals(COURSES_TITLE, ignoreCase = true)
     val isTodoListNote = title.equals(TODO_LIST_TITLE, ignoreCase = true)
     val isClaudeNote = title.equals(CLAUDE_NOTE_TITLE, ignoreCase = true)
-    // Computed once per recomposition and reused below, instead of re-converting
-    // the whole note's text to a String for every line.
+    // Split once per text change and reused below, instead of re-converting the whole note's text
+    // to a String for every line, or re-splitting it every time a selection or a drag recomposes.
     val fullText = textFieldState.text.toString()
-    val lines = fullText.split("\n")
+    val lines = remember(fullText) { fullText.split("\n") }
+
+    // The title lines whose category holds an "Enhance code" marker. Only the Claude note has any,
+    // and scanning the category of every line of every note was quadratic.
+    val enhanceTitles = remember(fullText, isClaudeNote) {
+        if (!isClaudeNote) emptySet()
+        else lines.indices.filterTo(mutableSetOf()) { index ->
+            lines[index].isTitleLine() && lines.categoryAfter(index).any { it.isMarkerLine(ENHANCE_LINE) }
+        }
+    }
 
     // Character offset of the start of each line, for double tap to edit
     val lineStarts = remember(fullText) {
@@ -217,8 +226,7 @@ fun NoteViewMode(
                     isTodoListNote = isTodoListNote,
                     isClaudeNote = isClaudeNote,
                     hasResumeAfter = lines.getOrNull(lineIndex + 1)?.isMarkerLine(RESUME_LINE) == true,
-                    hasEnhanceAfter = lines[lineIndex].isTitleLine() &&
-                        lines.categoryAfter(lineIndex).any { it.isMarkerLine(ENHANCE_LINE) },
+                    hasEnhanceAfter = lineIndex in enhanceTitles,
                     actions = actions,
                     searchTerms = searchTerms,
                     onSizeChanged = { lineHeights[lineIndex] = it },
