@@ -67,6 +67,8 @@ fun String.checkboxPrefix(): String = when {
 // rendering. Content inside a marker pair is parsed again, so markers combine.
 fun String.formatInline(): AnnotatedString {
     val s = this
+    // Most lines carry no marker at all: skip the builder entirely for them.
+    if (s.indexOf('*') < 0 && s.indexOf('_') < 0) return AnnotatedString(s)
     return buildAnnotatedString {
         var i = 0
         while (i < s.length) {
@@ -97,6 +99,34 @@ fun String.formatInline(): AnnotatedString {
     }
 }
 
+/** The same text with its inline markers removed, without building an AnnotatedString for it. */
+fun String.strippedInlineMarkers(): String {
+    val s = this
+    if (s.indexOf('*') < 0 && s.indexOf('_') < 0) return s
+    val out = StringBuilder(s.length)
+    var i = 0
+    while (i < s.length) {
+        val c = s[i]
+        if (c == '*' || c == '_') {
+            var run = 1
+            val maxRun = if (c == '*') 3 else 2
+            while (run < maxRun && i + run < s.length && s[i + run] == c) run++
+            if (c == '*' || run == 2) {
+                val marker = c.toString().repeat(run)
+                val close = s.indexOf(marker, i + run)
+                if (close > i + run) {
+                    out.append(s.substring(i + run, close).strippedInlineMarkers())
+                    i = close + run
+                    continue
+                }
+            }
+        }
+        out.append(s[i])
+        i++
+    }
+    return out.toString()
+}
+
 /**
  * Display title and preview line. The title field wins when set; otherwise
  * the first non empty content line is the title, as before the field existed.
@@ -104,7 +134,7 @@ fun String.formatInline(): AnnotatedString {
 fun noteTitleAndPreview(note: Note): Pair<String, String> {
     val lines = note.content.lineSequence()
         .filterNot { it.isSeparatorLine() }
-        .map { it.checkboxText().formatInline().text.trim() }
+        .map { it.checkboxText().strippedInlineMarkers().trim() }
         .filter { it.isNotEmpty() }
         .take(2)
         .toList()
@@ -124,12 +154,26 @@ fun noteTitleAndPreview(note: Note): Pair<String, String> {
  */
 fun normalizeForSearch(text: String): String {
     val out = StringBuilder(text.length)
-    for (ch in text) {
-        val base = Normalizer.normalize(ch.toString(), Normalizer.Form.NFD).firstOrNull() ?: ch
-        out.append(base.lowercaseChar())
-    }
+    for (ch in text) out.append(foldChar(ch))
     return out.toString()
 }
+
+// Folding one character is the expensive part: NFD normalization allocates a String per call.
+// Plain ASCII skips it, and the Latin range every accented letter the app sees lives in is folded
+// once and kept, so a search over long notes stops normalizing the same letters over and over.
+private const val FOLD_CACHE_SIZE = 0x250
+private val foldCache = CharArray(FOLD_CACHE_SIZE)
+
+private fun foldChar(ch: Char): Char {
+    if (ch.code < 128) return ch.lowercaseChar()
+    if (ch.code >= FOLD_CACHE_SIZE) return decomposedBase(ch)
+    val cached = foldCache[ch.code]
+    if (cached != '\u0000') return cached
+    return decomposedBase(ch).also { foldCache[ch.code] = it }
+}
+
+private fun decomposedBase(ch: Char): Char =
+    (Normalizer.normalize(ch.toString(), Normalizer.Form.NFD).firstOrNull() ?: ch).lowercaseChar()
 
 /**
  * The query split into the words a note has to contain. Order and position don't matter: "poulet
@@ -138,11 +182,21 @@ fun normalizeForSearch(text: String): String {
 fun searchTermsOf(query: String): List<String> =
     normalizeForSearch(query).split(' ', '\n', '\t').filter { it.isNotBlank() }
 
+/**
+ * The note's whole searchable text, normalized. Normalizing it is what a search costs, so a caller
+ * filtering the same notes over and over as the query grows builds this once per note and keeps it.
+ */
+fun searchHaystackOf(note: Note): String =
+    normalizeForSearch(note.title) + "\n" + normalizeForSearch(note.content)
+
+/** True when every term of [terms] appears somewhere in an already normalized haystack. */
+fun haystackMatches(haystack: String, terms: List<String>): Boolean =
+    terms.all { haystack.contains(it) }
+
 /** True when every term of [terms] appears somewhere in the note's title or body. */
 fun noteMatchesSearch(note: Note, terms: List<String>): Boolean {
     if (terms.isEmpty()) return true
-    val haystack = normalizeForSearch(note.title) + "\n" + normalizeForSearch(note.content)
-    return terms.all { haystack.contains(it) }
+    return haystackMatches(searchHaystackOf(note), terms)
 }
 
 /**
@@ -154,9 +208,12 @@ fun matchingLineOf(note: Note, terms: List<String>): String? {
     if (terms.isEmpty()) return null
     return note.content.lineSequence()
         .filterNot { it.isSeparatorLine() }
-        .map { it.checkboxText().formatInline().text.trim() }
+        .map { it.checkboxText().strippedInlineMarkers().trim() }
         .filter { it.isNotEmpty() }
-        .map { line -> line to terms.count { normalizeForSearch(line).contains(it) } }
+        .map { line ->
+            val normalized = normalizeForSearch(line)
+            line to terms.count { normalized.contains(it) }
+        }
         .filter { it.second > 0 }
         .maxByOrNull { it.second }
         ?.first

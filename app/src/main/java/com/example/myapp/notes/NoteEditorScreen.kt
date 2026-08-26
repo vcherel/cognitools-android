@@ -50,6 +50,13 @@ import kotlinx.coroutines.launch
 
 private enum class AddItemTarget { INGREDIENT, COURSE }
 
+/** The header's content derived flags, scanned once per content change. */
+private data class ContentScans(
+    val hasBlankEdgeLines: Boolean,
+    val hasCheckboxLine: Boolean,
+    val hasCheckedLine: Boolean
+)
+
 @Composable
 fun NoteEditorScreen(
     noteId: String,
@@ -130,6 +137,16 @@ fun NoteEditorScreen(
                     index.takeIf { searchTerms.any { term -> normalized.contains(term) } }
                 }
             }
+            // The three whole-content scans the header needs, one of which copies the entire note.
+            // Kept out of the recompositions that aren't a content change (a selection, a drag,
+            // the search bar opening).
+            val contentScans = remember(content) {
+                ContentScans(
+                    hasBlankEdgeLines = content != content.trimBlankEdgeLines(),
+                    hasCheckboxLine = content.hasCheckboxLine(),
+                    hasCheckedLine = content.hasCheckedLine()
+                )
+            }
             LaunchedEffect(matchLines) {
                 matchPos = 0
                 if (matchLines.isNotEmpty()) focusNonce++
@@ -156,9 +173,9 @@ fun NoteEditorScreen(
                         locked = state.locked,
                         searchOpen = searchOpen,
                         canUndo = state.canUndo,
-                        hasBlankEdgeLines = content != content.trimBlankEdgeLines(),
-                        hasCheckboxLine = content.hasCheckboxLine(),
-                        hasCheckedLine = content.hasCheckedLine(),
+                        hasBlankEdgeLines = contentScans.hasBlankEdgeLines,
+                        hasCheckboxLine = contentScans.hasCheckboxLine,
+                        hasCheckedLine = contentScans.hasCheckedLine,
                         hasContent = content.isNotEmpty(),
                         isCoursesNote = isCoursesNote,
                         isIngredientsNote = isIngredientsNote,
