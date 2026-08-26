@@ -1,5 +1,6 @@
 package com.example.myapp.podcasts
 
+import com.example.myapp.userMessage
 import android.content.Context
 import android.net.Uri
 import android.util.Log
@@ -149,7 +150,7 @@ class PodcastDownloads(private val appContext: Context, private val dao: () -> P
                 throw e
             } catch (e: Exception) {
                 Log.w(TAG, "Download failed for ${episode.title}", e)
-                AppSnackbar.show("Échec du téléchargement: ${e.message}")
+                AppSnackbar.show(userMessage(e, "Échec du téléchargement"))
             } finally {
                 jobs.remove(episode.id)
                 _active.update { list -> list.filterNot { it.id == episode.id } }

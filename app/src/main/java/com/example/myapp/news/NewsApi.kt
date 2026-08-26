@@ -125,7 +125,8 @@ private val JUNK_PHRASES = listOf(
     "connectez-vous ou créez un compte", "correspond à une partie de la retranscription",
     "utilise votre adresse e-mail", "privilégier l'affichage des articles",
     "vous êtes sur le point de vous désabonner", "retrouvez tous les jours",
-    "changer d'avis à tout moment", "débloquez tous les articles"
+    "changer d'avis à tout moment", "débloquez tous les articles",
+    "les articles les plus lus"
 )
 
 // Wrappers whose paragraphs are never article text, matched on any class or id containing them.

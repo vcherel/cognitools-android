@@ -1,5 +1,6 @@
 package com.example.myapp.news
 
+import com.example.myapp.userMessage
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -80,7 +81,7 @@ fun NewsScreen(onBack: () -> Unit, onOpenArticle: (String) -> Unit, onOpenSaved:
     fun load(force: Boolean) {
         scope.launch {
             error = null
-            runCatching { repo.refresh(category.id, force) }.onFailure { error = it.message }
+            runCatching { repo.refresh(category.id, force) }.onFailure { error = userMessage(it) }
         }
     }
 

@@ -1,5 +1,6 @@
 package com.example.myapp.deezer
 
+import com.example.myapp.userMessage
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -64,7 +65,7 @@ fun DeezerTrackListScreen(
     val playerState by repo.playerState.collectAsState()
 
     LaunchedEffect(title) {
-        runCatching { tracks = loader() }.onFailure { error = it.message }
+        runCatching { tracks = loader() }.onFailure { error = userMessage(it) }
         isLoading = false
         // Warm the favorites cache so the hearts show the correct filled/empty state.
         runCatching { repo.ensureFavorites() }

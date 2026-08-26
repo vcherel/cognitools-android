@@ -65,7 +65,7 @@ private suspend fun translateWhole(text: String, to: TranslateLang): Translation
 
 private suspend fun fetch(text: String, to: TranslateLang): TranslationResult {
     val url = "$ENDPOINT?client=gtx&sl=auto&tl=${to.code}&dt=t&dt=bd&q=${URLEncoder.encode(text, "UTF-8")}"
-    return parseTranslation(httpGetRetrying(url), text, to)
+    return parseTranslation(httpGetRetrying(url, attempts = 4), text, to)
 }
 
 /**

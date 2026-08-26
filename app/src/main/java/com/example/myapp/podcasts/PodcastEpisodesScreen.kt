@@ -1,5 +1,6 @@
 package com.example.myapp.podcasts
 
+import com.example.myapp.userMessage
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -80,7 +81,7 @@ fun PodcastEpisodesScreen(repo: PodcastRepository, favoriteId: String, onBack: (
 
     LaunchedEffect(favoriteId) {
         loading = true
-        runCatching { repo.refreshFavorite(favoriteId) }.onFailure { error = it.message }
+        runCatching { repo.refreshFavorite(favoriteId) }.onFailure { error = userMessage(it) }
         loading = false
     }
 
@@ -198,7 +199,7 @@ fun PodcastEpisodesScreen(repo: PodcastRepository, favoriteId: String, onBack: (
                         onClick = {
                             scope.launch {
                                 runCatching { repo.playEpisode(episode, showEpisodes) }
-                                    .onFailure { AppSnackbar.show(it.message ?: "Erreur de lecture") }
+                                    .onFailure { AppSnackbar.show(userMessage(it, "Erreur de lecture")) }
                             }
                         },
                         onToggleDownload = {

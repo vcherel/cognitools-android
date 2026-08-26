@@ -74,7 +74,7 @@ fun WikipediaScreen(onBack: () -> Unit) {
                 }
                 wikiContent = newContent
             } catch (e: Exception) {
-                error = "Erreur de chargement: ${e.message}"
+                error = userMessage(e, "Erreur de chargement")
             } finally {
                 isLoading = false
             }

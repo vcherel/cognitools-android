@@ -6,7 +6,7 @@ import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
+import com.example.myapp.rememberHeldPressed
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -357,7 +357,7 @@ private fun FlashcardListItem(
     dragModifier: Modifier = Modifier
 ) {
     val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
+    val isPressed by rememberHeldPressed(interactionSource)
     var showDeleteDialog by remember { mutableStateOf(false) }
 
     val scale = if (isDragging) 1.03f else if (isPressed) 0.90f else 1f

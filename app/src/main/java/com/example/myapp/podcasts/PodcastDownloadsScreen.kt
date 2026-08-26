@@ -1,5 +1,6 @@
 package com.example.myapp.podcasts
 
+import com.example.myapp.userMessage
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -82,7 +83,7 @@ fun PodcastDownloadsScreen(repo: PodcastRepository, onBack: () -> Unit) {
                         onClick = {
                             scope.launch {
                                 runCatching { repo.playEpisode(episode, downloadedEpisodes) }
-                                    .onFailure { AppSnackbar.show(it.message ?: "Erreur de lecture") }
+                                    .onFailure { AppSnackbar.show(userMessage(it, "Erreur de lecture")) }
                             }
                         },
                         onToggleDownload = { confirmRemove = episode },

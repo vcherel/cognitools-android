@@ -14,8 +14,9 @@ const val USER_AGENT = "CognitoolsAndroid/1.0 (https://github.com/valentincherel
 private const val CONNECT_TIMEOUT_MS = 10_000
 private const val READ_TIMEOUT_MS = 10_000
 
-// Growing pauses between retries, one per retried attempt.
-private val RETRY_PAUSES_MS = longArrayOf(700, 2_500)
+// Growing pauses between retries, one per retried attempt. Long enough to outlast the throttling
+// a shared carrier IP runs into, which a couple of hundred milliseconds never did.
+private val RETRY_PAUSES_MS = longArrayOf(1_000, 3_000, 8_000)
 
 /** A non-2xx response. Carries the status so callers can tell throttling (429) from a real failure. */
 class HttpStatusException(val code: Int, message: String) : IOException(message)

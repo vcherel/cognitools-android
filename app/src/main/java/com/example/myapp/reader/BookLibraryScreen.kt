@@ -1,5 +1,6 @@
 package com.example.myapp.reader
 
+import com.example.myapp.userMessage
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -66,7 +67,7 @@ fun BookLibraryScreen(onBack: () -> Unit, onOpenBook: (String) -> Unit) {
         scope.launch {
             importEpub(context, uri)
                 .onSuccess { AppSnackbar.show("« ${it.title} » ajouté") }
-                .onFailure { AppSnackbar.show(it.message ?: "Import impossible") }
+                .onFailure { AppSnackbar.show(userMessage(it, "Import impossible")) }
             importing = false
         }
     }

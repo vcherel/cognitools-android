@@ -1,5 +1,6 @@
 package com.example.myapp.deezer
 
+import com.example.myapp.userMessage
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -108,7 +109,7 @@ fun DeezerLibraryScreen(
 
     LaunchedEffect(Unit) {
         if (!repo.hasArl()) { showSettings = true; return@LaunchedEffect }
-        runCatching { repo.ensureLibrary() }.onFailure { error = it.message }
+        runCatching { repo.ensureLibrary() }.onFailure { error = userMessage(it) }
         // Incremental: after the first run this downloads only what was added to Best pépites since.
         repo.offline.syncInBackground()
         downloadedCount = runCatching { repo.downloadedTracks().size }.getOrDefault(0)
@@ -185,7 +186,7 @@ fun DeezerLibraryScreen(
             SectionHeader(title = "Favoris")
             FavoritesCard(
                 count = favorites?.size,
-                onShuffle = { scope.launch { runCatching { repo.shuffleFavorites() }.onFailure { error = it.message } } },
+                onShuffle = { scope.launch { runCatching { repo.shuffleFavorites() }.onFailure { error = userMessage(it) } } },
                 onOpen = onOpenFavorites
             )
 
@@ -201,7 +202,7 @@ fun DeezerLibraryScreen(
                             onOpen = { onOpenPlaylist(pl) },
                             onShuffle = {
                                 scope.launch {
-                                    runCatching { repo.shufflePlaylist(pl.id) }.onFailure { error = it.message }
+                                    runCatching { repo.shufflePlaylist(pl.id) }.onFailure { error = userMessage(it) }
                                 }
                             }
                         )
@@ -223,7 +224,7 @@ fun DeezerLibraryScreen(
                             onPlayLatest = latestEpisode?.let { ep ->
                                 {
                                     scope.launch {
-                                        runCatching { podcastRepo.playEpisode(ep) }.onFailure { error = it.message }
+                                        runCatching { podcastRepo.playEpisode(ep) }.onFailure { error = userMessage(it) }
                                     }
                                 }
                             }
@@ -243,7 +244,7 @@ fun DeezerLibraryScreen(
                 Spacer(Modifier.height(24.dp))
                 OfflineLibraryCard(
                     count = downloadedCount,
-                    onShuffle = { scope.launch { runCatching { repo.shuffleDownloaded() }.onFailure { error = it.message } } }
+                    onShuffle = { scope.launch { runCatching { repo.shuffleDownloaded() }.onFailure { error = userMessage(it) } } }
                 )
             }
             Spacer(Modifier.height(16.dp))
@@ -258,7 +259,7 @@ fun DeezerLibraryScreen(
                 showSettings = false
                 scope.launch {
                     error = null
-                    runCatching { repo.refreshLibrary() }.onFailure { error = it.message }
+                    runCatching { repo.refreshLibrary() }.onFailure { error = userMessage(it) }
                 }
             }
         )

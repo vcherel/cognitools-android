@@ -1,5 +1,6 @@
 package com.example.myapp.deezer
 
+import com.example.myapp.userMessage
 import com.example.myapp.matchNormalized
 import android.content.Context
 import android.util.Log
@@ -192,7 +193,7 @@ class DeezerDiscoveries(private val appContext: Context, private val repo: Deeze
         dropFromView(items)
         scope.launch {
             runCatching { repo.addFavorites(items.map { it.track }) }
-                .onFailure { _state.value = _state.value.copy(error = it.message) }
+                .onFailure { _state.value = _state.value.copy(error = userMessage(it)) }
             items.forEach { handle(it) }
         }
         return items.size
@@ -220,7 +221,7 @@ class DeezerDiscoveries(private val appContext: Context, private val repo: Deeze
     private suspend fun addOne(item: DiscoveryTrack) {
         if (!repo.isFavorite(item.track.sngId)) {
             runCatching { repo.toggleFavorite(item.track) }
-                .onFailure { _state.value = _state.value.copy(error = it.message) }
+                .onFailure { _state.value = _state.value.copy(error = userMessage(it)) }
         }
         handle(item)
     }
@@ -326,7 +327,7 @@ class DeezerDiscoveries(private val appContext: Context, private val repo: Deeze
             publish()
         } catch (e: Exception) {
             Log.w(TAG, "Discovery batch generation failed", e)
-            _state.value = DiscoveryState(tracks = kept, generating = false, error = e.message)
+            _state.value = DiscoveryState(tracks = kept, generating = false, error = userMessage(e))
         }
     }
 

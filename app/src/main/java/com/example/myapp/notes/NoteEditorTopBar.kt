@@ -35,6 +35,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -43,9 +45,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.myapp.BackIconButton
+
+/** How small the title is allowed to get before it is left to be clipped instead. */
+private val MIN_TITLE_SIZE: TextUnit = 11.sp
+
+/** How much a title gives up per attempt at fitting, in sp. */
+private const val TITLE_SHRINK_STEP = 1f
 
 /** Which of the editor's title-bar actions apply to the note currently open. */
 data class NoteEditorBarState(
@@ -96,6 +107,14 @@ fun NoteEditorTopBar(
     var showFormatMenu by remember { mutableStateOf(false) }
     var showMoreMenu by remember { mutableStateOf(false) }
 
+    // The title always fits on one line: when the buttons on the right leave it too little room
+    // (the Ingrédients note carries the most), the text shrinks a step at a time until it does,
+    // rather than wrapping onto a second line holding a couple of characters.
+    val fullTitleSize = MaterialTheme.typography.titleMedium.fontSize
+    var titleSize by remember { mutableStateOf(fullTitleSize) }
+    var titleWidth by remember { mutableIntStateOf(0) }
+    LaunchedEffect(titleFieldState.text.toString()) { titleSize = fullTitleSize }
+
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically
@@ -106,17 +125,25 @@ fun NoteEditorTopBar(
         BasicTextField(
             state = titleFieldState,
             inputTransformation = stripNewlinesTransformation,
-            // Wraps onto up to two lines rather than being clipped by the buttons;
-            // stripNewlinesTransformation still keeps it a single logical line.
-            lineLimits = TextFieldLineLimits.MultiLine(maxHeightInLines = 2),
+            lineLimits = TextFieldLineLimits.SingleLine,
             keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
             modifier = Modifier
                 .padding(start = 8.dp)
                 .weight(1f)
+                .onSizeChanged { titleWidth = it.width }
                 .onFocusChanged { onTitleFocusChanged(it.isFocused) },
             textStyle = MaterialTheme.typography.titleMedium.copy(
-                color = MaterialTheme.colorScheme.onBackground
+                color = MaterialTheme.colorScheme.onBackground,
+                fontSize = titleSize
             ),
+            onTextLayout = { getResult ->
+                val laidOut = getResult()
+                if (laidOut != null && titleWidth > 0 &&
+                    laidOut.size.width > titleWidth && titleSize > MIN_TITLE_SIZE
+                ) {
+                    titleSize = (titleSize.value - TITLE_SHRINK_STEP).sp
+                }
+            },
             cursorBrush = SolidColor(MaterialTheme.colorScheme.onBackground),
             decorator = { innerTextField ->
                 Box {

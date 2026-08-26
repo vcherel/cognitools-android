@@ -60,5 +60,12 @@ val NEWS_CATEGORIES = listOf(
     )
 )
 
+/**
+ * The outlets whose feed carries articles the extractor cannot read whole (Le Figaro puts part of
+ * its output behind a paywall, and nothing in the feed says which). Their articles are fetched in
+ * the background after a refresh and dropped from the list when the body comes back cut short.
+ */
+val PRECHECKED_SOURCES = setOf("Le Figaro")
+
 fun newsCategory(id: String): NewsCategory =
     NEWS_CATEGORIES.firstOrNull { it.id == id } ?: NEWS_CATEGORIES.first()

@@ -1,5 +1,6 @@
 package com.example.myapp.news
 
+import com.example.myapp.userMessage
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -98,7 +99,7 @@ fun NewsArticleScreen(link: String, onBack: () -> Unit) {
         loading = true
         runCatching { repo.loadArticle(link) }
             .onSuccess { content = it }
-            .onFailure { error = it.message }
+            .onFailure { error = userMessage(it) }
         loading = false
     }
 

@@ -16,9 +16,11 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.IOException
+import java.util.concurrent.ConcurrentHashMap
 
 /** How long a category's articles are reused before hitting the feeds again. */
 private const val FRESH_FOR_MS = 10 * 60 * 1000L
@@ -34,6 +36,9 @@ private const val FINISHED_RATIO = 0.95f
 
 /** Below this, the article was opened and not really started; nothing worth resuming. */
 private const val STARTED_RATIO = 0.03f
+
+/** How many of the pre-checked articles are fetched at once. Enough to be quick, not a flood. */
+private const val PRECHECK_PARALLEL = 4
 
 /**
  * The news tool's one source of truth: the merged articles per category, the read state and the
@@ -51,6 +56,14 @@ class NewsRepository(context: Context) {
     val loading: StateFlow<Set<String>> = _loading.asStateFlow()
 
     private val fetchedAt = mutableMapOf<String, Long>()
+
+    /**
+     * What the background pre-check found, per article link: false when the page gave up a body too
+     * short to be the whole article. Those are dropped from the list rather than shown and hit a
+     * paywall on tap. Memory only, so a fresh launch checks again, which is also what keeps an
+     * outlet's fix from being remembered as a paywall forever.
+     */
+    private val complete = ConcurrentHashMap<String, Boolean>()
 
     val readLinks: StateFlow<Set<String>> = dao.observeReadLinks()
         .map { it.toSet() }
@@ -90,10 +103,38 @@ class NewsRepository(context: Context) {
                 if (_articles.value[categoryId].isNullOrEmpty()) throw IOException("Aucun article reçu")
                 return
             }
-            _articles.value = _articles.value + (categoryId to merged)
+            _articles.value = _articles.value + (categoryId to merged.filter { it.isComplete() })
             fetchedAt[categoryId] = System.currentTimeMillis()
+            precheck(merged)
         } finally {
             _loading.value = _loading.value - categoryId
+        }
+    }
+
+    private fun NewsArticle.isComplete(): Boolean = complete[link] != false
+
+    /**
+     * Fetches, in the background, the articles of the outlets known to serve incomplete pages, and
+     * drops the ones that come back cut short. A page that fails to load is left alone: only a body
+     * that was actually read and found short is held against an article.
+     */
+    private fun precheck(articles: List<NewsArticle>) {
+        val unknown = articles.filter { it.source in PRECHECKED_SOURCES && !complete.containsKey(it.link) }
+        if (unknown.isEmpty()) return
+        scope.launch {
+            unknown.chunked(PRECHECK_PARALLEL).forEach { batch ->
+                coroutineScope {
+                    batch.map { article ->
+                        async {
+                            val body = runCatching { fetchArticle(article.link) }.getOrNull()
+                            if (body != null) complete[article.link] = !body.truncated
+                        }
+                    }.awaitAll()
+                }
+                _articles.update { byCategory ->
+                    byCategory.mapValues { (_, list) -> list.filter { it.isComplete() } }
+                }
+            }
         }
     }
 
