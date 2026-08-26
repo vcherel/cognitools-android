@@ -38,7 +38,7 @@ import java.text.SimpleDateFormat
 import java.util.Locale
 
 /**
- * One article line: the text, and the illustration on the right when the feed carried one. A read
+ * One article line: the title in full, and the illustration on the right when the feed carried one. A read
  * article is dimmed rather than hidden, and a long press toggles that state back and forth.
  */
 @OptIn(ExperimentalFoundationApi::class)
@@ -80,23 +80,13 @@ fun NewsArticleRow(
                 }
             }
             Spacer(Modifier.height(2.dp))
+            // The whole title, never cut: the list is scanned by title, and the feed's first
+            // sentences underneath only pushed the next article off the screen.
             Text(
                 article.title,
                 style = MaterialTheme.typography.titleSmall,
-                fontWeight = if (isRead) FontWeight.Normal else FontWeight.SemiBold,
-                maxLines = 3,
-                overflow = TextOverflow.Ellipsis
+                fontWeight = if (isRead) FontWeight.Normal else FontWeight.SemiBold
             )
-            if (article.summary.isNotBlank()) {
-                Spacer(Modifier.height(2.dp))
-                Text(
-                    article.summary,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
         }
         article.imageUrl?.let { url ->
             Spacer(Modifier.width(10.dp))

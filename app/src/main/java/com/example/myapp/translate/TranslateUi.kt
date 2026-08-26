@@ -44,6 +44,7 @@ import com.example.myapp.ErrorText
 import com.example.myapp.MyButton
 import com.example.myapp.flashcardRepository
 import com.example.myapp.flashcards.AddToFlashcardsDialog
+import com.example.myapp.userMessage
 import java.util.Locale
 
 /**
@@ -201,7 +202,7 @@ fun WordLookupSheet(word: String, target: TranslateLang, onDismiss: () -> Unit) 
                 result = it
                 TranslateStore.remember(context, LookupEntry(word, it.translation, it.to))
             }
-            .onFailure { error = it.message ?: "Traduction impossible" }
+            .onFailure { error = userMessage(it, "Traduction impossible") }
     }
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState()) {

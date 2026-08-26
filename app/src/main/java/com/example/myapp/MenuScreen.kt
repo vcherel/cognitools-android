@@ -237,7 +237,7 @@ private fun DeezerMenuButton(height: Dp, onOpenDeezer: () -> Unit) {
                             repo.playerState.first { it.isPlaying && it.sngId != previousSngId }
                         }
                     }.onFailure {
-                        Toast.makeText(context, "Erreur: ${it.message}", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, userMessage(it, "Erreur"), Toast.LENGTH_SHORT).show()
                     }
                     isShuffleLoading = false
                 }

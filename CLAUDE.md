@@ -40,6 +40,7 @@ Root package (shared/misc):
 - `Plural.kt`: `plural(count)`, the one place the French count-to-plural rule lives
 - `Normalize.kt`: `deaccented` / `matchNormalized` / `slugified`, the one place text is folded for comparison
 - `Http.kt`: shared httpGet helper and User-Agent (Weather + Wikipedia + podcast feeds + news)
+- `Errors.kt`: `userMessage(throwable)`, what a failed job says on screen; rethrows cancellation so a screen left mid-request never shows an error
 - `Share.kt`: `shareUrisIntent`, the one place an ACTION_SEND / ACTION_SEND_MULTIPLE is built (gallery + file explorer)
 - `BottomFadeOverlay.kt`: shared fade out gradient overlay composable
 - `Snackbar.kt`: AppSnackbar, the app wide snackbar screens post undo actions through

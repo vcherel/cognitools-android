@@ -2,8 +2,9 @@ package com.example.myapp
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.InteractionSource
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -30,7 +31,10 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -46,6 +50,37 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import kotlinx.coroutines.delay
+
+/**
+ * How long the pressed look stays on screen at the least. Inside a scrollable container Compose
+ * holds a press back until it is sure the gesture isn't a scroll, so a quick tap used to emit its
+ * press and its release together and the blue never showed at all.
+ */
+private const val MIN_PRESSED_MS = 120L
+
+/** The pressed state, held for at least [MIN_PRESSED_MS], so every tap is seen. */
+@Composable
+fun rememberHeldPressed(interactionSource: InteractionSource): State<Boolean> {
+    val pressed = remember { mutableStateOf(false) }
+    LaunchedEffect(interactionSource) {
+        var pressedAt = 0L
+        interactionSource.interactions.collect { interaction ->
+            when (interaction) {
+                is PressInteraction.Press -> {
+                    pressedAt = System.currentTimeMillis()
+                    pressed.value = true
+                }
+                is PressInteraction.Release, is PressInteraction.Cancel -> {
+                    val shown = System.currentTimeMillis() - pressedAt
+                    if (shown < MIN_PRESSED_MS) delay(MIN_PRESSED_MS - shown)
+                    pressed.value = false
+                }
+            }
+        }
+    }
+    return pressed
+}
 
 private class ButtonStyle(val shadow: Color, val gradient: Brush, val text: Color)
 
@@ -214,7 +249,7 @@ private fun RaisedButton(
     content: @Composable (textColor: Color) -> Unit
 ) {
     val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
+    val isPressed by rememberHeldPressed(interactionSource)
     val isDarkMode = LocalIsDarkMode.current
     val style = remember(isPressed, enabled, isDarkMode) {
         buttonStyle(isPressed, enabled = enabled, isDarkMode = isDarkMode)
@@ -242,7 +277,7 @@ fun MySwitch(
     text: String? = null
 ) {
     val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
+    val isPressed by rememberHeldPressed(interactionSource)
     val isDarkMode = LocalIsDarkMode.current
 
     val boxWidth = if (text != null) 200.dp else 85.dp

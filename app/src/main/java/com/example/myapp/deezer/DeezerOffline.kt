@@ -1,5 +1,6 @@
 package com.example.myapp.deezer
 
+import com.example.myapp.userMessage
 import android.content.Context
 import android.net.Uri
 import android.util.Log
@@ -149,7 +150,7 @@ class DeezerOfflineLibrary(private val appContext: Context, private val repo: De
             } catch (e: Exception) {
                 Log.w(TAG, "Offline sync failed", e)
                 log("sync crashed: ${describe(e)}")
-                _state.update { it.copy(error = e.message ?: "Échec de la synchro") }
+                _state.update { it.copy(error = userMessage(e, "Échec de la synchro")) }
             } finally {
                 _state.update { it.copy(syncing = false) }
             }

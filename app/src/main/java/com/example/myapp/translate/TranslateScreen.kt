@@ -41,11 +41,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.myapp.ErrorText
 import com.example.myapp.ScreenTopBar
+import com.example.myapp.userMessage
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /** Nothing is sent while the words are still being typed. */
-private const val DEBOUNCE_MS = 450L
+private const val DEBOUNCE_MS = 700L
 
 /** Past this the lookup is a text, not a word to learn, and the flashcard button steps aside. */
 private const val MAX_FLASHCARD_WORDS = 4
@@ -82,7 +83,7 @@ fun TranslateScreen(onBack: () -> Unit) {
             }
             .onFailure {
                 result = null
-                error = it.message ?: "Traduction impossible"
+                error = userMessage(it, "Traduction impossible")
             }
         loading = false
     }

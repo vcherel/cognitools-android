@@ -1,5 +1,6 @@
 package com.example.myapp.reader
 
+import com.example.myapp.userMessage
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -112,7 +113,7 @@ fun ReaderScreen(bookId: String, onBack: () -> Unit) {
                 chapters = it.chapters
                 chapterIndex = loaded.chapterIndex.coerceIn(0, it.chapters.lastIndex)
             }
-            .onFailure { error = it.message ?: "Livre illisible" }
+            .onFailure { error = userMessage(it, "Livre illisible") }
     }
 
     LaunchedEffect(chapterIndex, chapters) {
@@ -123,7 +124,7 @@ fun ReaderScreen(bookId: String, onBack: () -> Unit) {
         val parsed = runCatching {
             withContext(Dispatchers.IO) { Epub.chapter(bookFile(context, loaded), chapters[chapterIndex].href) }
         }.getOrElse {
-            error = it.message ?: "Chapitre illisible"
+            error = userMessage(it, "Chapitre illisible")
             emptyList()
         }
         blocks = parsed
