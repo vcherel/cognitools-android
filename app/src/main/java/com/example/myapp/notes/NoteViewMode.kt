@@ -82,6 +82,11 @@ data class NoteLineActions(
     val onReorder: (newContent: String) -> Unit
 )
 
+// A checkbox is 48.dp tall with its box centered, an action button 36.dp: these
+// offsets line both up with the first line of the text they belong to.
+private val FIRST_LINE_TOP_PADDING = 12.dp
+private val ICON_TOP_PADDING = 6.dp
+
 // The read-only rendering of a note: each line drawn as a checkbox, separator, or plain text,
 // with long-press drag to reorder, double-tap to edit, and per-line action buttons.
 @Composable
@@ -316,12 +321,15 @@ private fun NoteLine(
         } else if (line.isCheckboxLine()) {
             val checked = line.isCheckedLine()
             val text = line.checkboxText()
+            // Long items wrap over several lines: the box and the actions stay on the
+            // first line so it is obvious where an item starts.
             Row(
-                verticalAlignment = Alignment.CenterVertically,
+                verticalAlignment = Alignment.Top,
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable { actions.onToggleLine(lineIndex) }
             ) {
+                val iconTopPadding = Modifier.padding(top = ICON_TOP_PADDING)
                 Checkbox(checked = checked, onCheckedChange = { actions.onToggleLine(lineIndex) })
                 Text(
                     withSearchHighlight(text.formatInline(), searchTerms),
@@ -331,6 +339,7 @@ private fun NoteLine(
                     onTextLayout = { textLayout = it },
                     modifier = Modifier
                         .weight(1f)
+                        .padding(top = FIRST_LINE_TOP_PADDING)
                         .pointerInput(lineStart, line) {
                             detectTapGestures(
                                 onTap = { actions.onToggleLine(lineIndex) },
@@ -345,29 +354,31 @@ private fun NoteLine(
                 )
                 if (isCoursesNote) {
                     if (text.itemQuantity() > 1) {
-                        LineIconButton(Icons.Default.Remove, "Diminuer la quantité") {
+                        LineIconButton(Icons.Default.Remove, "Diminuer la quantité", iconTopPadding) {
                             actions.onChangeQuantity(lineIndex, -1)
                         }
                     }
-                    LineIconButton(Icons.Default.Add, "Augmenter la quantité") {
+                    LineIconButton(Icons.Default.Add, "Augmenter la quantité", iconTopPadding) {
                         actions.onChangeQuantity(lineIndex, 1)
                     }
                 }
                 if (isIngredientsNote) {
-                    LineIconButton(Icons.Default.ShoppingCart, "Déplacer vers Courses") {
+                    LineIconButton(Icons.Default.ShoppingCart, "Déplacer vers Courses", iconTopPadding) {
                         actions.onMoveToCourses(lineIndex)
                     }
                 }
                 if (isTodoListNote && muscuDayMatch(text) != null) {
-                    LineIconButton(Icons.Default.FitnessCenter, "Jour suivant") {
+                    LineIconButton(Icons.Default.FitnessCenter, "Jour suivant", iconTopPadding) {
                         actions.onAdvanceMuscu(lineIndex)
                     }
                 } else if (isTodoListNote && text.hasDateSuffix()) {
-                    LineIconButton(Icons.Default.EventBusy, "Retirer la date") {
+                    LineIconButton(Icons.Default.EventBusy, "Retirer la date", iconTopPadding) {
                         actions.onRemoveDateSuffix(lineIndex)
                     }
                 }
-                LineIconButton(Icons.Default.Delete, "Supprimer la ligne") { actions.onDeleteLine(lineIndex) }
+                LineIconButton(Icons.Default.Delete, "Supprimer la ligne", iconTopPadding) {
+                    actions.onDeleteLine(lineIndex)
+                }
             }
         } else {
             val isTitle = isClaudeNote && line.isTitleLine()
@@ -443,8 +454,13 @@ private fun NoteLine(
 
 // The small gray action button every line trailing control is made of.
 @Composable
-private fun LineIconButton(icon: ImageVector, description: String, onClick: () -> Unit) {
-    IconButton(onClick = onClick, modifier = Modifier.size(36.dp)) {
+private fun LineIconButton(
+    icon: ImageVector,
+    description: String,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    IconButton(onClick = onClick, modifier = modifier.size(36.dp)) {
         Icon(icon, contentDescription = description, tint = Color.Gray)
     }
 }
