@@ -46,6 +46,7 @@ private const val PRECHECK_PARALLEL = 4
  * and coming back) doesn't refetch what was just loaded.
  */
 class NewsRepository(context: Context) {
+    private val appContext = context.applicationContext
     private val dao = AppDatabase.get(context).newsDao()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -56,6 +57,16 @@ class NewsRepository(context: Context) {
     val loading: StateFlow<Set<String>> = _loading.asStateFlow()
 
     private val fetchedAt = mutableMapOf<String, Long>()
+
+    /** The outlets to fetch. Changing it throws away what the other set had loaded. */
+    val sources: StateFlow<Set<String>> = NewsSources.enabled(appContext)
+        .stateIn(scope, SharingStarted.Eagerly, DEFAULT_NEWS_SOURCES)
+
+    suspend fun setSources(enabled: Set<String>) {
+        NewsSources.setEnabled(appContext, enabled)
+        fetchedAt.clear()
+        _articles.value = emptyMap()
+    }
 
     /**
      * What the background pre-check found, per article link: false when the page gave up a body too
@@ -91,9 +102,10 @@ class NewsRepository(context: Context) {
         _loading.value = _loading.value + categoryId
         try {
             val category = newsCategory(categoryId)
+            val feeds = category.feeds.filter { it.source in sources.value }
             val results = withContext(Dispatchers.IO) {
                 coroutineScope {
-                    category.feeds.map { feed ->
+                    feeds.map { feed ->
                         async { runCatching { fetchFeed(feed, categoryId) }.getOrDefault(emptyList()) }
                     }.awaitAll()
                 }

@@ -1,11 +1,18 @@
 package com.example.myapp.news
 
+import android.content.Context
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.stringSetPreferencesKey
+import androidx.datastore.preferences.preferencesDataStore
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
+
 /** One outlet's feed inside a category. [source] is what the article line credits. */
 data class NewsFeed(val source: String, val url: String)
 
 /**
- * A tab of the news screen: several outlets merged, newest first. The list is hardcoded on purpose,
- * there is no source picker: adding or dropping an outlet is a one line edit here.
+ * A tab of the news screen: the enabled outlets merged, newest first. Which outlets those are is the
+ * one thing that is settable ([NewsSources]); adding a feed is still a one line edit here.
  */
 data class NewsCategory(val id: String, val label: String, val feeds: List<NewsFeed>)
 
@@ -59,6 +66,28 @@ val NEWS_CATEGORIES = listOf(
         )
     )
 )
+
+/** Every outlet the feeds above cover, in the order the settings menu lists them. */
+val NEWS_SOURCES = listOf("franceinfo", "Le Monde", "Le Figaro")
+
+/** What a fresh install reads: franceinfo alone, the rest is opt-in. */
+val DEFAULT_NEWS_SOURCES = setOf("franceinfo")
+
+val Context.newsDataStore by preferencesDataStore("news")
+
+/** The outlets to actually fetch. Never empty: unchecking the last one falls back to the default. */
+object NewsSources {
+    private val KEY_SOURCES = stringSetPreferencesKey("sources")
+
+    fun enabled(context: Context): Flow<Set<String>> = context.newsDataStore.data.map {
+        it[KEY_SOURCES]?.takeIf { set -> set.isNotEmpty() } ?: DEFAULT_NEWS_SOURCES
+    }
+
+    suspend fun setEnabled(context: Context, sources: Set<String>) {
+        val kept = sources.ifEmpty { DEFAULT_NEWS_SOURCES }
+        context.newsDataStore.edit { it[KEY_SOURCES] = kept }
+    }
+}
 
 /**
  * The outlets whose feed carries articles the extractor cannot read whole (Le Figaro puts part of
