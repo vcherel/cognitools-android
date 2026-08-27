@@ -13,9 +13,13 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bookmarks
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -67,6 +71,7 @@ fun NewsScreen(onBack: () -> Unit, onOpenArticle: (String) -> Unit, onOpenSaved:
     var searching by remember { mutableStateOf(false) }
     var query by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
+    var menuOpen by remember { mutableStateOf(false) }
 
     val category = NEWS_CATEGORIES[tabIndex]
     val articlesByCategory by repo.articles.collectAsState()
@@ -75,6 +80,7 @@ fun NewsScreen(onBack: () -> Unit, onOpenArticle: (String) -> Unit, onOpenSaved:
     val saved by repo.saved.collectAsState(initial = emptyList())
     val savedLinks = remember(saved) { saved.map { it.link }.toSet() }
     val resumable by repo.resumable.collectAsState(initial = null)
+    val sources by repo.sources.collectAsState()
     val listState = rememberLazyListState()
     val focusRequester = remember { FocusRequester() }
 
@@ -85,7 +91,7 @@ fun NewsScreen(onBack: () -> Unit, onOpenArticle: (String) -> Unit, onOpenSaved:
         }
     }
 
-    LaunchedEffect(category.id) { load(force = false) }
+    LaunchedEffect(category.id, sources) { load(force = false) }
     LaunchedEffect(searching) { if (searching) focusRequester.requestFocus() }
 
     // Leaving the search closes it first, so the back arrow doesn't drop the whole tool.
@@ -118,6 +124,27 @@ fun NewsScreen(onBack: () -> Unit, onOpenArticle: (String) -> Unit, onOpenSaved:
             }
             IconButton(onClick = { load(force = true) }) {
                 Icon(Icons.Filled.Refresh, contentDescription = "Rafraîchir")
+            }
+            Box {
+                IconButton(onClick = { menuOpen = true }) {
+                    Icon(Icons.Filled.MoreVert, contentDescription = "Sources")
+                }
+                DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                    NEWS_SOURCES.forEach { source ->
+                        val on = source in sources
+                        DropdownMenuItem(
+                            text = { Text(source) },
+                            leadingIcon = {
+                                if (on) Icon(Icons.Filled.Check, contentDescription = null)
+                            },
+                            onClick = {
+                                scope.launch {
+                                    repo.setSources(if (on) sources - source else sources + source)
+                                }
+                            }
+                        )
+                    }
+                }
             }
         }
 
