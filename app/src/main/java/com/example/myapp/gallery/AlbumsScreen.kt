@@ -20,9 +20,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material3.CircularProgressIndicator
@@ -70,7 +72,8 @@ fun GalleryAlbumsScreen(
     onBack: () -> Unit,
     onOpenAlbum: (Long) -> Unit,
     onOpenTrash: () -> Unit,
-    onOpenPinned: () -> Unit
+    onOpenPinned: () -> Unit,
+    onOpenPinnedGrid: () -> Unit
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -198,6 +201,7 @@ fun GalleryAlbumsScreen(
                 item = item,
                 pinnedCount = pinnedCount,
                 onClick = onOpenPinned,
+                onOpenGrid = onOpenPinnedGrid,
                 modifier = Modifier.padding(horizontal = 16.dp).padding(bottom = 12.dp)
             )
         }
@@ -326,7 +330,13 @@ private fun TrashCard(itemCount: Int, onClick: () -> Unit) {
 // The big hero picture at the top: the first pinned picture (or whichever was manually promoted),
 // sized to be quickly tappable without dominating the album list below it.
 @Composable
-private fun PinnedHeroCard(item: MediaItem, pinnedCount: Int, onClick: () -> Unit, modifier: Modifier = Modifier) {
+private fun PinnedHeroCard(
+    item: MediaItem,
+    pinnedCount: Int,
+    onClick: () -> Unit,
+    onOpenGrid: () -> Unit,
+    modifier: Modifier = Modifier
+) {
     Box(
         modifier = modifier
             .fillMaxWidth()
@@ -351,6 +361,17 @@ private fun PinnedHeroCard(item: MediaItem, pinnedCount: Int, onClick: () -> Uni
             ) {
                 Text(pinnedCount.toString(), color = Color.White, style = MaterialTheme.typography.labelMedium)
             }
+        }
+        // The card itself opens the viewer; this opens the whole pinned set as a grid.
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(8.dp)
+                .background(Color.Black.copy(alpha = 0.55f), CircleShape)
+                .clickable(onClick = onOpenGrid)
+                .padding(8.dp)
+        ) {
+            Icon(Icons.Default.GridView, contentDescription = "Voir les épinglées en grille", tint = Color.White)
         }
     }
 }

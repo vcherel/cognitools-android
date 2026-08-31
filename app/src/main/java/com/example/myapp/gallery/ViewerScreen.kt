@@ -151,8 +151,10 @@ fun GalleryViewerScreen(
         return
     }
 
+    // The pinned set and the Wallet album open on their first item, unless the caller named one
+    // (the pinned grid opens the viewer on the thumbnail that was tapped).
     val initialIndex = remember(source) {
-        if (source is ViewerSource.Pinned || source is ViewerSource.Wallet) 0
+        if ((source is ViewerSource.Pinned || source is ViewerSource.Wallet) && initialItemId < 0) 0
         else items.indexOfFirst { it.id == initialItemId }.coerceAtLeast(0)
     }
     val pagerState = rememberPagerState(initialPage = initialIndex) { items.size }
