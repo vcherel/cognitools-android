@@ -17,6 +17,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Diamond
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FormatListNumbered
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Share
@@ -181,11 +182,12 @@ fun FullPlayerSheet(
                 }) {
                     Icon(Icons.Filled.Share, contentDescription = "Partager", tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                // Lit when the queue is playing at random. Tapping it reorders what is left of the
-                // queue right away, and is the saved default for every list started afterwards.
+                // The icon itself says which mode is on (crossed arrows vs a numbered list): a tint
+                // alone doesn't read. Tapping it reorders what is left of the queue right away, and
+                // is the saved default for every list started afterwards.
                 IconButton(onClick = { scope.launch { repo.setShuffle(!shuffle) } }) {
                     Icon(
-                        Icons.Filled.Shuffle,
+                        if (shuffle) Icons.Filled.Shuffle else Icons.Filled.FormatListNumbered,
                         contentDescription = if (shuffle) "Lecture aléatoire activée" else "Lecture dans l'ordre",
                         tint = if (shuffle) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                     )

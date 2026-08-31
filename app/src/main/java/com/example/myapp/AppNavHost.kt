@@ -30,6 +30,7 @@ import com.example.myapp.flashcards.FlashcardListsScreen
 import com.example.myapp.gallery.GalleryAlbumGridScreen
 import com.example.myapp.gallery.GalleryAlbumsScreen
 import com.example.myapp.gallery.GalleryCropScreen
+import com.example.myapp.gallery.GalleryPinnedGridScreen
 import com.example.myapp.gallery.GalleryTrashScreen
 import com.example.myapp.gallery.GalleryTrimScreen
 import com.example.myapp.gallery.LocalMediaConsent
@@ -183,7 +184,8 @@ fun MainScreen(
                             onBack = back,
                             onOpenAlbum = { bucketId -> navController.navigate("gallery/album/$bucketId") },
                             onOpenTrash = { navController.navigate("gallery/trash") },
-                            onOpenPinned = { navController.navigate("gallery/pinned") }
+                            onOpenPinned = { navController.navigate("gallery/pinned") },
+                            onOpenPinnedGrid = { navController.navigate("gallery/pinned/grid") }
                         )
                     }
                     composable("gallery/trash") { GalleryTrashScreen(onBack = back) }
@@ -195,12 +197,21 @@ fun MainScreen(
                             onOpenItem = { itemId -> navController.navigate("gallery/viewer/$bucketId/$itemId") }
                         )
                     }
-                    // The three viewer entry points differ only in where their items come from.
+                    // The viewer entry points differ only in where their items come from.
                     viewerRoute("gallery/viewer/{bucketId}/{itemId}", navController, back) { args ->
                         ViewerSource.Album(args?.getString("bucketId")?.toLongOrNull() ?: 0L) to
                             (args?.getString("itemId")?.toLongOrNull() ?: 0L)
                     }
+                    composable("gallery/pinned/grid") {
+                        GalleryPinnedGridScreen(
+                            onBack = back,
+                            onOpenItem = { itemId -> navController.navigate("gallery/pinned/item/$itemId") }
+                        )
+                    }
                     viewerRoute("gallery/pinned", navController, back) { ViewerSource.Pinned to -1L }
+                    viewerRoute("gallery/pinned/item/{itemId}", navController, back) { args ->
+                        ViewerSource.Pinned to (args?.getString("itemId")?.toLongOrNull() ?: -1L)
+                    }
                     viewerRoute("gallery/wallet", navController, back) { ViewerSource.Wallet to -1L }
                     composable("gallery/crop/{itemId}") { backStackEntry ->
                         val itemId = backStackEntry.arguments?.getString("itemId")?.toLongOrNull() ?: 0L

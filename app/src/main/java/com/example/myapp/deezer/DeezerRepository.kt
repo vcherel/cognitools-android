@@ -301,10 +301,16 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
         list
     }
 
-    private fun setFavorites(list: List<DeezerTrack>) {
+    /**
+     * [complete] says whether [list] is the whole favorites list. It isn't when a like lands before the
+     * library has ever loaded (the notification heart on a cold process): the local list is then that
+     * one track, and purging the cache against it would wipe every downloaded song. The purge waits for
+     * the next real fetch instead.
+     */
+    private fun setFavorites(list: List<DeezerTrack>, complete: Boolean = true) {
         _favorites.value = list
         _favoriteIds.value = list.mapTo(HashSet()) { it.sngId }
-        purgeCacheOfNonFavoritesAsync()
+        if (complete) purgeCacheOfNonFavoritesAsync()
     }
 
     /** The stream cache only holds liked tracks: whenever the favorites list changes (a toggle, or a
@@ -343,8 +349,12 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
      */
     suspend fun toggleFavorite(track: DeezerTrack) {
         val liked = isFavorite(track.sngId)
-        val cur = _favorites.value ?: emptyList()
-        setFavorites(if (liked) cur.filterNot { it.sngId == track.sngId } else listOf(track) + cur)
+        val loaded = _favorites.value
+        val cur = loaded ?: emptyList()
+        setFavorites(
+            if (liked) cur.filterNot { it.sngId == track.sngId } else listOf(track) + cur,
+            complete = loaded != null
+        )
         persistSnapshot()
 
         val add = !liked
@@ -370,7 +380,8 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
     suspend fun addFavorites(tracks: List<DeezerTrack>) {
         val fresh = tracks.filterNot { isFavorite(it.sngId) }.distinctBy { it.sngId }
         if (fresh.isEmpty()) return
-        setFavorites(fresh + (_favorites.value ?: emptyList()))
+        val loaded = _favorites.value
+        setFavorites(fresh + (loaded ?: emptyList()), complete = loaded != null)
         persistSnapshot()
         queuePendingFavorites(fresh.map { it.sngId }, add = true)
         flushPendingFavorites()
@@ -561,8 +572,9 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
         when (source) {
             is TrackSource.Favorites -> {
                 withTokenRetry { api.removeFavorite(it, old.sngId); api.addFavorite(it, new.sngId) }
-                val cur = _favorites.value ?: emptyList()
-                setFavorites(listOf(new) + cur.filterNot { it.sngId == old.sngId })
+                val loaded = _favorites.value
+                val cur = loaded ?: emptyList()
+                setFavorites(listOf(new) + cur.filterNot { it.sngId == old.sngId }, complete = loaded != null)
                 persistSnapshot()
             }
             is TrackSource.Playlist -> {
@@ -848,6 +860,8 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
     private val playedTracksFile: File by lazy { File(appContext.filesDir, "deezer_played_tracks.json") }
     private val playedTracksWriteMutex = Mutex()
     @Volatile private var playedTracksWritePending = false
+    // Cleared when the file failed to load: whatever it holds is worth more than what this run knows.
+    @Volatile private var playedTracksWritable = true
 
     // Runs last in the constructor: loadPlayedTracksAsync and purgeStaleQualityCacheAsync are launched
     // onto the IO dispatcher here and can start running on another thread before this constructor
@@ -895,7 +909,12 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
                 val t = DeezerLibraryCache.trackFromJson(it.jsonObject)
                 if (t.sngId.isNotBlank()) queuedTracks.putIfAbsent(t.sngId, t)
             }
-        }.onFailure { Log.w(TAG, "Failed to load played-track metadata", it) }
+        }.onFailure {
+            // A file that can't be read is a file that must not be rewritten from an empty map: the
+            // audio is still cached, and pruning the metadata here would hide it for good.
+            playedTracksWritable = false
+            Log.w(TAG, "Failed to load played-track metadata", it)
+        }
     }
 
     /** Debounced so queuing a whole playlist doesn't trigger one disk write per track. */
@@ -906,13 +925,23 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
             delay(2_000L)
             playedTracksWritePending = false
             playedTracksWriteMutex.withLock {
+                if (!playedTracksWritable) return@withLock
                 val cachedIds = HashSet<String>()
                 streamCache.keys.forEach { sngIdFromCacheKey(it)?.let(cachedIds::add) }
                 offline.cache.keys.forEach { sngIdFromCacheKey(it)?.let(cachedIds::add) }
                 val arr = buildJsonArray {
                     queuedTracks.values.filter { it.sngId in cachedIds }.forEach { add(DeezerLibraryCache.trackToJson(it)) }
                 }
-                runCatching { playedTracksFile.writeText(arr.toString()) }
+                // Written aside then renamed: the process is killed screen-off often enough that a
+                // direct write leaves a truncated file, which loads as no downloads at all.
+                runCatching {
+                    val tmp = File(playedTracksFile.parentFile, playedTracksFile.name + ".tmp")
+                    tmp.writeText(arr.toString())
+                    if (!tmp.renameTo(playedTracksFile)) {
+                        playedTracksFile.writeText(arr.toString())
+                        tmp.delete()
+                    }
+                }
             }
         }
     }

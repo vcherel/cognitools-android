@@ -2,7 +2,8 @@ package com.example.myapp.gallery
 
 import android.net.Uri
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.aspectRatio
@@ -56,6 +57,7 @@ fun GalleryAsyncImage(
  * (e.g. the trash's expiry badge), and, when [showSelectionIndicator] is on, the selection tint
  * and checkmark/circle used by both the album grid and the trash grid.
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun SelectableMediaThumbnail(
     item: MediaItem,
@@ -63,9 +65,14 @@ fun SelectableMediaThumbnail(
     showSelectionIndicator: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    onLongClick: (() -> Unit)? = null,
     extraOverlay: @Composable BoxScope.() -> Unit = {}
 ) {
-    Box(modifier = modifier.aspectRatio(1f).clickable(onClick = onClick)) {
+    Box(
+        modifier = modifier
+            .aspectRatio(1f)
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
+    ) {
         GalleryAsyncImage(
             uri = item.uri,
             dateModified = item.dateModified,

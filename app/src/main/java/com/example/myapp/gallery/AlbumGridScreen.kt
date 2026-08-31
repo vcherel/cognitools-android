@@ -40,6 +40,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.myapp.AppSnackbar
 import com.example.myapp.ScreenTopBar
@@ -219,7 +220,9 @@ private fun SelectionTopBar(
         Text(
             "$count sélectionné${plural(count)}",
             style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.padding(start = 8.dp).weight(1f)
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(start = 4.dp).weight(1f)
         )
         IconButton(onClick = onShare) {
             Icon(Icons.Default.Share, contentDescription = "Partager")

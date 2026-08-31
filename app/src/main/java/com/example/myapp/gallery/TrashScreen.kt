@@ -38,6 +38,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.myapp.AppSnackbar
 import com.example.myapp.ScreenTopBar
@@ -94,7 +95,9 @@ fun GalleryTrashScreen(onBack: () -> Unit) {
                 Text(
                     "${selectedIds.size} sélectionné${plural(selectedIds.size)}",
                     style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.padding(start = 8.dp).weight(1f)
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(start = 4.dp).weight(1f)
                 )
                 IconButton(onClick = {
                     val toRestore = selected()

@@ -123,10 +123,21 @@ private val shareTargets = listOf(
     ShareTarget("com.instagram.android", "Instagram")
 )
 
+private const val INSTAGRAM_PACKAGE = "com.instagram.android"
+
+// Where inside Instagram a share goes. A plain ACTION_SEND only ever reaches Direct, so the story
+// needs its own intent and the feed its own activity: one tap on Instagram opens this second row.
+private enum class InstagramDestination(val label: String, val singleItemOnly: Boolean) {
+    Story("Story", true),
+    Direct("Message", true),
+    Feed("Publication", false)
+}
+
 @Composable
 fun ShareDialog(items: List<MediaItem>, onDismiss: () -> Unit, onError: (String) -> Unit) {
     val context = LocalContext.current
     val packageManager = context.packageManager
+    var instagramExpanded by remember { mutableStateOf(false) }
     val installedTargets = remember {
         shareTargets.filter { target ->
             try {
@@ -140,12 +151,41 @@ fun ShareDialog(items: List<MediaItem>, onDismiss: () -> Unit, onError: (String)
 
     AppDialog(onDismiss = onDismiss) {
         Text(
-            if (items.size > 1) "Partager ${items.size} fichiers" else "Partager",
+            when {
+                instagramExpanded -> "Instagram"
+                items.size > 1 -> "Partager ${items.size} fichiers"
+                else -> "Partager"
+            },
             style = MaterialTheme.typography.titleMedium
         )
         Spacer(Modifier.height(16.dp))
         if (installedTargets.isEmpty()) {
             Text("Aucune application compatible installée")
+        } else if (instagramExpanded) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                InstagramDestination.entries
+                    .filter { items.size == 1 || !it.singleItemOnly }
+                    .forEach { destination ->
+                        TextButton(onClick = {
+                            onDismiss()
+                            try {
+                                shareToInstagram(context, items, destination)
+                            } catch (e: ActivityNotFoundException) {
+                                onError("Partage impossible")
+                            }
+                        }) { Text(destination.label) }
+                    }
+            }
+            if (items.size > 1) {
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    "Story et message : une seule photo à la fois",
+                    style = MaterialTheme.typography.labelSmall
+                )
+            }
         } else {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -155,11 +195,15 @@ fun ShareDialog(items: List<MediaItem>, onDismiss: () -> Unit, onError: (String)
                     ShareTargetIcon(
                         target = target,
                         onClick = {
-                            onDismiss()
-                            try {
-                                shareItemsTo(context, items, target.packageName)
-                            } catch (e: ActivityNotFoundException) {
-                                onError("Partage impossible")
+                            if (target.packageName == INSTAGRAM_PACKAGE) {
+                                instagramExpanded = true
+                            } else {
+                                onDismiss()
+                                try {
+                                    shareItemsTo(context, items, target.packageName)
+                                } catch (e: ActivityNotFoundException) {
+                                    onError("Partage impossible")
+                                }
                             }
                         }
                     )
@@ -192,6 +236,37 @@ private fun ShareTargetIcon(target: ShareTarget, onClick: () -> Unit) {
         }
         Spacer(Modifier.height(4.dp))
         Text(target.label, style = MaterialTheme.typography.labelSmall)
+    }
+}
+
+/**
+ * Instagram takes one intent per destination. Direct is what a plain ACTION_SEND lands on, the story
+ * has its own action, and the feed needs its own handler activity, which is named here rather than
+ * resolved: without it the feed share falls back to the Direct picker. If that class ever moves, the
+ * plain send is still what happens.
+ */
+private fun shareToInstagram(context: Context, items: List<MediaItem>, destination: InstagramDestination) {
+    if (items.isEmpty()) return
+    val mimeType = shareMimeType(items)
+    when (destination) {
+        InstagramDestination.Story -> {
+            val intent = Intent("com.instagram.share.ADD_TO_STORY")
+                .setDataAndType(items.first().uri, mimeType)
+                .setPackage(INSTAGRAM_PACKAGE)
+                .putExtra("source_application", context.packageName)
+                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            context.startActivity(intent)
+        }
+        InstagramDestination.Direct -> shareItemsTo(context, items.take(1), INSTAGRAM_PACKAGE)
+        InstagramDestination.Feed -> {
+            val intent = shareUrisIntent(items.map { it.uri }, mimeType)
+                .setClassName(INSTAGRAM_PACKAGE, "com.instagram.share.handleractivity.ShareHandlerActivity")
+            try {
+                context.startActivity(intent)
+            } catch (e: ActivityNotFoundException) {
+                shareItemsTo(context, items, INSTAGRAM_PACKAGE)
+            }
+        }
     }
 }
 
