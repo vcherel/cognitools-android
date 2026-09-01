@@ -38,6 +38,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
@@ -202,13 +203,15 @@ fun GalleryAlbumGridScreen(bucketId: Long, onBack: () -> Unit, onOpenItem: (Long
 }
 
 @Composable
-private fun SelectionTopBar(
+internal fun SelectionTopBar(
     count: Int,
     onClose: () -> Unit,
     onMove: () -> Unit,
     onShare: () -> Unit,
     onPin: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    pinIcon: ImageVector = Icons.Default.PushPin,
+    pinLabel: String = "Épingler"
 ) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(16.dp),
@@ -231,7 +234,7 @@ private fun SelectionTopBar(
             Icon(Icons.AutoMirrored.Filled.DriveFileMove, contentDescription = "Déplacer")
         }
         IconButton(onClick = onPin) {
-            Icon(Icons.Default.PushPin, contentDescription = "Épingler")
+            Icon(pinIcon, contentDescription = pinLabel)
         }
         IconButton(onClick = onDelete) {
             Icon(Icons.Default.Delete, contentDescription = "Supprimer")
