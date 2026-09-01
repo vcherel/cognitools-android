@@ -3,6 +3,7 @@ package com.example.myapp.notes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -47,12 +48,19 @@ import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.style.TextDecoration
@@ -85,6 +93,15 @@ data class NoteLineActions(
 // A checkbox is 48.dp tall with its box centered, an action button 36.dp: these
 // offsets line both up with the first line of the text they belong to.
 private val FIRST_LINE_TOP_PADDING = 12.dp
+
+// How close to the top/bottom edge a reorder drag has to be held for the note to scroll under it,
+// and how far one frame of that scroll goes at the very edge.
+private val AUTO_SCROLL_BAND = 72.dp
+private val AUTO_SCROLL_MAX_STEP = 8.dp
+
+// A pointer position inside a line turned into a window coordinate, for that edge test.
+private fun windowY(coords: LayoutCoordinates?, position: Offset): Float =
+    coords?.takeIf { it.isAttached }?.localToWindow(position)?.y ?: position.y
 private val ICON_TOP_PADDING = 6.dp
 
 // The read-only rendering of a note: each line drawn as a checkbox, separator, or plain text,
@@ -136,6 +153,10 @@ fun NoteViewMode(
     var draggedLine by remember { mutableStateOf(-1) }
     var dragOffset by remember { mutableStateOf(0f) }
     val lineHeights = remember { mutableStateMapOf<Int, Int>() }
+    // Where the finger is (window coordinates) and what part of the note is on screen, so a drag
+    // held against the top or bottom edge can scroll the note under it.
+    var pointerWindowY by remember { mutableStateOf(0f) }
+    var viewportBounds by remember { mutableStateOf(Rect.Zero) }
 
     // Jumping to a search match: the lines are laid out in a plain Column, so a match's y position is
     // the heights of the lines above it. Those fill in as the lines get measured, which the first jump
@@ -200,10 +221,34 @@ fun NoteViewMode(
         dragOffset = offset
     }
 
+    // A drag held in the top or bottom band scrolls the note, faster the closer to the edge, and
+    // feeds what was actually scrolled back into the reorder so the line stays under the finger.
+    val edgeBandPx = with(LocalDensity.current) { AUTO_SCROLL_BAND.toPx() }
+    val maxStepPx = with(LocalDensity.current) { AUTO_SCROLL_MAX_STEP.toPx() }
+    LaunchedEffect(draggedLine) {
+        if (draggedLine < 0) return@LaunchedEffect
+        while (true) {
+            withFrameNanos { }
+            val bounds = viewportBounds
+            if (bounds.height <= 0f) continue
+            val step = when {
+                pointerWindowY < bounds.top + edgeBandPx ->
+                    -((bounds.top + edgeBandPx - pointerWindowY) / edgeBandPx).coerceAtMost(1f) * maxStepPx
+                pointerWindowY > bounds.bottom - edgeBandPx ->
+                    ((pointerWindowY - (bounds.bottom - edgeBandPx)) / edgeBandPx).coerceAtMost(1f) * maxStepPx
+                else -> 0f
+            }
+            if (step == 0f) continue
+            val scrolled = scrollState.scrollBy(step)
+            if (scrolled != 0f) onDragMove(scrolled)
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(scrollState)
+            .onGloballyPositioned { viewportBounds = it.boundsInWindow() }
             .pointerInput(Unit) {
                 detectTapGestures(
                     onTap = { selectedLine = -1 },
@@ -230,12 +275,16 @@ fun NoteViewMode(
                     actions = actions,
                     searchTerms = searchTerms,
                     onSizeChanged = { lineHeights[lineIndex] = it },
-                    onDragStart = {
+                    onDragStart = { windowY ->
                         draggedLine = lineIndex
                         dragOffset = 0f
+                        pointerWindowY = windowY
                         displayOrder = textFieldState.text.toString().split("\n").indices.toList()
                     },
-                    onDrag = { amountY -> onDragMove(amountY) },
+                    onDrag = { amountY, windowY ->
+                        pointerWindowY = windowY
+                        onDragMove(amountY)
+                    },
                     onDragEnd = { endDrag(commit = true) },
                     onDragCancel = { endDrag(commit = false) },
                     onToggleSelected = { selectedLine = if (lineIndex == selectedLine) -1 else lineIndex },
@@ -267,8 +316,8 @@ private fun NoteLine(
     actions: NoteLineActions,
     searchTerms: List<String>,
     onSizeChanged: (Int) -> Unit,
-    onDragStart: () -> Unit,
-    onDrag: (Float) -> Unit,
+    onDragStart: (windowY: Float) -> Unit,
+    onDrag: (deltaY: Float, windowY: Float) -> Unit,
     onDragEnd: () -> Unit,
     onDragCancel: () -> Unit,
     onToggleSelected: () -> Unit,
@@ -276,11 +325,14 @@ private fun NoteLine(
 ) {
     // Text layout of the line, to map a double tap to a cursor position
     var textLayout by remember { mutableStateOf<TextLayoutResult?>(null) }
+    // The line's own coordinates, to turn a pointer position into a window one for the auto scroll.
+    var coords by remember { mutableStateOf<LayoutCoordinates?>(null) }
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .zIndex(if (isDragged) 1f else 0f)
             .offset { IntOffset(0, dragOffsetPx) }
+            .onGloballyPositioned { coords = it }
             .onSizeChanged { onSizeChanged(it.height) }
             .background(
                 when {
@@ -291,10 +343,10 @@ private fun NoteLine(
             )
             .pointerInput(Unit) {
                 detectDragGesturesAfterLongPress(
-                    onDragStart = { onDragStart() },
+                    onDragStart = { position -> onDragStart(windowY(coords, position)) },
                     onDrag = { change, amount ->
                         change.consume()
-                        onDrag(amount.y)
+                        onDrag(amount.y, windowY(coords, change.position))
                     },
                     onDragEnd = { onDragEnd() },
                     onDragCancel = { onDragCancel() }

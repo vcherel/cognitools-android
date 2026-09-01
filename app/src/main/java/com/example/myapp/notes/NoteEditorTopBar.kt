@@ -113,7 +113,9 @@ fun NoteEditorTopBar(
     val fullTitleSize = MaterialTheme.typography.titleMedium.fontSize
     var titleSize by remember { mutableStateOf(fullTitleSize) }
     var titleWidth by remember { mutableIntStateOf(0) }
-    LaunchedEffect(titleFieldState.text.toString()) { titleSize = fullTitleSize }
+    // Focusing the title hides every button, so the room the shrinking was compensating for is
+    // back: start again from the full size instead of editing a title stuck small.
+    LaunchedEffect(titleFieldState.text.toString(), titleFocused) { titleSize = fullTitleSize }
 
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -170,11 +172,6 @@ fun NoteEditorTopBar(
             if (state.isIngredientsNote) {
                 IconButton(onClick = actions.onAddIngredient) {
                     Icon(Icons.Default.Add, contentDescription = "Ajouter un ingrédient")
-                }
-            }
-            if (state.isIngredientModelNote) {
-                IconButton(onClick = actions.onResortIngredients) {
-                    Icon(Icons.AutoMirrored.Filled.Sort, contentDescription = "Réordonner les ingrédients présents")
                 }
             }
             if (state.isCoursesNote) {
@@ -270,6 +267,13 @@ fun NoteEditorTopBar(
                         text = { Text("Mettre à jour selon le modèle") },
                         leadingIcon = { Icon(Icons.AutoMirrored.Filled.Sort, contentDescription = null) },
                         onClick = { showMoreMenu = false; actions.onResortCourses() }
+                    )
+                }
+                if (state.isIngredientModelNote) {
+                    DropdownMenuItem(
+                        text = { Text("Ranger les Ingrédients selon ce modèle") },
+                        leadingIcon = { Icon(Icons.AutoMirrored.Filled.Sort, contentDescription = null) },
+                        onClick = { showMoreMenu = false; actions.onResortIngredients() }
                     )
                 }
             }

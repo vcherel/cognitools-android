@@ -112,7 +112,7 @@ Root package (shared/misc):
 - `GalleryMediaViewers.kt`: the zoomable image and the video player the viewer pages are made of
 - `LockedQuickView.kt`: the single item shown over the keyguard, with the gallery tools that make sense there
 - `AlbumsScreen.kt`: album list, plus the pinned-picture hero card at the top (tap opens the viewer, its grid button the pinned grid)
-- `PinnedGridScreen.kt`: every pinned picture as a grid; tap opens the viewer on it, long press unpins with an undo
+- `PinnedGridScreen.kt`: every pinned picture as a grid; tap opens the viewer on it, long press starts the same multi-selection as an album grid (sweep included), whose bar detaches instead of pinning
 - `AlbumGridScreen.kt`: thumbnail grid, batch actions, and `sweepSelection`, the long-press-and-drag multi-select the trash grid reuses
 - `ViewerScreen.kt`: full screen pager (ViewerSource: an album, the pinned set, the Wallet album or a single item), image zoom and video playback, per-item tools including pin/unpin and set-as-hero
 - `ViewerDialogs.kt`: `ViewerDialog`/`ViewerDialogs`, the viewer's whole dialog run, plus the share, rename, move and info dialogs themselves (MoveDialog is also used by the album grid)

@@ -27,6 +27,8 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import java.io.File
 import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -101,10 +103,15 @@ class DeezerDiscoveries(private val appContext: Context, private val repo: Deeze
         /** Artists whose releases are read on one scan, the best known first, the rest rotating in. */
         private const val ARTISTS_PER_SCAN = 150
         private const val ARTIST_SCANS_CAP = 4000
-        /** Share of the progress bar owned by the daily release scan, and by its artist pass within that. */
-        private const val SCAN_WEIGHT = 85
+        /** Share of the progress bar owned by the discovery pass, which runs first; the scan owns the rest. */
+        private const val DISCOVERY_WEIGHT = 15
+        /** Share of the scan's own progress owned by its artist pass, the album pass taking the rest. */
         private const val ARTIST_WEIGHT = 65
         private const val TAG = "DeezerDiscoveries"
+        private const val LOG_NAME = "deezer_discoveries_log.txt"
+        private const val LOG_MAX_BYTES = 64 * 1024L
+        private const val LOG_KEEP_LINES = 300
+        private val STAMP: DateTimeFormatter = DateTimeFormatter.ofPattern("MM-dd HH:mm:ss")
     }
 
     private val _state = MutableStateFlow(DiscoveryState())
@@ -265,6 +272,9 @@ class DeezerDiscoveries(private val appContext: Context, private val repo: Deeze
         _state.value = _state.value.copy(progress = pct.coerceIn(0, 100))
     }
 
+    /** Maps a 0..100 position inside the scan onto whatever the bar has left after [base]. */
+    private fun scanProgress(base: Int, pct: Int) = setProgress(base + pct * (100 - base) / 100)
+
     // ---- Generation ----
 
     private suspend fun generate(keepNewReleases: Boolean, automatic: Boolean) {
@@ -282,19 +292,31 @@ class DeezerDiscoveries(private val appContext: Context, private val repo: Deeze
             // Favorites drive both the exclusion set and the track mix seeds, so they must be loaded.
             runCatching { repo.ensureFavorites() }
             val pepites = runCatching { repo.bestPepitesTracks() }.getOrDefault(emptyList())
+            val known = familiarity(pepites)
+            val excluded = excludedKeys(pepites)
             // The release scan runs once a day and is the slow part, so it owns most of the progress
             // bar. A regenerate later the same day skips it and the bar is all Flow.
             val needsScan = lastScanDate != today()
+            log("generate ${if (automatic) "daily" else "refresh"}: scan=$needsScan, ${kept.size} release(s) kept")
+
+            // The discovery half is collected before the scan, not after it: the scan walks hundreds
+            // of artists over several minutes, and the Flow calls that used to follow it came back
+            // empty often enough to leave the day's batch with nothing but new releases.
+            val pool = collectDiscoveries(excluded, span = if (needsScan) DISCOVERY_WEIGHT else 100)
+            log("discoveries: ${pool.size} candidate(s)")
+
             if (needsScan) {
-                runCatching { scanNewReleases(familiarity(pepites)) }
+                runCatching { scanNewReleases(known, progressBase = DISCOVERY_WEIGHT) }
                     // Checkpointed right here: the scan is the expensive part, and a process killed
-                    // during the Flow calls that follow must not make tomorrow redo it.
+                    // afterwards must not make tomorrow redo it.
                     .onSuccess { lastScanDate = today(); save() }
-                    .onFailure { Log.w(TAG, "New release scan failed", it) }
+                    .onFailure {
+                        Log.w(TAG, "New release scan failed", it)
+                        log("scan failed: ${describe(it)}")
+                    }
             }
 
             // New releases first, best known artist first, then the personalized discoveries.
-            val excluded = excludedKeys(pepites)
             // Your artists put out roughly nine releases a day, far more than the daily slots, so the
             // backlog has to stay honest: anything liked or handled in the meantime is dead weight.
             backlog.removeAll { key(it.track) in excluded }
@@ -302,7 +324,6 @@ class DeezerDiscoveries(private val appContext: Context, private val repo: Deeze
             // Releases come first but only up to [RELEASE_SLOTS], and the best known artists lead:
             // scanning every artist in the library turns up plenty of releases from artists behind a
             // single liked track, which are not worth a whole batch.
-            val known = familiarity(pepites)
             backlog.sortWith(
                 compareByDescending<DiscoveryTrack> { known[it.track.artist.matchNormalized()] ?: 0 }
                     .thenByDescending { it.releaseDate }
@@ -312,7 +333,10 @@ class DeezerDiscoveries(private val appContext: Context, private val repo: Deeze
                 if (collector.full || releaseSlots <= 0) break
                 if (collector.offer(item)) releaseSlots--
             }
-            fillWithDiscoveries(collector, base = if (needsScan) SCAN_WEIGHT else 0)
+            for (item in pool) {
+                if (collector.full) break
+                collector.offer(item)
+            }
 
             // A release stays in the backlog until it is actually handled, so one that sat in a batch
             // nothing was done with isn't lost, it just comes back. Discoveries are one shot: recording
@@ -320,6 +344,7 @@ class DeezerDiscoveries(private val appContext: Context, private val repo: Deeze
             collector.items.filterNot { it.isNewRelease }.forEach { remember(it) }
 
             batch = collector.items
+            log("batch: ${batch.count { it.isNewRelease }} release(s), ${batch.count { !it.isNewRelease }} discovery(ies), ${backlog.size} in backlog")
             // Only a batch with something in it claims the day. An offline run turns up nothing, and
             // that must not cost the whole day's discoveries.
             if (batch.isNotEmpty()) batchDate = today()
@@ -327,30 +352,48 @@ class DeezerDiscoveries(private val appContext: Context, private val repo: Deeze
             publish()
         } catch (e: Exception) {
             Log.w(TAG, "Discovery batch generation failed", e)
+            log("generate crashed: ${describe(e)}")
             _state.value = DiscoveryState(tracks = kept, generating = false, error = userMessage(e))
         }
     }
 
-    /** Pulls Flow repeatedly, then the track mix of a few random favorites, until [collector] is full. */
-    private suspend fun fillWithDiscoveries(collector: BatchCollector, base: Int) {
+    /**
+     * Pulls Flow repeatedly, then the track mix of a few random favorites, until [BATCH_SIZE]
+     * candidates are in hand. Filters the same way the batch does (nothing excluded, no duplicate,
+     * one track per artist) so what comes back is what can actually be used. [span] is the share of
+     * the progress bar this pass owns, starting from zero.
+     */
+    private suspend fun collectDiscoveries(excluded: Set<String>, span: Int): List<DiscoveryTrack> {
+        val pool = ArrayList<DiscoveryTrack>()
+        val keys = HashSet<String>()
+        val artists = HashSet<String>()
+        fun take(track: DeezerTrack) {
+            val k = key(track)
+            if (k in excluded || !keys.add(k)) return
+            if (!artists.add(normalize(track.artist))) return
+            pool += DiscoveryTrack(track, isNewRelease = false)
+        }
         repeat(FLOW_CALLS) { call ->
-            if (collector.full) return
+            if (pool.size >= BATCH_SIZE) return pool
             val tracks = runCatching { repo.flowTracks() }.getOrElse {
                 Log.w(TAG, "Flow call failed", it)
+                log("flow call ${call + 1} failed: ${describe(it)}")
                 emptyList()
             }
-            tracks.forEach { collector.offer(DiscoveryTrack(it, isNewRelease = false)) }
-            setProgress(base + (call + 1) * (100 - base) / FLOW_CALLS)
+            tracks.forEach { take(it) }
+            setProgress((call + 1) * span / FLOW_CALLS)
         }
         val seeds = (repo.favorites.value ?: emptyList()).shuffled().take(MIX_SEEDS)
         for (seed in seeds) {
-            if (collector.full) return
+            if (pool.size >= BATCH_SIZE) break
             val mix = runCatching { repo.trackMix(seed.sngId) }.getOrElse {
                 Log.w(TAG, "Track mix failed for ${seed.sngId}", it)
+                log("track mix failed for ${seed.sngId}: ${describe(it)}")
                 emptyList()
             }
-            mix.forEach { collector.offer(DiscoveryTrack(it, isNewRelease = false)) }
+            mix.forEach { take(it) }
         }
+        return pool
     }
 
     /**
@@ -384,7 +427,7 @@ class DeezerDiscoveries(private val appContext: Context, private val repo: Deeze
      * up, the newest [ALBUMS_PER_SCAN] candidates get their lead track fetched and marked seen, the
      * rest stay unseen for the next scan.
      */
-    private suspend fun scanNewReleases(known: Map<String, Int>) = withContext(Dispatchers.IO) {
+    private suspend fun scanNewReleases(known: Map<String, Int>, progressBase: Int) = withContext(Dispatchers.IO) {
         // Two sources, because neither covers the other: the profile tab is Deezer's own view of who
         // Valentin listens to and skips artists he only has a track or two from, while the library
         // artists are exactly the ones he liked, whatever Deezer thinks of his habits.
@@ -420,7 +463,7 @@ class DeezerDiscoveries(private val appContext: Context, private val repo: Deeze
                             Log.w(TAG, "Releases failed for ${artist.name}", it)
                             emptyList()
                         }
-                    }.also { setProgress(scanned.incrementAndGet() * ARTIST_WEIGHT / artists.size) }
+                    }.also { scanProgress(progressBase, scanned.incrementAndGet() * ARTIST_WEIGHT / artists.size) }
                 }
             }.awaitAll()
         }.flatten().filter {
@@ -440,7 +483,7 @@ class DeezerDiscoveries(private val appContext: Context, private val repo: Deeze
                         }
                     }.also {
                         val done = fetchedCount.incrementAndGet()
-                        setProgress(ARTIST_WEIGHT + done * (SCAN_WEIGHT - ARTIST_WEIGHT) / candidates.size)
+                        scanProgress(progressBase, ARTIST_WEIGHT + done * (100 - ARTIST_WEIGHT) / candidates.size)
                     }
                 }
             }.awaitAll()
@@ -456,6 +499,7 @@ class DeezerDiscoveries(private val appContext: Context, private val repo: Deeze
         }
         // Recorded once the whole pass is through, off the parallel coroutines: a scan cut short by a
         // failure is worth redoing, and the map is not thread safe.
+        log("scan: ${artists.size} artist(s), ${candidates.size} release(s) fetched")
         artists.forEach { artistScans.remove(it.id); artistScans[it.id] = today }
         while (artistScans.size > ARTIST_SCANS_CAP) artistScans.remove(artistScans.keys.first())
         while (seenAlbums.size > SEEN_ALBUMS_CAP) seenAlbums.remove(seenAlbums.first())
@@ -558,4 +602,30 @@ class DeezerDiscoveries(private val appContext: Context, private val repo: Deeze
         isNewRelease = o["n"]?.jsonPrimitive?.content == "true",
         releaseDate = o["r"]?.jsonPrimitive?.content?.ifBlank { null }
     )
+
+    // ---- Generation log ----
+    // Same idea as the offline sync log: in getExternalFilesDir so a release build's log reads with
+    // plain adb (run-as only works on debug builds):
+    //   adb shell cat /sdcard/Android/data/com.example.myapp/files/deezer_discoveries_log.txt
+
+    private val logFile: File by lazy { File(appContext.getExternalFilesDir(null) ?: appContext.filesDir, LOG_NAME) }
+
+    /** Appends one line to the rolling log. Called from the generation coroutine, already on IO. */
+    private fun log(line: String) {
+        Log.i(TAG, line)
+        runCatching {
+            logFile.appendText("${LocalDateTime.now().format(STAMP)} $line\n")
+            if (logFile.length() > LOG_MAX_BYTES) {
+                val kept = logFile.readLines().takeLast(LOG_KEEP_LINES)
+                logFile.writeText(kept.joinToString("\n", postfix = "\n"))
+            }
+        }
+    }
+
+    /** Flattens a throwable and its causes into one loggable line: the message is what identifies it. */
+    private fun describe(t: Throwable?): String =
+        generateSequence(t) { it.cause }
+            .take(3)
+            .joinToString(", caused by ") { "${it.javaClass.simpleName}: ${it.message?.take(200)}" }
+            .ifBlank { "unknown error" }
 }
