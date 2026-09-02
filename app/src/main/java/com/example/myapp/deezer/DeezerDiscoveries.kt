@@ -161,7 +161,11 @@ class DeezerDiscoveries(private val appContext: Context, private val repo: Deeze
         launchExclusive {
             load()
             val exhausted = attemptDate == today() && attempts >= MAX_DAILY_ATTEMPTS
-            if (batchDate == today() || exhausted) publish() else generate(keepNewReleases = false, automatic = true)
+            // With no network the discovery half comes back empty and the batch would claim the day
+            // with nothing but the backlog's releases in it. Waiting for the next entry costs nothing.
+            val ready = repo.hasNetwork()
+            if (batchDate == today() || exhausted || !ready) publish()
+            else generate(keepNewReleases = false, automatic = true)
         }
     }
 
@@ -302,14 +306,16 @@ class DeezerDiscoveries(private val appContext: Context, private val repo: Deeze
             // The discovery half is collected before the scan, not after it: the scan walks hundreds
             // of artists over several minutes, and the Flow calls that used to follow it came back
             // empty often enough to leave the day's batch with nothing but new releases.
-            val pool = collectDiscoveries(excluded, span = if (needsScan) DISCOVERY_WEIGHT else 100)
-            log("discoveries: ${pool.size} candidate(s)")
+            val discoveries = collectDiscoveries(excluded, span = if (needsScan) DISCOVERY_WEIGHT else 100)
+            val pool = discoveries.tracks
+            log("discoveries: ${pool.size} candidate(s)${if (discoveries.failed) ", pass failed" else ""}")
 
             if (needsScan) {
                 runCatching { scanNewReleases(known, progressBase = DISCOVERY_WEIGHT) }
                     // Checkpointed right here: the scan is the expensive part, and a process killed
-                    // afterwards must not make tomorrow redo it.
-                    .onSuccess { lastScanDate = today(); save() }
+                    // afterwards must not make tomorrow redo it. A scan that could not read a single
+                    // artist read nothing at all, so it is not the day's scan.
+                    .onSuccess { if (it) { lastScanDate = today(); save() } }
                     .onFailure {
                         Log.w(TAG, "New release scan failed", it)
                         log("scan failed: ${describe(it)}")
@@ -345,9 +351,10 @@ class DeezerDiscoveries(private val appContext: Context, private val repo: Deeze
 
             batch = collector.items
             log("batch: ${batch.count { it.isNewRelease }} release(s), ${batch.count { !it.isNewRelease }} discovery(ies), ${backlog.size} in backlog")
-            // Only a batch with something in it claims the day. An offline run turns up nothing, and
-            // that must not cost the whole day's discoveries.
-            if (batch.isNotEmpty()) batchDate = today()
+            // Only a full batch claims the day: one whose discovery pass failed is releases alone,
+            // and handing that out as the day's selection is what used to hide the recommendations
+            // until a manual refresh.
+            if (batch.isNotEmpty() && !discoveries.failed) batchDate = today()
             save()
             publish()
         } catch (e: Exception) {
@@ -357,14 +364,18 @@ class DeezerDiscoveries(private val appContext: Context, private val repo: Deeze
         }
     }
 
+    /** What [collectDiscoveries] came back with. [failed] means it found nothing because it could not reach Deezer. */
+    private class DiscoveryPool(val tracks: List<DiscoveryTrack>, val failed: Boolean)
+
     /**
      * Pulls Flow repeatedly, then the track mix of a few random favorites, until [BATCH_SIZE]
      * candidates are in hand. Filters the same way the batch does (nothing excluded, no duplicate,
      * one track per artist) so what comes back is what can actually be used. [span] is the share of
      * the progress bar this pass owns, starting from zero.
      */
-    private suspend fun collectDiscoveries(excluded: Set<String>, span: Int): List<DiscoveryTrack> {
+    private suspend fun collectDiscoveries(excluded: Set<String>, span: Int): DiscoveryPool {
         val pool = ArrayList<DiscoveryTrack>()
+        var errors = 0
         val keys = HashSet<String>()
         val artists = HashSet<String>()
         fun take(track: DeezerTrack) {
@@ -374,10 +385,11 @@ class DeezerDiscoveries(private val appContext: Context, private val repo: Deeze
             pool += DiscoveryTrack(track, isNewRelease = false)
         }
         repeat(FLOW_CALLS) { call ->
-            if (pool.size >= BATCH_SIZE) return pool
+            if (pool.size >= BATCH_SIZE) return DiscoveryPool(pool, failed = false)
             val tracks = runCatching { repo.flowTracks() }.getOrElse {
                 Log.w(TAG, "Flow call failed", it)
                 log("flow call ${call + 1} failed: ${describe(it)}")
+                errors++
                 emptyList()
             }
             tracks.forEach { take(it) }
@@ -389,11 +401,12 @@ class DeezerDiscoveries(private val appContext: Context, private val repo: Deeze
             val mix = runCatching { repo.trackMix(seed.sngId) }.getOrElse {
                 Log.w(TAG, "Track mix failed for ${seed.sngId}", it)
                 log("track mix failed for ${seed.sngId}: ${describe(it)}")
+                errors++
                 emptyList()
             }
             mix.forEach { take(it) }
         }
-        return pool
+        return DiscoveryPool(pool, failed = pool.isEmpty() && errors > 0)
     }
 
     /**
@@ -426,8 +439,10 @@ class DeezerDiscoveries(private val appContext: Context, private val repo: Deeze
      * outright (the release window is fifteen times that, so nothing is missed). Of what that turns
      * up, the newest [ALBUMS_PER_SCAN] candidates get their lead track fetched and marked seen, the
      * rest stay unseen for the next scan.
+     *
+     * Returns false when not one artist could be read, i.e. the pass never happened.
      */
-    private suspend fun scanNewReleases(known: Map<String, Int>, progressBase: Int) = withContext(Dispatchers.IO) {
+    private suspend fun scanNewReleases(known: Map<String, Int>, progressBase: Int): Boolean = withContext(Dispatchers.IO) {
         // Two sources, because neither covers the other: the profile tab is Deezer's own view of who
         // Valentin listens to and skips artists he only has a track or two from, while the library
         // artists are exactly the ones he liked, whatever Deezer thinks of his habits.
@@ -440,6 +455,10 @@ class DeezerDiscoveries(private val appContext: Context, private val repo: Deeze
             emptyList()
         }
         val all = (profile + library).distinctBy { it.id }
+        if (all.isEmpty()) {
+            log("scan: no artist reachable")
+            return@withContext false
+        }
         val cutoff = LocalDate.now().minusDays(RELEASE_WINDOW_DAYS).toString()
         val today = today()
         val staleBefore = LocalDate.now().minusDays(ARTIST_RESCAN_DAYS).toString()
@@ -451,7 +470,8 @@ class DeezerDiscoveries(private val appContext: Context, private val repo: Deeze
                     .thenBy { artistScans[it.id] ?: "" }
             )
             .take(ARTISTS_PER_SCAN)
-        if (artists.isEmpty()) return@withContext
+        // Nothing stale left to read is a scan that is already done, not one that failed.
+        if (artists.isEmpty()) return@withContext true
 
         val gate = Semaphore(ARTIST_PARALLELISM)
         val scanned = AtomicInteger()
@@ -505,6 +525,7 @@ class DeezerDiscoveries(private val appContext: Context, private val repo: Deeze
         while (seenAlbums.size > SEEN_ALBUMS_CAP) seenAlbums.remove(seenAlbums.first())
         backlog.sortByDescending { it.releaseDate }
         while (backlog.size > BACKLOG_CAP) backlog.removeAt(backlog.lastIndex)
+        true
     }
 
     /** How many tracks the library holds per artist, i.e. how well Valentin knows them. */
