@@ -132,8 +132,8 @@ Root package (shared/misc):
 
 `news/` (news reader, French and world headlines from RSS):
 - `NewsModels.kt`: NewsArticle, the NewsRead/NewsSaved/NewsProgress Room entities and NewsDao, plus the 7 day retention shared by the read marks and the reading positions
-- `NewsFeeds.kt`: the hardcoded categories (À la une, France, Monde, Éco, Tech, Sciences), the outlet feeds each one merges (Le Monde, franceinfo, Le Figaro; France 24 is deliberately absent, its article bodies are client rendered and never extractable), and `NewsSources`, the DataStore set of outlets actually fetched (franceinfo alone by default, the others opt-in from the screen's overflow menu)
-- `NewsApi.kt`: RSS/Atom parsing, the canonical article link, and `extractArticle`, the jsoup readable-body extraction. Pure, covered by a JVM unit test
+- `NewsFeeds.kt`: the hardcoded categories (À la une, France, Monde, Éco, Tech, Sciences), the outlet feeds each one merges (Le Monde, franceinfo, Le Figaro; France 24 is deliberately absent, its article bodies are client rendered and never extractable), and `NewsSources`, the DataStore set of outlets actually fetched (franceinfo alone by default, the others opt-in from the screen's overflow menu), plus the franceinfo sections "charger plus" pages through
+- `NewsApi.kt`: RSS/Atom parsing, the canonical article link, `parseArchivePage` (franceinfo's own section pages, the only way to articles older than a feed's fixed window) and `extractArticle`, the jsoup readable-body extraction. Pure, covered by a JVM unit test
 - `NewsRepository.kt`: the singleton; the merged articles per category with their freshness window, the read state, the saved articles and their offline text, and the reading position of the article left unfinished
 - `NewsScreen.kt`: the tool screen; category tabs, the resume card on top, article list, search across everything loaded
 - `NewsArticleScreen.kt`: one article read in the app, with save/open in the browser, the progress bar under the header, the restore-where-you-stopped scroll, and the paywall fallback
