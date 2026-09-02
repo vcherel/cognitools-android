@@ -25,8 +25,11 @@ import java.util.concurrent.ConcurrentHashMap
 /** How long a category's articles are reused before hitting the feeds again. */
 private const val FRESH_FOR_MS = 10 * 60 * 1000L
 
-/** Articles kept per category: enough to scroll a while, not enough to make the list state heavy. */
+/** Articles a refresh keeps per category: enough to scroll a while, not enough to make the list heavy. */
 private const val MAX_PER_CATEGORY = 120
+
+/** Where "charger plus" stops growing a tab, archive pages included. */
+private const val MAX_LOADED_PER_CATEGORY = 400
 
 /**
  * How far down an article counts as read to the end. Not 1f: the last screenful is the byline, the
@@ -58,6 +61,14 @@ class NewsRepository(context: Context) {
 
     private val fetchedAt = mutableMapOf<String, Long>()
 
+    /** The last archive page appended per category, 1 meaning the feeds alone. */
+    private val archivePages = mutableMapOf<String, Int>()
+
+    private val _archiveDone = MutableStateFlow<Set<String>>(emptySet())
+
+    /** Categories with nothing left to append: the archive ran dry, or the tab hit its cap. */
+    val archiveDone: StateFlow<Set<String>> = _archiveDone.asStateFlow()
+
     /** The outlets to fetch. Changing it throws away what the other set had loaded. */
     val sources: StateFlow<Set<String>> = NewsSources.enabled(appContext)
         .stateIn(scope, SharingStarted.Eagerly, DEFAULT_NEWS_SOURCES)
@@ -65,6 +76,8 @@ class NewsRepository(context: Context) {
     suspend fun setSources(enabled: Set<String>) {
         NewsSources.setEnabled(appContext, enabled)
         fetchedAt.clear()
+        archivePages.clear()
+        _archiveDone.value = emptySet()
         _articles.value = emptyMap()
     }
 
@@ -116,8 +129,51 @@ class NewsRepository(context: Context) {
                 return
             }
             _articles.value = _articles.value + (categoryId to merged.filter { it.isComplete() })
+            // The feeds are the tab again: whatever the archive had appended is gone with them.
+            archivePages.remove(categoryId)
+            _archiveDone.value = _archiveDone.value - categoryId
             fetchedAt[categoryId] = System.currentTimeMillis()
             precheck(merged)
+        } finally {
+            _loading.value = _loading.value - categoryId
+        }
+    }
+
+    /**
+     * Appends the next page of [categoryId]'s franceinfo section archives, below what is already
+     * shown. The feeds only ever hand back their fixed window, so this is the one way to older
+     * articles; the appended ones keep the order the sections list them in rather than being merged
+     * back by date, since a section card only dates to the day.
+     */
+    suspend fun loadMore(categoryId: String) {
+        val sections = newsCategory(categoryId).archives
+        if (sections.isEmpty() || ARCHIVE_SOURCE !in sources.value) return
+        if (categoryId in _loading.value || categoryId in _archiveDone.value) return
+
+        _loading.value = _loading.value + categoryId
+        try {
+            val page = (archivePages[categoryId] ?: 1) + 1
+            val fetched = withContext(Dispatchers.IO) {
+                coroutineScope {
+                    sections.map { section ->
+                        async { runCatching { fetchArchivePage(section, page, categoryId) }.getOrDefault(emptyList()) }
+                    }.awaitAll()
+                }
+            }.flatten()
+            archivePages[categoryId] = page
+
+            val current = _articles.value[categoryId].orEmpty()
+            val known = current.mapTo(HashSet()) { it.link }
+            val appended = fetched
+                .filter { known.add(it.link) && it.isComplete() }
+                .sortedByDescending { it.publishedAt }
+            if (appended.isEmpty()) {
+                _archiveDone.value = _archiveDone.value + categoryId
+                return
+            }
+            val grown = current + appended
+            _articles.value = _articles.value + (categoryId to grown)
+            if (grown.size >= MAX_LOADED_PER_CATEGORY) _archiveDone.value = _archiveDone.value + categoryId
         } finally {
             _loading.value = _loading.value - categoryId
         }

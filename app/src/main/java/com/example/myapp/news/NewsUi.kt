@@ -64,11 +64,15 @@ fun NewsArticleRow(
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.primary
                 )
-                Text(
-                    " · ${newsRelativeTime(article.publishedAt)}",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                // An archive card with no picture has no date to read off, and then the outlet
+                // stands alone rather than trailing an empty separator.
+                newsRelativeTime(article.publishedAt).takeIf { it.isNotBlank() }?.let { when_ ->
+                    Text(
+                        " · $when_",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
                 if (isSaved) {
                     Spacer(Modifier.width(6.dp))
                     Icon(

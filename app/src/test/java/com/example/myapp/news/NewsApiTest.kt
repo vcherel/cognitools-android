@@ -58,6 +58,39 @@ class NewsApiTest {
         assertTrue(articles.first().publishedAt > 0)
     }
 
+
+    private val archivePage = """
+        <html><body>
+          <article data-cy="card-article-list-l" class="card-article-list-l ">
+            <a href="/france/un-vieil-article_8171855.html" class="card-article-list-l__link ">
+              <picture class="picture-wrapper">
+                <source type="image/avif" data-srcset="https://www.franceinfo.fr/pictures/abc/432x243/filters:format(avif)/2026/09/01/photo.jpg 432w, https://www.franceinfo.fr/pictures/def/720x405/2026/09/01/photo.jpg 720w"/>
+                <noscript><img src="https://www.franceinfo.fr/pictures/ghi/2026/09/01/photo.jpg" class="card-article-list-l__img"/></noscript>
+              </picture>
+              <p class="card-article-list-l__title">Un vieil article</p>
+              <p class="card-article-list-l__chapo">Ce qu'il raconte.</p>
+            </a>
+          </article>
+          <article class="card-article-list-l ">
+            <a href="/france/sans-titre_1.html" class="card-article-list-l__link "></a>
+          </article>
+        </body></html>
+    """.trimIndent()
+
+    @Test
+    fun `parses a section archive page and dates it off the picture`() {
+        val articles = parseArchivePage(archivePage, "france")
+        assertEquals(1, articles.size)
+        val article = articles.first()
+        assertEquals("https://www.franceinfo.fr/france/un-vieil-article_8171855.html", article.link)
+        assertEquals("Un vieil article", article.title)
+        assertEquals("Ce qu'il raconte.", article.summary)
+        assertEquals("https://www.franceinfo.fr/pictures/abc/432x243/filters:format(avif)/2026/09/01/photo.jpg", article.imageUrl)
+        assertEquals(ARCHIVE_SOURCE, article.source)
+        assertEquals("france", article.categoryId)
+        assertTrue(article.publishedAt > 0)
+    }
+
     @Test
     fun `canonical link drops the fragment and the tracking parameters`() {
         assertEquals("https://a.fr/x", canonicalLink("https://a.fr/x#xtor=RSS-3-[titres]"))

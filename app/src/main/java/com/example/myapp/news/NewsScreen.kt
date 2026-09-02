@@ -29,6 +29,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.PrimaryScrollableTabRow
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -81,6 +82,7 @@ fun NewsScreen(onBack: () -> Unit, onOpenArticle: (String) -> Unit, onOpenSaved:
     val savedLinks = remember(saved) { saved.map { it.link }.toSet() }
     val resumable by repo.resumable.collectAsState(initial = null)
     val sources by repo.sources.collectAsState()
+    val archiveDone by repo.archiveDone.collectAsState()
     val listState = rememberLazyListState()
     val focusRequester = remember { FocusRequester() }
 
@@ -88,6 +90,13 @@ fun NewsScreen(onBack: () -> Unit, onOpenArticle: (String) -> Unit, onOpenSaved:
         scope.launch {
             error = null
             runCatching { repo.refresh(category.id, force) }.onFailure { error = userMessage(it) }
+        }
+    }
+
+    fun loadMore() {
+        scope.launch {
+            error = null
+            runCatching { repo.loadMore(category.id) }.onFailure { error = userMessage(it) }
         }
     }
 
@@ -105,6 +114,10 @@ fun NewsScreen(onBack: () -> Unit, onOpenArticle: (String) -> Unit, onOpenSaved:
     } else {
         articlesByCategory[category.id].orEmpty()
     }
+
+    val canLoadMore = category.archives.isNotEmpty() &&
+        ARCHIVE_SOURCE in sources &&
+        category.id !in archiveDone
 
     Column(Modifier.fillMaxSize()) {
         ScreenTopBar(
@@ -233,6 +246,20 @@ fun NewsScreen(onBack: () -> Unit, onOpenArticle: (String) -> Unit, onOpenSaved:
                         }
                     )
                     HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
+                }
+                // Only under the real list: the feeds hand back a fixed window, so anything older
+                // comes from the outlet's own section pages, one page a tap.
+                if (!searching && canLoadMore) {
+                    item(key = "more") {
+                        val busy = category.id in loading
+                        TextButton(
+                            onClick = { loadMore() },
+                            enabled = !busy,
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
+                        ) {
+                            Text(if (busy) "Chargement..." else "Charger plus d'articles")
+                        }
+                    }
                 }
             }
         }

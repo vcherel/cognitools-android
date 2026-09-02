@@ -4,6 +4,8 @@ import com.example.myapp.httpGet
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Element
 import org.jsoup.parser.Parser
+import java.time.LocalDate
+import java.time.ZoneId
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -88,6 +90,60 @@ fun parseFeedDate(raw: String?): Long {
     }
     return runCatching {
         java.text.SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss Z", Locale.US).parse(text)?.time ?: 0L
+    }.getOrDefault(0L)
+}
+
+private const val ARCHIVE_BASE = "https://www.franceinfo.fr"
+
+/** One page of a franceinfo section archive: `/france/2.html` and up, 30 articles a page. */
+fun fetchArchivePage(section: String, page: Int, categoryId: String): List<NewsArticle> =
+    parseArchivePage(httpGet("$ARCHIVE_BASE/$section/$page.html", accept = PAGE_ACCEPT), categoryId)
+
+/**
+ * Parses a franceinfo section page into articles. The cards carry title, chapo and picture but no
+ * date, so the picture's own path (`.../2026/09/01/...`) stands in for it, at day precision; a card
+ * without a picture ends up with no date at all, which the row then simply doesn't print.
+ */
+fun parseArchivePage(html: String, categoryId: String): List<NewsArticle> {
+    val doc = Jsoup.parse(html, ARCHIVE_BASE)
+    return doc.select("article.card-article-list-l").mapNotNull { card ->
+        val link = canonicalLink(card.selectFirst("a[href]")?.absUrl("href").orEmpty()) ?: return@mapNotNull null
+        val title = card.selectFirst(".card-article-list-l__title")?.text()?.trim().orEmpty()
+        if (title.isBlank()) return@mapNotNull null
+        val image = card.cardImage()
+        NewsArticle(
+            link = link,
+            title = title,
+            summary = card.selectFirst(".card-article-list-l__chapo")?.text()?.trim().orEmpty(),
+            imageUrl = image,
+            source = ARCHIVE_SOURCE,
+            categoryId = categoryId,
+            publishedAt = pictureDate(image)
+        )
+    }
+}
+
+/**
+ * The card's illustration. The `<img>` that carries a plain src sits inside a `<noscript>`, which not
+ * every parser hands back as markup, so the `<source>` srcset the browser actually uses comes first.
+ */
+private fun Element.cardImage(): String? {
+    selectFirst("source[data-srcset], source[srcset]")?.let { source ->
+        val set = source.attr("data-srcset").ifBlank { source.attr("srcset") }
+        set.split(',').firstOrNull()?.trim()?.substringBefore(' ')?.ifBlank { null }?.let { return it }
+    }
+    val img = selectFirst("img[src], img[data-src]") ?: return null
+    return img.absUrl("src").ifBlank { img.absUrl("data-src") }.ifBlank { null }
+}
+
+private val PICTURE_DATE = Regex("""/(\d{4})/(\d{2})/(\d{2})/""")
+
+/** The date in a franceinfo picture path, at midnight. 0 when there is no picture to read it off. */
+private fun pictureDate(imageUrl: String?): Long {
+    val (year, month, day) = (imageUrl?.let { PICTURE_DATE.find(it) } ?: return 0L).destructured
+    return runCatching {
+        LocalDate.of(year.toInt(), month.toInt(), day.toInt())
+            .atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
     }.getOrDefault(0L)
 }
 
