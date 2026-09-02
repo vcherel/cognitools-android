@@ -129,7 +129,7 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
      * that would otherwise hang for its whole timeout while offline, so the Best pépites mirror
      * (fully downloaded) opens and plays instantly with no connection instead of waiting it out.
      */
-    private fun hasNetwork(): Boolean {
+    fun hasNetwork(): Boolean {
         val cm = appContext.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager ?: return true
         val caps = cm.getNetworkCapabilities(cm.activeNetwork) ?: return false
         return caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
