@@ -1,5 +1,7 @@
 package com.example.myapp.deezer
 
+import android.content.Context
+import android.content.Intent
 import com.example.myapp.userMessage
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -109,6 +112,11 @@ fun DeezerTrackListScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text("${shown.size} titres", style = MaterialTheme.typography.bodyMedium, maxLines = 1, modifier = Modifier.weight(1f))
+                            if (playlistId != null) {
+                                IconButton(onClick = { sharePlaylist(context, playlistId, title) }) {
+                                    Icon(Icons.Filled.Share, contentDescription = "Partager la playlist", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                            }
                             IconButton(onClick = { scope.launch { repo.shuffleTracks(shown, source) } }) {
                                 Icon(Icons.Filled.Shuffle, contentDescription = "Lecture aléatoire", tint = MaterialTheme.colorScheme.primary)
                             }
@@ -163,4 +171,19 @@ fun DeezerTrackListScreen(
             }
         )
     }
+}
+
+/**
+ * Send the playlist to the system share sheet. Unlike a track, a playlist has no song.link
+ * equivalent, so the link is Deezer's own; it only opens for the person receiving it if the playlist
+ * is public on the account.
+ */
+private fun sharePlaylist(context: Context, playlistId: String, title: String) {
+    val link = "https://www.deezer.com/playlist/$playlistId"
+    val send = Intent(Intent.ACTION_SEND).apply {
+        type = "text/plain"
+        putExtra(Intent.EXTRA_TEXT, "$title\n$link")
+        putExtra(Intent.EXTRA_SUBJECT, title)
+    }
+    context.startActivity(Intent.createChooser(send, "Partager la playlist"))
 }
