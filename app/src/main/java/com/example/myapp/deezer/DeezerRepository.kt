@@ -10,6 +10,7 @@ import android.util.Log
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
+import androidx.media3.common.Timeline
 import androidx.media3.database.StandaloneDatabaseProvider
 import androidx.media3.datasource.cache.ContentMetadata
 import androidx.media3.datasource.cache.LeastRecentlyUsedCacheEvictor
@@ -621,11 +622,19 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
     private val _playerState = MutableStateFlow(PlayerUiState())
     val playerState: StateFlow<PlayerUiState> = _playerState
 
+    private val _queueState = MutableStateFlow(QueueUiState())
+
+    /** What is queued right now, for the queue sheet. */
+    val queueState: StateFlow<QueueUiState> = _queueState
+
     private val playerListener = object : Player.Listener {
         override fun onIsPlayingChanged(isPlaying: Boolean) = refreshPlayerState()
         override fun onMediaMetadataChanged(mediaMetadata: MediaMetadata) = refreshPlayerState()
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) = refreshPlayerState()
         override fun onPlaybackStateChanged(playbackState: Int) = refreshPlayerState()
+        // A queue edited from anywhere (the sheet, "lire ensuite", the service's error recovery)
+        // reaches the sheet through this one.
+        override fun onTimelineChanged(timeline: Timeline, reason: Int) = refreshPlayerState()
     }
 
     private val controllerHolder = MediaControllerHolder(
@@ -645,6 +654,7 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
         val c = controller
         if (c == null || c.mediaItemCount == 0) {
             _playerState.value = PlayerUiState()
+            _queueState.value = QueueUiState()
             return
         }
         val m = c.mediaMetadata
@@ -658,6 +668,55 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
             sngId = c.currentMediaItem?.mediaId,
             source = c.currentMediaItem?.let { sourceOf(it) }
         )
+        _queueState.value = QueueUiState(
+            entries = (0 until c.mediaItemCount).map { index ->
+                val item = c.getMediaItemAt(index)
+                val meta = item.mediaMetadata
+                QueueEntry(
+                    sngId = item.mediaId,
+                    title = meta.title?.toString().orEmpty(),
+                    artist = meta.artist?.toString().orEmpty(),
+                    coverUrl = meta.artworkUri?.toString()
+                )
+            },
+            currentIndex = c.currentMediaItemIndex
+        )
+    }
+
+    // ---- Queue editing ----
+    // The sheet acts on the controller directly, then re-reads it: the timeline is the queue, there is
+    // no second copy to keep in step. Each edit also re-captures [orderedQueue] from what is left, so
+    // turning shuffle back off restores the hand-made order instead of the list the queue started as.
+
+    /** Moves the queued item at [from] to [to]. */
+    fun moveQueueItem(from: Int, to: Int) {
+        val c = controller ?: return
+        if (from == to || from !in 0 until c.mediaItemCount || to !in 0 until c.mediaItemCount) return
+        c.moveMediaItem(from, to)
+        captureQueueOrder()
+        refreshPlayerState()
+    }
+
+    /** Drops the queued item at [index]. Removing the playing one moves playback on to the next. */
+    fun removeQueueItem(index: Int) {
+        val c = controller ?: return
+        if (index !in 0 until c.mediaItemCount) return
+        c.removeMediaItem(index)
+        captureQueueOrder()
+        refreshPlayerState()
+    }
+
+    /** Jumps straight to the queued item at [index]. */
+    fun playQueueIndex(index: Int) {
+        val c = controller ?: return
+        if (index !in 0 until c.mediaItemCount) return
+        c.seekTo(index, 0L)
+        c.play()
+    }
+
+    private fun captureQueueOrder() {
+        val c = controller ?: return
+        orderedQueue = (0 until c.mediaItemCount).mapNotNull { queuedTracks[c.getMediaItemAt(it).mediaId] }
     }
 
     /**

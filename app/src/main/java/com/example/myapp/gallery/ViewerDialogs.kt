@@ -1,6 +1,5 @@
 package com.example.myapp.gallery
 
-import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -114,33 +113,41 @@ fun ViewerDialogs(
 
 // The only apps Valentin ever shares photos/videos to. Restricting to these instead of the
 // full system share sheet keeps the picker to a single tap on the app that's actually wanted.
-private data class ShareTarget(val packageName: String, val label: String)
-
-private val shareTargets = listOf(
-    ShareTarget("com.whatsapp", "WhatsApp"),
-    ShareTarget("com.beeper.android", "Beeper"),
-    ShareTarget("com.facebook.orca", "Messenger"),
-    ShareTarget("com.instagram.android", "Instagram")
+// Instagram takes one intent per destination, so its three land here as three targets of their
+// own rather than behind a second step: one tap always shares, never just opens another row.
+private data class ShareTarget(
+    val packageName: String,
+    val label: String,
+    val instagram: InstagramDestination? = null
 )
 
 private const val INSTAGRAM_PACKAGE = "com.instagram.android"
 
 // Where inside Instagram a share goes. A plain ACTION_SEND only ever reaches Direct, so the story
-// needs its own intent and the feed its own activity: one tap on Instagram opens this second row.
-private enum class InstagramDestination(val label: String, val singleItemOnly: Boolean) {
-    Story("Story", true),
-    Direct("Message", true),
-    Feed("Publication", false)
+// needs its own intent and the feed its own activity.
+private enum class InstagramDestination(val singleItemOnly: Boolean) {
+    Story(true),
+    Direct(true),
+    Feed(false)
 }
+
+private val shareTargets = listOf(
+    ShareTarget("com.whatsapp", "WhatsApp"),
+    ShareTarget("com.beeper.android", "Beeper"),
+    ShareTarget("com.facebook.orca", "Messenger"),
+    ShareTarget(INSTAGRAM_PACKAGE, "Story", InstagramDestination.Story),
+    ShareTarget(INSTAGRAM_PACKAGE, "Message", InstagramDestination.Direct),
+    ShareTarget(INSTAGRAM_PACKAGE, "Publication", InstagramDestination.Feed)
+)
 
 @Composable
 fun ShareDialog(items: List<MediaItem>, onDismiss: () -> Unit, onError: (String) -> Unit) {
     val context = LocalContext.current
     val packageManager = context.packageManager
-    var instagramExpanded by remember { mutableStateOf(false) }
-    val installedTargets = remember {
+    val installedTargets = remember(items.size) {
         shareTargets.filter { target ->
-            try {
+            val fitsBatch = items.size == 1 || target.instagram?.singleItemOnly != true
+            fitsBatch && try {
                 packageManager.getApplicationInfo(target.packageName, 0)
                 true
             } catch (e: PackageManager.NameNotFoundException) {
@@ -151,62 +158,39 @@ fun ShareDialog(items: List<MediaItem>, onDismiss: () -> Unit, onError: (String)
 
     AppDialog(onDismiss = onDismiss) {
         Text(
-            when {
-                instagramExpanded -> "Instagram"
-                items.size > 1 -> "Partager ${items.size} fichiers"
-                else -> "Partager"
-            },
+            if (items.size > 1) "Partager ${items.size} fichiers" else "Partager",
             style = MaterialTheme.typography.titleMedium
         )
         Spacer(Modifier.height(16.dp))
         if (installedTargets.isEmpty()) {
             Text("Aucune application compatible installée")
-        } else if (instagramExpanded) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly
-            ) {
-                InstagramDestination.entries
-                    .filter { items.size == 1 || !it.singleItemOnly }
-                    .forEach { destination ->
-                        TextButton(onClick = {
-                            onDismiss()
-                            try {
-                                shareToInstagram(context, items, destination)
-                            } catch (e: ActivityNotFoundException) {
-                                onError("Partage impossible")
-                            }
-                        }) { Text(destination.label) }
-                    }
-            }
-            if (items.size > 1) {
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    "Story et message : une seule photo à la fois",
-                    style = MaterialTheme.typography.labelSmall
-                )
-            }
         } else {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly
-            ) {
-                installedTargets.forEach { target ->
-                    ShareTargetIcon(
-                        target = target,
-                        onClick = {
-                            if (target.packageName == INSTAGRAM_PACKAGE) {
-                                instagramExpanded = true
-                            } else {
+            // Three per line: six icons on one row would be too narrow to hit.
+            installedTargets.chunked(3).forEach { row ->
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    row.forEach { target ->
+                        ShareTargetIcon(
+                            target = target,
+                            onClick = {
                                 onDismiss()
                                 try {
-                                    shareItemsTo(context, items, target.packageName)
-                                } catch (e: ActivityNotFoundException) {
+                                    if (target.instagram != null) {
+                                        shareToInstagram(context, items, target.instagram)
+                                    } else {
+                                        shareItemsTo(context, items, target.packageName)
+                                    }
+                                } catch (e: Exception) {
+                                    // Not just ActivityNotFoundException: naming Instagram's own
+                                    // handler activity throws a SecurityException the day it stops
+                                    // being exported, and that must not take the app down.
                                     onError("Partage impossible")
                                 }
                             }
-                        }
-                    )
+                        )
+                    }
                 }
             }
         }
@@ -263,7 +247,7 @@ private fun shareToInstagram(context: Context, items: List<MediaItem>, destinati
                 .setClassName(INSTAGRAM_PACKAGE, "com.instagram.share.handleractivity.ShareHandlerActivity")
             try {
                 context.startActivity(intent)
-            } catch (e: ActivityNotFoundException) {
+            } catch (e: Exception) {
                 shareItemsTo(context, items, INSTAGRAM_PACKAGE)
             }
         }

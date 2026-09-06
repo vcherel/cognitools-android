@@ -20,6 +20,7 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FormatListNumbered
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.QueueMusic
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.filled.SkipNext
@@ -98,6 +99,8 @@ fun FullPlayerSheet(
     // Keep the favorites cache warm so the heart reflects the real like-state.
     LaunchedEffect(Unit) { runCatching { repo.ensureFavorites() } }
 
+    var showQueue by remember { mutableStateOf(false) }
+
     // Same for the diamond: it is filled when the track is already in Best pépites, and tapping it
     // then takes the track back out. [pepitesTick] re-reads it after the toggle has landed.
     var pepitesTick by remember { mutableIntStateOf(0) }
@@ -106,6 +109,8 @@ fun FullPlayerSheet(
         runCatching { repo.ensureBestPepitesLoaded() }
         inPepites = state.sngId != null && repo.bestPepitesContains(state.sngId) == true
     }
+
+    if (showQueue) QueueSheet(repo = repo, onDismiss = { showQueue = false })
 
     Box(
         modifier = Modifier
@@ -152,7 +157,7 @@ fun FullPlayerSheet(
             }
 
             Spacer(Modifier.height(8.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 IconButton(onClick = {
                     val track = currentTrack(repo, state) ?: return@IconButton
                     scope.launch { runCatching { repo.toggleFavorite(track) } }
@@ -185,6 +190,13 @@ fun FullPlayerSheet(
                 // The icon itself says which mode is on (crossed arrows vs a numbered list): a tint
                 // alone doesn't read. Tapping it reorders what is left of the queue right away, and
                 // is the saved default for every list started afterwards.
+                IconButton(onClick = { showQueue = true }) {
+                    Icon(
+                        Icons.Filled.QueueMusic,
+                        contentDescription = "File d'attente",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
                 IconButton(onClick = { scope.launch { repo.setShuffle(!shuffle) } }) {
                     Icon(
                         if (shuffle) Icons.Filled.Shuffle else Icons.Filled.FormatListNumbered,

@@ -66,6 +66,7 @@ Root package (shared/misc):
 - `DeezerPlaybackService.kt`: MediaSessionService owning the ExoPlayer; media notification, its heart/diamond action buttons (`actionButtons`), error recovery
 - `DeezerScreen.kt`: host for the whole Musique tool (music *and* podcasts), nested NavHost + the two persistent mini-players
 - `DeezerNowPlaying.kt`: FullPlayerSheet, plus the share-a-track sheet. The mini-player bar itself is the shared one in `PlayerUi.kt`
+- `DeezerQueueSheet.kt`: QueueSheet, the queue opened from the full player: jump to a track, drag to reorder, remove, each edit applied straight to the controller
 - `DeezerLibraryScreen.kt`: landing screen; favorites card, playlists rows, followed podcast rows, offline status. Also holds TrackRow and the playlist picker every Deezer screen reuses
 - `DeezerPlaylistScreen.kt`: reusable ordered track list (play, remove, like, add to pépites)
 - `DeezerSearchScreen.kt`: search screen, tracks and podcast shows
