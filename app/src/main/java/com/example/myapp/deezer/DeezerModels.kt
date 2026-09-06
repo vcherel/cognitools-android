@@ -124,3 +124,18 @@ data class PlayerUiState(
     val sngId: String? = null,
     val source: TrackSource? = null
 )
+
+/** One row of the playback queue sheet. Built from the queued MediaItems, not from the track cache,
+ *  so a queue that outlived the process still lists what it is actually going to play. */
+data class QueueEntry(
+    val sngId: String,
+    val title: String,
+    val artist: String,
+    val coverUrl: String?
+)
+
+/** The whole queue and where playback sits in it. */
+data class QueueUiState(
+    val entries: List<QueueEntry> = emptyList(),
+    val currentIndex: Int = 0
+)

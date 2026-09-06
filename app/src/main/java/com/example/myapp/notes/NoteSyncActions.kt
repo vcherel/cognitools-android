@@ -104,48 +104,50 @@ class NoteSyncActions(
     /**
      * Removes a checkbox line from the Ingrédients note and inserts it as a new unchecked item in
      * its canonical section of the Courses note, so running out of an ingredient turns straight
-     * into a correctly placed shopping list entry. Items the Courses model doesn't know land in a
-     * trailing "Autres" section rather than being lost.
+     * into a correctly placed shopping list entry. An item Modèle courses doesn't know goes through
+     * the same reconcile dialog as a direct add, so it gets a real section instead of silently
+     * landing in a trailing "Autres"; its Ingrédients line only disappears once that is answered.
      */
     fun moveLineToCourses(index: Int) {
         val removed = content.split("\n")[index]
         scope.launch {
             val notes = dao.getNotes()
             val courses = notes.withTitle(COURSES_TITLE) ?: return@launch showMissingNote(COURSES_TITLE)
-            val modelNote = notes.withTitle(COURSES_MODEL_TITLE)
+            val modelNote = notes.withTitle(COURSES_MODEL_TITLE) ?: return@launch showMissingNote(COURSES_MODEL_TITLE)
             val itemName = removed.checkboxText().withoutQuantitySuffix().trim()
 
-            val lines = content.split("\n").toMutableList()
-            lines.removeAt(index)
-            saveContent(lines.joinToString("\n"))
+            val groups = parseCourseGroups(modelNote.content)
+            val groupIndex = courseGroupIndexOf(groups, itemName)
+            val known = groupIndex < groups.size
+            val ingredientsSnapshot = content
 
-            val addedLine = UNCHECKED_PREFIX + itemName
-            val newCoursesContent = if (modelNote != null) {
-                val groups = parseCourseGroups(modelNote.content)
-                insertCourseLine(courses.content, groups, courseGroupIndexOf(groups, itemName), addedLine)
-            } else {
-                if (courses.content.isEmpty()) addedLine else courses.content + "\n" + addedLine
+            if (known) {
+                val lines = content.split("\n").toMutableList()
+                lines.removeAt(index)
+                saveContent(lines.joinToString("\n"))
+                val canonical = groups[groupIndex].items.first { it.trim().lowercase() == itemName.lowercase() }
+                updateNoteContent(
+                    courses.id,
+                    insertCourseLine(courses.content, groups, groupIndex, UNCHECKED_PREFIX + canonical)
+                )
             }
-            dao.upsertNote(courses.copy(content = newCoursesContent, updatedAt = System.currentTimeMillis()))
 
-            if (showUndoSnackbar("Déplacé vers Courses")) {
-                val current = content.split("\n").toMutableList()
-                current.add(index.coerceAtMost(current.size), removed)
-                saveContent(current.joinToString("\n"))
-
-                val latestCourses = dao.getNote(courses.id) ?: return@launch
-                val coursesLines = latestCourses.content.split("\n").toMutableList()
-                val addedIndex = coursesLines.indexOf(addedLine)
-                if (addedIndex >= 0) {
-                    coursesLines.removeAt(addedIndex)
-                    dao.upsertNote(
-                        latestCourses.copy(
-                            content = coursesLines.joinToString("\n"),
-                            updatedAt = System.currentTimeMillis()
-                        )
-                    )
-                }
-            }
+            startBatch(
+                NoteSyncBatch(
+                    targetId = courses.id,
+                    modelId = modelNote.id,
+                    sourceId = noteId,
+                    sourceSnapshot = ingredientsSnapshot,
+                    targetSnapshot = courses.content,
+                    modelSnapshot = modelNote.content,
+                    groups = groups.map { it.items },
+                    groupNames = groups.map { it.name },
+                    pending = if (known) emptyList()
+                    else listOf(ReconcileItem(name = itemName, sourceLine = removed, inTarget = false)),
+                    movedCount = if (known) 1 else 0,
+                    kind = SyncKind.COURSE
+                )
+            )
         }
     }
 
