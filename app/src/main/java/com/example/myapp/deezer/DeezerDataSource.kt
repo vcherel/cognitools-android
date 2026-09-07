@@ -10,6 +10,13 @@ import java.io.IOException
 import kotlin.math.min
 
 /**
+ * The stream resolve failed for good: Deezer refuses this sngId, and no retry, session refresh or
+ * network change will make it work. An IOException so Media3 still treats it as a load error rather
+ * than an "unexpected" fatal one, but DeezerPlaybackService recognizes it and skips every retry.
+ */
+class TrackUnavailableException(message: String, cause: Throwable? = null) : IOException(message, cause)
+
+/**
  * Resolves a SNG_ID to a fresh CDN URL at open() time. The MediaItem carries only a stable
  * `dzr://<sngId>?q=<quality>` URI (CDN URLs are ephemeral, so they must never be cached or embedded);
  * this looks the real URL up on demand.

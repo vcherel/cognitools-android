@@ -71,6 +71,7 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
         const val CACHE_LIMIT_BYTES = 5L * 1024 * 1024 * 1024 // 5 GB
         const val CACHE_LIMIT_LABEL = "5 Go"
         private const val RESOLVE_ATTEMPTS = 3
+        private const val REPLACEMENT_CANDIDATES = 3
         private const val QUEUED_NEXT_KEY = "deezer_queued_next"
         private const val SOURCE_TYPE_KEY = "deezer_source_type"
         private const val SOURCE_ID_KEY = "deezer_source_id"
@@ -572,17 +573,23 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
         } catch (e: Exception) {
             return null
         }
-        val matches = candidates.filter { it.sngId != track.sngId && it.matchKey == key }.take(5)
-        for (candidate in matches) {
-            val works = try {
-                resolveStream(candidate.sngId, DEFAULT_QUALITY)
-                true
-            } catch (e: Exception) {
-                false
+        val matches = candidates.filter { it.sngId != track.sngId && it.matchKey == key }
+            .take(REPLACEMENT_CANDIDATES)
+        // Probed together, not one after the other: this runs with the music stopped, and a candidate
+        // that fails still costs a round trip. The search order is kept, the first one that resolves wins.
+        return coroutineScope {
+            val probes = matches.map { candidate ->
+                candidate to async {
+                    try {
+                        resolveStream(candidate.sngId, DEFAULT_QUALITY)
+                        true
+                    } catch (e: Exception) {
+                        false
+                    }
+                }
             }
-            if (works) return candidate
+            probes.firstOrNull { it.second.await() }?.first
         }
-        return null
     }
 
     /** Removes [old] from favorites/[source]'s playlist and adds [new] in its place. */
@@ -618,6 +625,10 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
      * Retries a few times with a fresh session, because a single failure here kills the whole
      * queue: the failure must also surface as an IOException, the only kind Media3 considers
      * retriable.
+     *
+     * A track Deezer flatly refuses to serve is the exception: no session refresh will ever change
+     * that answer, so it gives up on the first attempt and throws [TrackUnavailableException], which
+     * the player uses to jump straight to the replacement search instead of burning its own retries.
      */
     private suspend fun resolveStream(sngId: String, quality: DeezerQuality): String {
         var last: Exception? = null
@@ -628,6 +639,9 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
                 return api.resolveStream(session, sngId, quality).cdnUrl
             } catch (e: Exception) {
                 last = e
+                if (e is DeezerApiException && e.unavailable) {
+                    throw TrackUnavailableException("Deezer refuses to stream $sngId: ${e.message}", e)
+                }
                 if (attempt < RESOLVE_ATTEMPTS - 1) delay(500L * (attempt + 1))
             }
         }

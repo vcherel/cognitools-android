@@ -16,8 +16,16 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
 
-/** Thrown by DeezerApi. [tokenError] means the session is stale and the caller should refresh once and retry. */
-class DeezerApiException(message: String, val tokenError: Boolean = false) : Exception(message)
+/**
+ * Thrown by DeezerApi. [tokenError] means the session is stale and the caller should refresh once and
+ * retry; [unavailable] means the opposite, that this sngId is one Deezer refuses to stream at all
+ * (retired release, geoblocked), so retrying it in any form is wasted time.
+ */
+class DeezerApiException(
+    message: String,
+    val tokenError: Boolean = false,
+    val unavailable: Boolean = false
+) : Exception(message)
 
 /**
  * Low level access to Deezer's private gw-light gateway and media.deezer.com. Knows nothing about
@@ -392,14 +400,15 @@ class DeezerApi {
             val body = """{"license_token":"${session.licenseToken}","media":[{"type":"FULL","formats":[$formatsJson]}],"track_tokens":["$trackToken"]}"""
             val root = json.parseToJsonElement(postJson(GET_URL, body)).jsonObject
             val data0 = root["data"]?.jsonArray?.firstOrNull()?.jsonObject
-                ?: throw DeezerApiException("get_url returned no data for $sngId")
+                ?: throw DeezerApiException("get_url returned no data for $sngId", unavailable = true)
             val errors = data0["errors"]?.jsonArray
             if (!errors.isNullOrEmpty()) {
                 val msg = errors.joinToString { it.jsonObject["message"]?.jsonPrimitive?.content.orEmpty() }
-                throw DeezerApiException("get_url error for $sngId: $msg", tokenError = errors.toString().contains("token", true))
+                val tokenError = errors.toString().contains("token", true)
+                throw DeezerApiException("get_url error for $sngId: $msg", tokenError, unavailable = !tokenError)
             }
             val media0 = data0["media"]?.jsonArray?.firstOrNull()?.jsonObject
-                ?: throw DeezerApiException("Track $sngId not available in any requested format")
+                ?: throw DeezerApiException("Track $sngId not available in any requested format", unavailable = true)
             val url = media0["sources"]!!.jsonArray[0].jsonObject["url"]!!.jsonPrimitive.content
             val actualFormat = media0["format"]?.jsonPrimitive?.content?.let { fmt ->
                 DeezerQuality.entries.firstOrNull { it.apiFormat == fmt }

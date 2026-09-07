@@ -17,6 +17,8 @@ import androidx.media3.datasource.cache.CacheDataSink
 import androidx.media3.datasource.cache.CacheDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import androidx.media3.exoplayer.upstream.DefaultLoadErrorHandlingPolicy
+import androidx.media3.exoplayer.upstream.LoadErrorHandlingPolicy
 import androidx.media3.session.CommandButton
 import androidx.media3.session.DefaultMediaNotificationProvider
 import androidx.media3.session.MediaSession
@@ -43,6 +45,10 @@ import kotlinx.coroutines.launch
  * Plays `dzr://` URIs, resolved to a fresh CDN URL and decrypted on the fly by DeezerDataSource,
  * with a disk cache in front of it.
  */
+/** True when [TrackUnavailableException] is anywhere in the cause chain (Media3 wraps load errors). */
+private fun Throwable?.isTrackUnavailable(): Boolean =
+    generateSequence(this) { it.cause }.take(10).any { it is TrackUnavailableException }
+
 class DeezerPlaybackService : MediaSessionService() {
 
     private var mediaSession: MediaSession? = null
@@ -69,8 +75,19 @@ class DeezerPlaybackService : MediaSessionService() {
             .setCacheWriteDataSinkFactory(null)
             .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
 
+        // A track Deezer has retired fails identically every time, so the default policy's three
+        // backed-off retries are three pointless CDN resolves (and a good ten seconds of silence)
+        // before the replacement search even starts. Genuine network errors keep the full budget.
+        val loadErrorPolicy = object : DefaultLoadErrorHandlingPolicy() {
+            override fun getRetryDelayMsFor(loadErrorInfo: LoadErrorHandlingPolicy.LoadErrorInfo): Long =
+                if (loadErrorInfo.exception.isTrackUnavailable()) C.TIME_UNSET
+                else super.getRetryDelayMsFor(loadErrorInfo)
+        }
+
         val player = ExoPlayer.Builder(this)
-            .setMediaSourceFactory(DefaultMediaSourceFactory(cacheFactory))
+            .setMediaSourceFactory(
+                DefaultMediaSourceFactory(cacheFactory).setLoadErrorHandlingPolicy(loadErrorPolicy)
+            )
             .setAudioAttributes(
                 AudioAttributes.Builder()
                     .setUsage(C.USAGE_MEDIA)
@@ -279,6 +296,10 @@ class DeezerPlaybackService : MediaSessionService() {
                 retriedCurrent = false
             }
             Log.w(TAG, "Playback error on $mediaId (${error.errorCodeName})", error)
+
+            // Nothing to retry when Deezer itself says the track is gone: go looking for another
+            // release of the same song right away.
+            if (error.isTrackUnavailable()) retriedCurrent = true
 
             if (!retriedCurrent) {
                 retriedCurrent = true
