@@ -54,7 +54,8 @@ fun DeezerTrackListScreen(
     loader: suspend () -> List<DeezerTrack>,
     onBack: () -> Unit,
     playlistId: String? = null,
-    source: TrackSource? = playlistId?.let { TrackSource.Playlist(it) }
+    source: TrackSource? = playlistId?.let { TrackSource.Playlist(it) },
+    onOpenArtist: ((DeezerTrack) -> Unit)? = null
 ) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -143,6 +144,7 @@ fun DeezerTrackListScreen(
                                 }
                             },
                             onAddToPlaylist = { pickerTrack = track },
+                            onOpenArtist = onOpenArtist?.let { cb -> { cb(track) } },
                             onRemoveFromPlaylist = playlistId?.let { pid ->
                                 {
                                     scope.launch {

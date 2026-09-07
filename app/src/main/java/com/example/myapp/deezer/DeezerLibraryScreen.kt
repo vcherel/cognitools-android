@@ -32,6 +32,7 @@ import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.OfflinePin
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
@@ -528,6 +529,7 @@ fun TrackRow(
     onToggleBestPepites: (() -> Unit)? = null,
     onAddToPlaylist: (() -> Unit)? = null,
     onRemoveFromPlaylist: (() -> Unit)? = null,
+    onOpenArtist: (() -> Unit)? = null,
     onDismiss: (() -> Unit)? = null
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
@@ -602,6 +604,13 @@ fun TrackRow(
                             text = { Text("Retirer de la playlist") },
                             leadingIcon = { Icon(Icons.Filled.Close, contentDescription = null) },
                             onClick = { menuExpanded = false; onRemoveFromPlaylist() }
+                        )
+                    }
+                    if (onOpenArtist != null) {
+                        DropdownMenuItem(
+                            text = { Text("Voir l'artiste") },
+                            leadingIcon = { Icon(Icons.Filled.Person, contentDescription = null) },
+                            onClick = { menuExpanded = false; onOpenArtist() }
                         )
                     }
                 }

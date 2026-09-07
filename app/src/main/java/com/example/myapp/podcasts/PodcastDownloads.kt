@@ -2,6 +2,9 @@ package com.example.myapp.podcasts
 
 import com.example.myapp.userMessage
 import android.content.Context
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
 import android.net.Uri
 import android.util.Log
 import androidx.media3.common.C
@@ -26,6 +29,15 @@ import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.add
+import kotlinx.serialization.json.buildJsonArray
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.put
 import java.io.File
 import java.io.IOException
 import java.net.HttpURLConnection
@@ -63,6 +75,18 @@ class PodcastDownloads(private val appContext: Context, private val dao: () -> P
     /** One download at a time: several large episodes over mobile data help nobody. */
     private val mutex = Mutex()
 
+    private val json = Json { ignoreUnknownKeys = true }
+
+    /**
+     * The episodes the user asked to keep offline, persisted to disk. A download cut short by a dead
+     * connection or by the app being killed used to be lost silently, forcing a trip back online for
+     * an episode that was meant to be on the phone; now it stays on this list and [retryWanted]
+     * resumes it on the next launch or the next time the connection comes back. Keyed by episode id.
+     */
+    private val wantedFile: File by lazy { File(appContext.filesDir, "podcast_wanted_downloads.json") }
+    private val wantedMutex = Mutex()
+    private val wanted = LinkedHashMap<String, PodcastDownload>()
+
     private val _ids = MutableStateFlow<Set<String>>(emptySet())
     val ids: StateFlow<Set<String>> = _ids
 
@@ -88,9 +112,109 @@ class PodcastDownloads(private val appContext: Context, private val dao: () -> P
     init {
         scope.launch {
             migrateLegacy()
+            loadWanted()
             refresh()
+            retryWanted()
+        }
+        watchNetworkForRetry()
+    }
+
+    // ---- Wanted-downloads persistence ----
+
+    private suspend fun loadWanted() = wantedMutex.withLock {
+        withContext(Dispatchers.IO) {
+            runCatching {
+                if (!wantedFile.exists()) return@runCatching
+                json.parseToJsonElement(wantedFile.readText()).jsonArray.forEach {
+                    val d = downloadFromJson(it.jsonObject)
+                    if (d.episodeId.isNotBlank()) wanted[d.episodeId] = d
+                }
+            }.onFailure { Log.w(TAG, "Could not read the wanted-downloads list", it) }
         }
     }
+
+    /** Caller holds [wantedMutex]. Written aside then renamed: the process dies screen-off often
+     *  enough that a direct write leaves a truncated file. */
+    private suspend fun writeWanted() = withContext(Dispatchers.IO) {
+        runCatching {
+            if (wanted.isEmpty()) {
+                wantedFile.delete()
+                return@runCatching
+            }
+            val text = buildJsonArray { wanted.values.forEach { add(downloadToJson(it)) } }.toString()
+            val tmp = File(wantedFile.parentFile, wantedFile.name + ".tmp")
+            tmp.writeText(text)
+            if (!tmp.renameTo(wantedFile)) {
+                wantedFile.writeText(text)
+                tmp.delete()
+            }
+        }.onFailure { Log.w(TAG, "Could not write the wanted-downloads list", it) }
+    }
+
+    private suspend fun addWanted(episode: PodcastEpisode) = wantedMutex.withLock {
+        wanted[episode.id] = episode.toDownload()
+        writeWanted()
+    }
+
+    private suspend fun removeWanted(episodeId: String) = wantedMutex.withLock {
+        if (wanted.remove(episodeId) != null) writeWanted()
+    }
+
+    /**
+     * Re-queues every wanted episode whose audio isn't fully on the phone. Safe to call repeatedly:
+     * [enqueue] ignores an episode already downloaded or already in flight. Run on init and whenever
+     * the device gets validated internet back.
+     */
+    suspend fun retryWanted() {
+        val pending = wantedMutex.withLock { wanted.values.toList() }
+        pending.forEach { d ->
+            if (d.episodeId in _ids.value || jobs.containsKey(d.episodeId)) return@forEach
+            if (PodcastStreamCache.holdsWholeResource(appContext, d.audioUrl)) return@forEach
+            enqueue(d.toEpisode(seen = false))
+        }
+    }
+
+    private fun watchNetworkForRetry() {
+        val cm = appContext.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager ?: return
+        runCatching {
+            cm.registerDefaultNetworkCallback(object : ConnectivityManager.NetworkCallback() {
+                private var validated = false
+
+                override fun onCapabilitiesChanged(network: Network, caps: NetworkCapabilities) {
+                    val now = caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+                    if (now && !validated) scope.launch { retryWanted() }
+                    validated = now
+                }
+
+                override fun onLost(network: Network) {
+                    validated = false
+                }
+            })
+        }.onFailure { Log.w(TAG, "Could not watch the network to resume downloads", it) }
+    }
+
+    private fun downloadToJson(d: PodcastDownload): JsonObject = buildJsonObject {
+        put("id", d.episodeId)
+        put("pid", d.podcastId)
+        put("pt", d.podcastTitle)
+        d.podcastArtworkUrl?.let { put("pa", it) }
+        put("t", d.title)
+        put("pub", d.pubDate)
+        put("u", d.audioUrl)
+        d.durationSec?.let { put("dur", it) }
+    }
+
+    private fun downloadFromJson(o: JsonObject): PodcastDownload = PodcastDownload(
+        episodeId = o["id"]?.jsonPrimitive?.content.orEmpty(),
+        podcastId = o["pid"]?.jsonPrimitive?.content.orEmpty(),
+        podcastTitle = o["pt"]?.jsonPrimitive?.content.orEmpty(),
+        podcastArtworkUrl = o["pa"]?.jsonPrimitive?.content?.ifBlank { null },
+        title = o["t"]?.jsonPrimitive?.content.orEmpty(),
+        pubDate = o["pub"]?.jsonPrimitive?.content?.toLongOrNull() ?: 0L,
+        audioUrl = o["u"]?.jsonPrimitive?.content.orEmpty(),
+        durationSec = o["dur"]?.jsonPrimitive?.content?.toIntOrNull(),
+        downloadedAt = 0L
+    )
 
     /** [known] is passed in so a composable reading [ids] recomposes when it changes. */
     fun isDownloaded(episodeId: String, known: Set<String> = _ids.value): Boolean = episodeId in known
@@ -144,6 +268,7 @@ class PodcastDownloads(private val appContext: Context, private val dao: () -> P
         _active.update { it + episode }
         PodcastDownloadService.start(appContext)
         jobs[episode.id] = scope.launch {
+            addWanted(episode)
             try {
                 mutex.withLock { download(episode) }
             } catch (e: CancellationException) {
@@ -164,6 +289,7 @@ class PodcastDownloads(private val appContext: Context, private val dao: () -> P
      * cache as ordinary streaming bytes: it still plays offline, and the evictor may reclaim it.
      */
     fun cancel(episodeId: String) {
+        scope.launch { removeWanted(episodeId) }
         jobs.remove(episodeId)?.cancel()
         val url = _active.value.firstOrNull { it.id == episodeId }?.audioUrl
         _active.update { list -> list.filterNot { it.id == episodeId } }
@@ -206,6 +332,12 @@ class PodcastDownloads(private val appContext: Context, private val dao: () -> P
                 )
                 // runInterruptible so cancelling actually aborts the fetch in flight.
                 runInterruptible { writer.cache() }
+                // Some feeds serve the audio chunked, with no Content-Length: the fetch then runs to
+                // the end cleanly but the cache never learns the size, so the whole-resource check
+                // below would call a complete download incomplete forever. A clean read to
+                // end-of-stream is trusted here (a real cut throws), and the bytes held are recorded
+                // as the length.
+                PodcastStreamCache.commitFetchedLengthIfUnknown(appContext, episode.audioUrl)
                 // A connection cut mid-transfer can end the fetch on a plain EOF instead of throwing,
                 // and a truncated episode kept as a download is worse than none: it plays up to where
                 // it stops, the player calls that the end, and the episode gets marked heard.
@@ -225,6 +357,7 @@ class PodcastDownloads(private val appContext: Context, private val dao: () -> P
 
     /** Drops [episodeId]'s downloaded audio and its metadata row, if any. */
     suspend fun remove(episodeId: String) {
+        removeWanted(episodeId)
         val url = dao().getDownloads().firstOrNull { it.episodeId == episodeId }?.audioUrl
         _ids.update { it - episodeId }
         dao().deleteDownload(episodeId)

@@ -69,7 +69,13 @@ data class DeezerRelease(
     val coverMd5: String?,
     val artistId: String,
     val artistName: String
-)
+) {
+    fun coverUrl(size: Int = 250): String? =
+        coverMd5?.let { "https://e-cdns-images.dzcdn.net/images/cover/$it/${size}x$size-000000-80-0-0.jpg" }
+
+    /** The release year, or "" when Deezer gave no date. */
+    val year: String get() = releaseDate.take(4)
+}
 
 /** One podcast show from Deezer's public catalog (search, chart), not yet followed. */
 data class DeezerPodcastShow(val id: String, val title: String, val author: String, val artworkUrl: String?)

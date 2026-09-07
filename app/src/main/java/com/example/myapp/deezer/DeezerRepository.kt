@@ -206,6 +206,9 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
     /** Shuffles [artist]'s most popular tracks. Untagged: not a favorites/playlist source. */
     suspend fun shuffleArtist(artist: DeezerArtist) = shuffleTracks(api.artistTopTracks(artist.id))
 
+    /** [artistId]'s most popular tracks, for the artist screen's "Titres populaires" section. */
+    suspend fun artistTopTracks(artistId: String): List<DeezerTrack> = api.artistTopTracks(artistId)
+
     // ---- Podcast catalog (public, no auth) ----
     // Browsing Deezer's podcast catalog needs no session at all; only actually streaming an
     // episode (below, in the player section) requires the authenticated get_url pipeline.
@@ -231,7 +234,10 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
         if (!diskSeedTried && (_favorites.value == null || _playlists.value == null)) {
             diskSeedTried = true
             withContext(Dispatchers.IO) { DeezerLibraryCache.read(libraryCacheFile) }?.let { snap ->
-                if (_favorites.value == null) setFavorites(snap.favorites)
+                // complete = false: the disk snapshot seeds the UI instantly, but only the network
+                // fetch that follows is allowed to purge the stream cache. A stale or truncated
+                // snapshot driving the purge is how downloaded liked tracks used to vanish.
+                if (_favorites.value == null) setFavorites(snap.favorites, complete = false)
                 if (_playlists.value == null) _playlists.value = snap.playlists
             }
         }
@@ -308,10 +314,21 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
      * one track, and purging the cache against it would wipe every downloaded song. The purge waits for
      * the next real fetch instead.
      */
+    // The largest favorites list seen this run (seeded from the disk snapshot, then every fetch).
+    // A "complete" list that is a big drop from this is treated as a bad fetch: the UI takes it, but
+    // the cache purge is skipped so a glitchy response can't wipe the downloaded tracks.
+    @Volatile private var maxFavoritesSeen = 0
+
     private fun setFavorites(list: List<DeezerTrack>, complete: Boolean = true) {
         _favorites.value = list
         _favoriteIds.value = list.mapTo(HashSet()) { it.sngId }
-        if (complete) purgeCacheOfNonFavoritesAsync()
+        val suspiciousDrop = maxFavoritesSeen > 20 && list.size < maxFavoritesSeen / 2
+        maxFavoritesSeen = maxOf(maxFavoritesSeen, list.size)
+        when {
+            !complete -> {}
+            suspiciousDrop -> Log.w(TAG, "Skipping stream-cache purge: favorites came back as ${list.size}, down from $maxFavoritesSeen")
+            else -> purgeCacheOfNonFavoritesAsync()
+        }
     }
 
     /** The stream cache only holds liked tracks: whenever the favorites list changes (a toggle, or a

@@ -2,6 +2,7 @@ package com.example.myapp.deezer
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -85,7 +86,8 @@ fun FullPlayerSheet(
     repo: DeezerRepository,
     state: PlayerUiState,
     sourceLabel: String? = null,
-    onCollapse: () -> Unit
+    onCollapse: () -> Unit,
+    onOpenArtist: (String) -> Unit = {}
 ) {
     BackHandler(enabled = true, onBack = onCollapse)
 
@@ -146,7 +148,8 @@ fun FullPlayerSheet(
             Text(
                 state.artist,
                 style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.clickable(enabled = state.artist.isNotBlank()) { onOpenArtist(state.artist) }
             )
             if (sourceLabel != null) {
                 Text(

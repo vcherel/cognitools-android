@@ -70,6 +70,7 @@ Root package (shared/misc):
 - `DeezerLibraryScreen.kt`: landing screen; favorites card, playlists rows, followed podcast rows, offline status. Also holds TrackRow and the playlist picker every Deezer screen reuses
 - `DeezerPlaylistScreen.kt`: reusable ordered track list (play, remove, like, add to pépites)
 - `DeezerSearchScreen.kt`: search screen, tracks and podcast shows
+- `DeezerArtistScreen.kt`: one artist: header (Lire / Aléatoire), "Titres populaires" (top tracks), "Discographie" grouped albums/EP/singles, each release opening a track list. Opened from the search artist card, a `TrackRow` menu ("Voir l'artiste", resolved by name), or the full player artist line
 - `DeezerDiscoveries.kt`: the daily "Découvertes du jour" batch; new release scan over the profile artists, Flow/track-mix discoveries, the persisted batch/backlog/proposed state
 - `DeezerDiscoveriesScreen.kt`: the batch's list screen (add, ignore, add all, ignore all, regenerate)
 

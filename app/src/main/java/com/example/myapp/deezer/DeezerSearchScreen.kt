@@ -63,7 +63,12 @@ import kotlinx.coroutines.launch
 private enum class SearchMode { MUSIQUE, PODCAST }
 
 @Composable
-fun DeezerSearchScreen(repo: DeezerRepository, onBack: () -> Unit) {
+fun DeezerSearchScreen(
+    repo: DeezerRepository,
+    onBack: () -> Unit,
+    onOpenArtist: (DeezerArtist) -> Unit = {},
+    onOpenArtistByName: (String) -> Unit = {}
+) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val podcastRepo = context.podcastRepository
@@ -88,7 +93,13 @@ fun DeezerSearchScreen(repo: DeezerRepository, onBack: () -> Unit) {
             )
         }
         when (mode) {
-            SearchMode.MUSIQUE -> MusicSearch(repo = repo, query = query, scope = scope)
+            SearchMode.MUSIQUE -> MusicSearch(
+                repo = repo,
+                query = query,
+                scope = scope,
+                onOpenArtist = onOpenArtist,
+                onOpenArtistByName = onOpenArtistByName
+            )
             SearchMode.PODCAST -> PodcastSearch(podcastRepo = podcastRepo, query = query, scope = scope)
         }
     }
@@ -147,7 +158,13 @@ private fun ModeToggleSegment(text: String, icon: androidx.compose.ui.graphics.v
 }
 
 @Composable
-private fun MusicSearch(repo: DeezerRepository, query: String, scope: kotlinx.coroutines.CoroutineScope) {
+private fun MusicSearch(
+    repo: DeezerRepository,
+    query: String,
+    scope: kotlinx.coroutines.CoroutineScope,
+    onOpenArtist: (DeezerArtist) -> Unit,
+    onOpenArtistByName: (String) -> Unit
+) {
     val context = LocalContext.current
     var results by remember { mutableStateOf<List<DeezerTrack>>(emptyList()) }
     var artist by remember { mutableStateOf<DeezerArtist?>(null) }
@@ -190,6 +207,7 @@ private fun MusicSearch(repo: DeezerRepository, query: String, scope: kotlinx.co
             item(key = "artist-${a.id}") {
                 ArtistCard(
                     artist = a,
+                    onOpen = { onOpenArtist(a) },
                     onShuffle = {
                         scope.launch {
                             runCatching { repo.shuffleArtist(a) }
@@ -217,7 +235,8 @@ private fun MusicSearch(repo: DeezerRepository, query: String, scope: kotlinx.co
                         Toast.makeText(context, toggleBestPepitesMessage(repo, track), Toast.LENGTH_SHORT).show()
                     }
                 },
-                onAddToPlaylist = { pickerTrack = track }
+                onAddToPlaylist = { pickerTrack = track },
+                onOpenArtist = { onOpenArtistByName(track.artist) }
             )
         }
         item { Spacer(Modifier.padding(8.dp)) }
@@ -342,19 +361,19 @@ private fun PodcastCatalogRow(item: PodcastCatalogItem, isFollowing: Boolean, on
 }
 
 /**
- * The catalog's best matching artist for the query, shown above the track results. The whole card
- * taps to shuffle the artist's top tracks right away, no separate screen: the matching tracks below
- * already show what "his songs" are.
+ * The catalog's best matching artist for the query, shown above the track results. The card opens the
+ * artist's own screen (top tracks + discography); the shuffle button on the right still plays the top
+ * tracks at random without leaving the search.
  */
 @Composable
-private fun ArtistCard(artist: DeezerArtist, onShuffle: () -> Unit) {
+private fun ArtistCard(artist: DeezerArtist, onOpen: () -> Unit, onShuffle: () -> Unit) {
     Row(
         Modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp)
             .clip(RoundedCornerShape(12.dp))
             .background(MaterialTheme.colorScheme.surfaceVariant)
-            .clickable(onClick = onShuffle)
+            .clickable(onClick = onOpen)
             .padding(14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -376,8 +395,8 @@ private fun ArtistCard(artist: DeezerArtist, onShuffle: () -> Unit) {
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f)
         )
-        Icon(Icons.Filled.Shuffle, contentDescription = "Lecture aléatoire", tint = MaterialTheme.colorScheme.primary)
-        Spacer(Modifier.width(6.dp))
-        Text("Aléatoire", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
+        IconButton(onClick = onShuffle) {
+            Icon(Icons.Filled.Shuffle, contentDescription = "Lecture aléatoire", tint = MaterialTheme.colorScheme.primary)
+        }
     }
 }

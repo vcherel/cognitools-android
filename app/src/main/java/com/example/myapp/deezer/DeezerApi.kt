@@ -90,19 +90,33 @@ class DeezerApi {
             """{"user_id":"${session.userId}","start":$start,"nb":$nb}"""
         }
 
-    /** Pages a gw song list until it runs dry, so there is no 200 track ceiling. */
+    /**
+     * Pages a gw song list until it runs dry, so there is no 200 track ceiling. Throws rather than
+     * returning a short list when the gateway reports a `total` the collected pages don't reach: a
+     * truncated favorites list is taken as authoritative downstream and would purge every cached
+     * (downloaded) track it happens to leave out.
+     */
     private fun gwSongPages(method: String, apiToken: String, body: (Int, Int) -> String): List<JsonObject> {
         val page = 2000
         val objs = ArrayList<JsonObject>()
         var start = 0
         var iter = 0
+        var reportedTotal = -1
         while (iter++ < 50) {
-            val data = gw(method, body(start, page), apiToken)
-                .jsonObject["results"]?.jsonObject?.get("data")?.jsonArray.orEmpty()
+            val results = gw(method, body(start, page), apiToken).jsonObject["results"]?.jsonObject
+            if (reportedTotal < 0) {
+                reportedTotal = (results?.get("total") ?: results?.get("count"))
+                    ?.jsonPrimitive?.content?.toIntOrNull() ?: -1
+            }
+            val data = results?.get("data")?.jsonArray.orEmpty()
             if (data.isEmpty()) break
             data.forEach { objs += it.jsonObject }
             start += data.size
             if (data.size < page) break
+        }
+        // A few tracks of slack: the list can genuinely shrink between pages if the user unlikes one.
+        if (reportedTotal > 0 && objs.size < reportedTotal - 5) {
+            throw DeezerApiException("gw $method returned ${objs.size} of $reportedTotal items")
         }
         return objs
     }

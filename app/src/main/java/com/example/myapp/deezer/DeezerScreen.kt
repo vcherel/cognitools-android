@@ -9,8 +9,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import com.example.myapp.AppSnackbar
+import kotlinx.coroutines.launch
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -38,7 +41,19 @@ fun DeezerScreen(
     val repo = context.deezerRepository
     val podcastRepo = context.podcastRepository
     val nav = rememberNavController()
+    val scope = rememberCoroutineScope()
     val playerState by repo.playerState.collectAsState()
+
+    fun openArtist(artist: DeezerArtist) {
+        val enc = { s: String -> java.net.URLEncoder.encode(s, "UTF-8") }
+        nav.navigate("artist/${enc(artist.id)}/${enc(artist.name)}/${enc(artist.pictureUrl ?: "")}")
+    }
+    fun openArtistByName(name: String) {
+        scope.launch {
+            val artist = runCatching { repo.searchArtist(name) }.getOrNull()
+            if (artist != null) openArtist(artist) else AppSnackbar.show("Artiste introuvable")
+        }
+    }
     val podcastPlayerState by podcastRepo.playerState.collectAsState()
     val playlists by repo.playlists.collectAsState()
     val sourceLabel = when (val source = playerState.source) {
@@ -75,11 +90,46 @@ fun DeezerScreen(
                         title = "Favoris",
                         source = TrackSource.Favorites,
                         loader = { repo.ensureFavorites() },
-                        onBack = { nav.popBackStackOnce() }
+                        onBack = { nav.popBackStackOnce() },
+                        onOpenArtist = { track -> openArtistByName(track.artist) }
                     )
                 }
                 composable("search") {
-                    DeezerSearchScreen(repo = repo, onBack = { nav.popBackStackOnce() })
+                    DeezerSearchScreen(
+                        repo = repo,
+                        onBack = { nav.popBackStackOnce() },
+                        onOpenArtist = ::openArtist,
+                        onOpenArtistByName = ::openArtistByName
+                    )
+                }
+                composable("artist/{id}/{name}/{pic}") { entry ->
+                    val dec = { key: String -> entry.arguments?.getString(key)?.let { java.net.URLDecoder.decode(it, "UTF-8") }.orEmpty() }
+                    DeezerArtistScreen(
+                        repo = repo,
+                        artistId = dec("id"),
+                        artistName = dec("name"),
+                        pictureUrl = dec("pic").ifBlank { null },
+                        onBack = { nav.popBackStackOnce() },
+                        onOpenRelease = { r ->
+                            val enc = { s: String -> java.net.URLEncoder.encode(s, "UTF-8") }
+                            nav.navigate("artistAlbum/${enc(r.albumId)}/${enc(r.title)}/${enc(r.artistId)}/${enc(r.artistName)}")
+                        }
+                    )
+                }
+                composable("artistAlbum/{albumId}/{title}/{artistId}/{artistName}") { entry ->
+                    val dec = { key: String -> entry.arguments?.getString(key)?.let { java.net.URLDecoder.decode(it, "UTF-8") }.orEmpty() }
+                    val title = dec("title")
+                    val release = DeezerRelease(
+                        albumId = dec("albumId"), title = title, releaseDate = "", recordType = "",
+                        coverMd5 = null, artistId = dec("artistId"), artistName = dec("artistName")
+                    )
+                    DeezerTrackListScreen(
+                        repo = repo,
+                        title = title,
+                        loader = { repo.albumTracks(release) },
+                        onBack = { nav.popBackStackOnce() },
+                        onOpenArtist = { track -> openArtistByName(track.artist) }
+                    )
                 }
                 composable("discoveries") {
                     DeezerDiscoveriesScreen(repo = repo, onBack = { nav.popBackStackOnce() })
@@ -100,7 +150,8 @@ fun DeezerScreen(
                         title = title,
                         playlistId = id,
                         loader = { repo.playlistTracks(id) },
-                        onBack = { nav.popBackStackOnce() }
+                        onBack = { nav.popBackStackOnce() },
+                        onOpenArtist = { track -> openArtistByName(track.artist) }
                     )
                 }
             }
@@ -138,7 +189,11 @@ fun DeezerScreen(
                 repo = repo,
                 state = playerState,
                 sourceLabel = sourceLabel,
-                onCollapse = { showFullPlayer = false }
+                onCollapse = { showFullPlayer = false },
+                onOpenArtist = { name ->
+                    showFullPlayer = false
+                    openArtistByName(name)
+                }
             )
         }
         if (showFullPodcastPlayer) {

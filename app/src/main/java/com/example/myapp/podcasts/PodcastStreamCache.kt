@@ -74,6 +74,30 @@ object PodcastStreamCache {
     fun isFullyCached(context: Context, url: String, position: Long, length: Long): Boolean =
         length > 0 && cache(context).isCached(url, position, length)
 
+    /**
+     * After a fetch that ran cleanly to end-of-stream, record the contiguous bytes held from 0 as
+     * the content length, but only when the cache doesn't already know it. For feeds that serve the
+     * audio with no Content-Length, without this a fully downloaded episode reads as "length unknown"
+     * and never counts as held.
+     */
+    fun commitFetchedLengthIfUnknown(context: Context, url: String) {
+        if (url.isBlank()) return
+        val store = cache(context)
+        if (ContentMetadata.getContentLength(store.getContentMetadata(url)) > 0) return
+        var end = 0L
+        store.getCachedSpans(url).sortedBy { it.position }.forEach { span ->
+            if (span.position > end) return@forEach
+            end = maxOf(end, span.position + span.length)
+        }
+        if (end <= 0L) return
+        runCatching {
+            store.applyContentMetadataMutations(
+                url,
+                ContentMetadataMutations().apply { ContentMetadataMutations.setContentLength(this, end) }
+            )
+        }
+    }
+
     /** True when the whole resource is held: what "downloaded" means now that there is no file. */
     fun holdsWholeResource(context: Context, url: String): Boolean {
         if (url.isBlank()) return false
