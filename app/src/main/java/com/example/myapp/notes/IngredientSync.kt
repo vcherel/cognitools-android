@@ -156,7 +156,8 @@ data class CourseGroup(val name: String, val items: List<String>)
 
 /** The Modèle courses note split into named groups: each "--- Nom" separator starts a new
  *  group that runs until the next separator. Lines before the first separator, if any,
- *  form an unnamed leading group. */
+ *  form an unnamed leading group. A named section with nothing under it is kept, so an
+ *  emptied category still shows up in the group picker. */
 fun parseCourseGroups(content: String): List<CourseGroup> {
     val groups = mutableListOf<CourseGroup>()
     var name = ""
@@ -165,11 +166,14 @@ fun parseCourseGroups(content: String): List<CourseGroup> {
         val t = raw.trim()
         if (t.isEmpty()) continue
         if (t.isSeparatorLine()) {
-            if (current.isNotEmpty()) { groups.add(CourseGroup(name, current)); current = mutableListOf() }
+            if (current.isNotEmpty() || name.isNotEmpty()) {
+                groups.add(CourseGroup(name, current))
+                current = mutableListOf()
+            }
             name = t.separatorName()
         } else current.add(t)
     }
-    if (current.isNotEmpty()) groups.add(CourseGroup(name, current))
+    if (current.isNotEmpty() || name.isNotEmpty()) groups.add(CourseGroup(name, current))
     return groups
 }
 
@@ -265,19 +269,23 @@ fun insertCourseLine(content: String, groups: List<CourseGroup>, groupIndex: Int
 fun addCourseGroupToModel(modelContent: String, beforeIndex: Int, groupName: String, itemName: String): String {
     val lines = modelContent.split("\n").toMutableList()
     // First line of each group parseCourseGroups would return: its "--- Nom" header when it
-    // has one, otherwise its first item line.
+    // has one, otherwise its first item line. Kept in step with the parser, empty named
+    // sections included, so `beforeIndex` points at the same group here as in the picker.
     val starts = mutableListOf<Int>()
-    var header: Int? = null
-    var inBlock = false
+    var name = ""
+    var start: Int? = null
+    var count = 0
     for ((i, raw) in lines.withIndex()) {
         val t = raw.trim()
         if (t.isEmpty()) continue
         if (t.isSeparatorLine()) {
-            header = i
-            inBlock = false
-        } else if (!inBlock) {
-            starts.add(header ?: i)
-            inBlock = true
+            if (count > 0 || name.isNotEmpty()) starts.add(start ?: i)
+            name = t.separatorName()
+            start = if (name.isNotEmpty()) i else null
+            count = 0
+        } else {
+            if (start == null) start = i
+            count++
         }
     }
     val at = starts.getOrNull(beforeIndex) ?: lines.size
