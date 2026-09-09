@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Diamond
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FormatListNumbered
 import androidx.compose.material.icons.filled.FavoriteBorder
@@ -53,6 +54,7 @@ import com.example.myapp.LocalGoHome
 import com.example.myapp.MediaArt
 import com.example.myapp.PlayPauseButton
 import com.example.myapp.PlayerSeekBar
+import com.example.myapp.notes.appendToDjNote
 import kotlinx.coroutines.launch
 
 /**
@@ -174,7 +176,7 @@ fun FullPlayerSheet(
                 IconButton(onClick = {
                     val track = currentTrack(repo, state) ?: return@IconButton
                     scope.launch {
-                        Toast.makeText(context, toggleBestPepitesMessage(repo, track), Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, toggleBestPepitesMessage(context, repo, track), Toast.LENGTH_SHORT).show()
                         pepitesTick++
                     }
                 }) {
@@ -184,28 +186,22 @@ fun FullPlayerSheet(
                         tint = if (inPepites) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
+                // Sends the track to the DJ note, the list of what to download. The diamond does
+                // it too (see toggleBestPepitesMessage), this is the way to ask for it alone.
+                IconButton(onClick = {
+                    val track = currentTrack(repo, state) ?: return@IconButton
+                    scope.launch {
+                        val added = runCatching { appendToDjNote(context, track.artist, track.title) }.getOrDefault(false)
+                        Toast.makeText(context, if (added) "Ajouté à DJ" else "Déjà dans DJ", Toast.LENGTH_SHORT).show()
+                    }
+                }) {
+                    Icon(Icons.Filled.Download, contentDescription = "Ajouter à DJ", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
                 IconButton(onClick = {
                     val track = currentTrack(repo, state) ?: return@IconButton
                     shareTrack(context, track)
                 }) {
                     Icon(Icons.Filled.Share, contentDescription = "Partager", tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                // The icon itself says which mode is on (crossed arrows vs a numbered list): a tint
-                // alone doesn't read. Tapping it reorders what is left of the queue right away, and
-                // is the saved default for every list started afterwards.
-                IconButton(onClick = { showQueue = true }) {
-                    Icon(
-                        Icons.Filled.QueueMusic,
-                        contentDescription = "File d'attente",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                IconButton(onClick = { scope.launch { repo.setShuffle(!shuffle) } }) {
-                    Icon(
-                        if (shuffle) Icons.Filled.Shuffle else Icons.Filled.FormatListNumbered,
-                        contentDescription = if (shuffle) "Lecture aléatoire activée" else "Lecture dans l'ordre",
-                        tint = if (shuffle) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                    )
                 }
             }
 
@@ -221,6 +217,16 @@ fun FullPlayerSheet(
 
             Spacer(Modifier.height(16.dp))
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                // Shuffle and the queue sit at the ends of the transport row, where the thumb
+                // already is. The shuffle icon itself says which mode is on (crossed arrows vs a
+                // numbered list): a tint alone doesn't read.
+                IconButton(onClick = { scope.launch { repo.setShuffle(!shuffle) } }) {
+                    Icon(
+                        if (shuffle) Icons.Filled.Shuffle else Icons.Filled.FormatListNumbered,
+                        contentDescription = if (shuffle) "Lecture aléatoire activée" else "Lecture dans l'ordre",
+                        tint = if (shuffle) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
                 IconButton(onClick = { repo.previous() }) {
                     Icon(Icons.Filled.SkipPrevious, contentDescription = "Précédent", modifier = Modifier.size(40.dp))
                 }
@@ -232,6 +238,13 @@ fun FullPlayerSheet(
                 )
                 IconButton(onClick = { repo.next() }) {
                     Icon(Icons.Filled.SkipNext, contentDescription = "Suivant", modifier = Modifier.size(40.dp))
+                }
+                IconButton(onClick = { showQueue = true }) {
+                    Icon(
+                        Icons.Filled.QueueMusic,
+                        contentDescription = "File d'attente",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
         }

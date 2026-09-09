@@ -157,6 +157,7 @@ Root package (shared/misc):
 - `NoteSyncActions.kt`: the flows the editor triggers across the Courses/Ingrédients/model notes (move, add, re-sort, reconcile) and the batch state behind the reconcile dialog
 - `IngredientSync.kt`: the pure text side of that sync: group parsing and rendering (Ingrédients: `Modèle ingrédients`, anonymous blank-line groups; Courses: `Modèle courses`, named "--- Nom" sections), NoteSyncBatch/ReconcileItem, closeness ranking
 - `IngredientDialogs.kt`: the reconcile dialog and the add-an-item name prompt
+- `DjNote.kt`: `appendToDjNote`, the "Artiste - Titre" line appended to the DJ note (the tracks to download), written by the music tool
 
 `reader/` (epub reader):
 - `Epub.kt`: the whole epub format side, no library: java.util.zip opens the archive, jsoup parses the OPF manifest, the table of contents and the chapter markup into TextBlock/InlineSpan. Pure, covered by a JVM unit test

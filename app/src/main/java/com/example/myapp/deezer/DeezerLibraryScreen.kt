@@ -1,6 +1,7 @@
 package com.example.myapp.deezer
 
 import com.example.myapp.userMessage
+import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -67,6 +68,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
 import com.example.myapp.ErrorText
 import com.example.myapp.LocalGoHome
+import com.example.myapp.notes.appendToDjNote
 import com.example.myapp.MediaArt
 import com.example.myapp.MediaListRow
 import com.example.myapp.MediaRowSubtitle
@@ -638,8 +640,9 @@ suspend fun addToQueueMessage(repo: DeezerRepository, track: DeezerTrack): Strin
 /**
  * Shared: runs the diamond action and returns the toast to show. Every entry point (row menu, now
  * playing sheet, notification) toggles: a track already in Best pépites comes back out of it.
+ * Adding one also files it in the DJ note, since putting a track there means wanting it downloaded.
  */
-suspend fun toggleBestPepitesMessage(repo: DeezerRepository, track: DeezerTrack): String =
+suspend fun toggleBestPepitesMessage(context: Context, repo: DeezerRepository, track: DeezerTrack): String =
     runCatching {
         // Without the membership loaded the track would look absent and be added a second time.
         runCatching { repo.ensureBestPepitesLoaded() }
@@ -647,8 +650,14 @@ suspend fun toggleBestPepitesMessage(repo: DeezerRepository, track: DeezerTrack)
             if (repo.removeFromBestPepites(track.sngId)) "Retiré de Best pépites"
             else "Playlist Best pépites introuvable"
         } else when (repo.addToBestPepites(track)) {
-            PlaylistAddResult.ADDED -> "Ajouté à Best pépites"
-            PlaylistAddResult.DUPLICATE -> "Déjà dans Best pépites"
+            PlaylistAddResult.ADDED -> {
+                runCatching { appendToDjNote(context, track.artist, track.title) }
+                "Ajouté à Best pépites"
+            }
+            PlaylistAddResult.DUPLICATE -> {
+                runCatching { appendToDjNote(context, track.artist, track.title) }
+                "Déjà dans Best pépites"
+            }
             PlaylistAddResult.NO_PLAYLIST -> "Playlist Best pépites introuvable"
         }
     }.getOrElse { "Échec de l'action" }

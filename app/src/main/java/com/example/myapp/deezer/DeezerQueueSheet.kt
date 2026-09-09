@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DragHandle
@@ -22,6 +23,7 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -60,6 +62,14 @@ fun QueueSheet(repo: DeezerRepository, onDismiss: () -> Unit) {
     var draggedIndex by remember { mutableIntStateOf(-1) }
     var dragOffset by remember { mutableFloatStateOf(0f) }
 
+    // The sheet opens on the track playing rather than at the top of the queue, which is usually
+    // far above it. One-shot: a later scroll is the user's own.
+    val listState = rememberLazyListState()
+    LaunchedEffect(Unit) {
+        val index = repo.queueState.value.currentIndex
+        if (index > 0) listState.scrollToItem(index)
+    }
+
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState()) {
         Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 24.dp)) {
             val remaining = (queue.entries.size - queue.currentIndex - 1).coerceAtLeast(0)
@@ -71,6 +81,7 @@ fun QueueSheet(repo: DeezerRepository, onDismiss: () -> Unit) {
             )
 
             LazyColumn(
+                state = listState,
                 modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {

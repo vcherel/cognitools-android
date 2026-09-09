@@ -29,6 +29,7 @@ import com.example.myapp.AppSnackbar
 import com.example.myapp.MainActivity
 import com.example.myapp.MyApplication
 import com.example.myapp.R
+import com.example.myapp.notes.appendToDjNote
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import kotlinx.coroutines.CoroutineScope
@@ -256,6 +257,11 @@ class DeezerPlaybackService : MediaSessionService() {
                     } else {
                         runCatching { repo.addToBestPepites(track) }
                             .onSuccess {
+                                // Filing it in Best pépites means wanting it downloaded, so it also
+                                // goes to the DJ note (see appendToDjNote).
+                                if (it != PlaylistAddResult.NO_PLAYLIST) {
+                                    runCatching { appendToDjNote(applicationContext, track.artist, track.title) }
+                                }
                                 toast(
                                     when (it) {
                                         PlaylistAddResult.ADDED -> "Ajouté à Best pépites"

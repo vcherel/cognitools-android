@@ -334,6 +334,9 @@ class NoteSyncActions(
                     val present = presentIngredients(targetContent)
                     val newPresent = if (current.inTarget) present else (present + current.name).distinctBy { it.trim().lowercase() }
                     updateNoteContent(currentBatch.targetId, renderIntoIngredientsNote(targetContent, newPresent, newGroups))
+                    // The group just created is offered to the remaining unknown items, instead of
+                    // each of them having to make its own.
+                    batch = batch?.copy(groups = newGroups)
                 }
                 SyncKind.COURSE -> {
                     val newGroups = parseCourseGroups(newModelContent)
@@ -343,6 +346,7 @@ class NoteSyncActions(
                         insertCourseLine(targetContent, newGroups, groupIndex, UNCHECKED_PREFIX + current.name)
                     }
                     updateNoteContent(currentBatch.targetId, newTargetContent)
+                    batch = batch?.copy(groups = newGroups.map { it.items }, groupNames = newGroups.map { it.name })
                 }
             }
 
