@@ -70,9 +70,13 @@ private fun currentTrack(repo: DeezerRepository, state: PlayerUiState): DeezerTr
  * Send a track to the system share sheet. The link goes through song.link (Odesli) so it lands on a
  * page offering Spotify / Apple Music / YouTube / Deezer, rather than forcing a Deezer account on the
  * person receiving it.
+ *
+ * It is the short `song.link/d/<id>` form, not the `song.link/<full deezer url>` one Odesli also
+ * accepts: the second embeds a `https://` inside the link, and a chat app that auto-linkifies the
+ * message cuts it there, so what the friend taps is a truncated, dead URL.
  */
 private fun shareTrack(context: Context, track: DeezerTrack) {
-    val link = "https://song.link/https://www.deezer.com/track/${track.sngId}"
+    val link = "https://song.link/d/${track.sngId}"
     val text = if (track.artist.isBlank()) "${track.title}\n$link" else "${track.title} par ${track.artist}\n$link"
     val send = Intent(Intent.ACTION_SEND).apply {
         type = "text/plain"
