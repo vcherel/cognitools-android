@@ -364,10 +364,11 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
      * Likes or unlikes [track]. The local cache always updates right away, online or not, so the heart
      * responds instantly. When there is no connection (or the call drops mid flight), the change is
      * queued to disk instead of sent, and [flushPendingFavorites] retries it the next time a Deezer
-     * screen is opened with a connection.
+     * screen is opened with a connection. Unliking the track being played skips to the next one.
      */
     suspend fun toggleFavorite(track: DeezerTrack) {
         val liked = isFavorite(track.sngId)
+        if (liked) controller?.let { if (it.currentMediaItem?.mediaId == track.sngId && it.hasNextMediaItem()) it.seekToNextMediaItem() }
         val loaded = _favorites.value
         val cur = loaded ?: emptyList()
         setFavorites(

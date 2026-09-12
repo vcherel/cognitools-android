@@ -99,7 +99,7 @@ class DeezerPlaybackService : MediaSessionService() {
             .setHandleAudioBecomingNoisy(true)
             .build()
         player.addListener(ErrorRecovery(player))
-        player.addListener(TrackWatcher())
+        player.addListener(TrackWatcher(player))
         mediaSession = MediaSession.Builder(this, player)
             .setCallback(SessionCallback())
             .setMediaButtonPreferences(actionButtons(liked = false, inPepites = false))
@@ -187,9 +187,14 @@ class DeezerPlaybackService : MediaSessionService() {
         )
     }
 
-    /** Keeps the two buttons in sync with the current track, warming the caches they read. */
-    private inner class TrackWatcher : Player.Listener {
+    /**
+     * Keeps the two buttons in sync with the current track, warming the caches they read. Also
+     * resumes playback on a skip: a next/previous while paused is a request to hear that track,
+     * whichever button sent it (app, notification, headphones).
+     */
+    private inner class TrackWatcher(private val player: ExoPlayer) : Player.Listener {
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+            if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_SEEK && !player.playWhenReady) player.play()
             refreshActionButtons()
             scope.launch {
                 // Both are no-ops once loaded; without them the first notification tap would act on
