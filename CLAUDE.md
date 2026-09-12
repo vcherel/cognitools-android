@@ -41,6 +41,7 @@ Root package (shared/misc):
 - `Normalize.kt`: `deaccented` / `matchNormalized` / `slugified`, the one place text is folded for comparison
 - `Http.kt`: shared httpGet helper and User-Agent (Weather + Wikipedia + podcast feeds + news)
 - `Errors.kt`: `userMessage(throwable)`, what a failed job says on screen; rethrows cancellation so a screen left mid-request never shows an error
+- `AtomicWrite.kt`: `File.writeAtomically`, the one way a JSON state file is written (tmp then rename), since the process dies screen-off often enough to truncate a direct write
 - `Share.kt`: `shareUrisIntent`, the one place an ACTION_SEND / ACTION_SEND_MULTIPLE is built (gallery + file explorer)
 - `BottomFadeOverlay.kt`: shared fade out gradient overlay composable
 - `Snackbar.kt`: AppSnackbar, the app wide snackbar screens post undo actions through
@@ -60,6 +61,7 @@ Root package (shared/misc):
 - `DeezerSettings.kt`: DataStore for the ARL credential and quality
 - `DeezerSettingsDialog.kt`: the ARL paste dialog
 - `DeezerRepository.kt`: the singleton; session lifecycle, MediaController + player state flow, stream cache, library access, "Best pépites" quick-add
+- `DeezerPendingFavorites.kt`: the likes and unlikes made offline, queued to disk and resent once the phone has internet again
 - `DeezerDataSource.kt`: resolves `dzr://<sngId>` to a fresh CDN URL at open() time and decrypts on the fly
 - `DeezerLibraryCache.kt`: JSON snapshot of favorites + playlists so a cold launch renders instantly
 - `DeezerOffline.kt`: DeezerOfflineLibrary, the permanent Best pépites mirror; sync, retry pass, sync log file
@@ -67,18 +69,20 @@ Root package (shared/misc):
 - `DeezerScreen.kt`: host for the whole Musique tool (music *and* podcasts), nested NavHost + the two persistent mini-players
 - `DeezerNowPlaying.kt`: FullPlayerSheet, plus the share-a-track sheet. The mini-player bar itself is the shared one in `PlayerUi.kt`
 - `DeezerQueueSheet.kt`: QueueSheet, the queue opened from the full player: jump to a track, drag to reorder, remove, each edit applied straight to the controller
-- `DeezerLibraryScreen.kt`: landing screen; favorites card, playlists rows, followed podcast rows, offline status. Also holds TrackRow and the playlist picker every Deezer screen reuses
+- `DeezerLibraryScreen.kt`: landing screen; favorites card, playlists rows, followed podcast rows, offline status
+- `DeezerTrackRow.kt`: TrackRow (the one tappable track line with its heart and menu), the playlist picker dialog, and the add-to-queue / Best pépites / add-to-playlist actions that return the toast to show, reused by every Deezer screen
 - `DeezerPlaylistScreen.kt`: reusable ordered track list (play, remove, like, add to pépites)
 - `DeezerSearchScreen.kt`: search screen, tracks and podcast shows
 - `DeezerArtistScreen.kt`: one artist: header (Lire / Aléatoire), "Titres populaires" (top tracks), "Discographie" grouped albums/EP/singles, each release opening a track list. Opened from the search artist card, a `TrackRow` menu ("Voir l'artiste", resolved by name), or the full player artist line
 - `DeezerDiscoveries.kt`: the daily "Découvertes du jour" batch; new release scan over the profile artists, Flow/track-mix discoveries, the persisted batch/backlog/proposed state
+- `RollingLog.kt`: the capped text log the offline sync and the discoveries batch write, in the external files dir so a release build's log reads with plain adb
 - `DeezerDiscoveriesScreen.kt`: the batch's list screen (add, ignore, add all, ignore all, regenerate)
 
 `podcasts/` (podcast subscriptions and playback, surfaced inside the Musique tool):
 - `Models.kt`: PodcastFavorite/PodcastEpisode/PodcastCatalogItem/PodcastEpisodeProgress/PodcastDownload and PodcastDao
 - `PodcastApi.kt`: the iTunes directory search and the RSS feed parsing
 - `PodcastRepository.kt`: the singleton; followed shows (Room), the merged episode list re-fetched live from each feed, heard/seen state, listening progress, the MediaController. Downloads and the sleep timer are the two objects below, reached as `repo.downloads` and `repo.sleepTimer`
-- `PodcastDownloads.kt`: the download queue and what counts as downloaded (derived from the bytes held, never a flag), the one-at-a-time worker, the migration off the old file-per-download layout, and `openAudio` (the by-hand redirect following podcast enclosures need)
+- `PodcastDownloads.kt`: the download queue and what counts as downloaded (derived from the bytes held, never a flag), the one-at-a-time worker, and `openAudio` (the by-hand redirect following podcast enclosures need)
 - `PodcastSleepTimer.kt`: the timer that pauses playback, plus the pre-fetch, the coverage badge and the watchdog that make sure the audio to reach its end is on the phone
 - `PodcastStreamCache.kt`: the one store for podcast audio, keyed by the episode's audio URL, read and written by playback, the sleep timer pre-fetch and the downloads alike. A download is the whole resource held plus a protected key, which its custom evictor never evicts and never counts against the LRU cap
 - `PodcastPlaybackService.kt`: MediaSessionService owning the episode ExoPlayer; its own notification id and channel, distinct from the Deezer one

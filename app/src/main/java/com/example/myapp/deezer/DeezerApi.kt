@@ -269,8 +269,6 @@ class DeezerApi {
         }
     }
 
-    // ---- Mutations (like/unlike, add/remove from a playlist) ----
-
     /** Adds a track to the owner's favorites (loved tracks). */
     suspend fun addFavorite(session: DeezerSession, sngId: String): Unit = withContext(Dispatchers.IO) {
         gw("favorite_song.add", """{"SNG_ID":"$sngId"}""", session.apiToken)
@@ -418,8 +416,6 @@ class DeezerApi {
 
     private fun qualityChain(preferred: DeezerQuality): List<DeezerQuality> =
         (listOf(preferred) + DeezerQuality.MP3_128).distinct()
-
-    // ---- HTTP ----
 
     /**
      * One public API list call. Deezer answers 200 with an error object rather than an HTTP status

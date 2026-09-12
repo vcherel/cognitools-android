@@ -145,8 +145,6 @@ fun noteTitleAndPreview(note: Note): Pair<String, String> {
     }
 }
 
-// ---- Searching notes ----
-
 /**
  * Lowercased and stripped of accents, so "creme" finds "crème". Deliberately one output character
  * per input character (a decomposed letter keeps only its base): every index into the result is also

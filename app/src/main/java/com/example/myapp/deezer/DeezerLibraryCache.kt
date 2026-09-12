@@ -1,5 +1,6 @@
 package com.example.myapp.deezer
 
+import com.example.myapp.writeAtomically
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.add
@@ -77,16 +78,6 @@ object DeezerLibraryCache {
                 }
             })
         }
-        // Written aside then renamed: a direct write killed screen-off leaves a truncated file, which
-        // then fails to parse and seeds an empty library.
-        runCatching {
-            val text = root.toString()
-            val tmp = File(file.parentFile, file.name + ".tmp")
-            tmp.writeText(text)
-            if (!tmp.renameTo(file)) {
-                file.writeText(text)
-                tmp.delete()
-            }
-        }
+        runCatching { file.writeAtomically(root.toString()) }
     }
 }

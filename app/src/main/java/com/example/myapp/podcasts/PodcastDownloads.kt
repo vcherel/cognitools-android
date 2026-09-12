@@ -1,5 +1,6 @@
 package com.example.myapp.podcasts
 
+import com.example.myapp.writeAtomically
 import com.example.myapp.userMessage
 import android.content.Context
 import android.net.ConnectivityManager
@@ -42,7 +43,6 @@ import java.io.File
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
-import java.security.MessageDigest
 
 private const val TAG = "PodcastDownloads"
 
@@ -60,14 +60,6 @@ private const val TAG = "PodcastDownloads"
  * Owned by [PodcastRepository], which is where the rest of the app reaches it.
  */
 class PodcastDownloads(private val appContext: Context, private val dao: () -> PodcastDao) {
-
-    /** Where downloads lived before the cache took them over. Emptied by [migrateLegacy]. */
-    private val legacyDir: File by lazy { File(appContext.filesDir, "podcast_downloads") }
-
-    /** What those files were named: the only thing that can still tie one back to its episode. */
-    private fun legacyFileName(episodeId: String): String =
-        MessageDigest.getInstance("SHA-256").digest(episodeId.toByteArray())
-            .joinToString("") { "%02x".format(it) }
 
     /** Outlives every screen: a download keeps going with the app closed and the phone locked. */
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -111,15 +103,12 @@ class PodcastDownloads(private val appContext: Context, private val dao: () -> P
 
     init {
         scope.launch {
-            migrateLegacy()
             loadWanted()
             refresh()
             retryWanted()
         }
         watchNetworkForRetry()
     }
-
-    // ---- Wanted-downloads persistence ----
 
     private suspend fun loadWanted() = wantedMutex.withLock {
         withContext(Dispatchers.IO) {
@@ -141,13 +130,7 @@ class PodcastDownloads(private val appContext: Context, private val dao: () -> P
                 wantedFile.delete()
                 return@runCatching
             }
-            val text = buildJsonArray { wanted.values.forEach { add(downloadToJson(it)) } }.toString()
-            val tmp = File(wantedFile.parentFile, wantedFile.name + ".tmp")
-            tmp.writeText(text)
-            if (!tmp.renameTo(wantedFile)) {
-                wantedFile.writeText(text)
-                tmp.delete()
-            }
+            wantedFile.writeAtomically(buildJsonArray { wanted.values.forEach { add(downloadToJson(it)) } }.toString())
         }.onFailure { Log.w(TAG, "Could not write the wanted-downloads list", it) }
     }
 
@@ -230,28 +213,6 @@ class PodcastDownloads(private val appContext: Context, private val dao: () -> P
         whole.forEach { PodcastStreamCache.setProtected(appContext, it.audioUrl, true) }
         (rows - whole.toSet()).forEach { dao().deleteDownload(it.episodeId) }
         _ids.value = whole.map { it.episodeId }.toSet()
-    }
-
-    /**
-     * Moves the downloads made back when they were plain files into the cache, once. Re-downloading
-     * them instead would silently cost the user every episode they had put aside for a trip.
-     */
-    private suspend fun migrateLegacy() = withContext(Dispatchers.IO) {
-        val files = legacyDir.listFiles()?.filter { it.extension == "audio" } ?: return@withContext
-        if (files.isEmpty()) return@withContext
-        val byName = dao().getDownloads().associateBy { legacyFileName(it.episodeId) }
-        files.forEach { file ->
-            val row = byName[file.nameWithoutExtension]
-            // A file with no row names no episode and no URL: there is nothing to file it under.
-            if (row != null && PodcastStreamCache.importFile(appContext, row.audioUrl, file)) {
-                Log.i(TAG, "Migrated download into the cache: ${row.title}")
-            } else if (row != null) {
-                Log.w(TAG, "Could not migrate download, it will have to be fetched again: ${row.title}")
-                dao().deleteDownload(row.episodeId)
-            }
-            file.delete()
-        }
-        legacyDir.delete()
     }
 
     /**

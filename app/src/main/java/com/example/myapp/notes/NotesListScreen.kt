@@ -661,7 +661,7 @@ private fun NoteItem(
                 onClick = onRecolor,
                 modifier = Modifier.size(36.dp)
             ) {
-                Icon(Icons.Default.Palette, contentDescription = "Couleur aléatoire")
+                Icon(Icons.Default.Palette, contentDescription = "Couleur suivante")
             }
             if (!note.locked) {
                 Spacer(Modifier.size(4.dp))

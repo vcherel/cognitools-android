@@ -1,5 +1,6 @@
 package com.example.myapp.motsfleches
 
+import com.example.myapp.writeAtomically
 import android.content.Context
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
@@ -94,7 +95,7 @@ object MotsFlechesStore {
     }
 
     suspend fun save(context: Context, lang: MotsFlechesLang, state: PuzzleState) = withContext(Dispatchers.IO) {
-        File(context.filesDir, lang.saveFile).writeText(encode(state))
+        File(context.filesDir, lang.saveFile).writeAtomically(encode(state))
     }
 
     /**

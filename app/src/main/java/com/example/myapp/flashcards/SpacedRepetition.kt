@@ -16,7 +16,6 @@ fun reviewCard(
     now: Long = System.currentTimeMillis(),
     random: () -> Double = Math::random
 ): FlashcardElement {
-    // Update ease factor
     var newEF = card.easeFactor + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02))
     if (newEF < 1.3) newEF = 1.3
 
@@ -25,17 +24,13 @@ fun reviewCard(
         newEF *= 1.05
     }
 
-    // Update repetitions
     val newReps = if (quality >= 3) card.repetitions + 1 else 0
 
-    // Update total wins/losses
     val newWins = card.totalWins + if (quality >= 3) 1 else 0
     val newLosses = card.totalLosses + if (quality < 3) 1 else 0
 
-    // Calculate new score
     val newScore = ((newWins.toDouble() / (newWins + newLosses)) * 10).coerceIn(0.0, 10.0)
 
-    // Update interval
     val newInterval = when {
         // If we fail, the card comes again quickly (25% chance to wait a bit depending on score)
         quality < 3 -> { if (random() < 0.25) newScore.coerceAtLeast(1.0) else 0.0 }

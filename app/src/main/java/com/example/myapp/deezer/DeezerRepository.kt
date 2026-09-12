@@ -2,7 +2,6 @@ package com.example.myapp.deezer
 
 import android.content.Context
 import android.net.ConnectivityManager
-import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.Uri
 import android.os.Bundle
@@ -19,6 +18,7 @@ import androidx.media3.session.MediaController
 import com.example.myapp.MediaControllerHolder
 import com.example.myapp.deaccented
 import com.example.myapp.podcastRepository
+import com.example.myapp.writeAtomically
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -37,11 +37,8 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.add
 import kotlinx.serialization.json.buildJsonArray
-import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
-import kotlinx.serialization.json.put
 import java.io.File
 import java.io.IOException
 import java.util.concurrent.ConcurrentHashMap
@@ -69,7 +66,6 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
         // downloaded track is always a guaranteed cache hit, never a silent miss.
         val DEFAULT_QUALITY = DeezerQuality.MP3_128
         const val CACHE_LIMIT_BYTES = 5L * 1024 * 1024 * 1024 // 5 GB
-        const val CACHE_LIMIT_LABEL = "5 Go"
         private const val RESOLVE_ATTEMPTS = 3
         private const val REPLACEMENT_CANDIDATES = 3
         private const val QUEUED_NEXT_KEY = "deezer_queued_next"
@@ -80,6 +76,10 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
 
     private val api = DeezerApi()
     val settings = DeezerSettings(appContext)
+
+    private val pendingFavorites = DeezerPendingFavorites(appContext, hasNetwork = ::hasNetwork) { sngId, add ->
+        withTokenRetry { if (add) api.addFavorite(it, sngId) else api.removeFavorite(it, sngId) }
+    }
 
     private val sessionMutex = Mutex()
     private var session: DeezerSession? = null
@@ -111,19 +111,6 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
 
     private val playedTracksLoaded: Job
 
-    /** Drops stream cache entries left over from a previous default quality: they can never be served
-     *  again since playback always requests the current quality, so they are just dead weight. */
-    private fun purgeStaleQualityCacheAsync() {
-        ioScope.launch {
-            runCatching {
-                val suffix = "?q=${DEFAULT_QUALITY.name}"
-                streamCache.keys.filterNot { it.endsWith(suffix) }.forEach { streamCache.removeResource(it) }
-            }
-        }
-    }
-
-    // ---- Session ----
-
     suspend fun hasArl(): Boolean = settings.arl.first().isNotBlank()
 
     /**
@@ -154,8 +141,6 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
         }
     }
 
-    // ---- Library data ----
-
     /** Fetches the owner's playlists from the network. Prefer the [playlists] flow for the landing screen. */
     suspend fun fetchPlaylists(): List<DeezerPlaylist> = withTokenRetry { api.getPlaylists(it) }
 
@@ -172,8 +157,6 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
         }
     }
     suspend fun search(query: String): List<DeezerTrack> = api.searchTracks(query)
-
-    // ---- Recommendation sources (behind DeezerDiscoveries) ----
 
     /** One pull of Deezer's Flow. Each call advances the radio, so calling it again gives different tracks. */
     suspend fun flowTracks(): List<DeezerTrack> = withTokenRetry { api.flowTracks(it) }
@@ -210,7 +193,6 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
     /** [artistId]'s most popular tracks, for the artist screen's "Titres populaires" section. */
     suspend fun artistTopTracks(artistId: String): List<DeezerTrack> = api.artistTopTracks(artistId)
 
-    // ---- Podcast catalog (public, no auth) ----
     // Browsing Deezer's podcast catalog needs no session at all; only actually streaming an
     // episode (below, in the player section) requires the authenticated get_url pipeline.
 
@@ -218,7 +200,6 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
     suspend fun podcastChart(): List<DeezerPodcastShow> = api.podcastChart()
     suspend fun podcastEpisodes(showId: String): List<DeezerPodcastEpisode> = api.podcastEpisodes(showId)
 
-    // ---- Library snapshot (stale-while-revalidate) ----
     // The landing screen reads favorites + playlists from these flows. On launch we seed them from the
     // last on-disk snapshot (instant), then revalidate over the network and persist the fresh result.
 
@@ -252,7 +233,7 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
      */
     suspend fun refreshLibrary(): Unit = libraryMutex.withLock {
         if (!hasNetwork()) return@withLock
-        flushPendingFavorites()
+        pendingFavorites.flush()
         withTokenRetry { session ->
             coroutineScope {
                 val favsDeferred = async { api.getFavorites(session) }
@@ -288,7 +269,6 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
         writeSnapshot(favs, pls)
     }
 
-    // ---- Favorites cache ----
     // Loaded once (all of them, paged past the old 200 cap) and kept in memory. This single list
     // powers the total count, shuffle-all, and the filled/empty heart state on every row.
 
@@ -302,7 +282,7 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
 
     /** Ensures the favorites cache is populated. Re-fetches only when [force] or not yet loaded. */
     suspend fun ensureFavorites(force: Boolean = false): List<DeezerTrack> = favoritesMutex.withLock {
-        flushPendingFavorites()
+        pendingFavorites.flush()
         if (!force) _favorites.value?.let { return it }
         val list = withTokenRetry { api.getFavorites(it) }
         setFavorites(list)
@@ -363,7 +343,7 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
     /**
      * Likes or unlikes [track]. The local cache always updates right away, online or not, so the heart
      * responds instantly. When there is no connection (or the call drops mid flight), the change is
-     * queued to disk instead of sent, and [flushPendingFavorites] retries it the next time a Deezer
+     * queued to disk instead of sent, and [DeezerPendingFavorites.flush] retries it the next time a Deezer
      * screen is opened with a connection. Unliking the track being played skips to the next one.
      */
     suspend fun toggleFavorite(track: DeezerTrack) {
@@ -381,11 +361,11 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
         // Queued first, cleared on success, rather than queued only once the call has failed: the
         // process is killed the moment the app goes away, and a call left hanging on a connection
         // that looks alive but isn't would otherwise take the like with it.
-        queuePendingFavorites(listOf(track.sngId), add)
+        pendingFavorites.queue(listOf(track.sngId), add)
         if (!hasNetwork()) return
         try {
             withTokenRetry { if (add) api.addFavorite(it, track.sngId) else api.removeFavorite(it, track.sngId) }
-            clearPendingFavorite(track.sngId)
+            pendingFavorites.clear(track.sngId)
         } catch (e: Exception) {
             Log.w(TAG, "Favorite ${if (add) "add" else "remove"} for ${track.sngId} left queued", e)
         }
@@ -395,7 +375,7 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
      * Likes every track in [tracks] at once. Every like is written to the local list and to the
      * durable queue in one pass up front, before a single request goes out, so "tout ajouter" holds
      * even offline or with the app left straight away; the queue is then drained here, and whatever
-     * it doesn't manage waits for [flushPendingFavorites] on the next connection.
+     * it doesn't manage waits for [DeezerPendingFavorites.flush] on the next connection.
      */
     suspend fun addFavorites(tracks: List<DeezerTrack>) {
         val fresh = tracks.filterNot { isFavorite(it.sngId) }.distinctBy { it.sngId }
@@ -403,86 +383,10 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
         val loaded = _favorites.value
         setFavorites(fresh + (loaded ?: emptyList()), complete = loaded != null)
         persistSnapshot()
-        queuePendingFavorites(fresh.map { it.sngId }, add = true)
-        flushPendingFavorites()
+        pendingFavorites.queue(fresh.map { it.sngId }, add = true)
+        pendingFavorites.flush()
     }
 
-    // ---- Pending favorites (offline like/unlike) ----
-    // A like/unlike made with no connection is applied locally right away and its intent (add or
-    // remove) recorded here, keyed by sngId, so the app can resend it later without the user having to
-    // redo anything. Persisted to disk so it survives the app being killed while still offline.
-
-    private val pendingFavoritesFile: File by lazy { File(appContext.filesDir, "deezer_pending_favorites.json") }
-    private val pendingFavoritesMutex = Mutex()
-    private var pendingFavoritesCache: LinkedHashMap<String, Boolean>? = null
-
-    private suspend fun pendingFavoritesMap(): LinkedHashMap<String, Boolean> {
-        pendingFavoritesCache?.let { return it }
-        val loaded = withContext(Dispatchers.IO) {
-            runCatching {
-                val map = LinkedHashMap<String, Boolean>()
-                if (pendingFavoritesFile.exists()) {
-                    val root = DeezerLibraryCache.json.parseToJsonElement(pendingFavoritesFile.readText()).jsonObject
-                    root.forEach { (sngId, add) -> map[sngId] = add.jsonPrimitive.content == "add" }
-                }
-                map
-            }.getOrDefault(LinkedHashMap())
-        }
-        pendingFavoritesCache = loaded
-        return loaded
-    }
-
-    private suspend fun writePendingFavorites(map: Map<String, Boolean>) = withContext(Dispatchers.IO) {
-        runCatching {
-            if (map.isEmpty()) pendingFavoritesFile.delete()
-            else pendingFavoritesFile.writeText(
-                buildJsonObject { map.forEach { (sngId, add) -> put(sngId, if (add) "add" else "remove") } }.toString()
-            )
-        }
-    }
-
-    /** Queues a whole run of like/unlike intents in one disk write. */
-    private suspend fun queuePendingFavorites(sngIds: List<String>, add: Boolean): Unit =
-        pendingFavoritesMutex.withLock {
-            val map = pendingFavoritesMap()
-            sngIds.forEach { map[it] = add }
-            writePendingFavorites(map)
-        }
-
-    private suspend fun clearPendingFavorite(sngId: String): Unit = pendingFavoritesMutex.withLock {
-        val map = pendingFavoritesMap()
-        if (map.remove(sngId) != null) writePendingFavorites(map)
-    }
-
-    /**
-     * Resends every queued like/unlike. Called opportunistically whenever a Deezer screen refreshes
-     * the library or the favorites cache, so a change made offline reaches Deezer the next time the
-     * tool is opened with a connection. Stops at the first network failure so the rest stays queued.
-     */
-    suspend fun flushPendingFavorites(): Unit = pendingFavoritesMutex.withLock {
-        if (!hasNetwork()) return@withLock
-        val map = pendingFavoritesMap()
-        if (map.isEmpty()) return@withLock
-        val iter = map.entries.iterator()
-        while (iter.hasNext()) {
-            val (sngId, add) = iter.next()
-            try {
-                withTokenRetry { if (add) api.addFavorite(it, sngId) else api.removeFavorite(it, sngId) }
-                iter.remove()
-            } catch (e: DeezerApiException) {
-                // A dead session is not the track's fault: everything still queued waits for a
-                // working one instead of being thrown away one by one.
-                if (e.tokenError) break
-                Log.w(TAG, "Dropping pending favorite $sngId after API error", e)
-                iter.remove()
-            } catch (e: Exception) {
-                break
-            }
-        }
-        writePendingFavorites(map)
-    }
-
-    // ---- Playlist membership ----
     // The track ids of every playlist we have looked at, so an add can refuse a track that is already
     // there instead of creating a duplicate. Seeded by playlistTracks and kept in sync with our own
     // adds and removes; a playlist edited elsewhere is only re-read on the next fetch.
@@ -499,8 +403,6 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
         playlistTracks(playlistId)
         return playlistTrackIds.getOrPut(playlistId) { ConcurrentHashMap.newKeySet() }
     }
-
-    // ---- "Best pépites" quick-add ----
 
     @Volatile private var bestPepitesId: String? = null
     // Separate from the id being null: without it, an owner with no such playlist would re-fetch the
@@ -557,7 +459,6 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
         playlistTrackIds[playlistId]?.remove(sngId)
     }
 
-    // ---- Broken release recovery ----
     // Favorites and playlists pin a specific sngId at the time a track was liked/added. An artist who
     // re-released the same song under a different sngId can leave that pinned release unstreamable
     // (get_url refuses it) while a fresh catalog search turns up a working one. This is what lets
@@ -613,8 +514,6 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
         }
     }
 
-    // ---- CDN resolution (called from DeezerDataSource on ExoPlayer's loading thread) ----
-
     /**
      * Called on ExoPlayer's loading thread, once per track (and again on seek), which is why this
      * one blocks. Anything already inside a coroutine calls [resolveStream] instead.
@@ -648,8 +547,6 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
         }
         throw IOException("Deezer stream resolve failed for $sngId: ${last?.message}", last)
     }
-
-    // ---- Player ----
 
     private val _playerState = MutableStateFlow(PlayerUiState())
     val playerState: StateFlow<PlayerUiState> = _playerState
@@ -715,7 +612,6 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
         )
     }
 
-    // ---- Queue editing ----
     // The sheet acts on the controller directly, then re-reads it: the timeline is the queue, there is
     // no second copy to keep in step. Each edit also re-captures [orderedQueue] from what is left, so
     // turning shuffle back off restores the hand-made order instead of the list the queue started as.
@@ -803,8 +699,6 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
         playTracks(list, list.indices.random(), source, shuffle = true)
     }
 
-    // ---- Shuffle ----
-
     private val _shuffleEnabled = MutableStateFlow(true)
 
     /** Whether playback shuffles. Saved, and applied to every list started from anywhere in the tool. */
@@ -861,8 +755,6 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
         return withContext(Dispatchers.IO) {
             val seen = HashSet<String>()
             val result = ArrayList<DeezerTrack>()
-            // Checks the key actually present in the cache, not one rebuilt from DEFAULT_QUALITY: a track
-            // cached before the quality changed (or under a different quality in general) must still match.
             fun tryAdd(sngId: String, key: String, track: DeezerTrack?, cache: SimpleCache) {
                 if (track == null || !seen.add(sngId)) return
                 val length = ContentMetadata.getContentLength(cache.getContentMetadata(key))
@@ -944,7 +836,6 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
 
     fun trackById(sngId: String): DeezerTrack? = queuedTracks[sngId]
 
-    // ---- Played-track metadata persistence ----
     // Bounded by the cache itself at write time (only sngIds still present in a cache are kept), so
     // this file tracks the 5 GB LRU cache's contents without growing forever.
 
@@ -954,42 +845,14 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
     // Cleared when the file failed to load: whatever it holds is worth more than what this run knows.
     @Volatile private var playedTracksWritable = true
 
-    // Runs last in the constructor: loadPlayedTracksAsync and purgeStaleQualityCacheAsync are launched
-    // onto the IO dispatcher here and can start running on another thread before this constructor
-    // returns, so every property they touch (playedTracksFile, streamCache, ...) must already be
-    // assigned by this point, not just declared further down the file.
+    // Runs last in the constructor: loadPlayedTracksAsync is launched onto the IO dispatcher here and
+    // can start running on another thread before this constructor returns, so every property it
+    // touches (playedTracksFile, streamCache, ...) must already be assigned by this point, not just
+    // declared further down the file.
     init {
         playedTracksLoaded = loadPlayedTracksAsync()
-        purgeStaleQualityCacheAsync()
-        flushPendingFavoritesOnNetwork()
+        pendingFavorites.flushOnNetwork(ioScope)
         ioScope.launch { runCatching { _shuffleEnabled.value = settings.shuffle.first() } }
-    }
-
-    /**
-     * Sends whatever the offline queue still holds as soon as the phone has real internet again,
-     * and once at startup. Without this a like made offline waits for the next visit to a Deezer
-     * screen, which can be days.
-     */
-    private fun flushPendingFavoritesOnNetwork() {
-        ioScope.launch { runCatching { flushPendingFavorites() } }
-        val cm = appContext.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager ?: return
-        runCatching {
-            cm.registerDefaultNetworkCallback(object : ConnectivityManager.NetworkCallback() {
-                // Capabilities change constantly (bandwidth estimates), so only the transition into
-                // validated internet counts, not every notification.
-                private var validated = false
-
-                override fun onCapabilitiesChanged(network: Network, caps: NetworkCapabilities) {
-                    val now = caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
-                    if (now && !validated) ioScope.launch { runCatching { flushPendingFavorites() } }
-                    validated = now
-                }
-
-                override fun onLost(network: Network) {
-                    validated = false
-                }
-            })
-        }.onFailure { Log.w(TAG, "Could not watch the network for pending favorites", it) }
     }
 
     private fun loadPlayedTracksAsync(): Job = ioScope.launch {
@@ -1023,16 +886,7 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
                 val arr = buildJsonArray {
                     queuedTracks.values.filter { it.sngId in cachedIds }.forEach { add(DeezerLibraryCache.trackToJson(it)) }
                 }
-                // Written aside then renamed: the process is killed screen-off often enough that a
-                // direct write leaves a truncated file, which loads as no downloads at all.
-                runCatching {
-                    val tmp = File(playedTracksFile.parentFile, playedTracksFile.name + ".tmp")
-                    tmp.writeText(arr.toString())
-                    if (!tmp.renameTo(playedTracksFile)) {
-                        playedTracksFile.writeText(arr.toString())
-                        tmp.delete()
-                    }
-                }
+                runCatching { playedTracksFile.writeAtomically(arr.toString()) }
             }
         }
     }

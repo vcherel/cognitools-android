@@ -123,7 +123,6 @@ class DeezerPlaybackService : MediaSessionService() {
         scope.launch { repo.favoriteIds.collect { refreshActionButtons() } }
     }
 
-    // ---- Notification actions (like / add to Best pépites) ----
     // Two extra buttons sit on either side of prev/play/next in the media notification and on the
     // lockscreen, so a track can be liked or pushed into Best pépites without unlocking the phone.
 

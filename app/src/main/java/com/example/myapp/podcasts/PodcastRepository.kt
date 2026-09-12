@@ -69,7 +69,6 @@ class PodcastRepository(private val appContext: Context) {
 
     val favorites: kotlinx.coroutines.flow.Flow<List<PodcastFavorite>> get() = dao().observeFavorites()
 
-    // ---- Episodes ----
     // Episodes aren't persisted: every favorite's feed is re-fetched on refresh and merged here,
     // then joined against the seen table. Local edits (mark seen, add/remove a favorite) patch
     // this in place so the UI doesn't wait on a full re-fetch for something it already knows.
@@ -114,7 +113,6 @@ class PodcastRepository(private val appContext: Context) {
             }
             _episodes.value = withDownloadedFallback(raw.map { it.copy(seen = it.id in seen) }, seen)
                 .sortedByDescending { it.pubDate }
-            backfillDownloadMetadata()
         } finally {
             _loading.value = false
         }
@@ -131,17 +129,6 @@ class PodcastRepository(private val appContext: Context) {
         }.map { it.copy(seen = it.id in seen) }
         val fresh = withDownloadedFallback(fetched, seen).filter { it.podcastId == favoriteId }
         refreshMutex.withLock { replaceEpisodesOf(favoriteId, fresh) }
-    }
-
-    /**
-     * Files metadata for downloads made before that table existed: a hash-named file can't be traced
-     * back to its episode, but a fresh feed read can, so the first refresh that sees them fills them in.
-     */
-    private suspend fun backfillDownloadMetadata() {
-        val known = dao().getDownloads().map { it.episodeId }.toSet()
-        _episodes.value
-            .filter { it.id !in known && downloads.isDownloaded(it.id) }
-            .forEach { dao().upsertDownload(it.toDownload()) }
     }
 
     /**
@@ -324,17 +311,13 @@ class PodcastRepository(private val appContext: Context) {
         _episodes.value = _episodes.value.map { if (it.id == episodeId) it.copy(seen = false) else it }
     }
 
-    // ---- Downloads ----
     // Kept in [PodcastDownloads]; the rest of the app reaches it through this property.
 
     val downloads = PodcastDownloads(appContext) { dao() }
 
-    // ---- Sleep timer ----
     // Kept in [PodcastSleepTimer], same as above.
 
     val sleepTimer = PodcastSleepTimer(appContext, this)
-
-    // ---- Player ----
 
     private val _playerState = MutableStateFlow(PodcastPlayerUiState())
     val playerState: StateFlow<PodcastPlayerUiState> = _playerState
@@ -402,7 +385,6 @@ class PodcastRepository(private val appContext: Context) {
         )
     }
 
-    // ---- Listening progress ----
     // Where each started episode was left off, so playing it again picks up there. Written every
     // [PROGRESS_SAVE_INTERVAL_MS] while playing and on every pause, since the playback service can be
     // killed with the app without any chance to save on the way out.

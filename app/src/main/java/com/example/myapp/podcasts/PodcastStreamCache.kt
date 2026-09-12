@@ -4,10 +4,8 @@ import android.content.Context
 import android.net.Uri
 import androidx.media3.database.StandaloneDatabaseProvider
 import androidx.media3.datasource.DataSource
-import androidx.media3.datasource.DataSpec
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.datasource.cache.Cache
-import androidx.media3.datasource.cache.CacheDataSink
 import androidx.media3.datasource.cache.CacheDataSource
 import androidx.media3.datasource.cache.CacheEvictor
 import androidx.media3.datasource.cache.CacheSpan
@@ -122,40 +120,6 @@ object PodcastStreamCache {
         runCatching { cache(context).removeResource(url) }
     }
 
-    /**
-     * Files an already downloaded file into the cache under [url], for the downloads made back when
-     * they were plain files under `podcast_downloads/`. Returns true once its bytes are held.
-     */
-    fun importFile(context: Context, url: String, file: File): Boolean {
-        val length = file.length()
-        if (url.isBlank() || length <= 0) return false
-        val store = cache(context)
-        val spec = DataSpec.Builder()
-            .setUri(Uri.parse(url))
-            .setKey(url)
-            .setPosition(0)
-            .setLength(length)
-            .build()
-        val ok = runCatching {
-            val sink = CacheDataSink(store, CacheDataSink.DEFAULT_FRAGMENT_SIZE)
-            sink.open(spec)
-            file.inputStream().use { input ->
-                val buffer = ByteArray(64 * 1024)
-                while (true) {
-                    val read = input.read(buffer)
-                    if (read < 0) break
-                    sink.write(buffer, 0, read)
-                }
-            }
-            sink.close()
-            // Without the content length the cache can't tell a whole resource from a big chunk of one.
-            store.applyContentMetadataMutations(
-                url,
-                ContentMetadataMutations().apply { ContentMetadataMutations.setContentLength(this, length) }
-            )
-        }.isSuccess
-        return ok && holdsWholeResource(context, url)
-    }
 }
 
 /**
