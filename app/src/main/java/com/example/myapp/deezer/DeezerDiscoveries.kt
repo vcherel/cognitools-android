@@ -85,11 +85,13 @@ data class DiscoveryState(
 class DeezerDiscoveries(private val appContext: Context, private val repo: DeezerRepository) {
 
     companion object {
-        const val BATCH_SIZE = 20
+        const val BATCH_SIZE = 10
         /** Half the batch at most, so a heavy release week still leaves room for real discoveries. */
         private const val RELEASE_SLOTS = BATCH_SIZE / 2
         private const val RELEASE_WINDOW_DAYS = 60L
         private const val FLOW_CALLS = 8
+        /** Discovery candidates gathered before ranking: more than fit, so the ranking has a choice. */
+        private const val DISCOVERY_POOL = BATCH_SIZE * 3
         private const val MIX_SEEDS = 4
         /** Album track fetches per scan. The rest stay unmarked, so the next scan picks them up. */
         private const val ALBUMS_PER_SCAN = 40
@@ -302,7 +304,7 @@ class DeezerDiscoveries(private val appContext: Context, private val repo: Deeze
             // The discovery half is collected before the scan, not after it: the scan walks hundreds
             // of artists over several minutes, and the Flow calls that used to follow it came back
             // empty often enough to leave the day's batch with nothing but new releases.
-            val discoveries = collectDiscoveries(excluded, span = if (needsScan) DISCOVERY_WEIGHT else 100)
+            val discoveries = collectDiscoveries(excluded, known, span = if (needsScan) DISCOVERY_WEIGHT else 100)
             val pool = discoveries.tracks
             generationLog.log("discoveries: ${pool.size} candidate(s)${if (discoveries.failed) ", pass failed" else ""}")
 
@@ -364,23 +366,30 @@ class DeezerDiscoveries(private val appContext: Context, private val repo: Deeze
     private class DiscoveryPool(val tracks: List<DiscoveryTrack>, val failed: Boolean)
 
     /**
-     * Pulls Flow repeatedly, then the track mix of a few random favorites, until [BATCH_SIZE]
-     * candidates are in hand. Filters the same way the batch does (nothing excluded, no duplicate,
-     * one track per artist) so what comes back is what can actually be used. [span] is the share of
-     * the progress bar this pass owns, starting from zero.
+     * Pulls Flow repeatedly, then the track mix of a few random favorites, until [DISCOVERY_POOL]
+     * candidates are in hand, and ranks them: a track Flow hands back on several calls is one Deezer
+     * is sure about, and one by an artist already in the library is a safer bet than a stranger's.
+     * Filters the same way the batch does (nothing excluded, no duplicate, one track per artist) so
+     * what comes back is what can actually be used. [span] is the share of the progress bar this
+     * pass owns, starting from zero.
      */
-    private suspend fun collectDiscoveries(excluded: Set<String>, span: Int): DiscoveryPool {
-        val pool = BatchCollector(excluded, emptyList())
+    private suspend fun collectDiscoveries(excluded: Set<String>, known: Map<String, Int>, span: Int): DiscoveryPool {
+        val pool = BatchCollector(excluded, emptyList(), cap = DISCOVERY_POOL)
+        val hits = HashMap<String, Int>()
         var errors = 0
+        fun offerAll(tracks: List<DeezerTrack>) = tracks.forEach {
+            hits.merge(it.matchKey, 1, Int::plus)
+            pool.offer(DiscoveryTrack(it, isNewRelease = false))
+        }
         repeat(FLOW_CALLS) { call ->
-            if (pool.full) return DiscoveryPool(pool.items, failed = false)
+            if (pool.full) return@repeat
             val tracks = runCatching { repo.flowTracks() }.getOrElse {
                 Log.w(TAG, "Flow call failed", it)
                 generationLog.log("flow call ${call + 1} failed: ${generationLog.describe(it)}")
                 errors++
                 emptyList()
             }
-            tracks.forEach { pool.offer(DiscoveryTrack(it, isNewRelease = false)) }
+            offerAll(tracks)
             setProgress((call + 1) * span / FLOW_CALLS)
         }
         val seeds = (repo.favorites.value ?: emptyList()).shuffled().take(MIX_SEEDS)
@@ -392,21 +401,29 @@ class DeezerDiscoveries(private val appContext: Context, private val repo: Deeze
                 errors++
                 emptyList()
             }
-            mix.forEach { pool.offer(DiscoveryTrack(it, isNewRelease = false)) }
+            offerAll(mix)
         }
-        return DiscoveryPool(pool.items, failed = pool.items.isEmpty() && errors > 0)
+        val ranked = pool.items.sortedWith(
+            compareByDescending<DiscoveryTrack> { hits[it.track.matchKey] ?: 0 }
+                .thenByDescending { known[it.track.artist.matchNormalized()] ?: 0 }
+        )
+        return DiscoveryPool(ranked, failed = ranked.isEmpty() && errors > 0)
     }
 
     /**
      * Accumulates one batch, refusing anything excluded, a duplicate, a second track by an artist
-     * already in (twenty rows should read as twenty finds, not five artists), or anything past the cap.
+     * already in (ten rows should read as ten finds, not three artists), or anything past [cap].
      */
-    private inner class BatchCollector(private val excluded: Set<String>, seed: List<DiscoveryTrack>) {
+    private inner class BatchCollector(
+        private val excluded: Set<String>,
+        seed: List<DiscoveryTrack>,
+        private val cap: Int = BATCH_SIZE
+    ) {
         val items = ArrayList<DiscoveryTrack>(seed)
         private val keys = seed.mapTo(HashSet()) { it.track.matchKey }
         private val artists = seed.mapTo(HashSet()) { it.track.artist.matchNormalized() }
 
-        val full: Boolean get() = items.size >= BATCH_SIZE
+        val full: Boolean get() = items.size >= cap
 
         fun offer(item: DiscoveryTrack): Boolean {
             if (full) return false

@@ -288,7 +288,7 @@ fun NoteEditorScreen(
                             onDeleteLine = lineEdits::deleteLine,
                             onMoveToCourses = { sync.moveLineToCourses(it) },
                             onChangeQuantity = lineEdits::changeQuantity,
-                            onAdvanceMuscu = lineEdits::advanceMuscuDay,
+                            onShiftMuscu = lineEdits::shiftMuscuDay,
                             onRemoveDateSuffix = lineEdits::removeDateSuffix,
                             onToggleLineMarker = lineEdits::toggleLineMarker,
                             onToggleTitleLine = lineEdits::toggleTitleLine,

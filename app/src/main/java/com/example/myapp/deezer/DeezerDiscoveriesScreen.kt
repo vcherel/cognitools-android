@@ -35,7 +35,7 @@ import com.example.myapp.ScreenTopBar
 import kotlinx.coroutines.launch
 
 /**
- * The day's twenty proposals. Each row can be liked (which sends it to Favoris) or thrown away, both
+ * The day's ten proposals. Each row can be liked (which sends it to Favoris) or thrown away, both
  * of which remove it from the list; the two header buttons do the same for the whole batch at once.
  * The refresh button in the top bar rolls a new set of discoveries as often as wanted, keeping the new
  * releases in place. When nothing is left the list stays empty until tomorrow's batch.
@@ -109,7 +109,7 @@ fun DeezerDiscoveriesScreen(repo: DeezerRepository, onBack: () -> Unit) {
                             fontSize = 16.sp,
                             enabled = !state.generating
                         ) {
-                            // Closes right away and lets the likes land behind: twenty rows animating
+                            // Closes right away and lets the likes land behind: ten rows animating
                             // out one by one is just the network being watched.
                             val added = discoveries.addAll()
                             Toast.makeText(context, "$added titres ajoutés aux favoris", Toast.LENGTH_SHORT).show()

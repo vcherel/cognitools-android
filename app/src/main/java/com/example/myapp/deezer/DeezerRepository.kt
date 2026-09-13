@@ -20,6 +20,7 @@ import com.example.myapp.deaccented
 import com.example.myapp.podcastRepository
 import com.example.myapp.writeAtomically
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
@@ -685,6 +686,12 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
 
     /** Queues every favorite and plays them shuffled, starting from a random one. */
     suspend fun shuffleFavorites() = shuffleTracks(ensureFavorites(), TrackSource.Favorites)
+
+    /**
+     * [shuffleFavorites] on the repository's own scope: the menu button launches it, and opening
+     * another tool right after kills the menu's scope, which used to cancel the start half way.
+     */
+    fun shuffleFavoritesDetached(): Deferred<Unit> = ioScope.async { shuffleFavorites() }
 
     /** Loads [playlistId]'s tracks and plays them shuffled, starting from a random one. */
     suspend fun shufflePlaylist(playlistId: String) = shuffleTracks(playlistTracks(playlistId), TrackSource.Playlist(playlistId))

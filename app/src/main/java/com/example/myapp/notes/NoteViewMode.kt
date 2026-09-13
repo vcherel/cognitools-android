@@ -32,6 +32,7 @@ import androidx.compose.material.icons.filled.FormatItalic
 import androidx.compose.material.icons.filled.FormatUnderlined
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.ShoppingCart
+import androidx.compose.material.icons.filled.Snooze
 import androidx.compose.material.icons.filled.Title
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.HorizontalDivider
@@ -80,7 +81,7 @@ data class NoteLineActions(
     val onDeleteLine: (Int) -> Unit,
     val onMoveToCourses: (Int) -> Unit,
     val onChangeQuantity: (index: Int, delta: Int) -> Unit,
-    val onAdvanceMuscu: (Int) -> Unit,
+    val onShiftMuscu: (Int, Int) -> Unit,
     val onRemoveDateSuffix: (Int) -> Unit,
     val onToggleLineMarker: (index: Int, marker: String) -> Unit,
     val onToggleTitleLine: (Int) -> Unit,
@@ -428,8 +429,11 @@ private fun NoteLine(
                     }
                 }
                 if (isTodoListNote && muscuDayMatch(text) != null) {
-                    LineIconButton(Icons.Default.FitnessCenter, "Jour suivant", iconTopPadding) {
-                        actions.onAdvanceMuscu(lineIndex)
+                    LineIconButton(Icons.Default.Snooze, "Remettre à demain", iconTopPadding) {
+                        actions.onShiftMuscu(lineIndex, 1)
+                    }
+                    LineIconButton(Icons.Default.FitnessCenter, "Séance suivante", iconTopPadding) {
+                        actions.onShiftMuscu(lineIndex, 2)
                     }
                 } else if (isTodoListNote && text.hasDateSuffix()) {
                     LineIconButton(Icons.Default.EventBusy, "Retirer la date", iconTopPadding) {

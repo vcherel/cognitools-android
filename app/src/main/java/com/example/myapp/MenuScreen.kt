@@ -232,7 +232,7 @@ private fun DeezerMenuButton(height: Dp, onOpenDeezer: () -> Unit) {
                 isShuffleLoading = true
                 scope.launch {
                     runCatching {
-                        repo.shuffleFavorites()
+                        repo.shuffleFavoritesDetached().await()
                         withTimeoutOrNull(15_000) {
                             repo.playerState.first { it.isPlaying && it.sngId != previousSngId }
                         }
