@@ -23,6 +23,8 @@ import androidx.compose.material.icons.filled.CheckCircleOutline
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.DownloadDone
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.SearchOff
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.CircularProgressIndicator
@@ -31,6 +33,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -42,12 +45,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.unit.dp
 import com.example.myapp.AppSnackbar
 import com.example.myapp.ErrorText
 import com.example.myapp.MediaListRow
 import com.example.myapp.ScreenTopBar
 import com.example.myapp.ShowAlertDialog
+import com.example.myapp.matchNormalized
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -72,6 +78,9 @@ fun PodcastEpisodesScreen(repo: PodcastRepository, favoriteId: String, onBack: (
     var error by remember { mutableStateOf<String?>(null) }
     var showAll by remember { mutableStateOf(false) }
     var downloadedOnly by remember { mutableStateOf(false) }
+    var searchActive by remember { mutableStateOf(false) }
+    var searchQuery by remember { mutableStateOf("") }
+    val searchFocus = remember { FocusRequester() }
     var confirmUnfollow by remember { mutableStateOf(false) }
     var confirmRemoveDownload by remember { mutableStateOf<PodcastEpisode?>(null) }
     // Set by the "marqué comme écouté" undo: the episode comes back where it was, and the list
@@ -86,9 +95,17 @@ fun PodcastEpisodesScreen(repo: PodcastRepository, favoriteId: String, onBack: (
     }
 
     val allEpisodes = episodes.filter { it.podcastId == favoriteId }.sortedByDescending { it.pubDate }
+    // A search looks through every episode, heard ones included: the one being looked for is most
+    // likely an old one already listened to.
+    val searchKey = searchQuery.matchNormalized()
     val showEpisodes = allEpisodes
-        .filter { showAll || !it.seen }
+        .filter { showAll || searchKey.isNotEmpty() || !it.seen }
         .filter { !downloadedOnly || repo.downloads.isDownloaded(it.id, downloadedIds) }
+        .filter { searchKey.isEmpty() || searchKey in it.title.matchNormalized() }
+
+    LaunchedEffect(searchActive) {
+        if (searchActive) searchFocus.requestFocus() else searchQuery = ""
+    }
 
     LaunchedEffect(scrollBackTo, showEpisodes) {
         val id = scrollBackTo ?: return@LaunchedEffect
@@ -106,6 +123,12 @@ fun PodcastEpisodesScreen(repo: PodcastRepository, favoriteId: String, onBack: (
             titleMaxLines = 2,
             titleWeight = true
         ) {
+            IconButton(onClick = { searchActive = !searchActive }) {
+                Icon(
+                    if (searchActive) Icons.Filled.SearchOff else Icons.Filled.Search,
+                    contentDescription = if (searchActive) "Fermer la recherche" else "Rechercher un épisode"
+                )
+            }
             IconButton(onClick = { downloadedOnly = !downloadedOnly }) {
                 Icon(
                     if (downloadedOnly) Icons.Filled.DownloadDone else Icons.Filled.Download,
@@ -166,6 +189,17 @@ fun PodcastEpisodesScreen(repo: PodcastRepository, favoriteId: String, onBack: (
             )
         }
 
+        if (searchActive) {
+            TextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp).focusRequester(searchFocus),
+                placeholder = { Text("Rechercher un épisode…") },
+                singleLine = true,
+                leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) }
+            )
+        }
+
         if (loading && showEpisodes.isEmpty()) {
             LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
         }
@@ -174,10 +208,11 @@ fun PodcastEpisodesScreen(repo: PodcastRepository, favoriteId: String, onBack: (
         }
 
         if (showEpisodes.isEmpty() && !loading) {
-            val allHeard = allEpisodes.isNotEmpty() && !showAll && !downloadedOnly
+            val allHeard = allEpisodes.isNotEmpty() && !showAll && !downloadedOnly && searchKey.isEmpty()
             Box(Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
                 Text(
                     when {
+                        searchKey.isNotEmpty() -> "Aucun épisode ne correspond."
                         downloadedOnly -> "Aucun épisode téléchargé."
                         allHeard -> "Tout est écouté !"
                         else -> "Aucun épisode."

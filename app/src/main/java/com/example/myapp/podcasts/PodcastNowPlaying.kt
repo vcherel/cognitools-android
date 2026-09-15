@@ -19,6 +19,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bedtime
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.DownloadDone
 import androidx.compose.material.icons.filled.Forward30
 import androidx.compose.material.icons.filled.KeyboardArrowDown
@@ -45,7 +46,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.example.myapp.AppSnackbar
 import com.example.myapp.LocalGoHome
+import com.example.myapp.ShowAlertDialog
 import com.example.myapp.MediaArt
 import com.example.myapp.PlayPauseButton
 import com.example.myapp.PlayerSeekBar
@@ -53,7 +56,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
-/** Full player overlay: big artwork, seek bar, transport, and a "mark heard" shortcut. */
+/** Full player overlay: big artwork, seek bar, transport, and the "mark heard" and download shortcuts. */
 @Composable
 fun PodcastFullPlayerSheet(
     repo: PodcastRepository,
@@ -65,7 +68,14 @@ fun PodcastFullPlayerSheet(
     val scope = rememberCoroutineScope()
     val goHome = LocalGoHome.current
     val episodes by repo.episodes.collectAsState()
-    val isSeen = episodes.firstOrNull { it.id == state.episodeId }?.seen == true
+    val episode = episodes.firstOrNull { it.id == state.episodeId }
+    val isSeen = episode?.seen == true
+    val downloadedIds by repo.downloads.ids.collectAsState()
+    val downloadingIds by repo.downloads.activeIds.collectAsState()
+    val downloadProgress by repo.downloads.progress.collectAsState()
+    val isDownloaded = episode != null && repo.downloads.isDownloaded(episode.id, downloadedIds)
+    val isDownloading = episode != null && episode.id in downloadingIds
+    var confirmRemoveDownload by remember { mutableStateOf(false) }
     val sleepCacheProgress by repo.sleepTimer.cacheProgress.collectAsState()
     val sleepTimerEndAt by repo.sleepTimer.endAt.collectAsState()
     var showSleepTimerDialog by remember { mutableStateOf(false) }
@@ -126,13 +136,41 @@ fun PodcastFullPlayerSheet(
             )
 
             Spacer(Modifier.height(8.dp))
-            MarkHeardToggle(
-                isSeen = isSeen,
-                onToggle = {
-                    val id = state.episodeId ?: return@MarkHeardToggle
-                    scope.launch { if (isSeen) repo.markUnseen(id) else repo.markSeen(id) }
+            Row(horizontalArrangement = Arrangement.spacedBy(32.dp), verticalAlignment = Alignment.Top) {
+                MarkHeardToggle(
+                    isSeen = isSeen,
+                    onToggle = {
+                        val id = state.episodeId ?: return@MarkHeardToggle
+                        scope.launch {
+                            if (isSeen) {
+                                repo.markUnseen(id)
+                            } else {
+                                repo.markSeen(id)
+                                AppSnackbar.show(
+                                    message = "Marqué comme écouté",
+                                    actionLabel = "Annuler",
+                                    onAction = { repo.markUnseen(id) }
+                                )
+                            }
+                        }
+                    }
+                )
+                // A Deezer episode streams through Deezer's own pipeline and has no plain file to keep.
+                if (episode != null && episode.source != PodcastSource.DEEZER) {
+                    DownloadToggle(
+                        isDownloaded = isDownloaded,
+                        isDownloading = isDownloading,
+                        progress = downloadProgress[episode.id],
+                        onToggle = {
+                            when {
+                                isDownloaded -> confirmRemoveDownload = true
+                                isDownloading -> repo.downloads.cancel(episode.id)
+                                else -> repo.downloads.enqueue(episode)
+                            }
+                        }
+                    )
                 }
-            )
+            }
 
             Spacer(Modifier.height(16.dp))
 
@@ -160,6 +198,20 @@ fun PodcastFullPlayerSheet(
                 }
             }
         }
+    }
+
+    if (confirmRemoveDownload && episode != null) {
+        ShowAlertDialog(
+            onDismiss = { confirmRemoveDownload = false },
+            title = "Supprimer le téléchargement de « ${episode.title} » ?",
+            onCancel = { confirmRemoveDownload = false },
+            onConfirm = {
+                confirmRemoveDownload = false
+                scope.launch { repo.downloads.remove(episode.id) }
+            },
+            cancelText = "Annuler",
+            confirmText = "Supprimer"
+        )
     }
 
     if (showSleepTimerDialog) {
@@ -232,6 +284,46 @@ private fun MarkHeardToggle(isSeen: Boolean, onToggle: () -> Unit) {
             if (isSeen) "Écouté" else "Marquer comme écouté",
             style = MaterialTheme.typography.labelSmall,
             color = if (isSeen) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+/** Same shape as [MarkHeardToggle]: the ring shows the download's progress, the filled disc that it is on the phone. */
+@Composable
+private fun DownloadToggle(isDownloaded: Boolean, isDownloading: Boolean, progress: Float?, onToggle: () -> Unit) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.clickable(onClick = onToggle)
+    ) {
+        Box(
+            Modifier
+                .size(40.dp)
+                .clip(CircleShape)
+                .background(if (isDownloaded) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant),
+            contentAlignment = Alignment.Center
+        ) {
+            when {
+                isDownloading && progress != null -> CircularProgressIndicator(
+                    progress = { progress },
+                    modifier = Modifier.size(24.dp),
+                    strokeWidth = 2.dp
+                )
+                isDownloading -> CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+                else -> Icon(
+                    if (isDownloaded) Icons.Filled.DownloadDone else Icons.Filled.Download,
+                    contentDescription = null,
+                    tint = if (isDownloaded) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+        Text(
+            when {
+                isDownloading -> "Téléchargement…"
+                isDownloaded -> "Téléchargé"
+                else -> "Télécharger"
+            },
+            style = MaterialTheme.typography.labelSmall,
+            color = if (isDownloaded) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }

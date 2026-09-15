@@ -47,6 +47,8 @@ private const val PROGRESS_SAVE_INTERVAL_MS = 5_000L
 private const val PROGRESS_MIN_MS = 15_000L
 /** Within this of the end, an episode counts as finished. */
 private const val PROGRESS_FINISHED_MARGIN_MS = 30_000L
+/** How long a heard episode keeps its download and cached bytes, long enough to undo the mark. */
+private const val STORAGE_CLEANUP_GRACE_MS = 30_000L
 
 data class PodcastPlayerUiState(
     val hasItem: Boolean = false,
@@ -248,8 +250,18 @@ class PodcastRepository(private val appContext: Context) {
         // and restart it mid-way the next time it is played.
         dao().deleteProgress(episodeId)
         _episodes.value = _episodes.value.map { if (it.id == episodeId) it.copy(seen = true) else it }
-        freeEpisodeStorage(episodeId)
+        // The disk is given back only once the undo window has passed: a tap on the wrong episode
+        // undone right away used to find its download already gone, with nothing to bring it back.
+        storageCleanups[episodeId]?.cancel()
+        storageCleanups[episodeId] = progressScope.launch {
+            delay(STORAGE_CLEANUP_GRACE_MS)
+            storageCleanups.remove(episodeId)
+            if (dao().getSeenIds().contains(episodeId)) freeEpisodeStorage(episodeId)
+        }
     }
+
+    /** The cleanups waiting out their undo window, so [markUnseen] can call one off. */
+    private val storageCleanups = ConcurrentHashMap<String, Job>()
 
     /**
      * Gives back the disk a heard episode was holding: its cached stream bytes and its download, if
@@ -307,6 +319,8 @@ class PodcastRepository(private val appContext: Context) {
     }
 
     suspend fun markUnseen(episodeId: String) {
+        storageCleanups.remove(episodeId)?.cancel()
+        pendingStorageCleanup -= episodeId
         dao().unmarkSeen(episodeId)
         _episodes.value = _episodes.value.map { if (it.id == episodeId) it.copy(seen = false) else it }
     }

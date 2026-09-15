@@ -15,7 +15,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBalanceWallet
-import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.Pause
@@ -59,7 +58,6 @@ fun MenuScreen(
     isDarkMode: Boolean,
     onToggleDarkMode: () -> Unit,
     onOpenNotes: () -> Unit,
-    onOpenTodoNote: () -> Unit,
     onOpenDeezer: () -> Unit,
     onOpenFlashcards: () -> Unit,
     onPlayFlashcards: () -> Unit,
@@ -116,13 +114,7 @@ fun MenuScreen(
                 textAlign = TextAlign.Center
             )
             Spacer(modifier = Modifier.height(20.dp))
-            SplitMyButton(
-                text = "Notes",
-                rightIcon = Icons.Default.Checklist,
-                height = buttonHeight,
-                onMainClick = onOpenNotes,
-                onRightClick = onOpenTodoNote
-            )
+            MyButton(text = "Notes", height = buttonHeight, onClick = onOpenNotes)
             Spacer(modifier = Modifier.height(spaceHeight))
             DeezerMenuButton(height = buttonHeight, onOpenDeezer = onOpenDeezer)
             Spacer(modifier = Modifier.height(spaceHeight))
