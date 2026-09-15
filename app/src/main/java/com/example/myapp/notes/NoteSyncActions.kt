@@ -15,9 +15,10 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
 /**
- * Everything the note editor does across the Courses / Ingrédients / model notes: moving items
- * from one to the other, adding one directly, re-sorting a note against its model, and reconciling
- * the items the model doesn't know about. The pure text side of all this lives in IngredientSync.
+ * Everything the note editor does across the Courses / Ingrédients / Modèle courses notes: moving
+ * items from one to the other, adding one directly, re-sorting a note against the model, and
+ * reconciling the items the model doesn't know about. The pure text side of all this lives in
+ * IngredientSync.
  *
  * The note currently open is read from [textFieldState] and written through [saveContent], so the
  * screen reflects a change immediately; every other note goes straight through the DAO.
@@ -38,29 +39,29 @@ class NoteSyncActions(
 
     /**
      * Moves every checked Courses item into the Ingrédients prompt. Items found in the model note
-     * are spliced in at their canonical spot and removed from Courses right away; items not in the
-     * model are queued for the reconcile dialog.
+     * are spliced in at their canonical spot and removed from Courses right away (a non food item
+     * is only removed, the fridge doesn't hold toilet paper); items not in the model are queued for
+     * the reconcile dialog.
      */
     fun sendCheckedToIngredients() {
         scope.launch {
             val notes = dao.getNotes()
             val ingredientsNote = notes.withTitle(INGREDIENTS_TITLE) ?: return@launch showMissingNote(INGREDIENTS_TITLE)
-            val modelNote = notes.withTitle(INGREDIENT_MODEL_TITLE) ?: return@launch showMissingNote(INGREDIENT_MODEL_TITLE)
+            val modelNote = notes.withTitle(COURSES_MODEL_TITLE) ?: return@launch showMissingNote(COURSES_MODEL_TITLE)
 
             val checkedLines = content.split("\n").filter { it.isCheckedLine() }
             if (checkedLines.isEmpty()) return@launch
 
-            val groups = parseIngredientGroups(modelNote.content)
-            val flatModel = groups.flatten()
-            val modelKeys = flatModel.map { it.trim().lowercase() }
+            val groups = parseCourseGroups(modelNote.content)
 
             val matchedNames = mutableListOf<String>()
             val matchedLines = mutableListOf<String>()
             val unknown = mutableListOf<ReconcileItem>()
             for (line in checkedLines) {
-                val modelIndex = modelKeys.indexOf(line.ingredientKey())
-                if (modelIndex >= 0) {
-                    matchedNames.add(flatModel[modelIndex])
+                val groupIndex = courseGroupIndexOf(groups, line.ingredientKey())
+                if (groupIndex < groups.size) {
+                    val group = groups[groupIndex]
+                    if (group.food) matchedNames.add(group.items.first { it.trim().lowercase() == line.ingredientKey() })
                     matchedLines.add(line)
                 } else {
                     unknown.add(
@@ -95,7 +96,7 @@ class NoteSyncActions(
                     modelSnapshot = modelNote.content,
                     groups = groups,
                     pending = unknown,
-                    movedCount = matchedLines.size
+                    movedCount = matchedNames.size
                 )
             )
         }
@@ -140,8 +141,7 @@ class NoteSyncActions(
                     sourceSnapshot = ingredientsSnapshot,
                     targetSnapshot = courses.content,
                     modelSnapshot = modelNote.content,
-                    groups = groups.map { it.items },
-                    groupNames = groups.map { it.name },
+                    groups = groups,
                     pending = if (known) emptyList()
                     else listOf(ReconcileItem(name = itemName, sourceLine = removed, inTarget = false)),
                     movedCount = if (known) 1 else 0,
@@ -157,10 +157,10 @@ class NoteSyncActions(
      */
     fun addIngredientDirectly(name: String) {
         scope.launch {
-            val modelNote = dao.getNotes().withTitle(INGREDIENT_MODEL_TITLE)
-                ?: return@launch showMissingNote(INGREDIENT_MODEL_TITLE)
-            val groups = parseIngredientGroups(modelNote.content)
-            val flatModel = groups.flatten()
+            val modelNote = dao.getNotes().withTitle(COURSES_MODEL_TITLE)
+                ?: return@launch showMissingNote(COURSES_MODEL_TITLE)
+            val groups = parseCourseGroups(modelNote.content)
+            val flatModel = groups.allItems()
             val snapshot = content
             val modelIndex = flatModel.map { it.trim().lowercase() }.indexOf(name.trim().lowercase())
 
@@ -197,8 +197,8 @@ class NoteSyncActions(
         scope.launch {
             val ingredientsNote = dao.getNotes().withTitle(INGREDIENTS_TITLE)
                 ?: return@launch showMissingNote(INGREDIENTS_TITLE)
-            val groups = parseIngredientGroups(content)
-            val modelKeys = groups.flatten().map { it.trim().lowercase() }
+            val groups = parseCourseGroups(content)
+            val modelKeys = groups.allItems().map { it.trim().lowercase() }
             val present = presentIngredients(ingredientsNote.content)
             val unknown = present.filter { it.trim().lowercase() !in modelKeys }
 
@@ -253,8 +253,7 @@ class NoteSyncActions(
                     sourceSnapshot = null,
                     targetSnapshot = snapshot,
                     modelSnapshot = modelNote.content,
-                    groups = groups.map { it.items },
-                    groupNames = groups.map { it.name },
+                    groups = groups,
                     pending = pending,
                     movedCount = if (pending.isEmpty()) 1 else 0,
                     kind = SyncKind.COURSE
@@ -278,7 +277,7 @@ class NoteSyncActions(
             val modelContent = if (modelNote.id == noteId) content else modelNote.content
 
             val groups = parseCourseGroups(modelContent)
-            val modelKeys = groups.flatMap { it.items }.map { it.trim().lowercase() }.toSet()
+            val modelKeys = groups.allItems().map { it.trim().lowercase() }.toSet()
             val present = presentCourseLines(coursesContent)
             val unknown = present.filter { it.ingredientKey() !in modelKeys }
 
@@ -295,8 +294,7 @@ class NoteSyncActions(
                     sourceSnapshot = null,
                     targetSnapshot = coursesContent,
                     modelSnapshot = modelContent,
-                    groups = groups.map { it.items },
-                    groupNames = groups.map { it.name },
+                    groups = groups,
                     pending = unknown.map {
                         ReconcileItem(name = it.checkboxText().withoutQuantitySuffix().trim(), sourceLine = null, inTarget = true)
                     },
@@ -311,7 +309,7 @@ class NoteSyncActions(
     /**
      * Reconcile choice: add the current unknown item to the model in the chosen group
      * (alphabetically placed), refresh the target note, and remove it from the source note if it
-     * came from one. A [groupIndex] of -1 means a brand-new group (Ingrédients only).
+     * came from one.
      */
     fun reconcileAddNew(groupIndex: Int) {
         val currentBatch = batch ?: return
@@ -328,27 +326,26 @@ class NoteSyncActions(
             updateNoteContent(currentBatch.modelId, newModelContent)
 
             val targetContent = if (currentBatch.targetId == noteId) content else targetNote.content
+            val newGroups = parseCourseGroups(newModelContent)
             when (currentBatch.kind) {
                 SyncKind.INGREDIENT -> {
-                    val newGroups = parseIngredientGroups(newModelContent)
                     val present = presentIngredients(targetContent)
-                    val newPresent = if (current.inTarget) present else (present + current.name).distinctBy { it.trim().lowercase() }
+                    val food = newGroups.getOrNull(groupIndex)?.food ?: true
+                    val newPresent = if (current.inTarget || !food) present
+                    else (present + current.name).distinctBy { it.trim().lowercase() }
                     updateNoteContent(currentBatch.targetId, renderIntoIngredientsNote(targetContent, newPresent, newGroups))
-                    // The group just created is offered to the remaining unknown items, instead of
-                    // each of them having to make its own.
-                    batch = batch?.copy(groups = newGroups)
                 }
                 SyncKind.COURSE -> {
-                    val newGroups = parseCourseGroups(newModelContent)
                     val newTargetContent = if (current.inTarget) {
                         renderCoursesSection(presentCourseLines(targetContent), newGroups)
                     } else {
                         insertCourseLine(targetContent, newGroups, groupIndex, UNCHECKED_PREFIX + current.name)
                     }
                     updateNoteContent(currentBatch.targetId, newTargetContent)
-                    batch = batch?.copy(groups = newGroups.map { it.items }, groupNames = newGroups.map { it.name })
                 }
             }
+            // A section created by the fallback is offered to the remaining unknown items too.
+            batch = batch?.copy(groups = newGroups)
 
             removeSourceLine(current)
             advancePending(moved = true)
@@ -356,9 +353,9 @@ class NoteSyncActions(
     }
 
     /**
-     * Reconcile choice (Courses only): the current unknown item starts a brand-new named section
-     * of Modèle courses, placed just before the group at [beforeIndex] (or at the end when the
-     * index is past the last group), and lands in that new section of the Courses note.
+     * Reconcile choice: the current unknown item starts a brand-new named section of Modèle
+     * courses, placed just before the group at [beforeIndex] (or at the end when the index is
+     * past the last group), and lands in that new section of the target note.
      */
     fun reconcileAddNewCourseGroup(groupName: String, beforeIndex: Int) {
         val currentBatch = batch ?: return
@@ -376,23 +373,28 @@ class NoteSyncActions(
 
             val newGroups = parseCourseGroups(newModelContent)
             val targetContent = if (currentBatch.targetId == noteId) content else targetNote.content
-            val newTargetContent = if (current.inTarget) {
-                renderCoursesSection(presentCourseLines(targetContent), newGroups)
-            } else {
-                insertCourseLine(
-                    targetContent,
-                    newGroups,
-                    courseGroupIndexOf(newGroups, current.name),
-                    UNCHECKED_PREFIX + current.name
-                )
+            val newTargetContent = when (currentBatch.kind) {
+                SyncKind.INGREDIENT -> {
+                    val present = presentIngredients(targetContent)
+                    val newPresent = if (current.inTarget) present
+                    else (present + current.name).distinctBy { it.trim().lowercase() }
+                    renderIntoIngredientsNote(targetContent, newPresent, newGroups)
+                }
+                SyncKind.COURSE -> if (current.inTarget) {
+                    renderCoursesSection(presentCourseLines(targetContent), newGroups)
+                } else {
+                    insertCourseLine(
+                        targetContent,
+                        newGroups,
+                        courseGroupIndexOf(newGroups, current.name),
+                        UNCHECKED_PREFIX + current.name
+                    )
+                }
             }
             updateNoteContent(currentBatch.targetId, newTargetContent)
 
             // The remaining unknown items are offered the new category too.
-            batch = currentBatch.copy(
-                groups = newGroups.map { it.items },
-                groupNames = newGroups.map { it.name }
-            )
+            batch = currentBatch.copy(groups = newGroups)
             removeSourceLine(current)
             advancePending(moved = true)
         }
@@ -423,9 +425,7 @@ class NoteSyncActions(
                     updateNoteContent(currentBatch.targetId, renderIntoIngredientsNote(targetContent, newPresent, currentBatch.groups))
                 }
                 SyncKind.COURSE -> {
-                    val groups = currentBatch.groups.mapIndexed { i, items ->
-                        CourseGroup(currentBatch.groupNames?.getOrNull(i) ?: "", items)
-                    }
+                    val groups = currentBatch.groups
                     val newTargetContent = if (current.inTarget) {
                         val relabeled = targetContent.split("\n").joinToString("\n") { raw ->
                             val trimmed = raw.trim()

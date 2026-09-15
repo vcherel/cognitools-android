@@ -70,7 +70,7 @@ data class NoteEditorBarState(
     val hasContent: Boolean,
     val isCoursesNote: Boolean,
     val isIngredientsNote: Boolean,
-    val isIngredientModelNote: Boolean
+    val isCoursesModelNote: Boolean
 )
 
 /** What the bar's buttons and menu entries do. All of them act on the note the editor holds. */
@@ -269,7 +269,7 @@ fun NoteEditorTopBar(
                         onClick = { showMoreMenu = false; actions.onResortCourses() }
                     )
                 }
-                if (state.isIngredientModelNote) {
+                if (state.isCoursesModelNote) {
                     DropdownMenuItem(
                         text = { Text("Ranger les Ingrédients selon ce modèle") },
                         leadingIcon = { Icon(Icons.AutoMirrored.Filled.Sort, contentDescription = null) },

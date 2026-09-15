@@ -4,20 +4,20 @@ import java.text.Collator
 import java.util.Locale
 
 // The "Courses" <-> "Ingrédients" flow, plus adding/reordering items directly on either
-// note. The Ingrédients note is a free-text recipe prompt whose ingredient names sit
-// between an "Ingrédients :" header and a "Contraintes :" section, one per line with a
-// blank line between logical groups. The "Modèle ingrédients" note holds the canonical
-// ingredients, also one per line with blank-line groups, giving both the group layout and,
-// within each group, membership. Ingredients are always kept sorted alphabetically inside
-// their group.
+// note. Both are driven by the one "Modèle courses" note, which holds the canonical items
+// in shop order as named sections (one "--- Nom" separator per section). A section whose
+// header ends with "(non alimentaire)" holds things that never go into a recipe.
 //
-// The Courses note follows the same idea but stays a checkbox list: the "Modèle courses"
-// note holds the canonical shopping order as named sections (one "--- Nom" separator per
-// section), and Courses gets laid out with a labeled section per group, each sorted
-// alphabetically, preserving every line's checked state and "(N)" quantity. Unlike the
-// Ingrédients note, single additions to Courses are inserted surgically into their section
-// rather than triggering a full re-render, so manual drag reordering elsewhere survives;
-// only the explicit "reorder" action rebuilds the whole note from the model.
+// The Courses note is a checkbox list laid out with a labeled section per model group, each
+// sorted alphabetically, preserving every line's checked state and "(N)" quantity. Single
+// additions are inserted surgically into their section rather than triggering a full
+// re-render, so manual drag reordering elsewhere survives; only the explicit "reorder"
+// action rebuilds the whole note from the model.
+//
+// The Ingrédients note is a free-text recipe prompt whose ingredient names sit between an
+// "Ingrédients :" header and a "Contraintes :" section, one per line with a blank line
+// between groups: one group per food section of the model, in model order, each sorted
+// alphabetically. Non food sections never appear there.
 
 enum class SyncKind { INGREDIENT, COURSE }
 
@@ -39,9 +39,8 @@ data class ReconcileItem(
 /**
  * In-flight state for a sync batch (a Courses<->Ingrédients move, a direct add, or a model
  * re-sort, for either note). Holds snapshots of every touched note so the whole batch can
- * be undone at once, the current model groups for the reconcile picker (with their names
- * for Courses), the unknown items still to reconcile, the count of items added, and
- * whether this batch was a pure reorder.
+ * be undone at once, the current model groups for the reconcile picker, the unknown items
+ * still to reconcile, the count of items added, and whether this batch was a pure reorder.
  */
 data class NoteSyncBatch(
     val targetId: String,
@@ -50,8 +49,7 @@ data class NoteSyncBatch(
     val sourceSnapshot: String?,
     val targetSnapshot: String,
     val modelSnapshot: String,
-    val groups: List<List<String>>,
-    val groupNames: List<String>? = null,
+    val groups: List<CourseGroup>,
     val pending: List<ReconcileItem>,
     val movedCount: Int,
     val reorder: Boolean = false,
@@ -61,21 +59,6 @@ data class NoteSyncBatch(
 /** Canonical key for matching an item against the model: no checkbox prefix, no "(N)"
  *  quantity, trimmed, case-insensitive. */
 fun String.ingredientKey(): String = checkboxText().withoutQuantitySuffix().trim().lowercase()
-
-/** The model split into groups by blank lines (and separators). Each inner list is one
- *  group's ingredient names in order; blank runs separate groups. */
-fun parseIngredientGroups(content: String): List<List<String>> {
-    val groups = mutableListOf<List<String>>()
-    var current = mutableListOf<String>()
-    for (raw in content.split("\n")) {
-        val t = raw.trim()
-        if (t.isEmpty() || t.isSeparatorLine()) {
-            if (current.isNotEmpty()) { groups.add(current); current = mutableListOf() }
-        } else current.add(t)
-    }
-    if (current.isNotEmpty()) groups.add(current)
-    return groups
-}
 
 /** Content with the first occurrence of each given line removed. */
 fun removeFirstLines(content: String, toRemove: List<String>): String {
@@ -106,24 +89,25 @@ fun presentIngredients(noteContent: String): List<String> {
 }
 
 /**
- * Lays out the present ingredients grouped and ordered by the model: one block per model
+ * Lays out the present ingredients grouped and ordered by the model: one block per food
  * group (blank line between blocks), each block sorted alphabetically. Names not found in
- * any model group are kept together in a trailing block so nothing is ever lost.
+ * any food group are kept together in a trailing block so nothing is ever lost.
  */
-private fun renderIngredientSection(present: List<String>, groups: List<List<String>>): String {
+private fun renderIngredientSection(present: List<String>, groups: List<CourseGroup>): String {
+    val food = groups.filter { it.food }.map { it.items }
     val canonical = HashMap<String, String>()
-    for (g in groups) for (n in g) canonical.putIfAbsent(n.trim().lowercase(), n.trim())
+    for (g in food) for (n in g) canonical.putIfAbsent(n.trim().lowercase(), n.trim())
     val distinct = present.map { it.trim() }.filter { it.isNotEmpty() }.distinctBy { it.lowercase() }
 
     val blocks = mutableListOf<String>()
-    for (g in groups) {
+    for (g in food) {
         val keys = g.map { it.trim().lowercase() }.toSet()
         val members = distinct.filter { it.lowercase() in keys }
             .map { canonical[it.lowercase()] ?: it }
             .sortedWith(byFrenchName)
         if (members.isNotEmpty()) blocks.add(members.joinToString("\n"))
     }
-    val known = groups.flatten().map { it.trim().lowercase() }.toSet()
+    val known = food.flatten().map { it.trim().lowercase() }.toSet()
     val unknown = distinct.filter { it.lowercase() !in known }.sortedWith(byFrenchName)
     if (unknown.isNotEmpty()) blocks.add(unknown.joinToString("\n"))
     return blocks.joinToString("\n\n")
@@ -133,7 +117,7 @@ private fun renderIngredientSection(present: List<String>, groups: List<List<Str
  * Rewrites the prompt's ingredient list with `present` rendered by renderIngredientSection,
  * leaving the header, the Contraintes section and the blank spacing around the list intact.
  */
-fun renderIntoIngredientsNote(noteContent: String, present: List<String>, groups: List<List<String>>): String {
+fun renderIntoIngredientsNote(noteContent: String, present: List<String>, groups: List<CourseGroup>): String {
     val lines = noteContent.split("\n")
     val (start, end) = ingredientRegion(lines)
     var lead = start.coerceIn(0, lines.size)
@@ -150,9 +134,20 @@ fun renderIntoIngredientsNote(noteContent: String, present: List<String>, groups
     return rebuilt.joinToString("\n")
 }
 
-/** One named section of the Modèle courses note: a shop-order group (e.g. "Crèmerie") and
- *  the canonical item names it contains. */
-data class CourseGroup(val name: String, val items: List<String>)
+/** The suffix a model section header carries when its items never go into a recipe. */
+const val NON_FOOD_SUFFIX = "(non alimentaire)"
+
+/** One named section of the Modèle courses note: a shop-order group (e.g. "Crèmerie"), the
+ *  canonical item names it contains, and whether those are food (so belong in Ingrédients). */
+data class CourseGroup(val name: String, val items: List<String>, val food: Boolean = true)
+
+/** A model header's section name, split from its non food flag. */
+private fun String.groupNameAndFood(): Pair<String, Boolean> {
+    val name = separatorName()
+    return if (name.endsWith(NON_FOOD_SUFFIX, ignoreCase = true)) {
+        name.dropLast(NON_FOOD_SUFFIX.length).trim() to false
+    } else name to true
+}
 
 /** The Modèle courses note split into named groups: each "--- Nom" separator starts a new
  *  group that runs until the next separator. Lines before the first separator, if any,
@@ -161,21 +156,25 @@ data class CourseGroup(val name: String, val items: List<String>)
 fun parseCourseGroups(content: String): List<CourseGroup> {
     val groups = mutableListOf<CourseGroup>()
     var name = ""
+    var food = true
     var current = mutableListOf<String>()
     for (raw in content.split("\n")) {
         val t = raw.trim()
         if (t.isEmpty()) continue
         if (t.isSeparatorLine()) {
             if (current.isNotEmpty() || name.isNotEmpty()) {
-                groups.add(CourseGroup(name, current))
+                groups.add(CourseGroup(name, current, food))
                 current = mutableListOf()
             }
-            name = t.separatorName()
+            t.groupNameAndFood().let { (n, f) -> name = n; food = f }
         } else current.add(t)
     }
-    if (current.isNotEmpty() || name.isNotEmpty()) groups.add(CourseGroup(name, current))
+    if (current.isNotEmpty() || name.isNotEmpty()) groups.add(CourseGroup(name, current, food))
     return groups
 }
+
+/** Every model item, food or not, as parseCourseGroups lists them. */
+fun List<CourseGroup>.allItems(): List<String> = flatMap { it.items }
 
 /** Index of the Courses model group containing `name` (case-insensitive), or `groups.size`
  *  as a virtual trailing "Autres" slot when no group has it. */
@@ -261,65 +260,64 @@ fun insertCourseLine(content: String, groups: List<CourseGroup>, groupIndex: Int
     return lines.joinToString("\n")
 }
 
-/**
- * Adds a brand-new named section to the Modèle courses note, holding `itemName` as its only
- * entry, placed just before the group at `beforeIndex` (or at the end when the index is past
- * the last group), so the model keeps its shop order.
- */
-fun addCourseGroupToModel(modelContent: String, beforeIndex: Int, groupName: String, itemName: String): String {
-    val lines = modelContent.split("\n").toMutableList()
-    // First line of each group parseCourseGroups would return: its "--- Nom" header when it
-    // has one, otherwise its first item line. Kept in step with the parser, empty named
-    // sections included, so `beforeIndex` points at the same group here as in the picker.
-    val starts = mutableListOf<Int>()
+// The line indices of each group parseCourseGroups would return, in the same order (empty
+// named sections included, so a picker index points at the same group here): the line of
+// its "--- Nom" header when it has one, otherwise of its first item, and its item lines.
+private data class ModelGroupLines(val start: Int, val items: List<Int>)
+
+private fun modelGroupLines(lines: List<String>): List<ModelGroupLines> {
+    val groups = mutableListOf<ModelGroupLines>()
     var name = ""
     var start: Int? = null
-    var count = 0
+    var items = mutableListOf<Int>()
     for ((i, raw) in lines.withIndex()) {
         val t = raw.trim()
         if (t.isEmpty()) continue
         if (t.isSeparatorLine()) {
-            if (count > 0 || name.isNotEmpty()) starts.add(start ?: i)
+            if (items.isNotEmpty() || name.isNotEmpty()) groups.add(ModelGroupLines(start ?: i, items))
             name = t.separatorName()
             start = if (name.isNotEmpty()) i else null
-            count = 0
+            items = mutableListOf()
         } else {
             if (start == null) start = i
-            count++
+            items.add(i)
         }
     }
-    val at = starts.getOrNull(beforeIndex) ?: lines.size
-    lines.addAll(at, listOf(SEPARATOR_PREFIX + groupName, itemName))
+    if (items.isNotEmpty() || name.isNotEmpty()) groups.add(ModelGroupLines(start ?: lines.size, items))
+    return groups
+}
+
+/**
+ * Adds a brand-new named section to the Modèle courses note, holding `itemName` as its only
+ * entry, placed just before the group at `beforeIndex` (or at the end when the index is past
+ * the last group), so the model keeps its shop order. Sections are separated by one blank
+ * line, and the new one is too.
+ */
+fun addCourseGroupToModel(modelContent: String, beforeIndex: Int, groupName: String, itemName: String): String {
+    val lines = modelContent.split("\n").toMutableList()
+    val section = listOf(SEPARATOR_PREFIX + groupName, itemName)
+    val before = modelGroupLines(lines).getOrNull(beforeIndex)
+    if (before != null) {
+        lines.addAll(before.start, section + "")
+    } else {
+        while (lines.lastOrNull()?.isBlank() == true) lines.removeAt(lines.lastIndex)
+        if (lines.isNotEmpty()) lines.add("")
+        lines.addAll(section)
+    }
     return lines.joinToString("\n")
 }
 
-/** Inserts `name` alphabetically into the model's group at `groupIndex` (a blank-line
- *  separated block), leaving the rest of the model verbatim. Falls back to a new group
- *  when the index is out of range. */
+/** Inserts `name` alphabetically into the model's section at `groupIndex`, leaving the rest
+ *  of the model verbatim. Falls back to a new trailing "Autres" section when the index is
+ *  out of range. */
 fun addNameToModelGroup(modelContent: String, groupIndex: Int, name: String): String {
     val lines = modelContent.split("\n").toMutableList()
-    val blocks = mutableListOf<IntRange>()
-    var i = 0
-    while (i < lines.size) {
-        val t = lines[i].trim()
-        if (t.isEmpty() || t.isSeparatorLine()) { i++; continue }
-        val s = i
-        while (i < lines.size && lines[i].trim().isNotEmpty() && !lines[i].trim().isSeparatorLine()) i++
-        blocks.add(s until i)
-    }
-    val block = blocks.getOrNull(groupIndex) ?: return appendModelGroup(modelContent, name)
-    var insertAt = block.last + 1
-    for (idx in block) {
-        if (byFrenchName.compare(name, lines[idx].trim()) < 0) { insertAt = idx; break }
-    }
+    val group = modelGroupLines(lines).getOrNull(groupIndex)
+        ?: return addCourseGroupToModel(modelContent, Int.MAX_VALUE, "Autres", name)
+    val insertAt = group.items.firstOrNull { byFrenchName.compare(name, lines[it].trim()) < 0 }
+        ?: (group.items.lastOrNull()?.plus(1) ?: (group.start + 1))
     lines.add(insertAt, name)
     return lines.joinToString("\n")
-}
-
-/** Adds `name` as a brand-new group at the bottom of the model. */
-private fun appendModelGroup(modelContent: String, name: String): String {
-    val trimmed = modelContent.trimEnd('\n')
-    return if (trimmed.isBlank()) name else "$trimmed\n\n$name"
 }
 
 // Levenshtein edit distance, for ranking model entries by closeness to a mistyped item.

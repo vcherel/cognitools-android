@@ -43,21 +43,16 @@ private enum class ReconcileStep { Choose, Group, NewGroup, Existing }
 
 /**
  * Shown for an item whose name isn't in the model. Lets the user add it as a new entry
- * (choosing which group, or a new group when `allowNewGroup`), map it to an existing model
- * entry (for a misspelling or variant spelling), or skip it (`skipLabel` names that choice,
- * which drops the item). Within the chosen group the
- * entry is placed alphabetically, so only the group needs picking. `groupLabels`, when
- * given, names each group in the picker instead of listing its members. `onAddNewGroup`,
- * when given, adds a "Nouvelle catégorie" choice: a name to type and a position in the
- * existing order (used by Courses, whose groups are named sections).
+ * (choosing which section, or a new named category at a chosen position in the existing
+ * order), map it to an existing model entry (for a misspelling or variant spelling), or skip
+ * it (`skipLabel` names that choice, which drops the item). Within the chosen section the
+ * entry is placed alphabetically, so only the section needs picking.
  */
 @Composable
 fun IngredientReconcileDialog(
     itemName: String,
-    groups: List<List<String>>,
-    groupLabels: List<String>? = null,
-    allowNewGroup: Boolean = true,
-    onAddNewGroup: ((name: String, beforeIndex: Int) -> Unit)? = null,
+    groups: List<CourseGroup>,
+    onAddNewGroup: (name: String, beforeIndex: Int) -> Unit,
     onAddNew: (groupIndex: Int) -> Unit,
     onMapExisting: (String) -> Unit,
     onSkip: () -> Unit,
@@ -65,6 +60,7 @@ fun IngredientReconcileDialog(
     onDismiss: () -> Unit
 ) {
     var step by remember(itemName) { mutableStateOf(ReconcileStep.Choose) }
+    val allItems = groups.allItems()
 
     AppDialog(onDismiss = onDismiss) {
         when (step) {
@@ -85,7 +81,7 @@ fun IngredientReconcileDialog(
                 }
                 // The closest model entries, so an obvious variant spelling can be picked without
                 // opening the full list.
-                rankIngredientsByCloseness(groups.flatten(), itemName).take(3).forEach { ingredient ->
+                rankIngredientsByCloseness(allItems, itemName).take(3).forEach { ingredient ->
                     SuggestionRow(ingredient) { onMapExisting(ingredient) }
                 }
                 ChoiceRow(skipLabel, Icons.Default.Close, onSkip)
@@ -101,18 +97,11 @@ fun IngredientReconcileDialog(
                 Spacer(Modifier.height(12.dp))
                 LazyColumn(modifier = Modifier.heightIn(max = 360.dp)) {
                     itemsIndexed(groups) { i, g ->
-                        PositionRow(groupLabels?.getOrNull(i)?.ifEmpty { null } ?: g.joinToString(", ")) { onAddNew(i) }
+                        PositionRow(g.label()) { onAddNew(i) }
                         HorizontalDivider()
                     }
-                    if (allowNewGroup) {
-                        item {
-                            PositionRow("Nouveau groupe", bold = true) { onAddNew(-1) }
-                        }
-                    }
-                    if (onAddNewGroup != null) {
-                        item {
-                            PositionRow("Nouvelle catégorie", bold = true) { step = ReconcileStep.NewGroup }
-                        }
+                    item {
+                        PositionRow("Nouvelle catégorie", bold = true) { step = ReconcileStep.NewGroup }
                     }
                 }
                 Spacer(Modifier.height(8.dp))
@@ -138,14 +127,14 @@ fun IngredientReconcileDialog(
                 )
                 LazyColumn(modifier = Modifier.heightIn(max = 300.dp)) {
                     itemsIndexed(groups) { i, g ->
-                        PositionRow(groupLabels?.getOrNull(i)?.ifEmpty { null } ?: g.joinToString(", ")) {
-                            if (name.isNotBlank()) onAddNewGroup?.invoke(name.trim(), i)
+                        PositionRow(g.label()) {
+                            if (name.isNotBlank()) onAddNewGroup(name.trim(), i)
                         }
                         HorizontalDivider()
                     }
                     item {
                         PositionRow("À la fin", bold = true) {
-                            if (name.isNotBlank()) onAddNewGroup?.invoke(name.trim(), groups.size)
+                            if (name.isNotBlank()) onAddNewGroup(name.trim(), groups.size)
                         }
                     }
                 }
@@ -165,7 +154,7 @@ fun IngredientReconcileDialog(
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(Modifier.height(8.dp))
-                val ranked = rankIngredientsByCloseness(groups.flatten(), query.ifBlank { itemName })
+                val ranked = rankIngredientsByCloseness(allItems, query.ifBlank { itemName })
                 LazyColumn(modifier = Modifier.heightIn(max = 320.dp)) {
                     items(ranked) { ingredient ->
                         PositionRow(ingredient) { onMapExisting(ingredient) }
@@ -203,6 +192,9 @@ fun AddIngredientNameDialog(
         }
     }
 }
+
+// The section's name, or its members for the unnamed leading group.
+private fun CourseGroup.label(): String = name.ifEmpty { items.joinToString(", ") }
 
 @Composable
 private fun ChoiceRow(label: String, icon: ImageVector, onClick: () -> Unit) {

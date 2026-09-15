@@ -159,7 +159,7 @@ Root package (shared/misc):
 - `NoteLock.kt`: the app's one PIN (notes *and* locked gallery albums, see `gallery/GalleryLock.kt`) and PinDialog
 - `NotesTrashScreen.kt`: the trashed notes screen (restore, delete for good, empty the trash)
 - `NoteSyncActions.kt`: the flows the editor triggers across the Courses/Ingrédients/model notes (move, add, re-sort, reconcile) and the batch state behind the reconcile dialog
-- `IngredientSync.kt`: the pure text side of that sync: group parsing and rendering (Ingrédients: `Modèle ingrédients`, anonymous blank-line groups; Courses: `Modèle courses`, named "--- Nom" sections), NoteSyncBatch/ReconcileItem, closeness ranking
+- `IngredientSync.kt`: the pure text side of that sync: parsing the one `Modèle courses` note (named "--- Nom" sections, a `(non alimentaire)` suffix flagging the ones kept out of Ingrédients), rendering Courses as labeled sections and Ingrédients as blank-line groups of the food sections, NoteSyncBatch/ReconcileItem, closeness ranking
 - `IngredientDialogs.kt`: the reconcile dialog and the add-an-item name prompt
 - `DjNote.kt`: `appendToDjNote`, the "Artiste - Titre" line appended to the DJ note (the tracks to download), written by the music tool
 

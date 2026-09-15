@@ -126,7 +126,7 @@ fun NoteEditorScreen(
             val content = if (isEditing) "" else textFieldState.text.toString()
             val isCoursesNote = !isEditing && title.equals(COURSES_TITLE, ignoreCase = true)
             val isIngredientsNote = !isEditing && title.equals(INGREDIENTS_TITLE, ignoreCase = true)
-            val isIngredientModelNote = !isEditing && title.equals(INGREDIENT_MODEL_TITLE, ignoreCase = true)
+            val isCoursesModelNote = !isEditing && title.equals(COURSES_MODEL_TITLE, ignoreCase = true)
 
             val searchTerms = if (searchOpen) remember(noteQuery) { searchTermsOf(noteQuery) } else listSearchTerms
             // The lines holding any of the searched words, in order: what the arrows step through.
@@ -179,7 +179,7 @@ fun NoteEditorScreen(
                         hasContent = content.isNotEmpty(),
                         isCoursesNote = isCoursesNote,
                         isIngredientsNote = isIngredientsNote,
-                        isIngredientModelNote = isIngredientModelNote
+                        isCoursesModelNote = isCoursesModelNote
                     ),
                     actions = NoteEditorBarActions(
                         onBack = { state.goBack(onBack) },
@@ -398,11 +398,7 @@ private fun NoteEditorDialogs(
             IngredientReconcileDialog(
                 itemName = current.name,
                 groups = batch.groups,
-                groupLabels = batch.groupNames,
-                allowNewGroup = batch.kind == SyncKind.INGREDIENT,
-                onAddNewGroup = if (batch.kind == SyncKind.COURSE) {
-                    { name, beforeIndex -> sync.reconcileAddNewCourseGroup(name, beforeIndex) }
-                } else null,
+                onAddNewGroup = { name, beforeIndex -> sync.reconcileAddNewCourseGroup(name, beforeIndex) },
                 onAddNew = { sync.reconcileAddNew(it) },
                 onMapExisting = { sync.reconcileMapExisting(it) },
                 onSkip = { sync.reconcileSkip() },
