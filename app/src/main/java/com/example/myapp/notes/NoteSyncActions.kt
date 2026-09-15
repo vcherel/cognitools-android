@@ -190,31 +190,37 @@ class NoteSyncActions(
     }
 
     /**
-     * Re-sorts the ingredients already present in the Ingrédients note by the model's groups and
-     * alphabetical order. Called from the model note, which is the one currently open.
+     * Re-sorts the ingredients already present in the Ingrédients note by the model's food groups
+     * and alphabetical order. Callable from either note: whichever one is open is read from and
+     * written through the live text field.
      */
     fun resortIngredients() {
         scope.launch {
-            val ingredientsNote = dao.getNotes().withTitle(INGREDIENTS_TITLE)
-                ?: return@launch showMissingNote(INGREDIENTS_TITLE)
-            val groups = parseCourseGroups(content)
+            val notes = dao.getNotes()
+            val ingredientsNote = notes.withTitle(INGREDIENTS_TITLE) ?: return@launch showMissingNote(INGREDIENTS_TITLE)
+            val modelNote = notes.withTitle(COURSES_MODEL_TITLE) ?: return@launch showMissingNote(COURSES_MODEL_TITLE)
+
+            val ingredientsContent = if (ingredientsNote.id == noteId) content else ingredientsNote.content
+            val modelContent = if (modelNote.id == noteId) content else modelNote.content
+
+            val groups = parseCourseGroups(modelContent)
             val modelKeys = groups.allItems().map { it.trim().lowercase() }
-            val present = presentIngredients(ingredientsNote.content)
+            val present = presentIngredients(ingredientsContent)
             val unknown = present.filter { it.trim().lowercase() !in modelKeys }
 
-            val newContent = renderIntoIngredientsNote(ingredientsNote.content, present, groups)
-            if (newContent != ingredientsNote.content) {
-                dao.upsertNote(ingredientsNote.copy(content = newContent, updatedAt = System.currentTimeMillis()))
+            val newContent = renderIntoIngredientsNote(ingredientsContent, present, groups)
+            if (newContent != ingredientsContent) {
+                updateNoteContent(ingredientsNote.id, newContent)
             }
 
             startBatch(
                 NoteSyncBatch(
                     targetId = ingredientsNote.id,
-                    modelId = noteId,
+                    modelId = modelNote.id,
                     sourceId = null,
                     sourceSnapshot = null,
-                    targetSnapshot = ingredientsNote.content,
-                    modelSnapshot = content,
+                    targetSnapshot = ingredientsContent,
+                    modelSnapshot = modelContent,
                     groups = groups,
                     pending = unknown.map { ReconcileItem(name = it, sourceLine = null, inTarget = true) },
                     movedCount = present.size - unknown.size,

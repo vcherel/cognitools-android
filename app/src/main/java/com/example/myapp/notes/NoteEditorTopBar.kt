@@ -269,6 +269,13 @@ fun NoteEditorTopBar(
                         onClick = { showMoreMenu = false; actions.onResortCourses() }
                     )
                 }
+                if (state.isIngredientsNote) {
+                    DropdownMenuItem(
+                        text = { Text("Mettre à jour selon le modèle") },
+                        leadingIcon = { Icon(Icons.AutoMirrored.Filled.Sort, contentDescription = null) },
+                        onClick = { showMoreMenu = false; actions.onResortIngredients() }
+                    )
+                }
                 if (state.isCoursesModelNote) {
                     DropdownMenuItem(
                         text = { Text("Ranger les Ingrédients selon ce modèle") },
