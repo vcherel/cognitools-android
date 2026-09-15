@@ -5,6 +5,7 @@ import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.net.Uri
 import android.os.Bundle
+import android.os.SystemClock
 import android.util.Log
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
@@ -43,6 +44,9 @@ import kotlinx.serialization.json.jsonObject
 import java.io.File
 import java.io.IOException
 import java.util.concurrent.ConcurrentHashMap
+
+/** A library refresh landing this soon after the last one is the same one asked twice. */
+private const val LIBRARY_REFRESH_DEDUPE_MS = 10_000L
 
 /** Outcome of adding a track to a playlist: it was added, it was already there, or the playlist doesn't exist. */
 enum class PlaylistAddResult { ADDED, DUPLICATE, NO_PLAYLIST }
@@ -214,17 +218,21 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
 
     /** Seeds the flows from disk (once), then revalidates over the network. Safe to call on every screen entry. */
     suspend fun ensureLibrary() {
-        if (!diskSeedTried && (_favorites.value == null || _playlists.value == null)) {
-            diskSeedTried = true
-            withContext(Dispatchers.IO) { DeezerLibraryCache.read(libraryCacheFile) }?.let { snap ->
-                // complete = false: the disk snapshot seeds the UI instantly, but only the network
-                // fetch that follows is allowed to purge the stream cache. A stale or truncated
-                // snapshot driving the purge is how downloaded liked tracks used to vanish.
-                if (_favorites.value == null) setFavorites(snap.favorites, complete = false)
-                if (_playlists.value == null) _playlists.value = snap.playlists
-            }
-        }
+        seedLibraryFromDisk()
         refreshLibrary()
+    }
+
+    /** Fills whatever flow is still empty from the last snapshot, once per process. */
+    private suspend fun seedLibraryFromDisk() {
+        if (diskSeedTried || (_favorites.value != null && _playlists.value != null)) return
+        diskSeedTried = true
+        withContext(Dispatchers.IO) { DeezerLibraryCache.read(libraryCacheFile) }?.let { snap ->
+            // complete = false: the disk snapshot seeds the UI instantly, but only the network
+            // fetch that follows is allowed to purge the stream cache. A stale or truncated
+            // snapshot driving the purge is how downloaded liked tracks used to vanish.
+            if (_favorites.value == null) setFavorites(snap.favorites, complete = false)
+            if (_playlists.value == null) _playlists.value = snap.playlists
+        }
     }
 
     /**
@@ -232,8 +240,11 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
      * A no-op while offline: the screen keeps showing whatever was last seeded from disk instead of
      * hanging on a doomed network call and surfacing an error for a state that is expected.
      */
-    suspend fun refreshLibrary(): Unit = libraryMutex.withLock {
+    suspend fun refreshLibrary(force: Boolean = false): Unit = libraryMutex.withLock {
         if (!hasNetwork()) return@withLock
+        // Two callers a moment apart (a cold shuffle's background refresh, then the music screen's
+        // own) would page every favorite twice. [force] is for a changed ARL, a new account entirely.
+        if (!force && SystemClock.elapsedRealtime() - lastLibraryRefreshMs < LIBRARY_REFRESH_DEDUPE_MS) return@withLock
         pendingFavorites.flush()
         withTokenRetry { session ->
             coroutineScope {
@@ -246,9 +257,12 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
                 // A "Best pépites" created since the last lookup is found again on the next one.
                 bestPepitesLookedUp = false
                 writeSnapshot(favs, pls)
+                lastLibraryRefreshMs = SystemClock.elapsedRealtime()
             }
         }
     }
+
+    @Volatile private var lastLibraryRefreshMs = Long.MIN_VALUE / 2
 
     /** Serializes and writes the snapshot on IO, guarded so concurrent writers can't corrupt the file. */
     private suspend fun writeSnapshot(favs: List<DeezerTrack>, pls: List<DeezerPlaylist>) =
@@ -281,10 +295,22 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
 
     private val favoritesMutex = Mutex()
 
-    /** Ensures the favorites cache is populated. Re-fetches only when [force] or not yet loaded. */
+    /**
+     * Ensures the favorites cache is populated. Re-fetches only when [force] or not yet loaded, and a
+     * cold process takes the disk snapshot first: paging every favorite over the network took long
+     * enough that the menu's shuffle button sat spinning, and the process was killed in the
+     * background before it got anywhere. The network fetch then runs behind, refreshing the list.
+     */
     suspend fun ensureFavorites(force: Boolean = false): List<DeezerTrack> = favoritesMutex.withLock {
         pendingFavorites.flush()
-        if (!force) _favorites.value?.let { return it }
+        if (!force) {
+            _favorites.value?.let { return it }
+            seedLibraryFromDisk()
+            _favorites.value?.let { seeded ->
+                ioScope.launch { runCatching { refreshLibrary() } }
+                return seeded
+            }
+        }
         val list = withTokenRetry { api.getFavorites(it) }
         setFavorites(list)
         list
@@ -685,7 +711,14 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
     }
 
     /** Queues every favorite and plays them shuffled, starting from a random one. */
-    suspend fun shuffleFavorites() = shuffleTracks(ensureFavorites(), TrackSource.Favorites)
+    suspend fun shuffleFavorites() = coroutineScope {
+        // Binding the playback service takes a moment of its own on a cold process, so it runs
+        // alongside the favorites read instead of after it.
+        val connecting = async { ensureController() }
+        val favorites = ensureFavorites()
+        connecting.await()
+        shuffleTracks(favorites, TrackSource.Favorites)
+    }
 
     /**
      * [shuffleFavorites] on the repository's own scope: the menu button launches it, and opening

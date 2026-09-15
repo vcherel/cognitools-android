@@ -93,14 +93,16 @@ fun DeezerLibraryScreen(
 
     LaunchedEffect(Unit) {
         if (!repo.hasArl()) { showSettings = true; return@LaunchedEffect }
+        // Builds the day's batch on the first entry of a new day, a no-op on every later entry. Fired
+        // before the waits below: opening a playlist straight away cancels this effect, and the
+        // batch used to wait for a visit that lingered on this screen long enough.
+        repo.discoveries.ensureToday()
         runCatching { repo.ensureLibrary() }.onFailure { error = userMessage(it) }
         // Incremental: after the first run this downloads only what was added to Best pépites since.
         repo.offline.syncInBackground()
         downloadedCount = runCatching { repo.downloadedTracks().size }.getOrDefault(0)
         // Keeps each podcast row's unseen count fresh without the user having to open it first.
         runCatching { podcastRepo.refreshEpisodes() }
-        // Builds the day's batch on the first entry of a new day; a no-op on every later entry.
-        repo.discoveries.ensureToday()
     }
     // Recomputed as the Best pépites sync progresses, so newly finished downloads show up without
     // needing to leave and re-enter the screen.
@@ -247,7 +249,7 @@ fun DeezerLibraryScreen(
                 showSettings = false
                 scope.launch {
                     error = null
-                    runCatching { repo.refreshLibrary() }.onFailure { error = userMessage(it) }
+                    runCatching { repo.refreshLibrary(force = true) }.onFailure { error = userMessage(it) }
                 }
             }
         )

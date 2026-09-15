@@ -73,7 +73,8 @@ data class DiscoveryState(
  *  - new releases from the artists on his Deezer profile and from every artist in his favorites or
  *    in Best pépites, found by diffing each artist's public discography against the album ids we
  *    have already seen. They take up to half the batch, the artists he has the most tracks from
- *    first; what doesn't fit queues up in a backlog for the following days.
+ *    first; what doesn't fit queues up in a backlog for the following days. The scan itself runs
+ *    once the day's batch is out, so what it finds is offered from the next day on.
  *  - discoveries from Deezer's own personalized recommendations: Flow ([DeezerApi.flowTracks]), topped
  *    up with the track mix of a few random favorites when Flow runs thin after filtering. They fill
  *    whatever the releases left, which is half the batch at the very least.
@@ -301,24 +302,12 @@ class DeezerDiscoveries(private val appContext: Context, private val repo: Deeze
             val needsScan = lastScanDate != today()
             generationLog.log("generate ${if (automatic) "daily" else "refresh"}: scan=$needsScan, ${kept.size} release(s) kept")
 
-            // The discovery half is collected before the scan, not after it: the scan walks hundreds
-            // of artists over several minutes, and the Flow calls that used to follow it came back
-            // empty often enough to leave the day's batch with nothing but new releases.
+            // The discovery half is collected before the scan, not after it: the Flow calls that
+            // used to follow the scan came back empty often enough to leave the day's batch with
+            // nothing but new releases.
             val discoveries = collectDiscoveries(excluded, known, span = if (needsScan) DISCOVERY_WEIGHT else 100)
             val pool = discoveries.tracks
             generationLog.log("discoveries: ${pool.size} candidate(s)${if (discoveries.failed) ", pass failed" else ""}")
-
-            if (needsScan) {
-                runCatching { scanNewReleases(known, progressBase = DISCOVERY_WEIGHT) }
-                    // Checkpointed right here: the scan is the expensive part, and a process killed
-                    // afterwards must not make tomorrow redo it. A scan that could not read a single
-                    // artist read nothing at all, so it is not the day's scan.
-                    .onSuccess { if (it) { lastScanDate = today(); save() } }
-                    .onFailure {
-                        Log.w(TAG, "New release scan failed", it)
-                        generationLog.log("scan failed: ${generationLog.describe(it)}")
-                    }
-            }
 
             // New releases first, best known artist first, then the personalized discoveries.
             // Your artists put out roughly nine releases a day, far more than the daily slots, so the
@@ -355,6 +344,25 @@ class DeezerDiscoveries(private val appContext: Context, private val repo: Deeze
             if (batch.isNotEmpty() && !discoveries.failed) batchDate = today()
             save()
             publish()
+
+            // The scan runs last, with the batch already on screen and the day claimed: it walks
+            // hundreds of artists over several minutes, and a process killed in the middle of it
+            // (the app left in the background all morning) used to take the whole batch with it,
+            // which is why a fresh selection only ever showed up in the evening. What it turns up
+            // lands in the backlog for the following days' release slots.
+            if (needsScan) {
+                _state.value = _state.value.copy(generating = true, progress = DISCOVERY_WEIGHT)
+                runCatching { scanNewReleases(known, progressBase = DISCOVERY_WEIGHT) }
+                    // Checkpointed right here: a process killed afterwards must not make tomorrow
+                    // redo the expensive part. A scan that could not read a single artist read
+                    // nothing at all, so it is not the day's scan.
+                    .onSuccess { if (it) { lastScanDate = today(); save() } }
+                    .onFailure {
+                        Log.w(TAG, "New release scan failed", it)
+                        generationLog.log("scan failed: ${generationLog.describe(it)}")
+                    }
+                publish()
+            }
         } catch (e: Exception) {
             Log.w(TAG, "Discovery batch generation failed", e)
             generationLog.log("generate crashed: ${generationLog.describe(e)}")

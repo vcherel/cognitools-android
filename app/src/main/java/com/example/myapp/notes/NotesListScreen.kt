@@ -302,12 +302,19 @@ fun NotesListScreen(navController: NavController) {
                                         onDeleteLine = { index ->
                                             updateNoteLines(pinnedTodo.id) { lines -> lines.removeAt(index) }
                                         },
-                                        onAddItem = {
-                                            // The new item goes at the end of the active block, above the
-                                            // first separator; the editor then opens with the caret on it.
+                                        onAddItem = { atTop ->
+                                            // The new item goes at the start of the active block (right
+                                            // under an inline title) or at its end, above the first
+                                            // separator; the editor then opens with the caret on it.
                                             val lines = pinnedTodo.content.split("\n")
-                                            val insertAt = lines.indexOfFirst { it.isSeparatorLine() }
-                                                .let { if (it == -1) lines.size else it }
+                                            val insertAt = if (atTop) {
+                                                if (pinnedTodo.title.isBlank()) {
+                                                    lines.indexOfFirst { it.isNotBlank() && !it.isSeparatorLine() } + 1
+                                                } else 0
+                                            } else {
+                                                lines.indexOfFirst { it.isSeparatorLine() }
+                                                    .let { if (it == -1) lines.size else it }
+                                            }
                                             val offset = lines.take(insertAt).sumOf { it.length + 1 } +
                                                 UNCHECKED_PREFIX.length
                                             updateNoteLines(
@@ -506,7 +513,8 @@ private fun TodoWidgetCard(
     onNavigate: () -> Unit,
     onToggleLine: (Int) -> Unit,
     onDeleteLine: (Int) -> Unit,
-    onAddItem: () -> Unit
+    /** Adds a blank item at the top of the active block when [atTop], at its bottom otherwise. */
+    onAddItem: (atTop: Boolean) -> Unit
 ) {
     val (title, _) = remember(note) { noteTitleAndPreview(note) }
     val contentLines = remember(note.content) { note.content.split("\n") }
@@ -533,6 +541,9 @@ private fun TodoWidgetCard(
             fontWeight = FontWeight.Bold
         )
         Spacer(Modifier.height(4.dp))
+        // One add row at each end: a long list otherwise means scrolling to the bottom for the
+        // item that belongs first.
+        AddItemRow(onClick = { onAddItem(true) })
         bodyLines.forEach { (index, line) ->
             if (line.isCheckboxLine()) {
                 val checked = line.isCheckedLine()
@@ -575,21 +586,26 @@ private fun TodoWidgetCard(
                 }
             }
         }
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { onAddItem() }
-        ) {
-            IconButton(onClick = onAddItem, modifier = Modifier.size(40.dp)) {
-                Icon(Icons.Default.Add, contentDescription = null, tint = Color.Gray)
-            }
-            Text(
-                "Nouvel élément",
-                style = MaterialTheme.typography.bodyMedium,
-                color = Color.Gray
-            )
+        AddItemRow(onClick = { onAddItem(false) })
+    }
+}
+
+@Composable
+private fun AddItemRow(onClick: () -> Unit) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+    ) {
+        IconButton(onClick = onClick, modifier = Modifier.size(40.dp)) {
+            Icon(Icons.Default.Add, contentDescription = null, tint = Color.Gray)
         }
+        Text(
+            "Nouvel élément",
+            style = MaterialTheme.typography.bodyMedium,
+            color = Color.Gray
+        )
     }
 }
 
