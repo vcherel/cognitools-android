@@ -1,5 +1,6 @@
 package com.example.myapp.deezer
 
+import com.example.myapp.runIgnoringErrors
 import com.example.myapp.userMessage
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -100,14 +101,14 @@ fun DeezerLibraryScreen(
         runCatching { repo.ensureLibrary() }.onFailure { error = userMessage(it) }
         // Incremental: after the first run this downloads only what was added to Best pépites since.
         repo.offline.syncInBackground()
-        downloadedCount = runCatching { repo.player.downloadedTracks().size }.getOrDefault(0)
+        downloadedCount = runIgnoringErrors { repo.player.downloadedTracks().size }.getOrDefault(0)
         // Keeps each podcast row's unseen count fresh without the user having to open it first.
-        runCatching { podcastRepo.refreshEpisodes() }
+        runIgnoringErrors { podcastRepo.refreshEpisodes() }
     }
     // Recomputed as the Best pépites sync progresses, so newly finished downloads show up without
     // needing to leave and re-enter the screen.
     LaunchedEffect(offlineState.downloaded, offlineState.syncing) {
-        downloadedCount = runCatching { repo.player.downloadedTracks().size }.getOrDefault(downloadedCount)
+        downloadedCount = runIgnoringErrors { repo.player.downloadedTracks().size }.getOrDefault(downloadedCount)
     }
 
     Column(Modifier.fillMaxSize()) {

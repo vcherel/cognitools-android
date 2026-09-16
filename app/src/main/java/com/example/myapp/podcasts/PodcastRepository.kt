@@ -422,7 +422,10 @@ class PodcastRepository(private val appContext: Context) {
         val id = c.currentMediaItem?.mediaId ?: return
         val positionMs = c.currentPosition
         val durationMs = c.duration.takeIf { it > 0 } ?: 0L
-        progressScope.launch { persistProgress(id, positionMs, durationMs) }
+        // A source that ended on the spot reports its position at its (wrong) end: the pause that
+        // comes with it must not turn that into "heard" behind [recoverFromShortSource]'s back.
+        val instantEnd = c.playbackState == Player.STATE_ENDED && endedInstantly()
+        progressScope.launch { persistProgress(id, positionMs, durationMs, allowFinish = !instantEnd) }
     }
 
     /**
@@ -434,12 +437,15 @@ class PodcastRepository(private val appContext: Context) {
      * through [recoverFromShortSource] instead.
      */
     private fun finishEpisode(episodeId: String) {
-        if (SystemClock.elapsedRealtime() - trackedSinceMs < INSTANT_END_MS) {
+        if (endedInstantly()) {
             recoverFromShortSource(episodeId)
             return
         }
         progressScope.launch { markSeen(episodeId) }
     }
+
+    /** True while the tracked episode has been on for less than [INSTANT_END_MS]. */
+    private fun endedInstantly(): Boolean = SystemClock.elapsedRealtime() - trackedSinceMs < INSTANT_END_MS
 
     /**
      * Plays [episodeId] again after removing what made it end on the spot: a download that can only be
@@ -483,10 +489,10 @@ class PodcastRepository(private val appContext: Context) {
         }
     }
 
-    private suspend fun persistProgress(episodeId: String, positionMs: Long, durationMs: Long) {
+    private suspend fun persistProgress(episodeId: String, positionMs: Long, durationMs: Long, allowFinish: Boolean = true) {
         // The last stretch is credits and outro, so stopping there counts as having heard the episode.
         if (durationMs > 0 && positionMs >= durationMs - PROGRESS_FINISHED_MARGIN_MS) {
-            markSeen(episodeId)
+            if (allowFinish) markSeen(episodeId)
             return
         }
         // Below the threshold there is nothing worth resuming, and a stale row from a previous listen

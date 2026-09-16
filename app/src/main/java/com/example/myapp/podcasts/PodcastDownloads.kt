@@ -15,6 +15,7 @@ import com.example.myapp.AppSnackbar
 import com.example.myapp.USER_AGENT
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
@@ -40,6 +41,7 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import java.io.File
+import java.util.concurrent.ConcurrentHashMap
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
@@ -63,7 +65,8 @@ class PodcastDownloads(private val appContext: Context, private val dao: () -> P
 
     /** Outlives every screen: a download keeps going with the app closed and the phone locked. */
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private val jobs = mutableMapOf<String, Job>()
+    /** Touched from the main thread (a tap), this scope (a job ending) and the sleep timer's scope. */
+    private val jobs = ConcurrentHashMap<String, Job>()
     /** One download at a time: several large episodes over mobile data help nobody. */
     private val mutex = Mutex()
 
@@ -228,7 +231,7 @@ class PodcastDownloads(private val appContext: Context, private val dao: () -> P
         }
         _active.update { it + episode }
         PodcastDownloadService.start(appContext)
-        jobs[episode.id] = scope.launch {
+        val job = scope.launch(start = CoroutineStart.LAZY) {
             addWanted(episode)
             try {
                 mutex.withLock { download(episode) }
@@ -238,11 +241,16 @@ class PodcastDownloads(private val appContext: Context, private val dao: () -> P
                 Log.w(TAG, "Download failed for ${episode.title}", e)
                 AppSnackbar.show(userMessage(e, "Échec du téléchargement"))
             } finally {
-                jobs.remove(episode.id)
-                _active.update { list -> list.filterNot { it.id == episode.id } }
-                _progress.update { it - episode.id }
+                // Only this job's own entry: a cancel followed by a fresh enqueue of the same episode
+                // has already replaced it, and that newer download must stay tracked.
+                if (jobs.remove(episode.id, coroutineContext[Job])) {
+                    _active.update { list -> list.filterNot { it.id == episode.id } }
+                    _progress.update { it - episode.id }
+                }
             }
         }
+        jobs[episode.id] = job
+        job.start()
     }
 
     /**

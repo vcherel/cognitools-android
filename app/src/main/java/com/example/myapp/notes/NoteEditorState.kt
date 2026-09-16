@@ -105,6 +105,9 @@ class NoteEditorState(noteId: String, private val dao: NoteDao, private val scop
             .collectLatest { current ->
                 if (lastSaved == null || current == lastSaved) return@collectLatest
                 delay(600)
+                // Checked again: leaving edit mode mid-delay saves through saveNow, and saving the
+                // same snapshot twice would put a no-op step on the undo stack.
+                if (current == lastSaved) return@collectLatest
                 if (current.title.isNotBlank() || current.content.isNotBlank()) {
                     pushUndo()
                     dao.upsertNote(currentNote())

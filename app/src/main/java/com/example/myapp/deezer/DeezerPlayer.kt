@@ -175,7 +175,8 @@ class DeezerPlayer(private val appContext: Context, private val repo: DeezerRepo
         if (tracks.isEmpty()) return
         stopPodcastPlayback()
         val controller = ensureController()
-        queuedTracks.clear()
+        // Never cleared: the map doubles as the metadata behind [downloadedTracks] and is pruned to
+        // what the caches hold at write time, so wiping it here shrank the file to the current queue.
         orderedQueue = tracks
         queueSource = source
         val order = if (shuffle) {

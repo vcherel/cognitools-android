@@ -54,7 +54,15 @@ class MediaControllerHolder(
             val token = SessionToken(appContext, ComponentName(appContext, serviceClass))
             val future = MediaController.Builder(appContext, token).buildAsync()
             future.addListener({
-                val c = future.get()
+                // A failed build (service refused to start, bind rejected) must fail the callers
+                // too: left hanging, every later ensure() would wait on this same deferred for good.
+                val c = try {
+                    future.get()
+                } catch (e: Exception) {
+                    connection = null
+                    deferred.completeExceptionally(e)
+                    return@addListener
+                }
                 controller = c
                 onConnected(c)
                 deferred.complete(c)

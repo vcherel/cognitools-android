@@ -6,6 +6,7 @@ import android.net.Network
 import android.net.NetworkCapabilities
 import android.util.Log
 import com.example.myapp.writeAtomically
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -93,6 +94,8 @@ class DeezerPendingFavorites(
                 if (e.tokenError) break
                 Log.w(TAG, "Dropping pending favorite $sngId after API error", e)
                 iter.remove()
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 Log.w(TAG, "Pending favorites left queued after a network failure", e)
                 break

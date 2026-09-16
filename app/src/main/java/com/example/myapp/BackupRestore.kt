@@ -14,14 +14,19 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+
+// Off the screen's scope: leaving the screen mid-write used to cancel the job and leave a
+// truncated backup, or an import applied halfway.
+private val backupScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
 /**
  * Backup and restore icon buttons plus the import confirmation dialog.
@@ -35,18 +40,22 @@ fun BackupRestoreActions(
     createBackupJson: suspend () -> String,
     importFromJson: suspend (String) -> Unit
 ) {
-    val context = LocalContext.current
-    val scope = rememberCoroutineScope()
+    val context = LocalContext.current.applicationContext
 
     val backupLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/json")
     ) { uri ->
         if (uri != null) {
-            scope.launch(Dispatchers.IO) {
-                val json = createBackupJson()
-                context.contentResolver.openOutputStream(uri)?.use { it.write(json.toByteArray()) }
+            backupScope.launch {
+                val done = runCatching {
+                    val json = createBackupJson()
+                    // "wt": a plain "w" is not truncated by every provider (Downloads, Drive), and
+                    // a shorter backup written over a longer one then keeps the old file's tail.
+                    context.contentResolver.openOutputStream(uri, "wt")?.use { it.write(json.toByteArray()) }
+                        ?: error("Fichier inaccessible")
+                }.isSuccess
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(context, "Sauvegarde créée", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, if (done) "Sauvegarde créée" else "Erreur de sauvegarde", Toast.LENGTH_SHORT).show()
                 }
             }
         }
@@ -62,7 +71,7 @@ fun BackupRestoreActions(
     }
 
     fun importBackup(uri: Uri) {
-        scope.launch(Dispatchers.IO) {
+        backupScope.launch {
             try {
                 val json = context.contentResolver.openInputStream(uri)
                     ?.use { it.bufferedReader().readText() } ?: return@launch

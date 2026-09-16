@@ -25,3 +25,11 @@ fun userMessage(e: Throwable, fallback: String = "Une erreur est survenue"): Str
         else -> e.message?.takeIf { it.isNotBlank() } ?: fallback
     }
 }
+
+/**
+ * `runCatching` for a job whose failure is simply ignored, minus the trap above: a cancellation
+ * is rethrown, so an effect left mid-request stops instead of carrying on to write state into a
+ * composition that is gone.
+ */
+inline fun <T> runIgnoringErrors(block: () -> T): Result<T> =
+    runCatching(block).onFailure { if (it is CancellationException) throw it }

@@ -54,6 +54,7 @@ import com.example.myapp.LocalGoHome
 import com.example.myapp.MediaArt
 import com.example.myapp.PlayPauseButton
 import com.example.myapp.PlayerSeekBar
+import com.example.myapp.runIgnoringErrors
 import com.example.myapp.notes.appendToDjNote
 import kotlinx.coroutines.launch
 
@@ -105,7 +106,7 @@ fun FullPlayerSheet(
     val shuffle by repo.player.shuffleEnabled.collectAsState()
 
     // Keep the favorites cache warm so the heart reflects the real like-state.
-    LaunchedEffect(Unit) { runCatching { repo.ensureFavorites() } }
+    LaunchedEffect(Unit) { runIgnoringErrors { repo.ensureFavorites() } }
 
     var showQueue by remember { mutableStateOf(false) }
 
@@ -114,7 +115,7 @@ fun FullPlayerSheet(
     var pepitesTick by remember { mutableIntStateOf(0) }
     var inPepites by remember { mutableStateOf(false) }
     LaunchedEffect(state.sngId, pepitesTick) {
-        runCatching { repo.ensureBestPepitesLoaded() }
+        runIgnoringErrors { repo.ensureBestPepitesLoaded() }
         inPepites = state.sngId != null && repo.bestPepitesContains(state.sngId) == true
     }
 

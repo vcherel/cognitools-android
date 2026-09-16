@@ -47,6 +47,7 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.example.myapp.AppSnackbar
 import com.example.myapp.RecentSearchChips
+import com.example.myapp.runIgnoringErrors
 import com.example.myapp.MediaArt
 import com.example.myapp.ScreenTopBar
 import com.example.myapp.SearchHistory
@@ -174,7 +175,7 @@ private fun MusicSearch(
     val favorites by repo.favorites.collectAsState()
 
     // Warm the favorites cache so the hearts show the correct filled/empty state.
-    LaunchedEffect(Unit) { runCatching { repo.ensureFavorites() } }
+    LaunchedEffect(Unit) { runIgnoringErrors { repo.ensureFavorites() } }
 
     // Matching on artist + title, not on sngId: a favorite added years ago pins a different release
     // id than the one the search hands back today, so the heart alone would miss most of them.

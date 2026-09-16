@@ -2,6 +2,7 @@ package com.example.myapp.deezer
 
 import android.content.Context
 import android.content.Intent
+import com.example.myapp.runIgnoringErrors
 import com.example.myapp.userMessage
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -72,9 +73,9 @@ fun DeezerTrackListScreen(
         runCatching { tracks = loader() }.onFailure { error = userMessage(it) }
         isLoading = false
         // Warm the favorites cache so the hearts show the correct filled/empty state.
-        runCatching { repo.ensureFavorites() }
+        runIgnoringErrors { repo.ensureFavorites() }
         // Hide the "add to Best pépites" action when this very playlist is Best pépites.
-        isBestPepites = playlistId != null && runCatching { repo.bestPepitesPlaylistId() }.getOrNull() == playlistId
+        isBestPepites = playlistId != null && runIgnoringErrors { repo.bestPepitesPlaylistId() }.getOrNull() == playlistId
     }
 
     Column(Modifier.fillMaxSize()) {
