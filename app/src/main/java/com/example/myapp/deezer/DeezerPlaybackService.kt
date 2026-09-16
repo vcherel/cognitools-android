@@ -162,7 +162,7 @@ class DeezerPlaybackService : MediaSessionService() {
     /** The track behind the current MediaItem, falling back to its metadata if the queue map lost it. */
     private fun currentTrack(): DeezerTrack? {
         val item = mediaSession?.player?.currentMediaItem ?: return null
-        repo.trackById(item.mediaId)?.let { return it }
+        repo.player.trackById(item.mediaId)?.let { return it }
         val m = item.mediaMetadata
         return DeezerTrack(
             sngId = item.mediaId,
@@ -325,7 +325,7 @@ class DeezerPlaybackService : MediaSessionService() {
             }
             consecutiveSkips++
 
-            val source = mediaItem?.let { repo.sourceOf(it) }
+            val source = mediaItem?.let { repo.player.sourceOf(it) }
             if (track != null && source != null) {
                 findAndApplyReplacement(track, source)
             } else {
@@ -370,7 +370,7 @@ class DeezerPlaybackService : MediaSessionService() {
                     return@launch
                 }
                 val index = player.currentMediaItemIndex
-                player.replaceMediaItem(index, repo.buildMediaItem(replacement, source = source))
+                player.replaceMediaItem(index, repo.player.buildMediaItem(replacement, source = source))
                 player.prepare()
                 player.play()
                 val applied = runCatching { repo.applyReplacement(track, replacement, source) }.isSuccess
@@ -437,7 +437,7 @@ private class LikedOnlyCacheDataSink(private val delegate: DataSink, private val
     private var writing = false
 
     override fun open(dataSpec: DataSpec) {
-        val sngId = repo.sngIdFromCacheKey(dataSpec.key ?: dataSpec.uri.toString())
+        val sngId = sngIdFromCacheKey(dataSpec.key ?: dataSpec.uri.toString())
         writing = sngId != null && repo.isFavorite(sngId)
         if (writing) delegate.open(dataSpec)
     }

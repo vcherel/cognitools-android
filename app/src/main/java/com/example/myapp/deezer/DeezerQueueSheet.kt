@@ -55,7 +55,7 @@ private val ROW_HEIGHT = 64.dp
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun QueueSheet(repo: DeezerRepository, onDismiss: () -> Unit) {
-    val queue by repo.queueState.collectAsState()
+    val queue by repo.player.queueState.collectAsState()
     val rowHeightPx = with(LocalDensity.current) { ROW_HEIGHT.toPx() }
 
     // The row being dragged, by index, and how far past its resting place the finger is.
@@ -66,7 +66,7 @@ fun QueueSheet(repo: DeezerRepository, onDismiss: () -> Unit) {
     // far above it. One-shot: a later scroll is the user's own.
     val listState = rememberLazyListState()
     LaunchedEffect(Unit) {
-        val index = repo.queueState.value.currentIndex
+        val index = repo.player.queueState.value.currentIndex
         if (index > 0) listState.scrollToItem(index)
     }
 
@@ -98,7 +98,7 @@ fun QueueSheet(repo: DeezerRepository, onDismiss: () -> Unit) {
                             artworkUrl = entry.coverUrl,
                             title = entry.title,
                             isPlaying = index == queue.currentIndex,
-                            onClick = { repo.playQueueIndex(index) },
+                            onClick = { repo.player.playQueueIndex(index) },
                             modifier = Modifier
                                 .weight(1f)
                                 // A track already played stays listed (jumping back to it is the point)
@@ -115,7 +115,7 @@ fun QueueSheet(repo: DeezerRepository, onDismiss: () -> Unit) {
                                 )
                             },
                             trailing = {
-                                IconButton(onClick = { repo.removeQueueItem(index) }) {
+                                IconButton(onClick = { repo.player.removeQueueItem(index) }) {
                                     Icon(
                                         Icons.Filled.Close,
                                         contentDescription = "Retirer de la file",
@@ -142,12 +142,12 @@ fun QueueSheet(repo: DeezerRepository, onDismiss: () -> Unit) {
                                         // Each half-row crossed is one swap applied for real, so the
                                         // list redraws under the finger and the offset resets by a row.
                                         while (dragOffset > rowHeightPx / 2 && draggedIndex < queue.entries.size - 1) {
-                                            repo.moveQueueItem(draggedIndex, draggedIndex + 1)
+                                            repo.player.moveQueueItem(draggedIndex, draggedIndex + 1)
                                             draggedIndex++
                                             dragOffset -= rowHeightPx
                                         }
                                         while (dragOffset < -rowHeightPx / 2 && draggedIndex > 0) {
-                                            repo.moveQueueItem(draggedIndex, draggedIndex - 1)
+                                            repo.player.moveQueueItem(draggedIndex, draggedIndex - 1)
                                             draggedIndex--
                                             dragOffset += rowHeightPx
                                         }

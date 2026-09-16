@@ -85,7 +85,7 @@ fun DeezerLibraryScreen(
     val playlists by repo.playlists.collectAsState()
     val offlineState by repo.offline.state.collectAsState()
     val discoveryState by repo.discoveries.state.collectAsState()
-    val playerState by repo.playerState.collectAsState()
+    val playerState by repo.player.playerState.collectAsState()
     val playingPlaylistId = (playerState.source as? TrackSource.Playlist)?.id
     var error by remember { mutableStateOf<String?>(null) }
     var showSettings by remember { mutableStateOf(false) }
@@ -100,20 +100,20 @@ fun DeezerLibraryScreen(
         runCatching { repo.ensureLibrary() }.onFailure { error = userMessage(it) }
         // Incremental: after the first run this downloads only what was added to Best pépites since.
         repo.offline.syncInBackground()
-        downloadedCount = runCatching { repo.downloadedTracks().size }.getOrDefault(0)
+        downloadedCount = runCatching { repo.player.downloadedTracks().size }.getOrDefault(0)
         // Keeps each podcast row's unseen count fresh without the user having to open it first.
         runCatching { podcastRepo.refreshEpisodes() }
     }
     // Recomputed as the Best pépites sync progresses, so newly finished downloads show up without
     // needing to leave and re-enter the screen.
     LaunchedEffect(offlineState.downloaded, offlineState.syncing) {
-        downloadedCount = runCatching { repo.downloadedTracks().size }.getOrDefault(downloadedCount)
+        downloadedCount = runCatching { repo.player.downloadedTracks().size }.getOrDefault(downloadedCount)
     }
 
     Column(Modifier.fillMaxSize()) {
         ScreenTopBar(title = "Musique", onBack = onBack) {
             Spacer(Modifier.weight(1f))
-            IconButton(onClick = { repo.stopAll(); podcastRepo.stopAll(); goHome() }) {
+            IconButton(onClick = { repo.player.stopAll(); podcastRepo.stopAll(); goHome() }) {
                 Icon(Icons.Filled.Stop, contentDescription = "Tout arrêter")
             }
             // The booster belongs to whatever is playing, so it is reachable from here rather than
@@ -173,7 +173,7 @@ fun DeezerLibraryScreen(
             ShuffleActionCard(
                 icon = Icons.Filled.Favorite,
                 label = favorites?.size?.let { "$it titres" } ?: "…",
-                onShuffle = { scope.launch { runCatching { repo.shuffleFavorites() }.onFailure { error = userMessage(it) } } },
+                onShuffle = { scope.launch { runCatching { repo.player.shuffleFavorites() }.onFailure { error = userMessage(it) } } },
                 onOpen = onOpenFavorites
             )
 
@@ -189,7 +189,7 @@ fun DeezerLibraryScreen(
                             onOpen = { onOpenPlaylist(pl) },
                             onShuffle = {
                                 scope.launch {
-                                    runCatching { repo.shufflePlaylist(pl.id) }.onFailure { error = userMessage(it) }
+                                    runCatching { repo.player.shufflePlaylist(pl.id) }.onFailure { error = userMessage(it) }
                                 }
                             }
                         )
@@ -234,7 +234,7 @@ fun DeezerLibraryScreen(
                 ShuffleActionCard(
                     icon = Icons.Filled.OfflinePin,
                     label = "$downloadedCount titres · disponible hors ligne",
-                    onShuffle = { scope.launch { runCatching { repo.shuffleDownloaded() }.onFailure { error = userMessage(it) } } }
+                    onShuffle = { scope.launch { runCatching { repo.player.shuffleDownloaded() }.onFailure { error = userMessage(it) } } }
                 )
             }
             Spacer(Modifier.height(16.dp))

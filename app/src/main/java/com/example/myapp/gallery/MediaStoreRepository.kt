@@ -6,13 +6,10 @@ import android.content.ContentUris
 import android.content.ContentValues
 import android.content.Context
 import android.content.IntentSender
-import android.media.MediaScannerConnection
 import android.net.Uri
-import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.provider.MediaStore
-import java.io.File
 import java.io.OutputStream
 
 sealed interface WriteOutcome {
@@ -32,15 +29,11 @@ private val PROJECTION = buildList {
     add(MediaStore.Files.FileColumns.BUCKET_DISPLAY_NAME)
     add(MediaStore.Files.FileColumns.MIME_TYPE)
     add(MediaStore.Files.FileColumns.DATA)
-    // Column added in API 29; asking for it below that throws.
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) add(MediaStore.Files.FileColumns.DATE_EXPIRES)
+    add(MediaStore.Files.FileColumns.DATE_EXPIRES)
 }.toTypedArray()
 
 // The trash is MediaStore's own: trashed rows stay in place with IS_TRASHED set, are hidden from
 // every normal query, and MediaProvider deletes them 30 days later without us doing anything.
-// It only exists from API 30 on; below that a delete stays permanent.
-fun trashSupported(): Boolean = Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
-
 const val TRASH_RETENTION_DAYS = 30
 
 // Bucket accumulator for queryAlbums: only the cover row (the most recent item in the bucket)
@@ -160,9 +153,8 @@ fun resolveMediaTarget(context: Context, uri: Uri): Pair<Long, Long>? = try {
     null
 }
 
-/** The trashed items, most recently trashed first. Empty below API 30, where there is no trash. */
-fun queryTrashedItems(context: Context): List<MediaItem> =
-    if (trashSupported()) queryMediaItems(context, trashedOnly = true) else emptyList()
+/** The trashed items, most recently trashed first. */
+fun queryTrashedItems(context: Context): List<MediaItem> = queryMediaItems(context, trashedOnly = true)
 
 fun queryMediaItems(
     context: Context,
@@ -186,12 +178,12 @@ fun queryMediaItems(
     }.toTypedArray()
     // Trashed rows are excluded from a plain query, so listing them takes the Bundle form with
     // MATCH_ONLY; the newest ones expire last, hence the DATE_EXPIRES sort.
-    val sortOrder = if (trashedOnly && trashSupported()) {
+    val sortOrder = if (trashedOnly) {
         "${MediaStore.Files.FileColumns.DATE_EXPIRES} DESC"
     } else {
         "${MediaStore.Files.FileColumns.DATE_ADDED} DESC"
     }
-    val cursor = if (trashedOnly && trashSupported()) {
+    val cursor = if (trashedOnly) {
         val queryArgs = Bundle().apply {
             putString(ContentResolver.QUERY_ARG_SQL_SELECTION, selection)
             putStringArray(ContentResolver.QUERY_ARG_SQL_SELECTION_ARGS, args)
@@ -278,7 +270,7 @@ private inline fun writeOutcome(failureMessage: String, write: () -> Boolean): W
         WriteOutcome.Error(e.message ?: "Erreur")
     }
 
-// Asks for consent and runs the write again when Android demands it (API 29 raises it as a
+// Asks for consent and runs the write again when Android demands it (raised as a
 // RecoverableSecurityException from the write itself).
 private suspend fun WriteOutcome.orConsentThenRetry(
     requestConsent: suspend (IntentSender) -> Boolean,
@@ -291,12 +283,10 @@ private suspend fun WriteOutcome.orConsentThenRetry(
 
 // True when MediaProvider will refuse a write to items this app doesn't own until the user has
 // approved them, which is what the up-front createWriteRequest dialogs are for.
-private fun needsUpfrontConsent(): Boolean =
-    Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && !hasAllFilesAccess()
+private fun needsUpfrontConsent(): Boolean = !hasAllFilesAccess()
 
-// Grants write access for uris not owned by this app (API 30+ shows a one-time system consent
-// dialog via requestConsent), then runs `write`. Below API 29, legacy full storage access means
-// `write` just succeeds directly.
+// Grants write access for uris not owned by this app (a one-time system consent dialog via
+// requestConsent), then runs `write`.
 private suspend fun performMediaWrite(
     context: Context,
     uris: List<Uri>,
@@ -324,30 +314,6 @@ private fun renameMediaItem(context: Context, item: MediaItem, newName: String):
         val values = ContentValues().apply { put(MediaStore.Files.FileColumns.DISPLAY_NAME, newName) }
         context.contentResolver.update(item.uri, values, null, null) > 0
     }
-
-// One item's move. Callers go through performMoveBatch, which is what handles the shared consent
-// dialog; this is the per-item work it and the pre-Q path fall back on.
-private suspend fun performMove(
-    context: Context,
-    item: MediaItem,
-    targetRelativePath: String,
-    requestConsent: suspend (IntentSender) -> Boolean
-): Boolean {
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
-        return performMediaWrite(context, listOf(item.uri), requestConsent) {
-            moveMediaItemLegacy(context, item, targetRelativePath)
-        }
-    }
-    // Fast path: works for items in shared collections (Camera, Screenshots, Downloads...).
-    val moved = performMediaWrite(context, listOf(item.uri), requestConsent) {
-        updateRelativePath(context, item, targetRelativePath)
-    }
-    if (moved) return true
-    // Falls back here for items MediaProvider refuses to reassign in place, e.g. photos still
-    // living in another app's private Android/media/<package>/ folder (WhatsApp, ...): copy the
-    // bytes into a new entry at the target location, then delete the original.
-    return copyThenDeleteMove(context, item, targetRelativePath, requestConsent)
-}
 
 private fun updateRelativePath(context: Context, item: MediaItem, targetRelativePath: String): WriteOutcome =
     writeOutcome("Déplacement impossible") {
@@ -397,23 +363,6 @@ private suspend fun copyThenDeleteMove(
     return false
 }
 
-@Suppress("DEPRECATION")
-private fun moveMediaItemLegacy(context: Context, item: MediaItem, targetRelativePath: String): WriteOutcome {
-    return try {
-        val root = Environment.getExternalStorageDirectory()
-        val targetDir = File(root, targetRelativePath).apply { mkdirs() }
-        val sourceFile = File(root, item.relativePath + item.displayName)
-        val destFile = File(targetDir, item.displayName)
-        if (!sourceFile.renameTo(destFile)) return WriteOutcome.Error("Déplacement impossible")
-        val values = ContentValues().apply { put(MediaStore.Files.FileColumns.DATA, destFile.absolutePath) }
-        context.contentResolver.update(item.uri, values, null, null)
-        MediaScannerConnection.scanFile(context, arrayOf(sourceFile.absolutePath, destFile.absolutePath), null, null)
-        WriteOutcome.Done
-    } catch (e: Exception) {
-        WriteOutcome.Error(e.message ?: "Erreur")
-    }
-}
-
 // One item's delete. Callers go through performDeleteBatch; this is what it and the copy-then-delete
 // move fall back on per item.
 private suspend fun performDelete(
@@ -429,8 +378,8 @@ private suspend fun performDelete(
     return delete().orConsentThenRetry(requestConsent, delete)
 }
 
-// Deletes several items in one shot. On API 30+ MediaStore shows a single system consent dialog
-// covering the whole batch; on older versions we fall back to deleting one by one.
+// Deletes several items in one shot: MediaStore shows a single system consent dialog covering the
+// whole batch. With All files access there is no dialog and they go one by one.
 suspend fun performDeleteBatch(
     context: Context,
     items: List<MediaItem>,
@@ -448,9 +397,8 @@ suspend fun performDeleteBatch(
     return allOk
 }
 
-// Moves several items with a single write consent on API 30+. Each item is reassigned in place;
-// any MediaProvider refuses (e.g. another app's private media dir) falls back to copy+delete,
-// mirroring the single-item performMove.
+// Moves several items with a single write consent. Each item is reassigned in place; any
+// MediaProvider refuses (e.g. another app's private media dir) falls back to copy then delete.
 suspend fun performMoveBatch(
     context: Context,
     items: List<MediaItem>,
@@ -458,11 +406,6 @@ suspend fun performMoveBatch(
     requestConsent: suspend (IntentSender) -> Boolean
 ): Boolean {
     if (items.isEmpty()) return true
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
-        var ok = true
-        for (item in items) if (!performMove(context, item, targetRelativePath, requestConsent)) ok = false
-        return ok
-    }
     if (needsUpfrontConsent()) {
         val pending = MediaStore.createWriteRequest(context.contentResolver, items.map { it.uri })
         if (!requestConsent(pending.intentSender)) return false
@@ -476,15 +419,12 @@ suspend fun performMoveBatch(
     return allOk
 }
 
-// Moves items to the system trash, where they stay for 30 days. On API 29 and below there is no
-// trash to move them to, so this deletes them for good instead.
+/** Moves items to the system trash, where they stay for 30 days. */
 suspend fun performTrashBatch(
     context: Context,
     items: List<MediaItem>,
     requestConsent: suspend (IntentSender) -> Boolean
-): Boolean =
-    if (trashSupported()) setTrashed(context, items, true, requestConsent)
-    else performDeleteBatch(context, items, requestConsent)
+): Boolean = setTrashed(context, items, true, requestConsent)
 
 /** Puts trashed items back where they came from. */
 suspend fun performRestoreBatch(
@@ -500,7 +440,6 @@ private suspend fun setTrashed(
     requestConsent: suspend (IntentSender) -> Boolean
 ): Boolean {
     if (items.isEmpty()) return true
-    if (!trashSupported()) return false
     val values = ContentValues().apply {
         put(MediaStore.Files.FileColumns.IS_TRASHED, if (trashed) 1 else 0)
     }

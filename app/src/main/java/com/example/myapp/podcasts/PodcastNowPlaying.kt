@@ -155,8 +155,7 @@ fun PodcastFullPlayerSheet(
                         }
                     }
                 )
-                // A Deezer episode streams through Deezer's own pipeline and has no plain file to keep.
-                if (episode != null && episode.source != PodcastSource.DEEZER) {
+                if (episode != null) {
                     DownloadToggle(
                         isDownloaded = isDownloaded,
                         isDownloading = isDownloading,

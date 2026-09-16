@@ -46,8 +46,8 @@ class NoteSyncActions(
     fun sendCheckedToIngredients() {
         scope.launch {
             val notes = dao.getNotes()
-            val ingredientsNote = notes.withTitle(INGREDIENTS_TITLE) ?: return@launch showMissingNote(INGREDIENTS_TITLE)
-            val modelNote = notes.withTitle(COURSES_MODEL_TITLE) ?: return@launch showMissingNote(COURSES_MODEL_TITLE)
+            val ingredientsNote = notes.findOrReport(INGREDIENTS_TITLE) ?: return@launch
+            val modelNote = notes.findOrReport(COURSES_MODEL_TITLE) ?: return@launch
 
             val checkedLines = content.split("\n").filter { it.isCheckedLine() }
             if (checkedLines.isEmpty()) return@launch
@@ -61,7 +61,7 @@ class NoteSyncActions(
                 val groupIndex = courseGroupIndexOf(groups, line.ingredientKey())
                 if (groupIndex < groups.size) {
                     val group = groups[groupIndex]
-                    if (group.food) matchedNames.add(group.items.first { it.trim().lowercase() == line.ingredientKey() })
+                    if (group.food) matchedNames.add(group.items.first { it.itemKey() == line.ingredientKey() })
                     matchedLines.add(line)
                 } else {
                     unknown.add(
@@ -79,7 +79,7 @@ class NoteSyncActions(
 
             if (matchedNames.isNotEmpty()) {
                 val present = presentIngredients(ingredientsNote.content)
-                val newPresent = (present + matchedNames).distinctBy { it.trim().lowercase() }
+                val newPresent = (present + matchedNames).distinctBy { it.itemKey() }
                 updateNoteContent(ingredientsNote.id, renderIntoIngredientsNote(ingredientsNote.content, newPresent, groups))
             }
             if (matchedLines.isNotEmpty()) {
@@ -113,8 +113,8 @@ class NoteSyncActions(
         val removed = content.split("\n")[index]
         scope.launch {
             val notes = dao.getNotes()
-            val courses = notes.withTitle(COURSES_TITLE) ?: return@launch showMissingNote(COURSES_TITLE)
-            val modelNote = notes.withTitle(COURSES_MODEL_TITLE) ?: return@launch showMissingNote(COURSES_MODEL_TITLE)
+            val courses = notes.findOrReport(COURSES_TITLE) ?: return@launch
+            val modelNote = notes.findOrReport(COURSES_MODEL_TITLE) ?: return@launch
             val itemName = removed.checkboxText().withoutQuantitySuffix().trim()
 
             val groups = parseCourseGroups(modelNote.content)
@@ -126,7 +126,7 @@ class NoteSyncActions(
                 val lines = content.split("\n").toMutableList()
                 lines.removeAt(index)
                 saveContent(lines.joinToString("\n"))
-                val canonical = groups[groupIndex].items.first { it.trim().lowercase() == itemName.lowercase() }
+                val canonical = groups[groupIndex].items.first { it.itemKey() == itemName.itemKey() }
                 updateNoteContent(
                     courses.id,
                     insertCourseLine(courses.content, groups, groupIndex, UNCHECKED_PREFIX + canonical)
@@ -157,16 +157,15 @@ class NoteSyncActions(
      */
     fun addIngredientDirectly(name: String) {
         scope.launch {
-            val modelNote = dao.getNotes().withTitle(COURSES_MODEL_TITLE)
-                ?: return@launch showMissingNote(COURSES_MODEL_TITLE)
+            val modelNote = dao.getNotes().findOrReport(COURSES_MODEL_TITLE) ?: return@launch
             val groups = parseCourseGroups(modelNote.content)
             val flatModel = groups.allItems()
             val snapshot = content
-            val modelIndex = flatModel.map { it.trim().lowercase() }.indexOf(name.trim().lowercase())
+            val modelIndex = flatModel.map { it.itemKey() }.indexOf(name.itemKey())
 
             val pending = if (modelIndex >= 0) {
                 val present = presentIngredients(content)
-                val newPresent = (present + flatModel[modelIndex]).distinctBy { it.trim().lowercase() }
+                val newPresent = (present + flatModel[modelIndex]).distinctBy { it.itemKey() }
                 saveContent(renderIntoIngredientsNote(content, newPresent, groups))
                 emptyList()
             } else {
@@ -197,16 +196,16 @@ class NoteSyncActions(
     fun resortIngredients() {
         scope.launch {
             val notes = dao.getNotes()
-            val ingredientsNote = notes.withTitle(INGREDIENTS_TITLE) ?: return@launch showMissingNote(INGREDIENTS_TITLE)
-            val modelNote = notes.withTitle(COURSES_MODEL_TITLE) ?: return@launch showMissingNote(COURSES_MODEL_TITLE)
+            val ingredientsNote = notes.findOrReport(INGREDIENTS_TITLE) ?: return@launch
+            val modelNote = notes.findOrReport(COURSES_MODEL_TITLE) ?: return@launch
 
             val ingredientsContent = if (ingredientsNote.id == noteId) content else ingredientsNote.content
             val modelContent = if (modelNote.id == noteId) content else modelNote.content
 
             val groups = parseCourseGroups(modelContent)
-            val modelKeys = groups.allItems().map { it.trim().lowercase() }
+            val modelKeys = groups.allItems().map { it.itemKey() }
             val present = presentIngredients(ingredientsContent)
-            val unknown = present.filter { it.trim().lowercase() !in modelKeys }
+            val unknown = present.filter { it.itemKey() !in modelKeys }
 
             val newContent = renderIntoIngredientsNote(ingredientsContent, present, groups)
             if (newContent != ingredientsContent) {
@@ -237,14 +236,13 @@ class NoteSyncActions(
      */
     fun addCourseItem(name: String) {
         scope.launch {
-            val modelNote = dao.getNotes().withTitle(COURSES_MODEL_TITLE)
-                ?: return@launch showMissingNote(COURSES_MODEL_TITLE)
+            val modelNote = dao.getNotes().findOrReport(COURSES_MODEL_TITLE) ?: return@launch
             val groups = parseCourseGroups(modelNote.content)
             val groupIndex = courseGroupIndexOf(groups, name)
             val snapshot = content
 
             val pending = if (groupIndex < groups.size) {
-                val canonical = groups[groupIndex].items.first { it.trim().lowercase() == name.trim().lowercase() }
+                val canonical = groups[groupIndex].items.first { it.itemKey() == name.itemKey() }
                 saveContent(insertCourseLine(content, groups, groupIndex, UNCHECKED_PREFIX + canonical))
                 emptyList()
             } else {
@@ -276,14 +274,14 @@ class NoteSyncActions(
     fun resortCourses() {
         scope.launch {
             val notes = dao.getNotes()
-            val coursesNote = notes.withTitle(COURSES_TITLE) ?: return@launch showMissingNote(COURSES_TITLE)
-            val modelNote = notes.withTitle(COURSES_MODEL_TITLE) ?: return@launch showMissingNote(COURSES_MODEL_TITLE)
+            val coursesNote = notes.findOrReport(COURSES_TITLE) ?: return@launch
+            val modelNote = notes.findOrReport(COURSES_MODEL_TITLE) ?: return@launch
 
             val coursesContent = if (coursesNote.id == noteId) content else coursesNote.content
             val modelContent = if (modelNote.id == noteId) content else modelNote.content
 
             val groups = parseCourseGroups(modelContent)
-            val modelKeys = groups.allItems().map { it.trim().lowercase() }.toSet()
+            val modelKeys = groups.allItems().map { it.itemKey() }.toSet()
             val present = presentCourseLines(coursesContent)
             val unknown = present.filter { it.ingredientKey() !in modelKeys }
 
@@ -338,7 +336,7 @@ class NoteSyncActions(
                     val present = presentIngredients(targetContent)
                     val food = newGroups.getOrNull(groupIndex)?.food ?: true
                     val newPresent = if (current.inTarget || !food) present
-                    else (present + current.name).distinctBy { it.trim().lowercase() }
+                    else (present + current.name).distinctBy { it.itemKey() }
                     updateNoteContent(currentBatch.targetId, renderIntoIngredientsNote(targetContent, newPresent, newGroups))
                 }
                 SyncKind.COURSE -> {
@@ -383,7 +381,7 @@ class NoteSyncActions(
                 SyncKind.INGREDIENT -> {
                     val present = presentIngredients(targetContent)
                     val newPresent = if (current.inTarget) present
-                    else (present + current.name).distinctBy { it.trim().lowercase() }
+                    else (present + current.name).distinctBy { it.itemKey() }
                     renderIntoIngredientsNote(targetContent, newPresent, newGroups)
                 }
                 SyncKind.COURSE -> if (current.inTarget) {
@@ -425,9 +423,9 @@ class NoteSyncActions(
                 SyncKind.INGREDIENT -> {
                     val present = presentIngredients(targetContent)
                     val basePresent = if (current.inTarget) {
-                        present.filter { it.trim().lowercase() != current.name.trim().lowercase() }
+                        present.filter { it.itemKey() != current.name.itemKey() }
                     } else present
-                    val newPresent = (basePresent + canonical).distinctBy { it.trim().lowercase() }
+                    val newPresent = (basePresent + canonical).distinctBy { it.itemKey() }
                     updateNoteContent(currentBatch.targetId, renderIntoIngredientsNote(targetContent, newPresent, currentBatch.groups))
                 }
                 SyncKind.COURSE -> {
@@ -435,7 +433,7 @@ class NoteSyncActions(
                     val newTargetContent = if (current.inTarget) {
                         val relabeled = targetContent.split("\n").joinToString("\n") { raw ->
                             val trimmed = raw.trim()
-                            if (trimmed.isCheckboxLine() && trimmed.ingredientKey() == current.name.trim().lowercase()) {
+                            if (trimmed.isCheckboxLine() && trimmed.ingredientKey() == current.name.itemKey()) {
                                 trimmed.withItemName(canonical)
                             } else raw
                         }
@@ -528,13 +526,16 @@ class NoteSyncActions(
         }
     }
 
-    private suspend fun showMissingNote(title: String) {
+    /** The note titled [title], or null after telling the user it is missing. */
+    private suspend fun List<Note>.findOrReport(title: String): Note? {
+        firstOrNull { it.title.trim().equals(title, ignoreCase = true) }?.let { return it }
         snackbar.currentSnackbarData?.dismiss()
         snackbar.showSnackbar(
             message = "Note \"$title\" introuvable",
             withDismissAction = true,
             duration = SnackbarDuration.Short
         )
+        return null
     }
 
     // Replaces any snackbar still showing instead of queueing behind it. True when Annuler was hit.
@@ -548,9 +549,6 @@ class NoteSyncActions(
         ) == SnackbarResult.ActionPerformed
     }
 }
-
-private fun List<Note>.withTitle(title: String): Note? =
-    firstOrNull { it.title.trim().equals(title, ignoreCase = true) }
 
 @Composable
 fun rememberNoteSyncActions(

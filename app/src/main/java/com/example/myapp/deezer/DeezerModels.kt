@@ -80,16 +80,6 @@ data class DeezerRelease(
 /** One podcast show from Deezer's public catalog (search, chart), not yet followed. */
 data class DeezerPodcastShow(val id: String, val title: String, val author: String, val artworkUrl: String?)
 
-/** One episode of a Deezer podcast show. Streaming needs a further authenticated resolve (see DeezerRepository). */
-data class DeezerPodcastEpisode(
-    val id: String,
-    val title: String,
-    val releaseDateMs: Long,
-    val durationSec: Int?,
-    val artworkUrl: String?
-)
-
-
 /** A resolved, playable stream: fresh CDN URL plus the SNG_ID needed to derive the decrypt key. */
 data class DeezerStream(
     val track: DeezerTrack,

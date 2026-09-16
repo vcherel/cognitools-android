@@ -22,7 +22,6 @@ import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridItemSpan
 import androidx.compose.foundation.lazy.staggeredgrid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
@@ -31,7 +30,6 @@ import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -54,7 +52,6 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
@@ -302,24 +299,10 @@ fun NotesListScreen(navController: NavController) {
                                         onDeleteLine = { index ->
                                             updateNoteLines(pinnedTodo.id) { lines -> lines.removeAt(index) }
                                         },
-                                        onAddItem = { atTop ->
-                                            // The new item goes at the start of the active block (right
-                                            // under an inline title) or at its end, above the first
-                                            // separator; the editor then opens with the caret on it.
-                                            val lines = pinnedTodo.content.split("\n")
-                                            val insertAt = if (atTop) {
-                                                if (pinnedTodo.title.isBlank()) {
-                                                    lines.indexOfFirst { it.isNotBlank() && !it.isSeparatorLine() } + 1
-                                                } else 0
-                                            } else {
-                                                lines.indexOfFirst { it.isSeparatorLine() }
-                                                    .let { if (it == -1) lines.size else it }
-                                            }
-                                            val offset = lines.take(insertAt).sumOf { it.length + 1 } +
-                                                UNCHECKED_PREFIX.length
+                                        onAddItem = { insertAt, caretOffset ->
                                             updateNoteLines(
                                                 noteId = pinnedTodo.id,
-                                                onSaved = { navController.navigate("note/${pinnedTodo.id}?editAt=$offset") }
+                                                onSaved = { navController.navigate("note/${pinnedTodo.id}?editAt=$caretOffset") }
                                             ) { it.add(insertAt, UNCHECKED_PREFIX) }
                                         }
                                     )
@@ -461,7 +444,7 @@ private fun TrashEntryRow(count: Int, onClick: () -> Unit) {
 
 // The colored, raised card both the grid items and the pinned Todo widget are drawn on.
 @Composable
-private fun NoteCard(note: Note, onClick: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
+internal fun NoteCard(note: Note, onClick: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
     val isDarkMode = LocalIsDarkMode.current
     val cardColor = noteCardColor(note.color, isDarkMode)
 
@@ -488,7 +471,7 @@ private fun NoteCard(note: Note, onClick: () -> Unit, content: @Composable Colum
 
 /** All a locked note ever shows on the list: a padlock and its title. */
 @Composable
-private fun LockedNoteTitle(note: Note) {
+internal fun LockedNoteTitle(note: Note) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Icon(
             Icons.Default.Lock,
@@ -502,125 +485,6 @@ private fun LockedNoteTitle(note: Note) {
             fontWeight = FontWeight.Bold,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
-        )
-    }
-}
-
-/** Pinned preview of the "Todo list" note: only the lines before its first separator, checkboxes toggle in place. */
-@Composable
-private fun TodoWidgetCard(
-    note: Note,
-    onNavigate: () -> Unit,
-    onToggleLine: (Int) -> Unit,
-    onDeleteLine: (Int) -> Unit,
-    /** Adds a blank item at the top of the active block when [atTop], at its bottom otherwise. */
-    onAddItem: (atTop: Boolean) -> Unit
-) {
-    val (title, _) = remember(note) { noteTitleAndPreview(note) }
-    val contentLines = remember(note.content) { note.content.split("\n") }
-    // When the title field is blank, noteTitleAndPreview falls back to the first
-    // content line; skip that line below so it isn't shown twice.
-    val titleLineIndex = remember(note, contentLines) {
-        if (note.title.isBlank()) contentLines.indexOfFirst { it.isNotBlank() && !it.isSeparatorLine() }
-        else -1
-    }
-    val bodyLines = remember(contentLines, titleLineIndex) {
-        contentLines.withIndex()
-            .takeWhile { !it.value.isSeparatorLine() }
-            .filter { it.index != titleLineIndex && it.value.isNotBlank() }
-    }
-
-    NoteCard(note = note, onClick = onNavigate) {
-        if (note.locked) {
-            LockedNoteTitle(note)
-            return@NoteCard
-        }
-        Text(
-            title,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold
-        )
-        Spacer(Modifier.height(4.dp))
-        // One add row at each end: a long list otherwise means scrolling to the bottom for the
-        // item that belongs first. An empty block only needs the one below.
-        if (bodyLines.isNotEmpty()) AddItemRow(onClick = { onAddItem(true) })
-        bodyLines.forEach { (index, line) ->
-            if (line.isCheckboxLine()) {
-                val checked = line.isCheckedLine()
-                // Same as the editor: a wrapped item keeps its box and its delete
-                // button on the first line.
-                Row(
-                    verticalAlignment = Alignment.Top,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { onToggleLine(index) }
-                ) {
-                    Checkbox(checked = checked, onCheckedChange = { onToggleLine(index) })
-                    Text(
-                        line.checkboxText().formatInline(),
-                        style = MaterialTheme.typography.bodyMedium,
-                        textDecoration = if (checked) TextDecoration.LineThrough else TextDecoration.None,
-                        color = if (checked) Color.Gray else MaterialTheme.colorScheme.onBackground,
-                        modifier = Modifier
-                            .weight(1f)
-                            .padding(top = 14.dp)
-                    )
-                    DeleteLineButton(
-                        onClick = { onDeleteLine(index) },
-                        modifier = Modifier.padding(top = 8.dp)
-                    )
-                }
-            } else {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(
-                        line.formatInline(),
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier
-                            .weight(1f)
-                            .padding(vertical = 8.dp)
-                    )
-                    DeleteLineButton(onClick = { onDeleteLine(index) })
-                }
-            }
-        }
-        AddItemRow(onClick = { onAddItem(false) })
-    }
-}
-
-@Composable
-private fun AddItemRow(onClick: () -> Unit) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-    ) {
-        IconButton(onClick = onClick, modifier = Modifier.size(40.dp)) {
-            Icon(Icons.Default.Add, contentDescription = null, tint = Color.Gray)
-        }
-        Text(
-            "Nouvel élément",
-            style = MaterialTheme.typography.bodyMedium,
-            color = Color.Gray
-        )
-    }
-}
-
-/** Small trailing "x" to remove a single line of the Todo widget, checked or not. */
-@Composable
-private fun DeleteLineButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
-    IconButton(
-        onClick = onClick,
-        modifier = modifier.size(32.dp)
-    ) {
-        Icon(
-            Icons.Default.Close,
-            contentDescription = "Supprimer la ligne",
-            modifier = Modifier.size(18.dp),
-            tint = Color.Gray
         )
     }
 }

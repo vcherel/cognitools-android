@@ -293,7 +293,11 @@ class DeezerDiscoveries(private val appContext: Context, private val repo: Deeze
         }
         try {
             // Favorites drive both the exclusion set and the track mix seeds, so they must be loaded.
-            runCatching { repo.ensureFavorites() }
+            // Without them the exclusion set is nearly empty and the batch can hand back liked tracks.
+            runCatching { repo.ensureFavorites() }.onFailure {
+                Log.w(TAG, "Favorites unavailable for the discovery batch", it)
+                generationLog.log("favorites load failed, exclusions partial: ${generationLog.describe(it)}")
+            }
             val pepites = runCatching { repo.bestPepitesTracks() }.getOrDefault(emptyList())
             val known = familiarity(pepites)
             val excluded = excludedKeys(pepites)
@@ -309,34 +313,11 @@ class DeezerDiscoveries(private val appContext: Context, private val repo: Deeze
             val pool = discoveries.tracks
             generationLog.log("discoveries: ${pool.size} candidate(s)${if (discoveries.failed) ", pass failed" else ""}")
 
-            // New releases first, best known artist first, then the personalized discoveries.
-            // Your artists put out roughly nine releases a day, far more than the daily slots, so the
-            // backlog has to stay honest: anything liked or handled in the meantime is dead weight.
-            backlog.removeAll { it.track.matchKey in excluded }
-            val collector = BatchCollector(excluded, kept)
-            // Releases come first but only up to [RELEASE_SLOTS], and the best known artists lead:
-            // scanning every artist in the library turns up plenty of releases from artists behind a
-            // single liked track, which are not worth a whole batch.
-            backlog.sortWith(
-                compareByDescending<DiscoveryTrack> { known[it.track.artist.matchNormalized()] ?: 0 }
-                    .thenByDescending { it.releaseDate }
-            )
-            var releaseSlots = RELEASE_SLOTS - kept.count { it.isNewRelease }
-            for (item in backlog) {
-                if (collector.full || releaseSlots <= 0) break
-                if (collector.offer(item)) releaseSlots--
-            }
-            for (item in pool) {
-                if (collector.full) break
-                collector.offer(item)
-            }
-
+            batch = fillBatch(kept, pool, excluded, known)
             // A release stays in the backlog until it is actually handled, so one that sat in a batch
             // nothing was done with isn't lost, it just comes back. Discoveries are one shot: recording
             // them as proposed right here is what stops a regenerate from handing back the same picks.
-            collector.items.filterNot { it.isNewRelease }.forEach { remember(it) }
-
-            batch = collector.items
+            batch.filterNot { it.isNewRelease }.forEach { remember(it) }
             generationLog.log("batch: ${batch.count { it.isNewRelease }} release(s), ${batch.count { !it.isNewRelease }} discovery(ies), ${backlog.size} in backlog")
             // Only a full batch claims the day: one whose discovery pass failed is releases alone,
             // and handing that out as the day's selection is what used to hide the recommendations
@@ -368,6 +349,39 @@ class DeezerDiscoveries(private val appContext: Context, private val repo: Deeze
             generationLog.log("generate crashed: ${generationLog.describe(e)}")
             _state.value = DiscoveryState(tracks = kept, generating = false, error = userMessage(e))
         }
+    }
+
+    /**
+     * The day's batch: [kept] releases first, then the backlog's new releases up to [RELEASE_SLOTS],
+     * best known artist first, then the personalized discoveries of [pool].
+     */
+    private fun fillBatch(
+        kept: List<DiscoveryTrack>,
+        pool: List<DiscoveryTrack>,
+        excluded: Set<String>,
+        known: Map<String, Int>
+    ): MutableList<DiscoveryTrack> {
+        // Your artists put out roughly nine releases a day, far more than the daily slots, so the
+        // backlog has to stay honest: anything liked or handled in the meantime is dead weight.
+        backlog.removeAll { it.track.matchKey in excluded }
+        val collector = BatchCollector(excluded, kept)
+        // Releases come first but only up to [RELEASE_SLOTS], and the best known artists lead:
+        // scanning every artist in the library turns up plenty of releases from artists behind a
+        // single liked track, which are not worth a whole batch.
+        backlog.sortWith(
+            compareByDescending<DiscoveryTrack> { known[it.track.artist.matchNormalized()] ?: 0 }
+                .thenByDescending { it.releaseDate }
+        )
+        var releaseSlots = RELEASE_SLOTS - kept.count { it.isNewRelease }
+        for (item in backlog) {
+            if (collector.full || releaseSlots <= 0) break
+            if (collector.offer(item)) releaseSlots--
+        }
+        for (item in pool) {
+            if (collector.full) break
+            collector.offer(item)
+        }
+        return collector.items
     }
 
     /** What [collectDiscoveries] came back with. [failed] means it found nothing because it could not reach Deezer. */

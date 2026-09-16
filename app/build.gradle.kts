@@ -14,15 +14,14 @@ android {
 
     defaultConfig {
         applicationId = "com.example.myapp"
-        minSdk = 26
+        // The one phone this runs on is on API 36; 33 covers every platform branch the code used to carry.
+        minSdk = 33
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        // Enable vector drawable support for older APIs
-        vectorDrawables.useSupportLibrary = true
     }
 
     buildTypes {

@@ -22,6 +22,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
@@ -69,7 +70,7 @@ class PodcastRepository(private val appContext: Context) {
 
     private fun dao() = AppDatabase.get(appContext).podcastDao()
 
-    val favorites: kotlinx.coroutines.flow.Flow<List<PodcastFavorite>> get() = dao().observeFavorites()
+    val favorites: Flow<List<PodcastFavorite>> get() = dao().observeFavorites()
 
     // Episodes aren't persisted: every favorite's feed is re-fetched on refresh and merged here,
     // then joined against the seen table. Local edits (mark seen, add/remove a favorite) patch
@@ -83,33 +84,14 @@ class PodcastRepository(private val appContext: Context) {
 
     private val refreshMutex = Mutex()
 
-    /** Fetches one favorite's episodes from its actual source: its RSS feed, or Deezer's API. */
-    private suspend fun fetchEpisodesFor(fav: PodcastFavorite): List<PodcastEpisode> = when (fav.source) {
-        PodcastSource.RSS -> fetchEpisodes(fav)
-        PodcastSource.DEEZER -> appContext.deezerRepository.podcastEpisodes(fav.id).map { ep ->
-            PodcastEpisode(
-                id = ep.id,
-                podcastId = fav.id,
-                podcastTitle = fav.title,
-                podcastArtworkUrl = fav.artworkUrl,
-                title = ep.title,
-                pubDate = ep.releaseDateMs,
-                audioUrl = "", // Deezer episodes stream through DeezerRepository's resolve pipeline, not a plain URL.
-                durationSec = ep.durationSec,
-                seen = false,
-                source = PodcastSource.DEEZER
-            )
-        }
-    }
-
-    /** Re-fetches every favorite's feed/API and rebuilds the merged, seen-tagged episode list. */
+    /** Re-fetches every favorite's feed and rebuilds the merged, seen-tagged episode list. */
     suspend fun refreshEpisodes(): Unit = refreshMutex.withLock {
         _loading.value = true
         try {
             val favs = dao().getFavorites()
             val seen = dao().getSeenIds().toSet()
             val raw = withContext(Dispatchers.IO) {
-                favs.map { fav -> async { runCatching { fetchEpisodesFor(fav) }.getOrDefault(emptyList()) } }
+                favs.map { fav -> async { runCatching { fetchEpisodes(fav) }.getOrDefault(emptyList()) } }
                     .awaitAll()
                     .flatten()
             }
@@ -127,7 +109,7 @@ class PodcastRepository(private val appContext: Context) {
         val fav = dao().getFavorites().firstOrNull { it.id == favoriteId } ?: return
         val seen = dao().getSeenIds().toSet()
         val fetched = withContext(Dispatchers.IO) {
-            runCatching { fetchEpisodesFor(fav) }.getOrDefault(emptyList())
+            runCatching { fetchEpisodes(fav) }.getOrDefault(emptyList())
         }.map { it.copy(seen = it.id in seen) }
         val fresh = withDownloadedFallback(fetched, seen).filter { it.podcastId == favoriteId }
         refreshMutex.withLock { replaceEpisodesOf(favoriteId, fresh) }
@@ -226,13 +208,12 @@ class PodcastRepository(private val appContext: Context) {
             title = resolved.title,
             author = resolved.author,
             artworkUrl = resolved.artworkUrl,
-            addedAt = System.currentTimeMillis(),
-            source = resolved.source
+            addedAt = System.currentTimeMillis()
         )
         dao().upsertFavorite(fav)
         val seen = dao().getSeenIds().toSet()
         val newEpisodes = withContext(Dispatchers.IO) {
-            runCatching { fetchEpisodesFor(fav) }.getOrDefault(emptyList())
+            runCatching { fetchEpisodes(fav) }.getOrDefault(emptyList())
         }.map { it.copy(seen = it.id in seen) }
         refreshMutex.withLock { replaceEpisodesOf(fav.id, newEpisodes) }
         return true
@@ -404,7 +385,7 @@ class PodcastRepository(private val appContext: Context) {
     // killed with the app without any chance to save on the way out.
 
     /** Saved positions keyed by episode id. Episodes never started, or finished, are absent. */
-    val progress: kotlinx.coroutines.flow.Flow<Map<String, PodcastEpisodeProgress>>
+    val progress: Flow<Map<String, PodcastEpisodeProgress>>
         get() = dao().observeProgress().map { rows -> rows.associateBy { it.episodeId } }
 
     private val progressScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
@@ -422,15 +403,6 @@ class PodcastRepository(private val appContext: Context) {
     private fun trackEpisode(episodeId: String?) {
         trackedEpisodeId = episodeId
         trackedSinceMs = SystemClock.elapsedRealtime()
-    }
-
-    /**
-     * Gives an episode its retry budget back once it has played long enough to prove the source is
-     * fine. Without this a single recovery spent the budget for the whole process, and a genuinely
-     * bad source hit weeks later got fewer attempts than the first one did.
-     */
-    private fun clearShortSourceRetries(episodeId: String) {
-        shortSourceRetries.remove(episodeId)
     }
 
     private fun trackProgressWhilePlaying(isPlaying: Boolean) {
@@ -523,29 +495,24 @@ class PodcastRepository(private val appContext: Context) {
             dao().deleteProgress(episodeId)
             return
         }
-        clearShortSourceRetries(episodeId)
+        // Played long enough to prove the source is fine, so the episode gets its retry budget back.
+        // Without this a single recovery spent the budget for the whole process, and a genuinely bad
+        // source hit weeks later got fewer attempts than the first one did.
+        shortSourceRetries.remove(episodeId)
         dao().upsertProgress(PodcastEpisodeProgress(episodeId, positionMs, durationMs, System.currentTimeMillis()))
     }
 
-    /**
-     * Plays [episode], queuing the rest of [queue] (defaults to just this episode) right after it.
-     * A DEEZER-sourced episode can't actually play (Deezer doesn't expose episode audio itself; see
-     * [resolveDeezerShowToRss]): addFavorite no longer creates these, but a favorite followed before
-     * that fix still has this source on disk until re-followed, so this fails clearly instead of crashing.
-     */
+    /** Plays [episode], queuing the rest of [queue] (defaults to just this episode) right after it. */
     suspend fun playEpisode(
         episode: PodcastEpisode,
         queue: List<PodcastEpisode> = listOf(episode),
         startPositionMsOverride: Long? = null
     ) {
-        if (episode.source == PodcastSource.DEEZER) {
-            throw IllegalStateException("Ce podcast doit être réajouté depuis la recherche pour pouvoir être lu")
-        }
         val startIndex = queue.indexOfFirst { it.id == episode.id }.coerceAtLeast(0)
         // One player at a time, the mirror of what DeezerRepository does when music starts: two of
         // this app's playback services running at once means two foreground services fighting over
         // audio focus.
-        withContext(Dispatchers.Main) { appContext.deezerRepository.stopAll() }
+        withContext(Dispatchers.Main) { appContext.deezerRepository.player.stopAll() }
         val controller = ensureController()
         val items = queue.map { buildMediaItem(it) }
         // Picked up where it was left off, silently. An episode never started, or already finished,

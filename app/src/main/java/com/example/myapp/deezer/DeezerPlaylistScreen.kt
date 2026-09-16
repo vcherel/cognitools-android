@@ -66,7 +66,7 @@ fun DeezerTrackListScreen(
     var pickerTrack by remember { mutableStateOf<DeezerTrack?>(null) }
     var query by remember { mutableStateOf("") }
     val favoriteIds by repo.favoriteIds.collectAsState()
-    val playerState by repo.playerState.collectAsState()
+    val playerState by repo.player.playerState.collectAsState()
 
     LaunchedEffect(title) {
         runCatching { tracks = loader() }.onFailure { error = userMessage(it) }
@@ -118,7 +118,7 @@ fun DeezerTrackListScreen(
                                     Icon(Icons.Filled.Share, contentDescription = "Partager la playlist", tint = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
                             }
-                            IconButton(onClick = { scope.launch { repo.shuffleTracks(shown, source) } }) {
+                            IconButton(onClick = { scope.launch { repo.player.shuffleTracks(shown, source) } }) {
                                 Icon(Icons.Filled.Shuffle, contentDescription = "Lecture aléatoire", tint = MaterialTheme.colorScheme.primary)
                             }
                         }
@@ -126,7 +126,7 @@ fun DeezerTrackListScreen(
                     itemsIndexed(shown, key = { _, track -> track.sngId }) { index, track ->
                         TrackRow(
                             track = track,
-                            onClick = { scope.launch { repo.playTracks(shown, index, source) } },
+                            onClick = { scope.launch { repo.player.playTracks(shown, index, source) } },
                             showActions = true,
                             isFavorite = favoriteIds.contains(track.sngId),
                             isPlaying = playerState.hasItem && playerState.sngId == track.sngId,

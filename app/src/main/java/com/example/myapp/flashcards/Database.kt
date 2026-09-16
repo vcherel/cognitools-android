@@ -85,7 +85,7 @@ interface FlashcardDao {
         PodcastDownload::class, Book::class, NewsRead::class, NewsSaved::class,
         NewsProgress::class
     ],
-    version = 15
+    version = 16
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun flashcardDao(): FlashcardDao
@@ -98,176 +98,14 @@ abstract class AppDatabase : RoomDatabase() {
     companion object {
         @Volatile private var instance: AppDatabase? = null
 
-        private val MIGRATION_1_2 = object : Migration(1, 2) {
+        // A migration that has already run on the phone is dead code and gets deleted; only the
+        // one still ahead of the installed version lives here.
+        private val MIGRATION_15_16 = object : Migration(15, 16) {
             override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL(
-                    "CREATE TABLE IF NOT EXISTS `notes` (" +
-                        "`id` TEXT NOT NULL, " +
-                        "`content` TEXT NOT NULL, " +
-                        "`updatedAt` INTEGER NOT NULL, " +
-                        "PRIMARY KEY(`id`))"
-                )
-            }
-        }
-
-        private val MIGRATION_2_3 = object : Migration(2, 3) {
-            override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL("ALTER TABLE `notes` ADD COLUMN `title` TEXT NOT NULL DEFAULT ''")
-            }
-        }
-
-        private val MIGRATION_3_4 = object : Migration(3, 4) {
-            override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL("ALTER TABLE `notes` ADD COLUMN `color` INTEGER NOT NULL DEFAULT 0")
-            }
-        }
-
-        private val MIGRATION_4_5 = object : Migration(4, 5) {
-            override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL("ALTER TABLE `notes` ADD COLUMN `locked` INTEGER NOT NULL DEFAULT 0")
-            }
-        }
-
-        private val MIGRATION_5_6 = object : Migration(5, 6) {
-            override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL("ALTER TABLE `notes` ADD COLUMN `deletedAt` INTEGER NOT NULL DEFAULT 0")
-            }
-        }
-
-        private val MIGRATION_6_7 = object : Migration(6, 7) {
-            override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL(
-                    "CREATE TABLE IF NOT EXISTS `pinned_media_items` (" +
-                        "`mediaItemId` INTEGER NOT NULL, " +
-                        "`pinnedAt` INTEGER NOT NULL, " +
-                        "`isHero` INTEGER NOT NULL DEFAULT 0, " +
-                        "PRIMARY KEY(`mediaItemId`))"
-                )
-            }
-        }
-
-        private val MIGRATION_7_8 = object : Migration(7, 8) {
-            override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL(
-                    "CREATE TABLE IF NOT EXISTS `podcast_favorites` (" +
-                        "`id` TEXT NOT NULL, " +
-                        "`title` TEXT NOT NULL, " +
-                        "`author` TEXT NOT NULL, " +
-                        "`artworkUrl` TEXT, " +
-                        "`addedAt` INTEGER NOT NULL, " +
-                        "PRIMARY KEY(`id`))"
-                )
-                db.execSQL(
-                    "CREATE TABLE IF NOT EXISTS `podcast_seen_episodes` (" +
-                        "`episodeId` TEXT NOT NULL, " +
-                        "`seenAt` INTEGER NOT NULL, " +
-                        "PRIMARY KEY(`episodeId`))"
-                )
-            }
-        }
-
-        private val MIGRATION_8_9 = object : Migration(8, 9) {
-            override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL("ALTER TABLE `podcast_favorites` ADD COLUMN `source` TEXT NOT NULL DEFAULT 'RSS'")
-            }
-        }
-
-        private val MIGRATION_9_10 = object : Migration(9, 10) {
-            override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL(
-                    "CREATE TABLE IF NOT EXISTS `podcast_episode_progress` (" +
-                        "`episodeId` TEXT NOT NULL, " +
-                        "`positionMs` INTEGER NOT NULL, " +
-                        "`durationMs` INTEGER NOT NULL, " +
-                        "`updatedAt` INTEGER NOT NULL, " +
-                        "PRIMARY KEY(`episodeId`))"
-                )
-            }
-        }
-
-        private val MIGRATION_10_11 = object : Migration(10, 11) {
-            override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL("ALTER TABLE `lists` ADD COLUMN `fixedSide` INTEGER NOT NULL DEFAULT 0")
-            }
-        }
-
-        private val MIGRATION_11_12 = object : Migration(11, 12) {
-            override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL(
-                    "CREATE TABLE IF NOT EXISTS `books` (" +
-                        "`id` TEXT NOT NULL, " +
-                        "`title` TEXT NOT NULL, " +
-                        "`author` TEXT NOT NULL, " +
-                        "`fileName` TEXT NOT NULL, " +
-                        "`coverFileName` TEXT, " +
-                        "`chapterCount` INTEGER NOT NULL, " +
-                        "`chapterIndex` INTEGER NOT NULL, " +
-                        "`blockIndex` INTEGER NOT NULL, " +
-                        "`blockOffset` INTEGER NOT NULL, " +
-                        "`addedAt` INTEGER NOT NULL, " +
-                        "`lastOpenedAt` INTEGER NOT NULL, " +
-                        "PRIMARY KEY(`id`))"
-                )
-            }
-        }
-
-        private val MIGRATION_12_13 = object : Migration(12, 13) {
-            override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL(
-                    "CREATE TABLE IF NOT EXISTS `podcast_downloads` (" +
-                        "`episodeId` TEXT NOT NULL, " +
-                        "`podcastId` TEXT NOT NULL, " +
-                        "`podcastTitle` TEXT NOT NULL, " +
-                        "`podcastArtworkUrl` TEXT, " +
-                        "`title` TEXT NOT NULL, " +
-                        "`pubDate` INTEGER NOT NULL, " +
-                        "`audioUrl` TEXT NOT NULL, " +
-                        "`durationSec` INTEGER, " +
-                        "`downloadedAt` INTEGER NOT NULL, " +
-                        "PRIMARY KEY(`episodeId`))"
-                )
-            }
-        }
-
-        private val MIGRATION_13_14 = object : Migration(13, 14) {
-            override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL(
-                    "CREATE TABLE IF NOT EXISTS `news_read` (" +
-                        "`link` TEXT NOT NULL, " +
-                        "`readAt` INTEGER NOT NULL, " +
-                        "PRIMARY KEY(`link`))"
-                )
-                db.execSQL(
-                    "CREATE TABLE IF NOT EXISTS `news_saved` (" +
-                        "`link` TEXT NOT NULL, " +
-                        "`title` TEXT NOT NULL, " +
-                        "`summary` TEXT NOT NULL, " +
-                        "`imageUrl` TEXT, " +
-                        "`source` TEXT NOT NULL, " +
-                        "`categoryId` TEXT NOT NULL, " +
-                        "`publishedAt` INTEGER NOT NULL, " +
-                        "`savedAt` INTEGER NOT NULL, " +
-                        "`text` TEXT, " +
-                        "PRIMARY KEY(`link`))"
-                )
-            }
-        }
-
-        private val MIGRATION_14_15 = object : Migration(14, 15) {
-            override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL(
-                    "CREATE TABLE IF NOT EXISTS `news_progress` (" +
-                        "`link` TEXT NOT NULL, " +
-                        "`title` TEXT NOT NULL, " +
-                        "`summary` TEXT NOT NULL, " +
-                        "`imageUrl` TEXT, " +
-                        "`source` TEXT NOT NULL, " +
-                        "`categoryId` TEXT NOT NULL, " +
-                        "`publishedAt` INTEGER NOT NULL, " +
-                        "`ratio` REAL NOT NULL, " +
-                        "`updatedAt` INTEGER NOT NULL, " +
-                        "PRIMARY KEY(`link`))"
-                )
+                // Deezer catalog shows were briefly followable as such, but Deezer never streamed
+                // their episodes; they are re-followed through their RSS feed from the search screen.
+                db.execSQL("DELETE FROM `podcast_favorites` WHERE `source` = 'DEEZER'")
+                db.execSQL("ALTER TABLE `podcast_favorites` DROP COLUMN `source`")
             }
         }
 
@@ -277,11 +115,7 @@ abstract class AppDatabase : RoomDatabase() {
                     context.applicationContext,
                     AppDatabase::class.java,
                     "flashcards.db"
-                ).addMigrations(
-                    MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7,
-                    MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13,
-                    MIGRATION_13_14, MIGRATION_14_15
-                )
+                ).addMigrations(MIGRATION_15_16)
                     .build().also { instance = it }
             }
     }

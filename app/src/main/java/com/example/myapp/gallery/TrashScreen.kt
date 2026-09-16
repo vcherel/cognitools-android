@@ -256,10 +256,7 @@ suspend fun trashAndAnnounce(
     return true
 }
 
-/**
- * Confirms a delete that just moved items to the trash, with the undo that puts them back. Below
- * API 30 the delete was permanent, so there is nothing to undo and the message says so.
- */
+/** Confirms a delete that just moved items to the trash, with the undo that puts them back. */
 private fun showTrashedSnackbar(
     context: Context,
     items: List<MediaItem>,
@@ -268,10 +265,6 @@ private fun showTrashedSnackbar(
 ) {
     if (items.isEmpty()) return
     val plural = items.size > 1
-    if (!trashSupported()) {
-        AppSnackbar.show(if (plural) "${items.size} fichiers supprimés" else "Fichier supprimé")
-        return
-    }
     AppSnackbar.show(
         message = if (plural) "${items.size} fichiers dans la corbeille" else "Fichier dans la corbeille",
         actionLabel = "Annuler",

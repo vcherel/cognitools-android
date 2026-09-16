@@ -177,7 +177,6 @@ fun handleMrWhiteGuess(
         )
     }
 
-    // Incorrect guess - eliminate if not already eliminated
     val updatedPlayers = if (gameState.player.isEliminated) {
         state.players
     } else {

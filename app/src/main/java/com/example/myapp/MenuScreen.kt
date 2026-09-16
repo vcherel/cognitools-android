@@ -196,7 +196,7 @@ private fun DeezerMenuButton(height: Dp, onOpenDeezer: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var isShuffleLoading by remember { mutableStateOf(false) }
-    val musicState by context.deezerRepository.playerState.collectAsState()
+    val musicState by context.deezerRepository.player.playerState.collectAsState()
     val podcastState by context.podcastRepository.playerState.collectAsState()
 
     // The two stacks are mutually exclusive, so at most one is really loaded; whichever is playing
@@ -217,16 +217,16 @@ private fun DeezerMenuButton(height: Dp, onOpenDeezer: () -> Unit) {
         onMainClick = onOpenDeezer,
         onRightClick = {
             if (loaded) {
-                if (onPodcast) context.podcastRepository.togglePlay() else context.deezerRepository.togglePlay()
+                if (onPodcast) context.podcastRepository.togglePlay() else context.deezerRepository.player.togglePlay()
             } else if (!isShuffleLoading) {
                 val repo = context.deezerRepository
-                val previousSngId = repo.playerState.value.sngId
+                val previousSngId = repo.player.playerState.value.sngId
                 isShuffleLoading = true
                 scope.launch {
                     runCatching {
-                        repo.shuffleFavoritesDetached().await()
+                        repo.player.shuffleFavoritesDetached().await()
                         withTimeoutOrNull(15_000) {
-                            repo.playerState.first { it.isPlaying && it.sngId != previousSngId }
+                            repo.player.playerState.first { it.isPlaying && it.sngId != previousSngId }
                         }
                     }.onFailure {
                         Toast.makeText(context, userMessage(it, "Erreur"), Toast.LENGTH_SHORT).show()

@@ -7,7 +7,6 @@ import android.content.Intent
 import android.content.IntentSender
 import android.content.pm.PackageManager
 import android.net.Uri
-import android.os.Build
 import android.os.Environment
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -26,11 +25,7 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
 
 fun readMediaPermissions(): Array<String> =
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-        arrayOf(Manifest.permission.READ_MEDIA_IMAGES, Manifest.permission.READ_MEDIA_VIDEO)
-    } else {
-        arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE)
-    }
+    arrayOf(Manifest.permission.READ_MEDIA_IMAGES, Manifest.permission.READ_MEDIA_VIDEO)
 
 fun hasReadMediaPermission(context: Context): Boolean =
     readMediaPermissions().all {
@@ -38,10 +33,8 @@ fun hasReadMediaPermission(context: Context): Boolean =
     }
 
 // True when the app has full shared-storage access (All files access), which lets it move,
-// delete and rename any media directly, with no per-operation Android consent dialog. Below
-// API 30 legacy storage already grants this, so it is always true there.
-fun hasAllFilesAccess(): Boolean =
-    Build.VERSION.SDK_INT < Build.VERSION_CODES.R || Environment.isExternalStorageManager()
+// delete and rename any media directly, with no per-operation Android consent dialog.
+fun hasAllFilesAccess(): Boolean = Environment.isExternalStorageManager()
 
 // Sends the user to the system "All files access" settings page for this app, then re-checks on
 // return. All files access can only be granted from settings, never through a runtime prompt.
@@ -53,14 +46,12 @@ fun rememberAllFilesAccessRequester(onResult: () -> Unit): () -> Unit {
     ) { onResult() }
     return remember(launcher, context) {
         {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                launcher.launch(
-                    Intent(
-                        Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
-                        Uri.parse("package:${context.packageName}")
-                    )
+            launcher.launch(
+                Intent(
+                    Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
+                    Uri.parse("package:${context.packageName}")
                 )
-            }
+            )
         }
     }
 }

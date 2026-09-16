@@ -6,7 +6,6 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import android.os.Build
 import android.os.Environment
 import android.webkit.MimeTypeMap
 import androidx.core.content.FileProvider
@@ -157,8 +156,7 @@ private fun chosenAppCallback(context: Context, extension: String): PendingInten
     val callback = Intent(context, FileOpenChoiceReceiver::class.java)
         .putExtra(EXTRA_OPENED_EXTENSION, extension)
     // Mutable on purpose: the chooser is what fills EXTRA_CHOSEN_COMPONENT in.
-    val flags = PendingIntent.FLAG_UPDATE_CURRENT or
-        (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) PendingIntent.FLAG_MUTABLE else 0)
+    val flags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
     return PendingIntent.getBroadcast(context, extension.hashCode(), callback, flags)
 }
 

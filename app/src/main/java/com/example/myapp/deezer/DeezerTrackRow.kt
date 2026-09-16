@@ -171,7 +171,7 @@ fun TrackRow(
 
 /** Shared: runs the "add to queue" action and returns the toast to show. */
 suspend fun addToQueueMessage(repo: DeezerRepository, track: DeezerTrack): String =
-    runCatching { repo.addToQueue(track) }.fold(
+    runCatching { repo.player.addToQueue(track) }.fold(
         onSuccess = { "Ajouté à la file d'attente" },
         onFailure = { "Échec de l'ajout" }
     )

@@ -164,7 +164,7 @@ fun PodcastEpisodesScreen(repo: PodcastRepository, favoriteId: String, onBack: (
                             actionLabel = "Annuler",
                             onAction = {
                                 scope.launch {
-                                    repo.addFavorite(PodcastCatalogItem(fav.id, fav.source, fav.title, fav.author, fav.artworkUrl))
+                                    repo.addFavorite(PodcastCatalogItem(fav.id, PodcastSource.RSS, fav.title, fav.author, fav.artworkUrl))
                                 }
                             }
                         )
@@ -312,36 +312,34 @@ fun PodcastEpisodeRow(
             }
         },
         trailing = {
-            if (episode.source != PodcastSource.DEEZER) {
-                Box(
-                    Modifier
-                        .size(36.dp)
-                        .clip(CircleShape)
-                        .clickable(enabled = !isDownloading, onClick = onToggleDownload),
-                    contentAlignment = Alignment.Center
-                ) {
-                    when {
-                        // Indeterminate only until the server tells us the episode's size.
-                        isDownloading && downloadProgress != null -> CircularProgressIndicator(
-                            progress = { downloadProgress },
-                            modifier = Modifier.size(20.dp),
-                            strokeWidth = 2.dp
-                        )
-                        isDownloading -> CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
-                        isDownloaded -> Icon(
-                            Icons.Filled.DownloadDone,
-                            contentDescription = "Téléchargé, appuyer pour supprimer",
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                        else -> Icon(
-                            Icons.Filled.Download,
-                            contentDescription = "Télécharger l'épisode",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
+            Box(
+                Modifier
+                    .size(36.dp)
+                    .clip(CircleShape)
+                    .clickable(enabled = !isDownloading, onClick = onToggleDownload),
+                contentAlignment = Alignment.Center
+            ) {
+                when {
+                    // Indeterminate only until the server tells us the episode's size.
+                    isDownloading && downloadProgress != null -> CircularProgressIndicator(
+                        progress = { downloadProgress },
+                        modifier = Modifier.size(20.dp),
+                        strokeWidth = 2.dp
+                    )
+                    isDownloading -> CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                    isDownloaded -> Icon(
+                        Icons.Filled.DownloadDone,
+                        contentDescription = "Téléchargé, appuyer pour supprimer",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    else -> Icon(
+                        Icons.Filled.Download,
+                        contentDescription = "Télécharger l'épisode",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
-                Spacer(Modifier.width(4.dp))
             }
+            Spacer(Modifier.width(4.dp))
             Box(
                 Modifier
                     .size(36.dp)

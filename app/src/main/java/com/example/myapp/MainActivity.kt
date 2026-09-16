@@ -6,9 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
-import android.os.Build
 import android.os.Bundle
-import android.view.WindowManager
 import android.view.animation.AnticipateInterpolator
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -84,10 +82,10 @@ class MainActivity : ComponentActivity() {
 
         // Asking for notification permission over the lock screen makes no sense for a quick photo
         // review that never touches anything notification related.
-        if (quickViewItem == null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-                requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-            }
+        if (quickViewItem == null &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) {
+            requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
 
         // Resolved up front, synchronously: a single indexed-row query, fast enough to do before
@@ -182,18 +180,8 @@ class MainActivity : ComponentActivity() {
     // a singleTask instance reused via onNewIntent must not keep an earlier "true" around for an
     // unrelated later intent.
     private fun applyShowWhenLocked(show: Boolean) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
-            setShowWhenLocked(show)
-            setTurnScreenOn(show)
-        } else if (show) {
-            window.addFlags(
-                WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
-            )
-        } else {
-            window.clearFlags(
-                WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
-            )
-        }
+        setShowWhenLocked(show)
+        setTurnScreenOn(show)
     }
 
     companion object {

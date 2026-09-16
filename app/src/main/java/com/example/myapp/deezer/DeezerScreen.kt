@@ -42,7 +42,7 @@ fun DeezerScreen(
     val podcastRepo = context.podcastRepository
     val nav = rememberNavController()
     val scope = rememberCoroutineScope()
-    val playerState by repo.playerState.collectAsState()
+    val playerState by repo.player.playerState.collectAsState()
 
     fun openArtist(artist: DeezerArtist) {
         val enc = { s: String -> java.net.URLEncoder.encode(s, "UTF-8") }
@@ -165,7 +165,7 @@ fun DeezerScreen(
                     isPlaying = playerState.isPlaying,
                     isBuffering = playerState.isBuffering,
                     onExpand = { showFullPlayer = true },
-                    onTogglePlay = { repo.togglePlay() }
+                    onTogglePlay = { repo.player.togglePlay() }
                 )
             }
             if (podcastPlayerState.hasItem) {

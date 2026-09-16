@@ -7,26 +7,24 @@ import androidx.room.Query
 import androidx.room.Upsert
 import kotlinx.coroutines.flow.Flow
 
-/** Where a podcast/episode comes from: a plain RSS feed (via the iTunes directory), or Deezer's own catalog. */
+/**
+ * Where a catalog entry comes from: the iTunes directory, or Deezer's own catalog. Only RSS shows are
+ * ever followed: a Deezer one is resolved to its RSS feed first (see PodcastRepository.addFavorite).
+ */
 enum class PodcastSource { RSS, DEEZER }
 
-/**
- * A podcast the user chose to follow. [id] is the RSS feed URL for [PodcastSource.RSS], or the
- * numeric Deezer show id (as a string) for [PodcastSource.DEEZER]; either way it is stable and
- * unique per podcast (Deezer's numeric ids never collide with an "http…" feed URL).
- */
+/** A podcast the user chose to follow. [id] is its RSS feed URL. */
 @Entity(tableName = "podcast_favorites")
 data class PodcastFavorite(
     @PrimaryKey val id: String,
     val title: String,
     val author: String,
     val artworkUrl: String?,
-    val addedAt: Long,
-    val source: PodcastSource = PodcastSource.RSS
+    val addedAt: Long
 )
 
 /** One episode marked heard. Episodes themselves aren't persisted: they're re-read from their
- *  source (RSS feed or Deezer's API) each time and joined against this table, keyed by episode id. */
+ *  feed each time and joined against this table, keyed by episode id. */
 @Entity(tableName = "podcast_seen_episodes")
 data class PodcastSeenEpisode(
     @PrimaryKey val episodeId: String,
@@ -143,7 +141,7 @@ data class PodcastCatalogItem(
     val artworkUrl: String?
 )
 
-/** One episode, joined from a favorite's source (RSS feed or Deezer's API). */
+/** One episode, read from a favorite's feed. */
 data class PodcastEpisode(
     val id: String,
     val podcastId: String,
@@ -153,6 +151,5 @@ data class PodcastEpisode(
     val pubDate: Long,
     val audioUrl: String,
     val durationSec: Int?,
-    val seen: Boolean,
-    val source: PodcastSource = PodcastSource.RSS
+    val seen: Boolean
 )

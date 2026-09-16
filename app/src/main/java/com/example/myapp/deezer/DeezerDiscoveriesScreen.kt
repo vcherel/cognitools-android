@@ -46,7 +46,7 @@ fun DeezerDiscoveriesScreen(repo: DeezerRepository, onBack: () -> Unit) {
     val context = LocalContext.current
     val discoveries = repo.discoveries
     val state by discoveries.state.collectAsState()
-    val playerState by repo.playerState.collectAsState()
+    val playerState by repo.player.playerState.collectAsState()
     val tracks = state.tracks
 
     Column(Modifier.fillMaxSize()) {
@@ -130,7 +130,7 @@ fun DeezerDiscoveriesScreen(repo: DeezerRepository, onBack: () -> Unit) {
                 itemsIndexed(tracks, key = { _, item -> item.track.sngId }) { index, item ->
                     TrackRow(
                         track = item.track,
-                        onClick = { scope.launch { repo.playTracks(tracks.map { it.track }, index) } },
+                        onClick = { scope.launch { repo.player.playTracks(tracks.map { it.track }, index) } },
                         showActions = true,
                         isFavorite = false,
                         isPlaying = playerState.hasItem && playerState.sngId == item.track.sngId,

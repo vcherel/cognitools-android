@@ -60,7 +60,8 @@ Root package (shared/misc):
 - `DeezerCrypto.kt`: Blowfish stripe decryption of the streams, pure functions covered by a JVM unit test
 - `DeezerSettings.kt`: DataStore for the ARL credential and quality
 - `DeezerSettingsDialog.kt`: the ARL paste dialog
-- `DeezerRepository.kt`: the singleton; session lifecycle, MediaController + player state flow, stream cache, library access, "Best pépites" quick-add
+- `DeezerRepository.kt`: the singleton; session lifecycle, stream cache, library access (favorites, playlists), "Best pépites" quick-add, the stream failure replacement search. The two `dzr://` cache key helpers are top level here
+- `DeezerPlayer.kt`: `repo.player`; the MediaController and its player/queue state flows, play/shuffle/queue edits, the transport controls, `buildMediaItem`, and the played tracks file behind `downloadedTracks`
 - `DeezerPendingFavorites.kt`: the likes and unlikes made offline, queued to disk and resent once the phone has internet again
 - `DeezerDataSource.kt`: resolves `dzr://<sngId>` to a fresh CDN URL at open() time and decrypts on the fly
 - `DeezerLibraryCache.kt`: JSON snapshot of favorites + playlists so a cold launch renders instantly
@@ -149,7 +150,8 @@ Root package (shared/misc):
 `notes/` (notes tool, the biggest one):
 - `Models.kt`: the Note entity, its JSON (de)serialization, and NoteDao (the Room DAO)
 - `NoteText.kt`: everything a note's plain text encodes; the special note titles, checkbox/separator prefixes, formatInline, quantity and waiting-date suffixes, noteTitleAndPreview
-- `NotesListScreen.kt`: list of notes screen, with the pinned Todo widget
+- `NotesListScreen.kt`: list of notes screen; the grid, the search, the trash entry, and NoteCard, the colored card every note is drawn on
+- `TodoWidget.kt`: TodoWidgetCard, the pinned Todo preview on the list; toggle and delete lines in place, add an item at either end of the active block
 - `NoteEditorScreen.kt`: the note editor's layout; the edit-mode text field, the read-only view, the in-note search bar and NoteEditorDialogs (the two PIN dialogs, the reconcile run, the add-an-item prompt)
 - `NoteEditorState.kt`: NoteEditorState and `rememberNoteEditorState`, everything about the note itself; load, autosave, undo stack, saveContent, the lock and its PIN gate, and the fake blank lines edit mode pads the text with
 - `NoteEditorTopBar.kt`: the editor's header; the editable title plus every button and menu entry, driven by a NoteEditorBarState/NoteEditorBarActions pair
@@ -192,7 +194,7 @@ Root package (shared/misc):
 ## Cross-cutting things, and where they actually live
 The map above is by feature. These are the ones you won't find by feature name:
 
-- **Room**: one database for the whole app, declared in `flashcards/Database.kt` (version 15). The notes `Note` entity and `NoteDao` are registered there too but defined in `notes/Models.kt`; same for the gallery's `PinnedMediaItem`/`PinnedMediaItemDao` in `gallery/GalleryPins.kt`, the podcasts' tables in `podcasts/`, the reader's `Book`/`BookDao` in `reader/BookModels.kt`, and the news tool's `NewsRead`/`NewsSaved`/`NewsProgress`/`NewsDao` in `news/NewsModels.kt`.
+- **Room**: one database for the whole app, declared in `flashcards/Database.kt` (version 16). The notes `Note` entity and `NoteDao` are registered there too but defined in `notes/Models.kt`; same for the gallery's `PinnedMediaItem`/`PinnedMediaItemDao` in `gallery/GalleryPins.kt`, the podcasts' tables in `podcasts/`, the reader's `Book`/`BookDao` in `reader/BookModels.kt`, and the news tool's `NewsRead`/`NewsSaved`/`NewsProgress`/`NewsDao` in `news/NewsModels.kt`.
 - **Word to flashcard loop**: the reader, the translator and the flashcards are one chain. Long pressing a word in `reader/ReaderScreen.kt` opens `translate/WordLookupSheet`, which writes a `FlashcardElement` into the list used last (remembered in `TranslateStore`). The reader is also the only screen that calls `SuppressIdleReset`.
 - **Media notification and lockscreen buttons**: `deezer/DeezerPlaybackService.kt`, `actionButtons()`. Media3 draws the notification; the buttons are `CommandButton`s handled in `SessionCallback.onCustomCommand`, so they act without opening the app. `podcasts/PodcastPlaybackService.kt` does the same with its ±30 s pair.
 - **Two playback stacks, one player at a time**: music (`deezer/`) and podcasts (`podcasts/`) each have their own repository, service, notification and mini-player, and they are deliberately mutually exclusive: `DeezerRepository.stopPodcastPlayback()` and `PodcastRepository.playEpisode()` stop the other one, because two foreground services fighting over audio focus used to take the app down. Their two services must also keep **different notification ids and channels** (see either `onCreate`). What they share lives in the root package: `PlayerUi.kt` (every surface) and `MediaControllerHolder.kt` (the connection and the stop).
@@ -202,6 +204,6 @@ The map above is by feature. These are the ones you won't find by feature name:
 - **HTTP**: `Http.kt`'s `httpGet` serves Weather, Wikipedia, the podcast feeds/directory and the news feeds/pages. Deezer has its own client in `deezer/DeezerApi.kt`, podcast episode audio is fetched by hand in `PodcastDownloads.openAudio` (tracking prefixes need manual redirect following), Gallery does no networking.
 - **All files access**: `gallery/GalleryPermissions.kt` owns the MANAGE_EXTERNAL_STORAGE check and the settings requester; the file explorer reads them from there rather than duplicating the check.
 - **Foreground services**: `Volume.kt` (volume booster), `deezer/DeezerPlaybackService.kt`, `podcasts/PodcastPlaybackService.kt` and `podcasts/PodcastDownloadService.kt`. The Deezer offline sync deliberately has none.
-- **30 day trash**: two different mechanisms. Notes carry a `deletedAt` timestamp and are purged by `MyApplication.onCreate`. The gallery uses MediaStore's own trash (`IS_TRASHED`, `performTrashBatch`/`performRestoreBatch`), which Android empties by itself; it only exists from API 30 on, below that a delete stays permanent.
+- **30 day trash**: two different mechanisms. Notes carry a `deletedAt` timestamp and are purged by `MyApplication.onCreate`. The gallery uses MediaStore's own trash (`IS_TRASHED`, `performTrashBatch`/`performRestoreBatch`), which Android empties by itself.
 - **Media consent launcher**: registered once in `MainActivity` and passed down through `LocalMediaConsent`, so an undo posted after its screen is gone can still show the system dialog. Gallery screens read it instead of calling `rememberIntentSenderRequester` themselves.
 - **Text folding**: any "are these the same thing?" comparison goes through `Normalize.kt`. `deaccented()` is the base (NFD, marks stripped, lowercased), `matchNormalized()` also drops punctuation and is what `DeezerTrack.matchKey` and the podcast title matching use, `slugified()` builds URL path segments. Do not hand-roll another Normalizer call.

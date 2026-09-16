@@ -63,7 +63,7 @@ import kotlinx.coroutines.launch
  */
 private fun currentTrack(repo: DeezerRepository, state: PlayerUiState): DeezerTrack? {
     val id = state.sngId ?: return null
-    return repo.trackById(id) ?: DeezerTrack(id, state.title, state.artist, "", 0, null)
+    return repo.player.trackById(id) ?: DeezerTrack(id, state.title, state.artist, "", 0, null)
 }
 
 /**
@@ -102,7 +102,7 @@ fun FullPlayerSheet(
     val goHome = LocalGoHome.current
     val favoriteIds by repo.favoriteIds.collectAsState()
     val isFav = state.sngId != null && favoriteIds.contains(state.sngId)
-    val shuffle by repo.shuffleEnabled.collectAsState()
+    val shuffle by repo.player.shuffleEnabled.collectAsState()
 
     // Keep the favorites cache warm so the heart reflects the real like-state.
     LaunchedEffect(Unit) { runCatching { repo.ensureFavorites() } }
@@ -130,7 +130,7 @@ fun FullPlayerSheet(
             Icon(Icons.Filled.KeyboardArrowDown, contentDescription = "Réduire")
         }
         IconButton(
-            onClick = { repo.stopAll(); goHome() },
+            onClick = { repo.player.stopAll(); goHome() },
             modifier = Modifier.align(Alignment.TopEnd)
         ) {
             Icon(Icons.Filled.Stop, contentDescription = "Tout arrêter")
@@ -214,9 +214,9 @@ fun FullPlayerSheet(
             PlayerSeekBar(
                 trackKey = state.sngId,
                 isPlaying = state.isPlaying,
-                positionMs = { repo.positionMs() },
-                durationMs = { repo.durationMs() },
-                onSeek = { repo.seekTo(it) }
+                positionMs = { repo.player.positionMs() },
+                durationMs = { repo.player.durationMs() },
+                onSeek = { repo.player.seekTo(it) }
             )
 
             Spacer(Modifier.height(16.dp))
@@ -224,23 +224,23 @@ fun FullPlayerSheet(
                 // Shuffle and the queue sit at the ends of the transport row, where the thumb
                 // already is. The shuffle icon itself says which mode is on (crossed arrows vs a
                 // numbered list): a tint alone doesn't read.
-                IconButton(onClick = { scope.launch { repo.setShuffle(!shuffle) } }) {
+                IconButton(onClick = { scope.launch { repo.player.setShuffle(!shuffle) } }) {
                     Icon(
                         if (shuffle) Icons.Filled.Shuffle else Icons.Filled.FormatListNumbered,
                         contentDescription = if (shuffle) "Lecture aléatoire activée" else "Lecture dans l'ordre",
                         tint = if (shuffle) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-                IconButton(onClick = { repo.previous() }) {
+                IconButton(onClick = { repo.player.previous() }) {
                     Icon(Icons.Filled.SkipPrevious, contentDescription = "Précédent", modifier = Modifier.size(40.dp))
                 }
                 PlayPauseButton(
                     isPlaying = state.isPlaying,
                     isBuffering = state.isBuffering,
-                    onClick = { repo.togglePlay() },
+                    onClick = { repo.player.togglePlay() },
                     iconSize = 56.dp
                 )
-                IconButton(onClick = { repo.next() }) {
+                IconButton(onClick = { repo.player.next() }) {
                     Icon(Icons.Filled.SkipNext, contentDescription = "Suivant", modifier = Modifier.size(40.dp))
                 }
                 IconButton(onClick = { showQueue = true }) {

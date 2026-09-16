@@ -56,9 +56,11 @@ data class NoteSyncBatch(
     val kind: SyncKind = SyncKind.INGREDIENT
 )
 
-/** Canonical key for matching an item against the model: no checkbox prefix, no "(N)"
- *  quantity, trimmed, case-insensitive. */
-fun String.ingredientKey(): String = checkboxText().withoutQuantitySuffix().trim().lowercase()
+/** The one fold two item names are compared under, in the model, Courses and Ingrédients alike. */
+fun String.itemKey(): String = trim().lowercase()
+
+/** [itemKey] of a note line: no checkbox prefix, no "(N)" quantity. */
+fun String.ingredientKey(): String = checkboxText().withoutQuantitySuffix().itemKey()
 
 /** Content with the first occurrence of each given line removed. */
 fun removeFirstLines(content: String, toRemove: List<String>): String {
@@ -96,18 +98,18 @@ fun presentIngredients(noteContent: String): List<String> {
 private fun renderIngredientSection(present: List<String>, groups: List<CourseGroup>): String {
     val food = groups.filter { it.food }.map { it.items }
     val canonical = HashMap<String, String>()
-    for (g in food) for (n in g) canonical.putIfAbsent(n.trim().lowercase(), n.trim())
+    for (g in food) for (n in g) canonical.putIfAbsent(n.itemKey(), n.trim())
     val distinct = present.map { it.trim() }.filter { it.isNotEmpty() }.distinctBy { it.lowercase() }
 
     val blocks = mutableListOf<String>()
     for (g in food) {
-        val keys = g.map { it.trim().lowercase() }.toSet()
+        val keys = g.map { it.itemKey() }.toSet()
         val members = distinct.filter { it.lowercase() in keys }
             .map { canonical[it.lowercase()] ?: it }
             .sortedWith(byFrenchName)
         if (members.isNotEmpty()) blocks.add(members.joinToString("\n"))
     }
-    val known = food.flatten().map { it.trim().lowercase() }.toSet()
+    val known = food.flatten().map { it.itemKey() }.toSet()
     val unknown = distinct.filter { it.lowercase() !in known }.sortedWith(byFrenchName)
     if (unknown.isNotEmpty()) blocks.add(unknown.joinToString("\n"))
     return blocks.joinToString("\n\n")
@@ -179,8 +181,8 @@ fun List<CourseGroup>.allItems(): List<String> = flatMap { it.items }
 /** Index of the Courses model group containing `name` (case-insensitive), or `groups.size`
  *  as a virtual trailing "Autres" slot when no group has it. */
 fun courseGroupIndexOf(groups: List<CourseGroup>, name: String): Int {
-    val k = name.trim().lowercase()
-    val i = groups.indexOfFirst { g -> g.items.any { it.trim().lowercase() == k } }
+    val k = name.itemKey()
+    val i = groups.indexOfFirst { g -> g.items.any { it.itemKey() == k } }
     return if (i >= 0) i else groups.size
 }
 
@@ -210,14 +212,14 @@ fun renderCoursesSection(present: List<String>, groups: List<CourseGroup>): Stri
     val distinct = present.distinctBy { it.ingredientKey() }
     val blocks = mutableListOf<String>()
     for (g in groups) {
-        val keys = g.items.map { it.trim().lowercase() }.toSet()
+        val keys = g.items.map { it.itemKey() }.toSet()
         val members = distinct.filter { it.ingredientKey() in keys }.sortedWith(byFrenchCourseLine)
         if (members.isNotEmpty()) {
             val header = if (g.name.isNotEmpty()) SEPARATOR_PREFIX + g.name else "---"
             blocks.add((listOf(header) + members).joinToString("\n"))
         }
     }
-    val known = groups.flatMap { it.items }.map { it.trim().lowercase() }.toSet()
+    val known = groups.flatMap { it.items }.map { it.itemKey() }.toSet()
     val unknown = distinct.filter { it.ingredientKey() !in known }.sortedWith(byFrenchCourseLine)
     if (unknown.isNotEmpty()) blocks.add((listOf(SEPARATOR_PREFIX + "Autres") + unknown).joinToString("\n"))
     return blocks.joinToString("\n")
@@ -338,7 +340,7 @@ private fun levenshtein(a: String, b: String): Int {
 /** Model entries ordered by closeness to `query`: substring matches first, then by
  *  edit distance, then alphabetically. */
 fun rankIngredientsByCloseness(model: List<String>, query: String): List<String> {
-    val q = query.trim().lowercase()
+    val q = query.itemKey()
     if (q.isEmpty()) return model
     return model.sortedWith(
         compareBy(

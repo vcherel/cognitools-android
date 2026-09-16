@@ -69,7 +69,7 @@ fun DeezerArtistScreen(
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val favoriteIds by repo.favoriteIds.collectAsState()
-    val playerState by repo.playerState.collectAsState()
+    val playerState by repo.player.playerState.collectAsState()
 
     var topTracks by remember { mutableStateOf<List<DeezerTrack>?>(null) }
     var releases by remember { mutableStateOf<List<DeezerRelease>?>(null) }
@@ -127,13 +127,13 @@ fun DeezerArtistScreen(
                             text = "Lire",
                             icon = Icons.Filled.PlayArrow,
                             modifier = Modifier.weight(1f),
-                            onClick = { scope.launch { repo.playTracks(tracks, 0, shuffle = false) } }
+                            onClick = { scope.launch { repo.player.playTracks(tracks, 0, shuffle = false) } }
                         )
                         HeaderAction(
                             text = "Aléatoire",
                             icon = Icons.Filled.Shuffle,
                             modifier = Modifier.weight(1f),
-                            onClick = { scope.launch { repo.shuffleTracks(tracks) } }
+                            onClick = { scope.launch { repo.player.shuffleTracks(tracks) } }
                         )
                     }
                 }
@@ -141,7 +141,7 @@ fun DeezerArtistScreen(
                 itemsIndexed(tracks, key = { _, t -> "top-${t.sngId}" }) { index, track ->
                     TrackRow(
                         track = track,
-                        onClick = { scope.launch { repo.playTracks(tracks, index) } },
+                        onClick = { scope.launch { repo.player.playTracks(tracks, index) } },
                         showActions = true,
                         isFavorite = favoriteIds.contains(track.sngId),
                         isPlaying = playerState.hasItem && playerState.sngId == track.sngId,

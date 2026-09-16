@@ -221,7 +221,7 @@ private fun MusicSearch(
         itemsIndexed(ranked, key = { _, track -> track.sngId }) { index, track ->
             TrackRow(
                 track = track,
-                onClick = { scope.launch { repo.playTracks(ranked, index) } },
+                onClick = { scope.launch { repo.player.playTracks(ranked, index) } },
                 showActions = true,
                 isFavorite = favoriteIds.contains(track.sngId),
                 onToggleFavorite = { scope.launch { runCatching { repo.toggleFavorite(track) } } },
