@@ -20,6 +20,8 @@ import androidx.compose.ui.platform.LocalContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 
 /**
  * Backup and restore icon buttons plus the import confirmation dialog.
@@ -27,6 +29,7 @@ import kotlinx.coroutines.withContext
  */
 @Composable
 fun BackupRestoreActions(
+    /** Stem of the suggested file name; the date and the .json extension are appended. */
     backupFileName: String,
     importDialogText: String,
     createBackupJson: suspend () -> String,
@@ -75,7 +78,10 @@ fun BackupRestoreActions(
         }
     }
 
-    IconButton(onClick = { backupLauncher.launch(backupFileName) }) {
+    IconButton(onClick = {
+        val date = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE)
+        backupLauncher.launch("${backupFileName}_$date.json")
+    }) {
         Icon(Icons.Default.Upload, contentDescription = "Sauvegarder")
     }
 

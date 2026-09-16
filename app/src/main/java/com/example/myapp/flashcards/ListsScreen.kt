@@ -167,7 +167,7 @@ fun FlashcardListsScreen(navController: NavController) {
                     }
 
                     BackupRestoreActions(
-                        backupFileName = "cognitools_flashcards.json",
+                        backupFileName = "cognitools_flashcards",
                         importDialogText = "Les listes et cartes du fichier seront ajoutées. " +
                                 "Celles qui existent déjà seront remplacées par la version du fichier.",
                         createBackupJson = { repository.createBackupJson() },

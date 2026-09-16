@@ -213,7 +213,7 @@ fun NotesListScreen(navController: NavController) {
                             Icon(Icons.Default.Search, contentDescription = "Rechercher")
                         }
                         BackupRestoreActions(
-                            backupFileName = "cognitools_notes.json",
+                            backupFileName = "cognitools_notes",
                             importDialogText = "Les notes du fichier seront ajoutées. " +
                                     "Celles qui existent déjà seront remplacées par la version du fichier.",
                             createBackupJson = { notesToJsonString(dao.getNotes()) },
@@ -542,8 +542,8 @@ private fun TodoWidgetCard(
         )
         Spacer(Modifier.height(4.dp))
         // One add row at each end: a long list otherwise means scrolling to the bottom for the
-        // item that belongs first.
-        AddItemRow(onClick = { onAddItem(true) })
+        // item that belongs first. An empty block only needs the one below.
+        if (bodyLines.isNotEmpty()) AddItemRow(onClick = { onAddItem(true) })
         bodyLines.forEach { (index, line) ->
             if (line.isCheckboxLine()) {
                 val checked = line.isCheckedLine()
