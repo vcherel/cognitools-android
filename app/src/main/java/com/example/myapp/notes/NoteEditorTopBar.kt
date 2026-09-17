@@ -24,6 +24,9 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.ShoppingCartCheckout
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material.icons.filled.Title
 import androidx.compose.material.icons.filled.VerticalAlignCenter
 import androidx.compose.material3.DropdownMenu
@@ -70,7 +73,10 @@ data class NoteEditorBarState(
     val hasContent: Boolean,
     val isCoursesNote: Boolean,
     val isIngredientsNote: Boolean,
-    val isCoursesModelNote: Boolean
+    val isCoursesModelNote: Boolean,
+    val isCarPartsNote: Boolean = false,
+    val carBestRated: Boolean = false,
+    val carHasShopping: Boolean = false
 )
 
 /** What the bar's buttons and menu entries do. All of them act on the note the editor holds. */
@@ -89,7 +95,9 @@ data class NoteEditorBarActions(
     val onRemoveChecked: () -> Unit,
     val onClearContent: () -> Unit,
     val onToggleInlineMarker: (String) -> Unit,
-    val onToggleTitle: () -> Unit
+    val onToggleTitle: () -> Unit,
+    val onToggleCarBestRated: () -> Unit = {},
+    val onFinishCarShopping: () -> Unit = {}
 )
 
 /**
@@ -177,6 +185,20 @@ fun NoteEditorTopBar(
             if (state.isCoursesNote) {
                 IconButton(onClick = actions.onAddCourseItem) {
                     Icon(Icons.Default.Add, contentDescription = "Ajouter un article")
+                }
+            }
+            if (state.isCarPartsNote) {
+                // Filled star: rated parts may be taken from stock. Outline: unrated only.
+                IconButton(onClick = actions.onToggleCarBestRated) {
+                    Icon(
+                        if (state.carBestRated) Icons.Default.Star else Icons.Default.StarBorder,
+                        contentDescription = if (state.carBestRated) "Prendre la meilleure note" else "Sans note seulement"
+                    )
+                }
+                if (state.carHasShopping) {
+                    IconButton(onClick = actions.onFinishCarShopping) {
+                        Icon(Icons.Default.ShoppingCartCheckout, contentDescription = "Terminer les achats")
+                    }
                 }
             }
             IconButton(onClick = actions.onToggleSearch) {

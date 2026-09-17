@@ -163,6 +163,8 @@ Root package (shared/misc):
 - `NoteSyncActions.kt`: the flows the editor triggers across the Courses/Ingrédients/model notes (move, add, re-sort, reconcile) and the batch state behind the reconcile dialog
 - `IngredientSync.kt`: the pure text side of that sync: parsing the one `Modèle courses` note (named "--- Nom" sections, a `(non alimentaire)` suffix flagging the ones kept out of Ingrédients), rendering Courses as labeled sections and Ingrédients as blank-line groups of the food sections, NoteSyncBatch/ReconcileItem, closeness ranking
 - `IngredientDialogs.kt`: the reconcile dialog and the add-an-item name prompt
+- `CarPartsNote.kt`: the "Car Mechanic Simulator" note's model; the Stock / Pris du stock / À acheter sections, the `Name +N (Q)` line format, taking a requested part from stock (unrated only, or best bonus first) or sending it to the buy list, the name suggestions. Pure, covered by a JVM unit test
+- `CarPartsBar.kt`: the bar pinned under that note (Achats / Stock switch, suggestion chips, the in-stock line) and CarPartsMemory, the DataStore holding how often each name was entered plus the rating mode toggled from the header
 - `DjNote.kt`: `appendToDjNote`, the "Artiste - Titre" line appended to the DJ note (the tracks to download), written by the music tool
 
 `reader/` (epub reader):

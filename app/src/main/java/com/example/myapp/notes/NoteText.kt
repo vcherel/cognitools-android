@@ -19,6 +19,7 @@ const val COURSES_TITLE = "Courses"
 const val COURSES_MODEL_TITLE = "Modèle courses"
 const val TODO_LIST_TITLE = "Todo list"
 const val CLAUDE_NOTE_TITLE = "Claude"
+const val CAR_PARTS_TITLE = "Car Mechanic Simulator"
 
 // The marker line right after a category title in the Claude note, flagging that
 // category as having an unfinished Claude session to resume.

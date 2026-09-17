@@ -24,11 +24,14 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -67,6 +70,7 @@ fun NoteEditorScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val dao = remember { AppDatabase.get(context).noteDao() }
+    val carPartsMemory = remember { CarPartsMemory(context) }
 
     val state = rememberNoteEditorState(noteId, initialEditOffset, dao)
     val textFieldState = state.textFieldState
@@ -127,6 +131,9 @@ fun NoteEditorScreen(
             val isCoursesNote = !isEditing && title.equals(COURSES_TITLE, ignoreCase = true)
             val isIngredientsNote = !isEditing && title.equals(INGREDIENTS_TITLE, ignoreCase = true)
             val isCoursesModelNote = !isEditing && title.equals(COURSES_MODEL_TITLE, ignoreCase = true)
+            val isCarPartsNote = !isEditing && title.equals(CAR_PARTS_TITLE, ignoreCase = true)
+            val carNote = remember(content, isCarPartsNote) { if (isCarPartsNote) parseCarPartsNote(content) else null }
+            val carBestRated by carPartsMemory.bestRated.collectAsState(initial = false)
 
             val searchTerms = if (searchOpen) remember(noteQuery) { searchTermsOf(noteQuery) } else listSearchTerms
             // The lines holding any of the searched words, in order: what the arrows step through.
@@ -179,7 +186,10 @@ fun NoteEditorScreen(
                         hasContent = content.isNotEmpty(),
                         isCoursesNote = isCoursesNote,
                         isIngredientsNote = isIngredientsNote,
-                        isCoursesModelNote = isCoursesModelNote
+                        isCoursesModelNote = isCoursesModelNote,
+                        isCarPartsNote = isCarPartsNote,
+                        carBestRated = carBestRated,
+                        carHasShopping = carNote?.hasShopping == true
                     ),
                     actions = NoteEditorBarActions(
                         onBack = { state.goBack(onBack) },
@@ -207,7 +217,22 @@ fun NoteEditorScreen(
                         },
                         onClearContent = { state.saveContent("") },
                         onToggleInlineMarker = { textFieldState.toggleInlineMarker(it) },
-                        onToggleTitle = { textFieldState.toggleTitleLine() }
+                        onToggleTitle = { textFieldState.toggleTitleLine() },
+                        onToggleCarBestRated = { scope.launch { carPartsMemory.setBestRated(!carBestRated) } },
+                        onFinishCarShopping = {
+                            val before = content
+                            state.saveContent(carNote!!.finishShopping().render())
+                            scope.launch {
+                                snackbarHostState.currentSnackbarData?.dismiss()
+                                val result = snackbarHostState.showSnackbar(
+                                    message = "Achats terminés",
+                                    actionLabel = "Annuler",
+                                    withDismissAction = true,
+                                    duration = SnackbarDuration.Short
+                                )
+                                if (result == SnackbarResult.ActionPerformed) state.saveContent(before)
+                            }
+                        }
                     )
                 )
 
@@ -277,27 +302,38 @@ fun NoteEditorScreen(
                         cursorBrush = SolidColor(MaterialTheme.colorScheme.onBackground)
                     )
                 } else {
-                    NoteViewMode(
-                        textFieldState = textFieldState,
-                        title = title,
-                        searchTerms = searchTerms,
-                        focusedLine = if (searchOpen) matchLines.getOrNull(matchPos) ?: -1 else -1,
-                        focusNonce = focusNonce,
-                        actions = NoteLineActions(
-                            onToggleLine = lineEdits::toggleLine,
-                            onDeleteLine = lineEdits::deleteLine,
-                            onMoveToCourses = { sync.moveLineToCourses(it) },
-                            onChangeQuantity = lineEdits::changeQuantity,
-                            onShiftMuscu = lineEdits::shiftMuscuDay,
-                            onRemoveDateSuffix = lineEdits::removeDateSuffix,
-                            onToggleLineMarker = lineEdits::toggleLineMarker,
-                            onToggleTitleLine = lineEdits::toggleTitleLine,
-                            onToggleResume = lineEdits::toggleResumeAfter,
-                            onToggleEnhance = lineEdits::toggleEnhanceAtEnd,
-                            onEnterEditAt = { state.enterEditAt(it) },
-                            onReorder = { state.saveContent(it) }
+                    // The car parts note keeps its bar under the lines, so the view takes the rest.
+                    Box(modifier = if (carNote != null) Modifier.weight(1f) else Modifier) {
+                        NoteViewMode(
+                            textFieldState = textFieldState,
+                            title = title,
+                            searchTerms = searchTerms,
+                            focusedLine = if (searchOpen) matchLines.getOrNull(matchPos) ?: -1 else -1,
+                            focusNonce = focusNonce,
+                            actions = NoteLineActions(
+                                onToggleLine = lineEdits::toggleLine,
+                                onDeleteLine = lineEdits::deleteLine,
+                                onMoveToCourses = { sync.moveLineToCourses(it) },
+                                onChangeQuantity = lineEdits::changeQuantity,
+                                onShiftMuscu = lineEdits::shiftMuscuDay,
+                                onRemoveDateSuffix = lineEdits::removeDateSuffix,
+                                onToggleLineMarker = lineEdits::toggleLineMarker,
+                                onToggleTitleLine = lineEdits::toggleTitleLine,
+                                onToggleResume = lineEdits::toggleResumeAfter,
+                                onToggleEnhance = lineEdits::toggleEnhanceAtEnd,
+                                onEnterEditAt = { state.enterEditAt(it) },
+                                onReorder = { state.saveContent(it) }
+                            )
                         )
-                    )
+                    }
+                    if (carNote != null && !titleFocused) {
+                        CarPartsBar(
+                            note = carNote,
+                            bestRated = carBestRated,
+                            memory = carPartsMemory,
+                            onSave = { state.saveContent(it) }
+                        )
+                    }
                 }
             }
         }
