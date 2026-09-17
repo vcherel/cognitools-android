@@ -1,11 +1,10 @@
 package com.example.myapp.notes
 
 import androidx.compose.foundation.text.input.TextFieldState
-import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.SnackbarResult
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import com.example.myapp.showUndoSnackbar
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
@@ -110,17 +109,7 @@ class NoteLineEdits(
         val updated = lines.joinToString("\n")
         saveContent(if (isCoursesNote()) dropEmptyCourseSections(updated) else updated)
         scope.launch {
-            // Replace any snackbar from a previous delete instead of queueing
-            snackbar.currentSnackbarData?.dismiss()
-            val result = snackbar.showSnackbar(
-                message = "Élément supprimé",
-                actionLabel = "Annuler",
-                withDismissAction = true,
-                duration = SnackbarDuration.Short
-            )
-            if (result == SnackbarResult.ActionPerformed) {
-                saveContent(before)
-            }
+            if (snackbar.showUndoSnackbar("Élément supprimé")) saveContent(before)
         }
     }
 }

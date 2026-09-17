@@ -3,13 +3,13 @@ package com.example.myapp.notes
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.SnackbarResult
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import com.example.myapp.showUndoSnackbar
 import com.example.myapp.plural
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -498,7 +498,7 @@ class NoteSyncActions(
             val count = finished.movedCount
             val noun = if (finished.kind == SyncKind.COURSE) "article" else "ingrédient"
             val verb = if (finished.reorder) "réordonné" else "ajouté"
-            if (showUndoSnackbar("$count $noun${plural(count)} $verb${plural(count)}")) {
+            if (snackbar.showUndoSnackbar("$count $noun${plural(count)} $verb${plural(count)}")) {
                 if (finished.sourceId != null && finished.sourceSnapshot != null) {
                     updateNoteContent(finished.sourceId, finished.sourceSnapshot)
                 }
@@ -536,17 +536,6 @@ class NoteSyncActions(
             duration = SnackbarDuration.Short
         )
         return null
-    }
-
-    // Replaces any snackbar still showing instead of queueing behind it. True when Annuler was hit.
-    private suspend fun showUndoSnackbar(message: String): Boolean {
-        snackbar.currentSnackbarData?.dismiss()
-        return snackbar.showSnackbar(
-            message = message,
-            actionLabel = "Annuler",
-            withDismissAction = true,
-            duration = SnackbarDuration.Short
-        ) == SnackbarResult.ActionPerformed
     }
 }
 

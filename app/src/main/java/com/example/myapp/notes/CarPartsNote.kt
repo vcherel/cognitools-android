@@ -5,7 +5,7 @@ import com.example.myapp.matchNormalized
 
 // The Car Mechanic Simulator note: the spare parts held in the game, as plain text under three
 // separators (Stock, Pris du stock, À acheter). A part line is "Name +N (Q)": the game's quality
-// bonus (+1 to +5, only some parts carry one) and a quantity, both optional. Two lines are the
+// bonus (only some parts carry one) and a quantity, both optional. Two lines are the
 // same part when their names fold to the same key; a +3 and an unrated one stay separate lines.
 
 const val CAR_STOCK_SECTION = "Stock"
@@ -23,10 +23,7 @@ data class CarPart(
     /** The name with its bonus, what a message calls the part. */
     val label: String get() = if (score == null) name else "$name +$score"
 
-    fun render(): String = buildString {
-        append(label)
-        if (quantity > 1) append(" (").append(quantity).append(")")
-    }
+    fun render(): String = if (quantity > 1) "$label ($quantity)" else label
 }
 
 data class CarPartsNote(
@@ -54,12 +51,11 @@ data class CarPartsNote(
         val takenNow = mutableListOf<CarPart>()
         var remaining = quantity
         while (remaining > 0) {
-            val candidate = remainingStock
-                .filter { it.key == key && (bestRated || it.score == null) }
-                .maxByOrNull { it.score ?: -1 } ?: break
+            val (index, candidate) = remainingStock.withIndex()
+                .filter { (_, part) -> part.key == key && (bestRated || part.score == null) }
+                .maxByOrNull { (_, part) -> part.score ?: -1 } ?: break
             val units = minOf(candidate.quantity, remaining)
             remaining -= units
-            val index = remainingStock.indexOf(candidate)
             if (units == candidate.quantity) remainingStock.removeAt(index)
             else remainingStock[index] = candidate.copy(quantity = candidate.quantity - units)
             takenNow += candidate.copy(quantity = units)
@@ -106,7 +102,7 @@ private val SCORE_SUFFIX = Regex("""\s*\+(\d+)$""")
 private val TIMES_SUFFIX = Regex("""\s+[x×](\d+)$""")
 
 /** A note line as a part, null for a blank or separator line. Checkbox prefixes are ignored. */
-fun parseCarPart(line: String): CarPart? {
+private fun parseCarPart(line: String): CarPart? {
     if (line.isSeparatorLine()) return null
     val text = line.checkboxText().trim()
     if (text.isEmpty()) return null
@@ -156,6 +152,8 @@ fun parseCarPartsNote(content: String): CarPartsNote {
     val stock = mutableListOf<CarPart>()
     val taken = mutableListOf<CarPart>()
     val toBuy = mutableListOf<CarPart>()
+    val takenKey = CAR_TAKEN_SECTION.matchNormalized()
+    val toBuyKey = CAR_TO_BUY_SECTION.matchNormalized()
     var section = CAR_STOCK_SECTION.matchNormalized()
     content.lineSequence().forEach { line ->
         if (line.isSeparatorLine()) {
@@ -164,8 +162,8 @@ fun parseCarPartsNote(content: String): CarPartsNote {
         }
         val part = parseCarPart(line) ?: return@forEach
         when (section) {
-            CAR_TAKEN_SECTION.matchNormalized() -> taken += part
-            CAR_TO_BUY_SECTION.matchNormalized() -> toBuy += part.copy(checked = line.isCheckedLine())
+            takenKey -> taken += part
+            toBuyKey -> toBuy += part.copy(checked = line.isCheckedLine())
             else -> stock += part
         }
     }

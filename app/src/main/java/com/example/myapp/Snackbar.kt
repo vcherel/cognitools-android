@@ -30,6 +30,19 @@ object AppSnackbar {
 }
 
 /**
+ * Replaces any snackbar still showing instead of queueing behind it. True when Annuler was hit.
+ */
+suspend fun SnackbarHostState.showUndoSnackbar(message: String): Boolean {
+    currentSnackbarData?.dismiss()
+    return showSnackbar(
+        message = message,
+        actionLabel = "Annuler",
+        withDismissAction = true,
+        duration = SnackbarDuration.Short
+    ) == SnackbarResult.ActionPerformed
+}
+
+/**
  * A SnackbarHostState already wired to AppSnackbar's requests. Whoever draws the SnackbarHost owns
  * one of these: the nav host in the normal app, and the locked quick view, which runs outside it.
  */

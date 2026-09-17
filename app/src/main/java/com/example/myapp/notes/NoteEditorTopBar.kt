@@ -74,9 +74,9 @@ data class NoteEditorBarState(
     val isCoursesNote: Boolean,
     val isIngredientsNote: Boolean,
     val isCoursesModelNote: Boolean,
-    val isCarPartsNote: Boolean = false,
-    val carBestRated: Boolean = false,
-    val carHasShopping: Boolean = false
+    val isCarPartsNote: Boolean,
+    val carBestRated: Boolean,
+    val carHasShopping: Boolean
 )
 
 /** What the bar's buttons and menu entries do. All of them act on the note the editor holds. */
@@ -96,8 +96,8 @@ data class NoteEditorBarActions(
     val onClearContent: () -> Unit,
     val onToggleInlineMarker: (String) -> Unit,
     val onToggleTitle: () -> Unit,
-    val onToggleCarBestRated: () -> Unit = {},
-    val onFinishCarShopping: () -> Unit = {}
+    val onToggleCarBestRated: () -> Unit,
+    val onFinishCarShopping: () -> Unit
 )
 
 /**

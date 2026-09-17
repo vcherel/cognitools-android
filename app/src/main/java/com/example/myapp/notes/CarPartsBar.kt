@@ -51,7 +51,7 @@ import kotlinx.coroutines.launch
 
 private val Context.carPartsDataStore by preferencesDataStore("car_parts")
 
-private const val NAME_PREFIX = "n:"
+private const val COUNT_KEY_PREFIX = "count:"
 private val BEST_RATED_KEY = booleanPreferencesKey("best_rated")
 
 /**
@@ -61,8 +61,8 @@ private val BEST_RATED_KEY = booleanPreferencesKey("best_rated")
 class CarPartsMemory(private val context: Context) {
     val counts: Flow<Map<String, Int>> = context.carPartsDataStore.data.map { prefs ->
         prefs.asMap().mapNotNull { (key, value) ->
-            if (!key.name.startsWith(NAME_PREFIX)) null
-            else (value as? Int)?.let { key.name.removePrefix(NAME_PREFIX) to it }
+            if (!key.name.startsWith(COUNT_KEY_PREFIX)) null
+            else (value as? Int)?.let { key.name.removePrefix(COUNT_KEY_PREFIX) to it }
         }.toMap()
     }
 
@@ -73,9 +73,9 @@ class CarPartsMemory(private val context: Context) {
         context.carPartsDataStore.edit { prefs ->
             val key = name.matchNormalized()
             val existing = prefs.asMap().keys
-                .firstOrNull { it.name.startsWith(NAME_PREFIX) && it.name.removePrefix(NAME_PREFIX).matchNormalized() == key }
+                .firstOrNull { it.name.startsWith(COUNT_KEY_PREFIX) && it.name.removePrefix(COUNT_KEY_PREFIX).matchNormalized() == key }
                 ?.let { intPreferencesKey(it.name) }
-                ?: intPreferencesKey(NAME_PREFIX + name)
+                ?: intPreferencesKey(COUNT_KEY_PREFIX + name)
             prefs[existing] = (prefs[existing] ?: 0) + 1
         }
     }
@@ -102,7 +102,7 @@ fun CarPartsBar(
     val counts by memory.counts.collectAsState(initial = emptyMap())
     var input by rememberSaveable { mutableStateOf("") }
     var stockMode by rememberSaveable { mutableStateOf(false) }
-    var lastMessage by rememberSaveable { mutableStateOf("") }
+    var lastMessage by remember { mutableStateOf("") }
 
     val typed = remember(input) { parseCarPartInput(input) }
     val suggestions = remember(typed?.name, counts, note.stock) {
@@ -131,22 +131,22 @@ fun CarPartsBar(
         input = ""
     }
 
-    fun submitTyped() {
-        typed?.let { submit(it) }
-    }
-
     // A chip fills the name in, keeping any bonus or quantity typed; a chip that is already the
     // name in the field validates the entry.
     fun pickSuggestion(name: String) {
         val current = typed
-        if (current != null && current.key == name.matchNormalized()) {
+        if (current == null) {
+            input = name
+            return
+        }
+        if (current.key == name.matchNormalized()) {
             submit(current.copy(name = name))
             return
         }
         input = buildString {
             append(name)
-            current?.score?.let { append(" +").append(it) }
-            if ((current?.quantity ?: 1) > 1) append(" x").append(current!!.quantity)
+            current.score?.let { append(" +").append(it) }
+            if (current.quantity > 1) append(" x").append(current.quantity)
         }
     }
 
@@ -202,9 +202,9 @@ fun CarPartsBar(
                 capitalization = KeyboardCapitalization.Words,
                 imeAction = ImeAction.Done
             ),
-            keyboardActions = KeyboardActions(onDone = { submitTyped() }),
+            keyboardActions = KeyboardActions(onDone = { typed?.let(::submit) }),
             trailingIcon = {
-                IconButton(onClick = { submitTyped() }, enabled = typed != null) {
+                IconButton(onClick = { typed?.let(::submit) }, enabled = typed != null) {
                     Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Valider")
                 }
             }

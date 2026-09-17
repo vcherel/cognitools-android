@@ -24,9 +24,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -46,6 +44,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
+import com.example.myapp.showUndoSnackbar
 import com.example.myapp.BackIconButton
 import com.example.myapp.flashcards.AppDatabase
 import com.example.myapp.plural
@@ -220,17 +219,12 @@ fun NoteEditorScreen(
                         onToggleTitle = { textFieldState.toggleTitleLine() },
                         onToggleCarBestRated = { scope.launch { carPartsMemory.setBestRated(!carBestRated) } },
                         onFinishCarShopping = {
-                            val before = content
-                            state.saveContent(carNote!!.finishShopping().render())
-                            scope.launch {
-                                snackbarHostState.currentSnackbarData?.dismiss()
-                                val result = snackbarHostState.showSnackbar(
-                                    message = "Achats terminés",
-                                    actionLabel = "Annuler",
-                                    withDismissAction = true,
-                                    duration = SnackbarDuration.Short
-                                )
-                                if (result == SnackbarResult.ActionPerformed) state.saveContent(before)
+                            carNote?.let { car ->
+                                val before = content
+                                state.saveContent(car.finishShopping().render())
+                                scope.launch {
+                                    if (snackbarHostState.showUndoSnackbar("Achats terminés")) state.saveContent(before)
+                                }
                             }
                         }
                     )
