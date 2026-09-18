@@ -187,7 +187,7 @@ fun suggestCarPartNames(
     query: String,
     counts: Map<String, Int>,
     stockNames: List<String>,
-    limit: Int = 8
+    limit: Int = 30
 ): List<String> {
     val known = LinkedHashMap<String, Pair<String, Int>>()
     counts.forEach { (name, count) -> known[name.matchNormalized()] = name to count }
