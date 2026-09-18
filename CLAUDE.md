@@ -10,6 +10,8 @@ For UI/layout changes with more than one reasonable arrangement (where to put a 
 ## Language exception
 This app's UI text (labels, toasts, snackbars, content descriptions, etc.) is French, deliberately, confirmed with Valentin: the app is French-only, sole user, not a shortcut or an oversight. This overrides the global English-only writing instruction, but only for in-app UI text; replies, code, comments, and commit messages to Valentin stay English as usual.
 
+A layout complaint starts with `adb exec-out screencap -p`, never with the code. A black capture means the phone is locked: ask Valentin to unlock it and open the screen, then capture again.
+
 ## Deploy method
 Build the release APK and install it on the connected phone:
 
