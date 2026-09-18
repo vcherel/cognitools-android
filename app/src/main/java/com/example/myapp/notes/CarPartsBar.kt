@@ -47,8 +47,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
@@ -139,10 +141,10 @@ class CarPartsMemory(private val context: Context) {
             ?: intPreferencesKey(COUNT_KEY_PREFIX + name)
 }
 
-/** The two taps that follow a name in Stock mode: the bonus, then how many. */
-internal sealed class StockStep {
-    data class Score(val name: String) : StockStep()
-    data class Quantity(val name: String, val score: Int?) : StockStep()
+/** The chip rows that follow a name: the bonus then how many in Stock mode, how many alone in Achats. */
+internal sealed class EntryStep {
+    data class Score(val name: String) : EntryStep()
+    data class Quantity(val name: String, val score: Int?) : EntryStep()
 }
 
 /**
@@ -160,13 +162,18 @@ class CarPartsBarState internal constructor(
     internal var stockMode by mutableStateOf(false)
     internal var imeVisible by mutableStateOf(false)
 
-    internal var input by mutableStateOf("")
-    internal var step by mutableStateOf<StockStep?>(null)
+    internal var fieldValue by mutableStateOf(TextFieldValue())
+    internal var step by mutableStateOf<EntryStep?>(null)
     internal var lastMessage by mutableStateOf("")
     internal var focused by mutableStateOf(false)
     internal val focusRequester = FocusRequester()
 
-    internal val typed: CarPart? get() = parseCarPartInput(input)
+    internal val typed: CarPart? get() = parseCarPartInput(fieldValue.text)
+
+    /** Fills the field with the cursor at the end, so a quantity can be typed right after. */
+    internal fun setInput(text: String) {
+        fieldValue = TextFieldValue(text, TextRange(text.length))
+    }
     internal val suggestions: List<String>
         get() = suggestCarPartNames(typed?.name ?: "", counts, note.stock.map { it.name })
     internal val inStock: List<CarPart> get() = typed?.let { note.stockOf(it.name) } ?: emptyList()
@@ -192,7 +199,7 @@ class CarPartsBarState internal constructor(
         onSave(updated.render())
         scope.launch { memory.recordName(part.name) }
         lastMessage = message
-        input = ""
+        setInput("")
         step = null
     }
 
@@ -201,14 +208,18 @@ class CarPartsBarState internal constructor(
     internal fun submitTyped() {
         val current = typed ?: return
         if (stockMode && current.score == null && current.quantity == 1) {
-            step = StockStep.Score(current.name)
+            step = EntryStep.Score(current.name)
         } else submit(current)
     }
 
-    // In Achats the tap only fills the field (a slip must not fire a request), send confirms.
+    // In Achats the tap only fills the field (a slip must not fire a request): a quantity chip or
+    // send confirms.
     internal fun pickName(name: String) {
-        if (stockMode) step = StockStep.Score(name)
-        else input = CarPart(name, quantity = typed?.quantity ?: 1).render()
+        if (stockMode) step = EntryStep.Score(name)
+        else {
+            setInput(CarPart(name, quantity = typed?.quantity ?: 1).render())
+            step = EntryStep.Quantity(name, null)
+        }
     }
 
     internal fun forgetName(name: String) {
@@ -245,7 +256,8 @@ fun rememberCarPartsBarState(
 /**
  * The bar pinned under the Car Mechanic Simulator note. One field, two modes: Achats runs each
  * part of the in-game shopping list against the stock, Stock adds what a crate or a wreck gave.
- * Under the field, a Stock entry unfolds its bonus then quantity chip rows. The known names are
+ * Under the field, a Stock entry unfolds its bonus then quantity chip rows, an Achats name picked
+ * from the list its quantity row alone. The known names are
  * not here: the editor draws them over the note with [CarPartsNameList] while the field is typed
  * in, so the field never moves. While typing, the line next to the switch says what the stock
  * holds for that name, and after an entry what was done.
@@ -257,7 +269,7 @@ fun CarPartsBar(state: CarPartsBarState) {
     val inStock = state.inStock
 
     val status = when {
-        state.step != null -> ""
+        state.step != null && stockMode -> ""
         typed != null && inStock.isNotEmpty() -> "En stock : " + inStock.joinToString(", ") {
             "${it.quantity}× " + (it.score?.let { s -> "+$s" } ?: "sans note")
         }
@@ -292,8 +304,8 @@ fun CarPartsBar(state: CarPartsBarState) {
             )
         }
         OutlinedTextField(
-            value = state.input,
-            onValueChange = { state.input = it; state.step = null },
+            value = state.fieldValue,
+            onValueChange = { state.fieldValue = it; state.step = null },
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(top = 4.dp)
@@ -313,21 +325,21 @@ fun CarPartsBar(state: CarPartsBarState) {
             }
         )
         when (val current = state.step) {
-            is StockStep.Score -> ChoiceRow(
+            is EntryStep.Score -> ChoiceRow(
                 title = "${current.name} · qualité",
                 choices = SCORE_CHOICES,
                 label = { it?.let { s -> "+$s" } ?: "Sans note" },
-                onPick = { state.step = StockStep.Quantity(current.name, it) },
+                onPick = { state.step = EntryStep.Quantity(current.name, it) },
                 onCancel = { state.step = null }
             )
-            is StockStep.Quantity -> ChoiceRow(
+            is EntryStep.Quantity -> ChoiceRow(
                 title = "${CarPart(current.name, current.score).label} · quantité",
                 choices = QUANTITY_CHOICES,
                 label = { it.toString() },
                 onPick = { state.submit(CarPart(current.name, current.score, it)) },
                 onCancel = { state.step = null },
                 extra = "Autre…" to {
-                    state.input = CarPart(current.name, current.score).label + " x"
+                    state.setInput(CarPart(current.name, current.score).label + " x")
                     state.step = null
                     state.focusRequester.requestFocus()
                 }
@@ -337,7 +349,7 @@ fun CarPartsBar(state: CarPartsBarState) {
     }
 }
 
-/** One step of the Stock entry: a title, a chip per choice, a cross to drop the whole entry. */
+/** One step of an entry: a title, a chip per choice, a cross to drop the step. */
 @Composable
 private fun <T> ChoiceRow(
     title: String,

@@ -14,6 +14,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.verticalScroll
@@ -482,7 +484,13 @@ private fun NoteLine(
                     }
                 }
                 if (selected) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    // The last lines sit under the fold once the note scrolls: the row would open out of sight.
+                    val intoView = remember { BringIntoViewRequester() }
+                    LaunchedEffect(Unit) { intoView.bringIntoView() }
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        modifier = Modifier.bringIntoViewRequester(intoView)
+                    ) {
                         LineIconButton(Icons.Default.FormatBold, "Gras") {
                             actions.onToggleLineMarker(lineIndex, "**")
                         }

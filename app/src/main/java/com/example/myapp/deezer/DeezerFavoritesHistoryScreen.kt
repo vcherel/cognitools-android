@@ -41,15 +41,13 @@ import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle as JavaTextStyle
 import java.util.Locale
 
-/** The favorites count over time: the number today, how it moved lately, and the curve since the first like. */
+/** The favorites count over time: the number today and the curve since the first like. */
 @Composable
 fun DeezerFavoritesHistoryScreen(repo: DeezerRepository, onBack: () -> Unit) {
     val history by repo.favoritesHistory.history.collectAsState()
     val favorites by repo.favorites.collectAsState()
     val count = favorites?.size ?: history.lastOrNull()?.count ?: 0
     val today = LocalDate.now()
-    val monthAgo = countAt(history, today.minusDays(30))
-    val yearAgo = countAt(history, today.minusDays(365))
     var loading by remember { mutableStateOf(false) }
 
     // The library screen's own refresh dies with that screen, and a tap on the count a moment after
@@ -69,7 +67,7 @@ fun DeezerFavoritesHistoryScreen(repo: DeezerRepository, onBack: () -> Unit) {
             Spacer(Modifier.height(4.dp))
             history.firstOrNull()?.let { first ->
                 Text(
-                    "Depuis le ${first.day.format(FULL_DATE)} · +${count - monthAgo} sur 30 jours · +${count - yearAgo} sur un an",
+                    "Depuis le ${first.day.format(FULL_DATE)}",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -83,10 +81,6 @@ fun DeezerFavoritesHistoryScreen(repo: DeezerRepository, onBack: () -> Unit) {
         }
     }
 }
-
-/** The count on [day]: the last sample taken on or before it, 0 before the first. */
-private fun countAt(history: List<FavoritesSample>, day: LocalDate): Int =
-    history.lastOrNull { it.day <= day }?.count ?: 0
 
 private val FULL_DATE: DateTimeFormatter = DateTimeFormatter.ofPattern("d MMMM yyyy", Locale.FRENCH)
 
