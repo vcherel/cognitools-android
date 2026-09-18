@@ -109,7 +109,7 @@ private fun parseCarPart(line: String): CarPart? {
     val quantity = text.itemQuantity()
     val unquantified = text.withoutQuantitySuffix()
     val score = SCORE_SUFFIX.find(unquantified)?.groupValues?.get(1)?.toIntOrNull()
-    val name = SCORE_SUFFIX.replace(unquantified, "").trim()
+    val name = SCORE_SUFFIX.replace(unquantified, "").cleanCarPartName()
     if (name.isEmpty()) return null
     return CarPart(name, score, quantity)
 }
@@ -143,9 +143,13 @@ fun parseCarPartInput(text: String): CarPart? {
         }
         break
     }
-    if (rest.isEmpty()) return null
-    return CarPart(rest, score, quantity.coerceAtLeast(1))
+    val name = rest.cleanCarPartName()
+    if (name.isEmpty()) return null
+    return CarPart(name, score, quantity.coerceAtLeast(1))
 }
+
+/** A part name without the comma some lines were typed with before the bonus ("Bougie, +3"). */
+fun String.cleanCarPartName(): String = trim().trimEnd(',', ' ')
 
 /** The note's text read into its three sections. Lines under no known separator count as stock. */
 fun parseCarPartsNote(content: String): CarPartsNote {

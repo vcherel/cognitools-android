@@ -103,4 +103,12 @@ class CarPartsNoteTest {
         )
         assertEquals(listOf("Camshaft V8"), suggestCarPartNames("cam", counts, emptyList()))
     }
+
+    @Test
+    fun trailingCommaBeforeTheBonusIsDropped() {
+        val note = parseCarPartsNote("Bougie, +3\nBougie,\nbougie , (2)")
+        assertEquals(listOf(CarPart("Bougie", quantity = 3), CarPart("Bougie", score = 3)), note.stock)
+        assertEquals("--- Stock\nBougie (3)\nBougie +3", note.render())
+        assertEquals(CarPart("Bougie", score = 3, quantity = 2), parseCarPartInput("Bougie, +3 x2"))
+    }
 }

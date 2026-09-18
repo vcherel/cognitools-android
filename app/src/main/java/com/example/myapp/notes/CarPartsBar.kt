@@ -2,11 +2,14 @@ package com.example.myapp.notes
 
 import android.content.Context
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -43,6 +46,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
@@ -74,8 +78,8 @@ class CarPartsMemory(private val context: Context) {
     val counts: Flow<Map<String, Int>> = context.carPartsDataStore.data.map { prefs ->
         prefs.asMap().mapNotNull { (key, value) ->
             if (!key.name.startsWith(COUNT_KEY_PREFIX)) null
-            else (value as? Int)?.let { key.name.removePrefix(COUNT_KEY_PREFIX) to it }
-        }.toMap()
+            else (value as? Int)?.let { key.name.removePrefix(COUNT_KEY_PREFIX).cleanCarPartName() to it }
+        }.groupBy({ it.first }, { it.second }).mapValues { (_, uses) -> uses.sum() }
     }
 
     val bestRated: Flow<Boolean> = context.carPartsDataStore.data.map { it[BEST_RATED_KEY] ?: false }
@@ -88,6 +92,21 @@ class CarPartsMemory(private val context: Context) {
             val key = countKeyOf(prefs.asMap().keys.map { it.name }, name)
             prefs[key] = (prefs[key] ?: 0) + 1
         }
+    }
+
+    /** Gives every name not yet known one use, so the stock typed by hand ranks like the rest. Returns how many were new. */
+    suspend fun recordNames(names: Collection<String>): Int {
+        var added = 0
+        context.carPartsDataStore.edit { prefs ->
+            names.forEach { name ->
+                val key = countKeyOf(prefs.asMap().keys.map { it.name }, name)
+                if (prefs[key] == null) {
+                    prefs[key] = 1
+                    added++
+                }
+            }
+        }
+        return added
     }
 
     /** Forgets [name] (a typo, usually). Returns the count it had, so an undo can put it back. */
@@ -128,10 +147,11 @@ private sealed class StockStep {
 /**
  * The bar pinned under the Car Mechanic Simulator note. One field, two modes: Achats runs each
  * part of the in-game shopping list against the stock, Stock adds what a crate or a wreck gave.
- * The list above proposes known names: in Achats a tap requests one straight away, in Stock a tap
- * starts the bonus then quantity chip rows. A long press forgets a name. While typing, the line
+ * The list under it, shown while typing, proposes known names: in Achats a tap fills the field, in
+ * Stock a tap starts the bonus then quantity chip rows. A long press forgets a name. While typing, the line
  * next to the switch says what the stock holds for that name, and after an entry what was done.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun CarPartsBar(
     note: CarPartsNote,
@@ -145,6 +165,8 @@ fun CarPartsBar(
     var input by rememberSaveable { mutableStateOf("") }
     var step by remember { mutableStateOf<StockStep?>(null) }
     var lastMessage by remember { mutableStateOf("") }
+    var focused by remember { mutableStateOf(false) }
+    val imeVisible = WindowInsets.isImeVisible
     val focusRequester = remember { FocusRequester() }
 
     val typed = remember(input) { parseCarPartInput(input) }
@@ -184,9 +206,10 @@ fun CarPartsBar(
         } else submit(current)
     }
 
+    // In Achats the tap only fills the field (a slip must not fire a request), send confirms.
     fun pickName(name: String) {
         if (stockMode) step = StockStep.Score(name)
-        else submit(CarPart(name, quantity = typed?.quantity ?: 1))
+        else input = CarPart(name, quantity = typed?.quantity ?: 1).render()
     }
 
     fun forgetName(name: String) {
@@ -206,36 +229,6 @@ fun CarPartsBar(
     }
 
     Column(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
-        when (val current = step) {
-            is StockStep.Score -> ChoiceRow(
-                title = "${current.name}, qualité :",
-                choices = SCORE_CHOICES,
-                label = { it?.let { s -> "+$s" } ?: "Sans note" },
-                onPick = { step = StockStep.Quantity(current.name, it) },
-                onCancel = { step = null }
-            )
-            is StockStep.Quantity -> ChoiceRow(
-                title = "${CarPart(current.name, current.score).label}, quantité :",
-                choices = QUANTITY_CHOICES,
-                label = { it.toString() },
-                onPick = { submit(CarPart(current.name, current.score, it)) },
-                onCancel = { step = null },
-                extra = "Autre…" to {
-                    input = CarPart(current.name, current.score).label + " x"
-                    step = null
-                    focusRequester.requestFocus()
-                }
-            )
-            null -> if (suggestions.isNotEmpty()) {
-                NameList(
-                    names = suggestions,
-                    note = note,
-                    onPick = ::pickName,
-                    onForget = ::forgetName
-                )
-            }
-        }
-        Spacer(Modifier.height(8.dp))
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
             SingleChoiceSegmentedButtonRow {
                 SegmentedButton(
@@ -264,7 +257,11 @@ fun CarPartsBar(
         OutlinedTextField(
             value = input,
             onValueChange = { input = it; step = null },
-            modifier = Modifier.fillMaxWidth().padding(top = 4.dp).focusRequester(focusRequester),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 4.dp)
+                .focusRequester(focusRequester)
+                .onFocusChanged { focused = it.isFocused },
             placeholder = { Text(if (stockMode) "Pièce trouvée, +3, x2" else "Pièce à acheter, x2") },
             singleLine = true,
             keyboardOptions = KeyboardOptions(
@@ -278,6 +275,37 @@ fun CarPartsBar(
                 }
             }
         )
+        // What unfolds under the field only while it is being typed in: the bonus and quantity
+        // chips of a Stock entry, else the known names. Scrolling the note never shows them.
+        when (val current = step) {
+            is StockStep.Score -> ChoiceRow(
+                title = "${current.name}, qualité :",
+                choices = SCORE_CHOICES,
+                label = { it?.let { s -> "+$s" } ?: "Sans note" },
+                onPick = { step = StockStep.Quantity(current.name, it) },
+                onCancel = { step = null }
+            )
+            is StockStep.Quantity -> ChoiceRow(
+                title = "${CarPart(current.name, current.score).label}, quantité :",
+                choices = QUANTITY_CHOICES,
+                label = { it.toString() },
+                onPick = { submit(CarPart(current.name, current.score, it)) },
+                onCancel = { step = null },
+                extra = "Autre…" to {
+                    input = CarPart(current.name, current.score).label + " x"
+                    step = null
+                    focusRequester.requestFocus()
+                }
+            )
+            null -> if (focused && imeVisible && suggestions.isNotEmpty()) {
+                NameList(
+                    names = suggestions,
+                    note = note,
+                    onPick = ::pickName,
+                    onForget = ::forgetName
+                )
+            }
+        }
     }
 }
 

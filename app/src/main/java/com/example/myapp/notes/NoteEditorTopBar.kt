@@ -17,6 +17,7 @@ import androidx.compose.material.icons.filled.CheckBoxOutlineBlank
 import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.FormatBold
+import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.FormatItalic
 import androidx.compose.material.icons.filled.FormatUnderlined
 import androidx.compose.material.icons.filled.Kitchen
@@ -97,7 +98,8 @@ data class NoteEditorBarActions(
     val onToggleInlineMarker: (String) -> Unit,
     val onToggleTitle: () -> Unit,
     val onToggleCarBestRated: () -> Unit,
-    val onFinishCarShopping: () -> Unit
+    val onFinishCarShopping: () -> Unit,
+    val onMemorizeCarStock: () -> Unit
 )
 
 /**
@@ -303,6 +305,13 @@ fun NoteEditorTopBar(
                         text = { Text("Ranger les Ingrédients selon ce modèle") },
                         leadingIcon = { Icon(Icons.AutoMirrored.Filled.Sort, contentDescription = null) },
                         onClick = { showMoreMenu = false; actions.onResortIngredients() }
+                    )
+                }
+                if (state.isCarPartsNote) {
+                    DropdownMenuItem(
+                        text = { Text("Mémoriser le stock") },
+                        leadingIcon = { Icon(Icons.Default.Inventory2, contentDescription = null) },
+                        onClick = { showMoreMenu = false; actions.onMemorizeCarStock() }
                     )
                 }
             }

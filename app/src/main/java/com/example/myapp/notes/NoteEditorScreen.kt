@@ -226,6 +226,17 @@ fun NoteEditorScreen(
                                     if (snackbarHostState.showUndoSnackbar("Achats terminés")) state.saveContent(before)
                                 }
                             }
+                        },
+                        onMemorizeCarStock = {
+                            carNote?.let { car ->
+                                scope.launch {
+                                    val added = carPartsMemory.recordNames(car.stock.map { it.name })
+                                    snackbarHostState.showSnackbar(
+                                        if (added == 0) "Tout le stock est déjà mémorisé"
+                                        else "$added nom${plural(added)} mémorisé${plural(added)}"
+                                    )
+                                }
+                            }
                         }
                     )
                 )
