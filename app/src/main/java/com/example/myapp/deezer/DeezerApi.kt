@@ -357,7 +357,8 @@ class DeezerApi {
         artist = o["ART_NAME"]?.jsonPrimitive?.content.orEmpty(),
         album = o["ALB_TITLE"]?.jsonPrimitive?.content.orEmpty(),
         durationSec = o["DURATION"]?.jsonPrimitive?.content?.toIntOrNull() ?: 0,
-        coverMd5 = o["ALB_PICTURE"]?.jsonPrimitive?.content?.ifBlank { null }
+        coverMd5 = o["ALB_PICTURE"]?.jsonPrimitive?.content?.ifBlank { null },
+        addedAtSec = o["DATE_ADD"]?.jsonPrimitive?.content?.toLongOrNull() ?: 0L
     )
 
     /**

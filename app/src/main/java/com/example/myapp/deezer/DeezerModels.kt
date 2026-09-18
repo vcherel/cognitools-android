@@ -40,7 +40,9 @@ data class DeezerTrack(
     val artist: String,
     val album: String,
     val durationSec: Int,
-    val coverMd5: String?
+    val coverMd5: String?,
+    /** When the owner liked it (unix seconds), 0 when unknown or not a favorite. */
+    val addedAtSec: Long = 0
 ) {
     fun coverUrl(size: Int = 500): String? =
         coverMd5?.let { "https://e-cdns-images.dzcdn.net/images/cover/$it/${size}x$size-000000-80-0-0.jpg" }

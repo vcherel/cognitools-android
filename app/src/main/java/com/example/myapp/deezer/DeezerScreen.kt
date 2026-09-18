@@ -77,6 +77,7 @@ fun DeezerScreen(
                         onBack = onBack,
                         onOpenSearch = { nav.navigate("search") },
                         onOpenFavorites = { nav.navigate("favorites") },
+                        onOpenFavoritesHistory = { nav.navigate("favoritesHistory") },
                         onOpenPlaylist = { pl -> nav.navigate("playlist/${pl.id}/${java.net.URLEncoder.encode(pl.title, "UTF-8")}") },
                         onOpenPodcast = { fav -> nav.navigate("podcast/${java.net.URLEncoder.encode(fav.id, "UTF-8")}") },
                         onOpenPodcastDownloads = { nav.navigate("podcastDownloads") },
@@ -93,6 +94,9 @@ fun DeezerScreen(
                         onBack = { nav.popBackStackOnce() },
                         onOpenArtist = { track -> openArtistByName(track.artist) }
                     )
+                }
+                composable("favoritesHistory") {
+                    DeezerFavoritesHistoryScreen(repo = repo, onBack = { nav.popBackStackOnce() })
                 }
                 composable("search") {
                     DeezerSearchScreen(

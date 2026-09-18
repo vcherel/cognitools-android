@@ -94,6 +94,9 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
     /** The daily "Découvertes du jour" batch of tracks to like or ignore. */
     val discoveries: DeezerDiscoveries by lazy { DeezerDiscoveries(appContext, this) }
 
+    /** The favorites count day by day, behind the curve on the library screen. */
+    val favoritesHistory: DeezerFavoritesHistory by lazy { DeezerFavoritesHistory(appContext) }
+
     /** The MediaController, the queue and everything the now playing surfaces drive. */
     val player = DeezerPlayer(appContext, this)
 
@@ -319,9 +322,12 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
         val suspiciousDrop = maxFavoritesSeen > 20 && list.size < maxFavoritesSeen / 2
         maxFavoritesSeen = maxOf(maxFavoritesSeen, list.size)
         when {
-            !complete -> {}
+            !complete -> ioScope.launch { favoritesHistory.record(list, complete = false) }
             suspiciousDrop -> Log.w(TAG, "Skipping stream-cache purge: favorites came back as ${list.size}, down from $maxFavoritesSeen")
-            else -> purgeCacheOfNonFavoritesAsync()
+            else -> {
+                purgeCacheOfNonFavoritesAsync()
+                ioScope.launch { favoritesHistory.record(list) }
+            }
         }
     }
 

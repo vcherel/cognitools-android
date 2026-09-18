@@ -67,6 +67,8 @@ Root package (shared/misc):
 - `DeezerPendingFavorites.kt`: the likes and unlikes made offline, queued to disk and resent once the phone has internet again
 - `DeezerDataSource.kt`: resolves `dzr://<sngId>` to a fresh CDN URL at open() time and decrypts on the fly
 - `DeezerLibraryCache.kt`: JSON snapshot of favorites + playlists so a cold launch renders instantly
+- `DeezerFavoritesHistory.kt`: the favorites count day by day, one JSON sample per day written on each complete fetch, the past seeded once from each track's `DATE_ADD`
+- `DeezerFavoritesHistoryScreen.kt`: the curve of that count, opened by tapping the "N titres" label on the library's Favoris card
 - `DeezerOffline.kt`: DeezerOfflineLibrary, the permanent Best pépites mirror; sync, retry pass, sync log file
 - `DeezerPlaybackService.kt`: MediaSessionService owning the ExoPlayer; media notification, its heart/diamond action buttons (`actionButtons`), error recovery
 - `DeezerScreen.kt`: host for the whole Musique tool (music *and* podcasts), nested NavHost + the two persistent mini-players

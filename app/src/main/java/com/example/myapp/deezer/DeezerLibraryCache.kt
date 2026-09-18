@@ -31,6 +31,7 @@ object DeezerLibraryCache {
         put("b", t.album)
         put("d", t.durationSec)
         t.coverMd5?.let { put("c", it) }
+        if (t.addedAtSec > 0) put("s", t.addedAtSec)
     }
 
     fun trackFromJson(o: JsonObject): DeezerTrack = DeezerTrack(
@@ -39,7 +40,8 @@ object DeezerLibraryCache {
         artist = o["a"]?.jsonPrimitive?.content.orEmpty(),
         album = o["b"]?.jsonPrimitive?.content.orEmpty(),
         durationSec = o["d"]?.jsonPrimitive?.content?.toIntOrNull() ?: 0,
-        coverMd5 = o["c"]?.jsonPrimitive?.content?.ifBlank { null }
+        coverMd5 = o["c"]?.jsonPrimitive?.content?.ifBlank { null },
+        addedAtSec = o["s"]?.jsonPrimitive?.content?.toLongOrNull() ?: 0L
     )
 
     fun read(file: File): DeezerLibrarySnapshot? {

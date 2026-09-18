@@ -19,6 +19,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.filled.ShowChart
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CloudDownload
@@ -68,6 +69,7 @@ fun DeezerLibraryScreen(
     onBack: () -> Unit,
     onOpenSearch: () -> Unit,
     onOpenFavorites: () -> Unit,
+    onOpenFavoritesHistory: () -> Unit,
     onOpenPlaylist: (DeezerPlaylist) -> Unit,
     onOpenPodcast: (PodcastFavorite) -> Unit,
     onOpenPodcastDownloads: () -> Unit,
@@ -175,7 +177,8 @@ fun DeezerLibraryScreen(
                 icon = Icons.Filled.Favorite,
                 label = favorites?.size?.let { "$it titres" } ?: "…",
                 onShuffle = { scope.launch { runCatching { repo.player.shuffleFavorites() }.onFailure { error = userMessage(it) } } },
-                onOpen = onOpenFavorites
+                onOpen = onOpenFavorites,
+                onLabelClick = onOpenFavoritesHistory
             )
 
             Spacer(Modifier.height(16.dp))
@@ -268,10 +271,17 @@ private fun SectionHeader(title: String) {
 
 /**
  * Shared: a tappable card row with a leading icon and label. Without [onOpen] the whole card shuffles;
- * with it the card opens the list and the shuffle moves into its own button on the right.
+ * with it the card opens the list and the shuffle moves into its own button on the right. With
+ * [onLabelClick] the label becomes its own tap target, flagged by a small curve icon after it.
  */
 @Composable
-private fun ShuffleActionCard(icon: ImageVector, label: String, onShuffle: () -> Unit, onOpen: (() -> Unit)? = null) {
+private fun ShuffleActionCard(
+    icon: ImageVector,
+    label: String,
+    onShuffle: () -> Unit,
+    onOpen: (() -> Unit)? = null,
+    onLabelClick: (() -> Unit)? = null
+) {
     Row(
         Modifier
             .fillMaxWidth()
@@ -284,7 +294,23 @@ private fun ShuffleActionCard(icon: ImageVector, label: String, onShuffle: () ->
     ) {
         Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
         Spacer(Modifier.width(12.dp))
-        Text(label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+        if (onLabelClick == null) {
+            Text(label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+        } else {
+            Box(Modifier.weight(1f)) {
+                Row(
+                    Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable(onClick = onLabelClick)
+                        .padding(horizontal = 8.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(label, style = MaterialTheme.typography.bodyLarge)
+                    Spacer(Modifier.width(6.dp))
+                    Icon(Icons.AutoMirrored.Filled.ShowChart, contentDescription = "Évolution", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                }
+            }
+        }
         if (onOpen == null) {
             Icon(Icons.Filled.Shuffle, contentDescription = "Lecture aléatoire", tint = MaterialTheme.colorScheme.primary)
             Spacer(Modifier.width(6.dp))
