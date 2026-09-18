@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.ShoppingCartCheckout
+import androidx.compose.material.icons.filled.SortByAlpha
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material.icons.filled.Title
@@ -98,6 +99,7 @@ data class NoteEditorBarActions(
     val onToggleInlineMarker: (String) -> Unit,
     val onToggleTitle: () -> Unit,
     val onToggleCarBestRated: () -> Unit,
+    val onSortCarStock: () -> Unit,
     val onFinishCarShopping: () -> Unit,
     val onMemorizeCarStock: () -> Unit
 )
@@ -308,6 +310,11 @@ fun NoteEditorTopBar(
                     )
                 }
                 if (state.isCarPartsNote) {
+                    DropdownMenuItem(
+                        text = { Text("Trier le stock") },
+                        leadingIcon = { Icon(Icons.Default.SortByAlpha, contentDescription = null) },
+                        onClick = { showMoreMenu = false; actions.onSortCarStock() }
+                    )
                     DropdownMenuItem(
                         text = { Text("Mémoriser le stock") },
                         leadingIcon = { Icon(Icons.Default.Inventory2, contentDescription = null) },

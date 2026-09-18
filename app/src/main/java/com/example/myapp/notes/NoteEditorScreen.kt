@@ -7,9 +7,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.BasicTextField
@@ -227,6 +227,15 @@ fun NoteEditorScreen(
                                 }
                             }
                         },
+                        onSortCarStock = {
+                            carNote?.let { car ->
+                                val before = content
+                                state.saveContent(car.sorted().render())
+                                scope.launch {
+                                    if (snackbarHostState.showUndoSnackbar("Stock trié")) state.saveContent(before)
+                                }
+                            }
+                        },
                         onMemorizeCarStock = {
                             carNote?.let { car ->
                                 scope.launch {
@@ -307,7 +316,16 @@ fun NoteEditorScreen(
                         cursorBrush = SolidColor(MaterialTheme.colorScheme.onBackground)
                     )
                 } else {
-                    // The car parts note keeps its bar under the lines, so the view takes the rest.
+                    // The car parts note keeps its bar under the lines, so the view takes the rest,
+                    // and the bar's name list floats over its bottom while the field is typed in.
+                    val carBar = carNote?.let {
+                        rememberCarPartsBarState(
+                            note = it,
+                            bestRated = carBestRated,
+                            memory = carPartsMemory,
+                            onSave = { text -> state.saveContent(text) }
+                        )
+                    }
                     Box(modifier = if (carNote != null) Modifier.weight(1f) else Modifier) {
                         NoteViewMode(
                             textFieldState = textFieldState,
@@ -330,14 +348,12 @@ fun NoteEditorScreen(
                                 onReorder = { state.saveContent(it) }
                             )
                         )
+                        if (carBar != null && !titleFocused) {
+                            CarPartsNameList(carBar, Modifier.align(Alignment.BottomCenter))
+                        }
                     }
-                    if (carNote != null && !titleFocused) {
-                        CarPartsBar(
-                            note = carNote,
-                            bestRated = carBestRated,
-                            memory = carPartsMemory,
-                            onSave = { state.saveContent(it) }
-                        )
+                    if (carBar != null && !titleFocused) {
+                        CarPartsBar(carBar)
                     }
                 }
             }

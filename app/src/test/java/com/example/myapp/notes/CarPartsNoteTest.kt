@@ -8,13 +8,13 @@ class CarPartsNoteTest {
 
     private val content = """
         --- Stock
-        Brake Disc V8 (4)
-        Camshaft V8 OHV (2)
+        Brake Disc V8 x4
+        Camshaft V8 OHV x2
         Camshaft V8 OHV +3
         Head Gasket I4
 
         --- À acheter
-        [ ] Piston V8 (8)
+        [ ] Piston V8 x8
     """.trimIndent()
 
     @Test
@@ -35,16 +35,17 @@ class CarPartsNoteTest {
 
     @Test
     fun linesBeforeAnySeparatorAreStock() {
-        val note = parseCarPartsNote("Alternator\nalternator (2)")
+        val note = parseCarPartsNote("Alternator\nalternator x2")
         assertEquals(listOf(CarPart("Alternator", quantity = 3)), note.stock)
     }
 
     @Test
     fun inputSuffixesInAnyOrder() {
         assertEquals(CarPart("Camshaft V8", 3, 2), parseCarPartInput("Camshaft V8 x2 +3"))
-        assertEquals(CarPart("Camshaft V8", 3, 2), parseCarPartInput("Camshaft V8 +3 (2)"))
+        assertEquals(CarPart("Camshaft V8", 3, 2), parseCarPartInput("Camshaft V8 +3 x2"))
         assertEquals(CarPart("Camshaft V8"), parseCarPartInput("  Camshaft V8 "))
         assertNull(parseCarPartInput("+3"))
+        assertEquals(CarPart("Bolt (12)", quantity = 2), parseCarPartInput("Bolt (12) x2"))
     }
 
     @Test
@@ -106,9 +107,9 @@ class CarPartsNoteTest {
 
     @Test
     fun trailingCommaBeforeTheBonusIsDropped() {
-        val note = parseCarPartsNote("Bougie, +3\nBougie,\nbougie , (2)")
+        val note = parseCarPartsNote("Bougie, +3\nBougie,\nbougie , x2")
         assertEquals(listOf(CarPart("Bougie", quantity = 3), CarPart("Bougie", score = 3)), note.stock)
-        assertEquals("--- Stock\nBougie (3)\nBougie +3", note.render())
+        assertEquals("--- Stock\nBougie x3\nBougie +3", note.render())
         assertEquals(CarPart("Bougie", score = 3, quantity = 2), parseCarPartInput("Bougie, +3 x2"))
     }
 }

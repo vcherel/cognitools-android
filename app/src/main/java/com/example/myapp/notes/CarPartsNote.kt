@@ -4,9 +4,11 @@ import com.example.myapp.deaccented
 import com.example.myapp.matchNormalized
 
 // The Car Mechanic Simulator note: the spare parts held in the game, as plain text under three
-// separators (Stock, Pris du stock, À acheter). A part line is "Name +N (Q)": the game's quality
-// bonus (only some parts carry one) and a quantity, both optional. Two lines are the
-// same part when their names fold to the same key; a +3 and an unrated one stay separate lines.
+// separators (Stock, Pris du stock, À acheter). A part line is "Name +N xQ": the game's quality
+// bonus (only some parts carry one) and a quantity, both optional. The quantity is never the
+// "(Q)" of the other notes because part names carry their own parentheses ("Bolt (12)"). Two
+// lines are the same part when their names fold to the same key; a +3 and an unrated one stay
+// separate lines.
 
 const val CAR_STOCK_SECTION = "Stock"
 const val CAR_TAKEN_SECTION = "Pris du stock"
@@ -23,7 +25,7 @@ data class CarPart(
     /** The name with its bonus, what a message calls the part. */
     val label: String get() = if (score == null) name else "$name +$score"
 
-    fun render(): String = if (quantity > 1) "$label ($quantity)" else label
+    fun render(): String = if (quantity > 1) "$label x$quantity" else label
 }
 
 data class CarPartsNote(
@@ -39,6 +41,9 @@ data class CarPartsNote(
     }
 
     fun withStock(part: CarPart): CarPartsNote = copy(stock = merged(stock + part))
+
+    /** The stock A to Z, same-name lines with the same bonus folded together. */
+    fun sorted(): CarPartsNote = copy(stock = merged(stock))
 
     /**
      * One part of the in-game shopping list entered. Units the stock can supply move to Pris du
@@ -106,17 +111,12 @@ private fun parseCarPart(line: String): CarPart? {
     if (line.isSeparatorLine()) return null
     val text = line.checkboxText().trim()
     if (text.isEmpty()) return null
-    val quantity = text.itemQuantity()
-    val unquantified = text.withoutQuantitySuffix()
-    val score = SCORE_SUFFIX.find(unquantified)?.groupValues?.get(1)?.toIntOrNull()
-    val name = SCORE_SUFFIX.replace(unquantified, "").cleanCarPartName()
-    if (name.isEmpty()) return null
-    return CarPart(name, score, quantity)
+    return parseCarPartInput(text)
 }
 
 /**
- * What was typed in the bar: the name, then "+3", "x2" or "(2)" in any order at the end, so
- * "camshaft v8 x2 +3" and "camshaft v8 +3 (2)" both read as two +3 camshafts.
+ * A part line or what was typed in the bar: the name, then "+3" and "x2" in any order at the
+ * end, so "camshaft v8 x2 +3" and "camshaft v8 +3 x2" both read as two +3 camshafts.
  */
 fun parseCarPartInput(text: String): CarPart? {
     var rest = text.trim()
@@ -127,12 +127,6 @@ fun parseCarPartInput(text: String): CarPart? {
         if (times != null) {
             quantity *= times.groupValues[1].toInt()
             rest = rest.removeRange(times.range).trimEnd()
-            continue
-        }
-        val quantified = rest.withoutQuantitySuffix()
-        if (quantified != rest) {
-            quantity *= rest.itemQuantity()
-            rest = quantified
             continue
         }
         val bonus = SCORE_SUFFIX.find(rest)

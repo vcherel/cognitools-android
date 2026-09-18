@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -11,7 +12,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -33,6 +33,7 @@ import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.SuggestionChip
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -40,7 +41,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -56,6 +56,7 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.example.myapp.AppSnackbar
 import com.example.myapp.matchNormalized
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -139,43 +140,41 @@ class CarPartsMemory(private val context: Context) {
 }
 
 /** The two taps that follow a name in Stock mode: the bonus, then how many. */
-private sealed class StockStep {
+internal sealed class StockStep {
     data class Score(val name: String) : StockStep()
     data class Quantity(val name: String, val score: Int?) : StockStep()
 }
 
 /**
- * The bar pinned under the Car Mechanic Simulator note. One field, two modes: Achats runs each
- * part of the in-game shopping list against the stock, Stock adds what a crate or a wreck gave.
- * The list under it, shown while typing, proposes known names: in Achats a tap fills the field, in
- * Stock a tap starts the bonus then quantity chip rows. A long press forgets a name. While typing, the line
- * next to the switch says what the stock holds for that name, and after an entry what was done.
+ * What the Car Mechanic Simulator bar is doing, shared by the bar itself and the name list the
+ * editor floats over the note while the field is typed in. Built by [rememberCarPartsBarState].
  */
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-fun CarPartsBar(
-    note: CarPartsNote,
-    bestRated: Boolean,
-    memory: CarPartsMemory,
-    onSave: (String) -> Unit
+class CarPartsBarState internal constructor(
+    private val scope: CoroutineScope,
+    private val memory: CarPartsMemory,
+    private val onSave: (String) -> Unit
 ) {
-    val scope = rememberCoroutineScope()
-    val counts by memory.counts.collectAsState(initial = emptyMap())
-    val stockMode by memory.stockMode.collectAsState(initial = false)
-    var input by rememberSaveable { mutableStateOf("") }
-    var step by remember { mutableStateOf<StockStep?>(null) }
-    var lastMessage by remember { mutableStateOf("") }
-    var focused by remember { mutableStateOf(false) }
-    val imeVisible = WindowInsets.isImeVisible
-    val focusRequester = remember { FocusRequester() }
+    internal var note by mutableStateOf(CarPartsNote())
+    internal var bestRated by mutableStateOf(false)
+    internal var counts by mutableStateOf<Map<String, Int>>(emptyMap())
+    internal var stockMode by mutableStateOf(false)
+    internal var imeVisible by mutableStateOf(false)
 
-    val typed = remember(input) { parseCarPartInput(input) }
-    val suggestions = remember(typed?.name, counts, note.stock) {
-        suggestCarPartNames(typed?.name ?: "", counts, note.stock.map { it.name })
-    }
-    val inStock = remember(typed?.name, note.stock) { typed?.let { note.stockOf(it.name) } ?: emptyList() }
+    internal var input by mutableStateOf("")
+    internal var step by mutableStateOf<StockStep?>(null)
+    internal var lastMessage by mutableStateOf("")
+    internal var focused by mutableStateOf(false)
+    internal val focusRequester = FocusRequester()
 
-    fun submit(part: CarPart) {
+    internal val typed: CarPart? get() = parseCarPartInput(input)
+    internal val suggestions: List<String>
+        get() = suggestCarPartNames(typed?.name ?: "", counts, note.stock.map { it.name })
+    internal val inStock: List<CarPart> get() = typed?.let { note.stockOf(it.name) } ?: emptyList()
+
+    /** True while the known names should float over the note. */
+    val listShown: Boolean get() = step == null && focused && imeVisible && suggestions.isNotEmpty()
+
+    internal fun submit(part: CarPart) {
         val message: String
         val updated: CarPartsNote
         if (stockMode) {
@@ -199,7 +198,7 @@ fun CarPartsBar(
 
     // In Stock mode a name alone goes through the bonus and quantity rows; a bonus or a quantity
     // typed with it is taken as is.
-    fun submitTyped() {
+    internal fun submitTyped() {
         val current = typed ?: return
         if (stockMode && current.score == null && current.quantity == 1) {
             step = StockStep.Score(current.name)
@@ -207,25 +206,63 @@ fun CarPartsBar(
     }
 
     // In Achats the tap only fills the field (a slip must not fire a request), send confirms.
-    fun pickName(name: String) {
+    internal fun pickName(name: String) {
         if (stockMode) step = StockStep.Score(name)
         else input = CarPart(name, quantity = typed?.quantity ?: 1).render()
     }
 
-    fun forgetName(name: String) {
+    internal fun forgetName(name: String) {
         scope.launch {
             val count = memory.forgetName(name)
             AppSnackbar.show("Nom oublié : $name", "Annuler") { memory.restoreName(name, count) }
         }
     }
 
+    internal fun switchMode(value: Boolean) {
+        if (!value) step = null
+        scope.launch { memory.setStockMode(value) }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun rememberCarPartsBarState(
+    note: CarPartsNote,
+    bestRated: Boolean,
+    memory: CarPartsMemory,
+    onSave: (String) -> Unit
+): CarPartsBarState {
+    val scope = rememberCoroutineScope()
+    val state = remember { CarPartsBarState(scope, memory, onSave) }
+    state.note = note
+    state.bestRated = bestRated
+    state.counts = memory.counts.collectAsState(initial = emptyMap()).value
+    state.stockMode = memory.stockMode.collectAsState(initial = false).value
+    state.imeVisible = WindowInsets.isImeVisible
+    return state
+}
+
+/**
+ * The bar pinned under the Car Mechanic Simulator note. One field, two modes: Achats runs each
+ * part of the in-game shopping list against the stock, Stock adds what a crate or a wreck gave.
+ * Under the field, a Stock entry unfolds its bonus then quantity chip rows. The known names are
+ * not here: the editor draws them over the note with [CarPartsNameList] while the field is typed
+ * in, so the field never moves. While typing, the line next to the switch says what the stock
+ * holds for that name, and after an entry what was done.
+ */
+@Composable
+fun CarPartsBar(state: CarPartsBarState) {
+    val stockMode = state.stockMode
+    val typed = state.typed
+    val inStock = state.inStock
+
     val status = when {
-        step != null -> ""
+        state.step != null -> ""
         typed != null && inStock.isNotEmpty() -> "En stock : " + inStock.joinToString(", ") {
             "${it.quantity}× " + (it.score?.let { s -> "+$s" } ?: "sans note")
         }
         typed != null -> "Pas en stock"
-        else -> lastMessage
+        else -> state.lastMessage
     }
 
     Column(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
@@ -233,14 +270,14 @@ fun CarPartsBar(
             SingleChoiceSegmentedButtonRow {
                 SegmentedButton(
                     selected = !stockMode,
-                    onClick = { step = null; scope.launch { memory.setStockMode(false) } },
+                    onClick = { state.switchMode(false) },
                     shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
                     icon = { Icon(Icons.Default.ShoppingCart, contentDescription = null) },
                     label = { Text("Achats") }
                 )
                 SegmentedButton(
                     selected = stockMode,
-                    onClick = { scope.launch { memory.setStockMode(true) } },
+                    onClick = { state.switchMode(true) },
                     shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
                     icon = { Icon(Icons.Default.Inventory2, contentDescription = null) },
                     label = { Text("Stock") }
@@ -255,56 +292,47 @@ fun CarPartsBar(
             )
         }
         OutlinedTextField(
-            value = input,
-            onValueChange = { input = it; step = null },
+            value = state.input,
+            onValueChange = { state.input = it; state.step = null },
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(top = 4.dp)
-                .focusRequester(focusRequester)
-                .onFocusChanged { focused = it.isFocused },
+                .focusRequester(state.focusRequester)
+                .onFocusChanged { state.focused = it.isFocused },
             placeholder = { Text(if (stockMode) "Pièce trouvée, +3, x2" else "Pièce à acheter, x2") },
             singleLine = true,
             keyboardOptions = KeyboardOptions(
                 capitalization = KeyboardCapitalization.Words,
                 imeAction = ImeAction.Done
             ),
-            keyboardActions = KeyboardActions(onDone = { submitTyped() }),
+            keyboardActions = KeyboardActions(onDone = { state.submitTyped() }),
             trailingIcon = {
-                IconButton(onClick = { submitTyped() }, enabled = typed != null) {
+                IconButton(onClick = { state.submitTyped() }, enabled = typed != null) {
                     Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Valider")
                 }
             }
         )
-        // What unfolds under the field only while it is being typed in: the bonus and quantity
-        // chips of a Stock entry, else the known names. Scrolling the note never shows them.
-        when (val current = step) {
+        when (val current = state.step) {
             is StockStep.Score -> ChoiceRow(
-                title = "${current.name}, qualité :",
+                title = "${current.name} · qualité",
                 choices = SCORE_CHOICES,
                 label = { it?.let { s -> "+$s" } ?: "Sans note" },
-                onPick = { step = StockStep.Quantity(current.name, it) },
-                onCancel = { step = null }
+                onPick = { state.step = StockStep.Quantity(current.name, it) },
+                onCancel = { state.step = null }
             )
             is StockStep.Quantity -> ChoiceRow(
-                title = "${CarPart(current.name, current.score).label}, quantité :",
+                title = "${CarPart(current.name, current.score).label} · quantité",
                 choices = QUANTITY_CHOICES,
                 label = { it.toString() },
-                onPick = { submit(CarPart(current.name, current.score, it)) },
-                onCancel = { step = null },
+                onPick = { state.submit(CarPart(current.name, current.score, it)) },
+                onCancel = { state.step = null },
                 extra = "Autre…" to {
-                    input = CarPart(current.name, current.score).label + " x"
-                    step = null
-                    focusRequester.requestFocus()
+                    state.input = CarPart(current.name, current.score).label + " x"
+                    state.step = null
+                    state.focusRequester.requestFocus()
                 }
             )
-            null -> if (focused && imeVisible && suggestions.isNotEmpty()) {
-                NameList(
-                    names = suggestions,
-                    note = note,
-                    onPick = ::pickName,
-                    onForget = ::forgetName
-                )
-            }
+            null -> Unit
         }
     }
 }
@@ -333,37 +361,43 @@ private fun <T> ChoiceRow(
     }
 }
 
-/** The known names, one per line, the stock held for each on the right. Long press forgets one. */
+/**
+ * The known names floated over the note while the field is typed in, a menu that grows upward
+ * from the bar as far as the note area allows and scrolls past that. The stock held for each name
+ * is on the right. Tap picks, long press forgets. Shown only while [CarPartsBarState.listShown].
+ */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun NameList(
-    names: List<String>,
-    note: CarPartsNote,
-    onPick: (String) -> Unit,
-    onForget: (String) -> Unit
-) {
-    LazyColumn(modifier = Modifier.fillMaxWidth().height(NAME_LIST_HEIGHT)) {
-        items(names, key = { it }) { name ->
-            val held = note.stockOf(name)
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .combinedClickable(onClick = { onPick(name) }, onLongClick = { onForget(name) })
-                    .padding(horizontal = 4.dp, vertical = 8.dp)
-            ) {
-                Text(name, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
-                if (held.isNotEmpty()) {
-                    Text(
-                        held.joinToString(" ") { "${it.quantity}×" + (it.score?.let { s -> "+$s" } ?: "") },
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
-                    )
+fun CarPartsNameList(state: CarPartsBarState, modifier: Modifier = Modifier) {
+    if (!state.listShown) return
+    val note = state.note
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp),
+        tonalElevation = 3.dp,
+        shadowElevation = 6.dp
+    ) {
+        LazyColumn(modifier = Modifier.fillMaxWidth()) {
+            items(state.suggestions, key = { it }) { name ->
+                val held = note.stockOf(name)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .combinedClickable(onClick = { state.pickName(name) }, onLongClick = { state.forgetName(name) })
+                        .padding(horizontal = 12.dp, vertical = 10.dp)
+                ) {
+                    Text(name, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                    if (held.isNotEmpty()) {
+                        Text(
+                            held.joinToString(" ") { "${it.quantity}×" + (it.score?.let { s -> "+$s" } ?: "") },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
+                        )
+                    }
                 }
+                HorizontalDivider(color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.1f))
             }
-            HorizontalDivider(color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.1f))
         }
     }
 }
-
-private val NAME_LIST_HEIGHT = 168.dp
