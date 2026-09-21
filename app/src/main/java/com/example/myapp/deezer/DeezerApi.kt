@@ -62,12 +62,12 @@ class DeezerApi {
         cookies["arl"] = arl.trim()
         val results = gwResults("deezer.getUserData", "{}", apiToken = "")
         val apiToken = results["checkForm"]?.jsonPrimitive?.content.orEmpty()
-        if (apiToken.isBlank() || apiToken == "0") {
-            throw DeezerApiException("ARL expired or invalid (guest session)", tokenError = true)
+        val user = results["USER"]?.jsonObject
+        val userId = user?.get("USER_ID")?.jsonPrimitive?.content ?: "0"
+        if (apiToken.isBlank() || apiToken == "0" || userId == "0") {
+            throw DeezerApiException("ARL expiré (session invité), colle un nouveau token via l'engrenage", tokenError = true)
         }
-        val user = results["USER"]!!.jsonObject
-        val userId = user["USER_ID"]?.jsonPrimitive?.content ?: "0"
-        val options = user["OPTIONS"]?.jsonObject
+        val options = user?.get("OPTIONS")?.jsonObject
         val licenseToken = options?.get("license_token")?.jsonPrimitive?.content.orEmpty()
         val canHq = options?.get("web_hq")?.jsonPrimitive?.booleanOrNull
             ?: options?.get("web_sound_quality")?.jsonObject?.get("high")?.jsonPrimitive?.booleanOrNull ?: false
