@@ -82,8 +82,12 @@ fun DeezerScreen(
                         onOpenPodcast = { fav -> nav.navigate("podcast/${java.net.URLEncoder.encode(fav.id, "UTF-8")}") },
                         onOpenPodcastDownloads = { nav.navigate("podcastDownloads") },
                         onOpenDiscoveries = { nav.navigate("discoveries") },
+                        onOpenErrors = { nav.navigate("errors") },
                         onOpenVolume = onOpenVolume
                     )
+                }
+                composable("errors") {
+                    DeezerErrorsScreen(repo = repo, onBack = { nav.popBackStackOnce() })
                 }
                 composable("favorites") {
                     DeezerTrackListScreen(

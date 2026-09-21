@@ -29,6 +29,7 @@ import androidx.compose.material.icons.filled.OfflinePin
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.filled.Stop
@@ -74,6 +75,7 @@ fun DeezerLibraryScreen(
     onOpenPodcast: (PodcastFavorite) -> Unit,
     onOpenPodcastDownloads: () -> Unit,
     onOpenDiscoveries: () -> Unit,
+    onOpenErrors: () -> Unit,
     onOpenVolume: () -> Unit
 ) {
     val scope = rememberCoroutineScope()
@@ -123,6 +125,9 @@ fun DeezerLibraryScreen(
             // only from the menu.
             IconButton(onClick = onOpenVolume) {
                 Icon(Icons.AutoMirrored.Filled.VolumeUp, contentDescription = "Volume booster")
+            }
+            IconButton(onClick = onOpenErrors) {
+                Icon(Icons.Filled.BugReport, contentDescription = "Journal d'erreurs")
             }
             IconButton(onClick = { showSettings = true }) {
                 Icon(Icons.Filled.Settings, contentDescription = "Réglages")

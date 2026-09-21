@@ -6,6 +6,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.booleanOrNull
@@ -59,7 +60,7 @@ class DeezerApi {
     suspend fun bootstrapSession(arl: String): DeezerSession = withContext(Dispatchers.IO) {
         cookies.clear()
         cookies["arl"] = arl.trim()
-        val results = gw("deezer.getUserData", "{}", apiToken = "").jsonObject["results"]!!.jsonObject
+        val results = gwResults("deezer.getUserData", "{}", apiToken = "")
         val apiToken = results["checkForm"]?.jsonPrimitive?.content.orEmpty()
         if (apiToken.isBlank() || apiToken == "0") {
             throw DeezerApiException("ARL expired or invalid (guest session)", tokenError = true)
@@ -78,7 +79,7 @@ class DeezerApi {
     /** Fetches track metadata plus a fresh, short lived TRACK_TOKEN. */
     suspend fun getTrack(session: DeezerSession, sngId: String): Pair<DeezerTrack, String> =
         withContext(Dispatchers.IO) {
-            val r = gw("song.getData", """{"sng_id":"$sngId"}""", session.apiToken).jsonObject["results"]!!.jsonObject
+            val r = gwResults("song.getData", """{"sng_id":"$sngId"}""", session.apiToken)
             val trackToken = r["TRACK_TOKEN"]?.jsonPrimitive?.content
                 ?: throw DeezerApiException("No TRACK_TOKEN for $sngId")
             parseGwTrack(r, sngId) to trackToken
@@ -111,7 +112,7 @@ class DeezerApi {
         var iter = 0
         var reportedTotal = -1
         while (iter++ < 50) {
-            val results = gw(method, body(start, page), apiToken).jsonObject["results"]?.jsonObject
+            val results = gwResults(method, body(start, page), apiToken)
             if (reportedTotal < 0) {
                 reportedTotal = (results?.get("total") ?: results?.get("count"))
                     ?.jsonPrimitive?.content?.toIntOrNull() ?: -1
@@ -137,9 +138,8 @@ class DeezerApi {
     suspend fun getPlaylists(session: DeezerSession, count: Int = 100): List<DeezerPlaylist> =
         withContext(Dispatchers.IO) {
             val body = """{"user_id":"${session.userId}","tab":"playlists","nb":$count}"""
-            val data = gw("deezer.pageProfile", body, session.apiToken)
-                .jsonObject["results"]?.jsonObject?.get("TAB")?.jsonObject
-                ?.get("playlists")?.jsonObject?.get("data")?.jsonArray.orEmpty()
+            val data = (gw("deezer.pageProfile", body, session.apiToken)["results"] as? JsonObject)
+                ?.get("TAB")?.jsonObject?.get("playlists")?.jsonObject?.get("data")?.jsonArray.orEmpty()
             data.filter { it.jsonObject["PARENT_USER_ID"]?.jsonPrimitive?.content == session.userId }
                 .map {
                     val o = it.jsonObject
@@ -171,8 +171,8 @@ class DeezerApi {
      */
     suspend fun flowTracks(session: DeezerSession): List<DeezerTrack> = withContext(Dispatchers.IO) {
         val body = """{"user_id":"${session.userId}"}"""
-        gw("radio.getUserRadio", body, session.apiToken)
-            .jsonObject["results"]?.jsonObject?.get("data")?.jsonArray.orEmpty()
+        (gw("radio.getUserRadio", body, session.apiToken)["results"] as? JsonObject)
+            ?.get("data")?.jsonArray.orEmpty()
             .map { parseGwTrack(it.jsonObject, it.jsonObject["SNG_ID"]?.jsonPrimitive?.content.orEmpty()) }
     }
 
@@ -180,8 +180,8 @@ class DeezerApi {
     suspend fun trackMix(session: DeezerSession, sngId: String, limit: Int = 30): List<DeezerTrack> =
         withContext(Dispatchers.IO) {
             val body = """{"sng_id":"$sngId","start":0,"nb":$limit}"""
-            gw("song.getSearchTrackMix", body, session.apiToken)
-                .jsonObject["results"]?.jsonObject?.get("data")?.jsonArray.orEmpty()
+            (gw("song.getSearchTrackMix", body, session.apiToken)["results"] as? JsonObject)
+                ?.get("data")?.jsonArray.orEmpty()
                 .map { parseGwTrack(it.jsonObject, it.jsonObject["SNG_ID"]?.jsonPrimitive?.content.orEmpty()) }
         }
 
@@ -191,9 +191,8 @@ class DeezerApi {
      */
     suspend fun profileArtists(session: DeezerSession): List<DeezerArtist> = withContext(Dispatchers.IO) {
         val body = """{"user_id":"${session.userId}","tab":"artists","nb":2000}"""
-        gw("deezer.pageProfile", body, session.apiToken)
-            .jsonObject["results"]?.jsonObject?.get("TAB")?.jsonObject
-            ?.get("artists")?.jsonObject?.get("data")?.jsonArray.orEmpty()
+        (gw("deezer.pageProfile", body, session.apiToken)["results"] as? JsonObject)
+            ?.get("TAB")?.jsonObject?.get("artists")?.jsonObject?.get("data")?.jsonArray.orEmpty()
             .mapNotNull { el ->
                 val o = el.jsonObject
                 val id = o["ART_ID"]?.jsonPrimitive?.content?.ifBlank { null } ?: return@mapNotNull null
@@ -373,18 +372,27 @@ class DeezerApi {
                 """{"cipher":"BF_CBC_STRIPE","format":"${it.apiFormat}"}"""
             }
             val body = """{"license_token":"${session.licenseToken}","media":[{"type":"FULL","formats":[$formatsJson]}],"track_tokens":["$trackToken"]}"""
-            val root = json.parseToJsonElement(postJson(GET_URL, body)).jsonObject
-            val data0 = root["data"]?.jsonArray?.firstOrNull()?.jsonObject
-                ?: throw DeezerApiException("get_url returned no data for $sngId", unavailable = true)
+            val raw = postJson(GET_URL, body)
+            val root = (json.parseToJsonElement(raw) as? JsonObject)
+                ?: throw DeezerApiException("get_url unexpected response for $sngId: ${raw.excerpt()}")
+            // A top level error (license token refused, gateway down) concerns the session, not the
+            // track: it must trigger a session refresh rather than a "gone for good" skip.
+            val rootErrors = root["errors"]?.jsonArray
+            if (!rootErrors.isNullOrEmpty()) {
+                throw DeezerApiException("get_url session error for $sngId: $rootErrors", tokenError = true)
+            }
+            val data0 = root["data"]?.jsonArray?.firstOrNull() as? JsonObject
+                ?: throw DeezerApiException("get_url returned no data for $sngId: ${raw.excerpt()}", unavailable = true)
             val errors = data0["errors"]?.jsonArray
             if (!errors.isNullOrEmpty()) {
                 val msg = errors.joinToString { it.jsonObject["message"]?.jsonPrimitive?.content.orEmpty() }
                 val tokenError = errors.toString().contains("token", true)
                 throw DeezerApiException("get_url error for $sngId: $msg", tokenError, unavailable = !tokenError)
             }
-            val media0 = data0["media"]?.jsonArray?.firstOrNull()?.jsonObject
-                ?: throw DeezerApiException("Track $sngId not available in any requested format", unavailable = true)
-            val url = media0["sources"]!!.jsonArray[0].jsonObject["url"]!!.jsonPrimitive.content
+            val media0 = data0["media"]?.jsonArray?.firstOrNull() as? JsonObject
+                ?: throw DeezerApiException("Track $sngId not available in any requested format: ${raw.excerpt()}", unavailable = true)
+            val url = (media0["sources"] as? JsonArray)?.firstOrNull()?.jsonObject?.get("url")?.jsonPrimitive?.content
+                ?: throw DeezerApiException("get_url media without a source url for $sngId: ${raw.excerpt()}")
             val actualFormat = media0["format"]?.jsonPrimitive?.content?.let { fmt ->
                 DeezerQuality.entries.firstOrNull { it.apiFormat == fmt }
             } ?: formats.first()
@@ -435,7 +443,7 @@ class DeezerApi {
         if (wait > 0) delay(wait)
     }
 
-    private fun gw(method: String, body: String, apiToken: String): kotlinx.serialization.json.JsonElement {
+    private fun gw(method: String, body: String, apiToken: String): JsonObject {
         val url = "$GW_URL?method=${enc(method)}&input=3&api_version=1.0&api_token=${enc(apiToken)}"
         val conn = open(url, "POST").apply {
             setRequestProperty("Content-Type", "text/plain;charset=UTF-8")
@@ -443,8 +451,15 @@ class DeezerApi {
         }
         conn.outputStream.use { it.write(body.toByteArray()) }
         captureCookies(conn)
-        val root = json.parseToJsonElement(readBody(conn))
-        val error = root.jsonObject["error"]
+        val raw = readBody(conn).also { gwLastRaw = it }
+        if (conn.responseCode !in 200..299) {
+            throw DeezerApiException("gw $method HTTP ${conn.responseCode}: ${raw.excerpt()}")
+        }
+        // Anything but a JSON object is reported with the body itself: a release build's
+        // serialization error names an obfuscated class and says nothing about what came back.
+        val root = runCatching { json.parseToJsonElement(raw) }.getOrNull() as? JsonObject
+            ?: throw DeezerApiException("gw $method unexpected response: ${raw.excerpt()}")
+        val error = root["error"]
         val errStr = error?.toString().orEmpty()
         val hasError = error != null && errStr != "[]" && errStr != "{}"
         if (hasError) {
@@ -453,6 +468,15 @@ class DeezerApi {
         }
         return root
     }
+
+    /** The `results` object of a gw call, or a [DeezerApiException] quoting the response when it isn't one. */
+    private fun gwResults(method: String, body: String, apiToken: String): JsonObject =
+        gw(method, body, apiToken)["results"] as? JsonObject
+            ?: throw DeezerApiException("gw $method results missing or not an object: ${gwLastRaw.excerpt()}")
+
+    private var gwLastRaw = ""
+
+    private fun String.excerpt() = replace('\n', ' ').take(400)
 
     private fun postJson(url: String, body: String): String {
         val conn = open(url, "POST").apply { setRequestProperty("Content-Type", "application/json") }

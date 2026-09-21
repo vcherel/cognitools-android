@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -37,6 +38,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
@@ -375,12 +377,18 @@ fun ShowAlertDialog(
 // underlying state to change or leaving the screen.
 @Composable
 fun ErrorText(message: String, onDismiss: () -> Unit, modifier: Modifier = Modifier) {
+    val context = LocalContext.current
     Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically) {
         Text(
             text = message,
             color = MaterialTheme.colorScheme.error,
             modifier = Modifier.weight(1f)
         )
+        // The exact wording is what a bug report needs, and a release build's message can be
+        // long and unreadable on screen.
+        IconButton(onClick = { copyToClipboard(context, message, "Erreur") }, modifier = Modifier.size(32.dp)) {
+            Icon(Icons.Filled.ContentCopy, contentDescription = "Copier", tint = MaterialTheme.colorScheme.error)
+        }
         IconButton(onClick = onDismiss, modifier = Modifier.size(32.dp)) {
             Icon(Icons.Filled.Close, contentDescription = "Fermer", tint = MaterialTheme.colorScheme.error)
         }

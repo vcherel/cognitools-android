@@ -33,11 +33,18 @@ class RollingLog(
         }
     }
 
+    /** Every line kept, oldest first. */
+    fun readLines(): List<String> = runCatching { file.readLines() }.getOrDefault(emptyList())
+
+    fun clear() {
+        runCatching { file.delete() }
+    }
+
     /** Flattens a throwable and its causes into one loggable line: the message is what identifies it. */
     fun describe(t: Throwable?): String =
         generateSequence(t) { it.cause }
-            .take(3)
-            .joinToString(", caused by ") { "${it.javaClass.simpleName}: ${it.message?.take(200)}" }
+            .take(4)
+            .joinToString(", caused by ") { "${it.javaClass.simpleName}: ${it.message?.take(600)}" }
             .ifBlank { "unknown error" }
 
     private companion object {

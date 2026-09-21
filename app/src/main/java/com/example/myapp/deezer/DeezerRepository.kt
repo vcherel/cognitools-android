@@ -26,6 +26,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.IOException
+import kotlin.coroutines.cancellation.CancellationException
 import java.util.concurrent.ConcurrentHashMap
 
 /** A library refresh landing this soon after the last one is the same one asked twice. */
@@ -71,6 +72,20 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
 
     private val sessionMutex = Mutex()
     private var session: DeezerSession? = null
+
+    /**
+     * Every Deezer failure with its full cause chain, what the "Journal d'erreurs" screen shows and
+     * what gets copied from it: a release build's on-screen message is often an obfuscated class
+     * name, useless for finding out what the API changed.
+     */
+    val errorLog = RollingLog(appContext, TAG, "deezer_errors.txt", maxBytes = 200_000, keepLines = 300)
+
+    /** Records [e] under [what] and hands back the line written, for a snackbar's copy action. */
+    fun logError(what: String, e: Throwable): String {
+        val line = "$what: ${errorLog.describe(e)}"
+        errorLog.log(line)
+        return line
+    }
 
     private val cacheDir: File by lazy { File(appContext.cacheDir, "deezer").apply { mkdirs() } }
 
@@ -125,15 +140,25 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
         if (!forceRefresh && current != null && !current.isStale()) return current
         val arl = settings.arl.first()
         if (arl.isBlank()) throw DeezerApiException("No ARL configured", tokenError = true)
-        api.bootstrapSession(arl).also { session = it }
+        try {
+            api.bootstrapSession(arl).also { session = it }
+        } catch (e: Exception) {
+            if (e !is CancellationException) logError("session", e)
+            throw e
+        }
     }
 
     private suspend fun <T> withTokenRetry(block: suspend (DeezerSession) -> T): T {
         val s = ensureSession()
         return try {
-            block(s)
-        } catch (e: DeezerApiException) {
-            if (e.tokenError) block(ensureSession(forceRefresh = true)) else throw e
+            try {
+                block(s)
+            } catch (e: DeezerApiException) {
+                if (e.tokenError) block(ensureSession(forceRefresh = true)) else throw e
+            }
+        } catch (e: Exception) {
+            if (e !is CancellationException) logError("api", e)
+            throw e
         }
     }
 
@@ -555,14 +580,18 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
                 // Any retry re-bootstraps the session: a stale sid is the most common cause here.
                 val session = ensureSession(forceRefresh = attempt > 0)
                 return api.resolveStream(session, sngId, quality).cdnUrl
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 last = e
                 if (e is DeezerApiException && e.unavailable) {
+                    logError("stream $sngId", e)
                     throw TrackUnavailableException("Deezer refuses to stream $sngId: ${e.message}", e)
                 }
                 if (attempt < RESOLVE_ATTEMPTS - 1) delay(500L * (attempt + 1))
             }
         }
+        logError("stream $sngId", last!!)
         throw IOException("Deezer stream resolve failed for $sngId: ${last?.message}", last)
     }
 }

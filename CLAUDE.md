@@ -44,6 +44,7 @@ Root package (shared/misc):
 - `Http.kt`: shared httpGet helper and User-Agent (Weather + Wikipedia + podcast feeds + news)
 - `Errors.kt`: `userMessage(throwable)`, what a failed job says on screen; rethrows cancellation so a screen left mid-request never shows an error
 - `AtomicWrite.kt`: `File.writeAtomically`, the one way a JSON state file is written (tmp then rename), since the process dies screen-off often enough to truncate a direct write
+- `Clipboard.kt`: `copyToClipboard`, the one clipboard write (ErrorText's copy button, the Deezer error log, the playback failure snackbars)
 - `Share.kt`: `shareUrisIntent`, the one place an ACTION_SEND / ACTION_SEND_MULTIPLE is built (gallery + file explorer)
 - `BottomFadeOverlay.kt`: shared fade out gradient overlay composable
 - `Snackbar.kt`: AppSnackbar, the app wide snackbar screens post undo actions through
@@ -80,7 +81,8 @@ Root package (shared/misc):
 - `DeezerSearchScreen.kt`: search screen, tracks and podcast shows
 - `DeezerArtistScreen.kt`: one artist: header (Lire / Aléatoire), "Titres populaires" (top tracks), "Discographie" grouped albums/EP/singles, each release opening a track list. Opened from the search artist card, a `TrackRow` menu ("Voir l'artiste", resolved by name), or the full player artist line
 - `DeezerDiscoveries.kt`: the daily "Découvertes du jour" batch; new release scan over the profile artists, Flow/track-mix discoveries, the persisted batch/backlog/proposed state
-- `RollingLog.kt`: the capped text log the offline sync and the discoveries batch write, in the external files dir so a release build's log reads with plain adb
+- `RollingLog.kt`: the capped text log the offline sync, the discoveries batch and the error log write, in the external files dir so a release build's log reads with plain adb
+- `DeezerErrorsScreen.kt`: the "Journal d'erreurs" (`repo.errorLog`, `deezer_errors.txt`), every API/stream/playback failure with its cause chain and the raw response excerpt, copied whole with one tap. Opened from the library header's bug icon
 - `DeezerDiscoveriesScreen.kt`: the batch's list screen (add, ignore, add all, ignore all, regenerate)
 
 `podcasts/` (podcast subscriptions and playback, surfaced inside the Musique tool):

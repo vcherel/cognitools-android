@@ -26,6 +26,7 @@ import androidx.media3.session.MediaSessionService
 import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionResult
 import com.example.myapp.AppSnackbar
+import com.example.myapp.copyToClipboard
 import com.example.myapp.MainActivity
 import com.example.myapp.MyApplication
 import com.example.myapp.R
@@ -297,6 +298,7 @@ class DeezerPlaybackService : MediaSessionService() {
         private var failedMediaId: String? = null
         private var retriedCurrent = false
         private var consecutiveSkips = 0
+        private var lastErrorLine = ""
 
         override fun onPlayerError(error: PlaybackException) {
             val mediaItem = player.currentMediaItem
@@ -306,6 +308,7 @@ class DeezerPlaybackService : MediaSessionService() {
                 retriedCurrent = false
             }
             Log.w(TAG, "Playback error on $mediaId (${error.errorCodeName})", error)
+            lastErrorLine = repo.logError("playback $mediaId (${error.errorCodeName})", error)
 
             // Nothing to retry when Deezer itself says the track is gone: go looking for another
             // release of the same song right away.
@@ -335,10 +338,18 @@ class DeezerPlaybackService : MediaSessionService() {
 
         private fun giveUp(title: String?) {
             Log.w(TAG, "Giving up after $consecutiveSkips skipped tracks")
-            AppSnackbar.show(
+            showError(
                 if (title.isNullOrBlank()) "Lecture interrompue, impossible de reprendre"
                 else "Lecture de « $title » interrompue, impossible de reprendre"
             )
+        }
+
+        /** The failure snackbar, with the logged cause one tap away on the clipboard. */
+        private fun showError(message: String) {
+            val line = lastErrorLine
+            AppSnackbar.show(message, actionLabel = "Copier") {
+                copyToClipboard(this@DeezerPlaybackService, line, "Erreur Deezer")
+            }
         }
 
         private fun skipToNext(title: String?) {
@@ -346,7 +357,7 @@ class DeezerPlaybackService : MediaSessionService() {
                 giveUp(title)
                 return
             }
-            AppSnackbar.show(
+            showError(
                 if (title.isNullOrBlank()) "Échec du chargement, passage au morceau suivant"
                 else "Échec du chargement de « $title », passage au morceau suivant"
             )
