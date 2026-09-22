@@ -73,7 +73,7 @@ android {
 
     packaging {
         resources {
-            excludes += "/META-INF/{AL2.0,LGPL2.1}"
+            excludes += "/META-INF/{AL2.0,LGPL2.1,NOTICE.md,LICENSE.md}"
         }
     }
 }
@@ -115,6 +115,10 @@ dependencies {
 
     // Scraping
     implementation(libs.jsoup)
+
+    // Mail: the Yahoo inbox over IMAP
+    implementation(libs.android.mail)
+    implementation(libs.android.activation)
 
     // Gallery: image/video thumbnails and playback, video trim
     implementation(libs.coil.compose)

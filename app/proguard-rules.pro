@@ -19,3 +19,13 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+# JavaMail finds its IMAP provider and MIME handlers by class name, from its META-INF files.
+-keep class com.sun.mail.** { *; }
+-keep class javax.mail.** { *; }
+-keep class myjava.awt.datatransfer.** { *; }
+-keep class javax.activation.** { *; }
+-dontwarn java.awt.**
+-dontwarn java.beans.**
+-dontwarn javax.security.**
+-dontwarn javax.naming.**
+-dontwarn javax.activation.**

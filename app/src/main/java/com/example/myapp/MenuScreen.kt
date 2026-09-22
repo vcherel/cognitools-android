@@ -83,7 +83,8 @@ fun MenuScreen(
         MenuTool("wikipedia", "Wiki"),
         MenuTool("random", "Random", route = "randomGenerator"),
         MenuTool("files", "Fichiers"),
-        MenuTool("news", "Actus")
+        MenuTool("news", "Actus"),
+        MenuTool("mail", "Mail")
     )
     // Most used first, alphabetical between tools opened as often (so a fresh install is A to Z).
     val orderedTools = tools.sortedWith(

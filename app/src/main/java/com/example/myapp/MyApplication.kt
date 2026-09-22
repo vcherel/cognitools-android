@@ -10,6 +10,7 @@ import coil3.video.VideoFrameDecoder
 import com.example.myapp.deezer.DeezerRepository
 import com.example.myapp.flashcards.AppDatabase
 import com.example.myapp.flashcards.FlashcardRepository
+import com.example.myapp.mail.MailRepository
 import com.example.myapp.news.NEWS_READ_RETENTION_DAYS
 import com.example.myapp.news.NewsRepository
 import com.example.myapp.notes.NOTES_TRASH_RETENTION_DAYS
@@ -23,6 +24,7 @@ class MyApplication : Application(), SingletonImageLoader.Factory {
     val deezerRepository: DeezerRepository by lazy { DeezerRepository(this) }
     val podcastRepository: PodcastRepository by lazy { PodcastRepository(this) }
     val newsRepository: NewsRepository by lazy { NewsRepository(this) }
+    val mailRepository: MailRepository by lazy { MailRepository(this) }
 
     // The notes trash keeps its own retention window; the gallery trash is MediaStore's, which
     // Android empties on its own.
@@ -72,3 +74,6 @@ val Context.podcastRepository: PodcastRepository
 
 val Context.newsRepository: NewsRepository
     get() = (applicationContext as MyApplication).newsRepository
+
+val Context.mailRepository: MailRepository
+    get() = (applicationContext as MyApplication).mailRepository

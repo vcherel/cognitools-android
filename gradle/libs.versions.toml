@@ -2,6 +2,7 @@
 agp = "8.13.0"
 coreSplashscreen = "1.0.1"
 jsoup = "1.21.2"
+androidMail = "1.6.8"
 kotlin = "2.2.20"
 coreKtx = "1.17.0"
 lifecycleRuntimeKtx = "2.9.4"
@@ -40,6 +41,8 @@ androidx-compose-ui-tooling-preview = { group = "androidx.compose.ui", name = "u
 androidx-compose-material3 = { group = "androidx.compose.material3", name = "material3" }
 androidx-compose-material-icons-extended = { group = "androidx.compose.material", name = "material-icons-extended", version.ref = "materialIconsExtended" }
 jsoup = { module = "org.jsoup:jsoup", version.ref = "jsoup" }
+android-mail = { module = "com.sun.mail:android-mail", version.ref = "androidMail" }
+android-activation = { module = "com.sun.mail:android-activation", version.ref = "androidMail" }
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json" }
 androidx-datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "androidxDatastorePreferences" }
 androidx-navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "navigationCompose" }
