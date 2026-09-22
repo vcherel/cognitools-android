@@ -47,6 +47,7 @@ import androidx.compose.ui.unit.dp
 import com.example.myapp.showUndoSnackbar
 import com.example.myapp.BackIconButton
 import com.example.myapp.flashcards.AppDatabase
+import com.example.myapp.normalizeForSearch
 import com.example.myapp.plural
 import kotlinx.coroutines.launch
 

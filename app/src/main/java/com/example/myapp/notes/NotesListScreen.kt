@@ -48,9 +48,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -59,6 +57,7 @@ import com.example.myapp.AppSnackbar
 import com.example.myapp.BackIconButton
 import com.example.myapp.BackupRestoreActions
 import com.example.myapp.BottomFadeOverlay
+import com.example.myapp.copyToClipboard
 import com.example.myapp.LocalIsDarkMode
 import com.example.myapp.MyButton
 import com.example.myapp.popBackStackOnce
@@ -545,11 +544,10 @@ private fun NoteItem(
             }
             if (!note.locked) {
                 Spacer(Modifier.size(4.dp))
-                val clipboard = LocalClipboardManager.current
                 val context = LocalContext.current
                 IconButton(
                     onClick = {
-                        clipboard.setText(AnnotatedString(note.content))
+                        copyToClipboard(context, note.content)
                         if (note.title.trim().equals(INGREDIENTS_TITLE, ignoreCase = true)) {
                             Toast.makeText(context, "${(1..15).random()}", Toast.LENGTH_SHORT).show()
                         }

@@ -32,9 +32,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -42,6 +40,7 @@ import androidx.compose.ui.unit.sp
 import com.example.myapp.AppSnackbar
 import com.example.myapp.ErrorText
 import com.example.myapp.MyButton
+import com.example.myapp.copyToClipboard
 import com.example.myapp.flashcardRepository
 import com.example.myapp.flashcards.AddToFlashcardsDialog
 import com.example.myapp.userMessage
@@ -84,7 +83,7 @@ fun TranslationCard(
     speak: (String, TranslateLang) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val clipboard = LocalClipboardManager.current
+    val context = LocalContext.current
 
     Column(modifier = modifier.fillMaxWidth()) {
         Row(verticalAlignment = Alignment.Top) {
@@ -97,7 +96,7 @@ fun TranslationCard(
                 Icon(Icons.AutoMirrored.Filled.VolumeUp, contentDescription = "Écouter")
             }
             IconButton(onClick = {
-                clipboard.setText(AnnotatedString(result.translation))
+                copyToClipboard(context, result.translation)
                 AppSnackbar.show("Copié")
             }) {
                 Icon(Icons.Filled.ContentCopy, contentDescription = "Copier")

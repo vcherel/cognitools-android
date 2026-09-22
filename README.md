@@ -8,7 +8,7 @@ An Android app built in Kotlin for **fun**, grouping all the little tools and ga
 
 ## Building and installing
 
-Android Studio, or from the command line with a phone plugged in and USB debugging on:
+From the command line, with a phone plugged in and USB debugging on:
 
 ```bash
 ./gradlew assembleRelease
@@ -34,6 +34,7 @@ Always install the release build: performance on device matters, and debug build
 - **Lecture**: an epub reader written against the format directly, no library. Long press a word to open the translator's lookup sheet.
 - **Météo**: forecast for your GPS location or a searched city, with temperature, conditions and rain amount.
 - **Undercover**: the social deduction party game. Most players share a secret word, the *Undercover* have a different one and *Mr. White* has none. The ~80,000 word pairs were generated with NLP and FastText embeddings (see below).
+- **Mail**: the Yahoo inbox over IMAP, fetched only when the screen opens. Read and delete, with the one-time login code of a mail shown on its row and copied in one tap.
 - **Fichiers**: a plain file explorer, one folder at a time, with a remembered "open with" app per extension.
 - **Wiki**: a random Wikipedia article.
 - **Random**: random numbers and words.
@@ -78,7 +79,7 @@ Lint and format run on commit through pre-commit, tests run on push:
 uv run --with pre-commit pre-commit install
 ```
 
-The JVM unit tests cover the pure logic (the Deezer stream decryption, the puzzle generator, the epub parser, the RSS extraction, the translation parsing, the spaced repetition scheduler):
+The JVM unit tests cover the pure logic (the Deezer stream decryption, the puzzle generator, the epub parser, the RSS extraction, the translation parsing, the spaced repetition scheduler, the car parts note, the verification code detection):
 
 ```bash
 ./gradlew :app:testReleaseUnitTest

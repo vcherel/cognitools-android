@@ -7,8 +7,6 @@ import androidx.room.Query
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.Upsert
-import androidx.room.migration.Migration
-import androidx.sqlite.db.SupportSQLiteDatabase
 import com.example.myapp.gallery.PinnedMediaItem
 import com.example.myapp.gallery.PinnedMediaItemDao
 import com.example.myapp.notes.Note
@@ -98,25 +96,13 @@ abstract class AppDatabase : RoomDatabase() {
     companion object {
         @Volatile private var instance: AppDatabase? = null
 
-        // A migration that has already run on the phone is dead code and gets deleted; only the
-        // one still ahead of the installed version lives here.
-        private val MIGRATION_15_16 = object : Migration(15, 16) {
-            override fun migrate(db: SupportSQLiteDatabase) {
-                // Deezer catalog shows were briefly followable as such, but Deezer never streamed
-                // their episodes; they are re-followed through their RSS feed from the search screen.
-                db.execSQL("DELETE FROM `podcast_favorites` WHERE `source` = 'DEEZER'")
-                db.execSQL("ALTER TABLE `podcast_favorites` DROP COLUMN `source`")
-            }
-        }
-
         fun get(context: Context): AppDatabase =
             instance ?: synchronized(this) {
                 instance ?: Room.databaseBuilder(
                     context.applicationContext,
                     AppDatabase::class.java,
                     "flashcards.db"
-                ).addMigrations(MIGRATION_15_16)
-                    .build().also { instance = it }
+                ).build().also { instance = it }
             }
     }
 }

@@ -48,7 +48,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import android.content.Context
-import android.content.Intent
+import com.example.myapp.shareTextIntent
 import android.widget.Toast
 import com.example.myapp.LocalGoHome
 import com.example.myapp.MediaArt
@@ -79,12 +79,7 @@ private fun currentTrack(repo: DeezerRepository, state: PlayerUiState): DeezerTr
 private fun shareTrack(context: Context, track: DeezerTrack) {
     val link = "https://song.link/d/${track.sngId}"
     val text = if (track.artist.isBlank()) "${track.title}\n$link" else "${track.title} par ${track.artist}\n$link"
-    val send = Intent(Intent.ACTION_SEND).apply {
-        type = "text/plain"
-        putExtra(Intent.EXTRA_TEXT, text)
-        putExtra(Intent.EXTRA_SUBJECT, track.title)
-    }
-    context.startActivity(Intent.createChooser(send, "Partager le titre"))
+    context.startActivity(shareTextIntent(text, track.title, "Partager le titre"))
 }
 
 /** Full player overlay: big cover, seek bar, transport. */

@@ -1,7 +1,7 @@
 package com.example.myapp.deezer
 
 import android.content.Context
-import android.content.Intent
+import com.example.myapp.shareTextIntent
 import com.example.myapp.runIgnoringErrors
 import com.example.myapp.userMessage
 import androidx.compose.foundation.layout.Box
@@ -183,10 +183,5 @@ fun DeezerTrackListScreen(
  */
 private fun sharePlaylist(context: Context, playlistId: String, title: String) {
     val link = "https://www.deezer.com/playlist/$playlistId"
-    val send = Intent(Intent.ACTION_SEND).apply {
-        type = "text/plain"
-        putExtra(Intent.EXTRA_TEXT, "$title\n$link")
-        putExtra(Intent.EXTRA_SUBJECT, title)
-    }
-    context.startActivity(Intent.createChooser(send, "Partager la playlist"))
+    context.startActivity(shareTextIntent("$title\n$link", title, "Partager la playlist"))
 }

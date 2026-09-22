@@ -1,3 +1,5 @@
+default_install_hook_types: [pre-commit, pre-push, commit-msg]
+
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.9.4
@@ -13,3 +15,11 @@ repos:
         entry: sed -i -e '/^Claude-Session:/d' -e '/^Co-Authored-By:/d' -e '/^Generated with/d'
         language: system
         stages: [commit-msg]
+
+      - id: unit-tests
+        name: JVM unit tests
+        entry: ./gradlew --quiet :app:testReleaseUnitTest
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]

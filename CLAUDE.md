@@ -25,7 +25,7 @@ Always install release builds, never debug (performance matters on device). Debu
 ## Codebase map
 The independent tools live under `app/src/main/java/com/example/myapp/`. Use this map to jump straight to the right file with Read/Grep instead of spawning an exploration agent. Keep it current when files are added or renamed: a stale map misleads more than no map.
 
-Outside that package: `src/` holds the Python asset generators (see the README), `data/` their inputs, `app/src/test/` the JVM unit tests, `baselineprofile/` the startup profile module.
+Outside that package: `src/` holds the Python asset generators (see the README): `generate_pairs.py` builds the Undercover `assets/pairs.json` (`generate_dataset.ipynb` at the root only drives it), the mots fléchés scripts are listed under `motsfleches/` below. `data/` holds their inputs, `app/src/test/` the JVM unit tests, `baselineprofile/` the startup profile module (`BaselineProfileGenerator.kt`, the journey the profile is recorded from).
 
 Root package (shared/misc):
 - `MainActivity.kt`: app entry point; the window, the intents it is launched with, and the locked-over-the-keyguard quick view
@@ -40,12 +40,12 @@ Root package (shared/misc):
 - `PlayerUi.kt`: the surfaces `deezer/` and `podcasts/` both draw; MediaArt, MediaListRow, MiniPlayerBar, PlayPauseButton, PlayerSeekBar (which owns the position polling), formatPlaybackTime
 - `MediaControllerHolder.kt`: the MediaController connect-once/stop-the-service plumbing both playback repositories use
 - `Plural.kt`: `plural(count)`, the one place the French count-to-plural rule lives
-- `Normalize.kt`: `deaccented` / `matchNormalized` / `slugified`, the one place text is folded for comparison
+- `Normalize.kt`: `deaccented` / `matchNormalized` / `slugified`, plus `normalizeForSearch` (one char out per char in, so the notes search can highlight by index); the one place text is folded for comparison
 - `Http.kt`: shared httpGet helper and User-Agent (Weather + Wikipedia + podcast feeds + news)
 - `Errors.kt`: `userMessage(throwable)`, what a failed job says on screen; rethrows cancellation so a screen left mid-request never shows an error
 - `AtomicWrite.kt`: `File.writeAtomically`, the one way a JSON state file is written (tmp then rename), since the process dies screen-off often enough to truncate a direct write
-- `Clipboard.kt`: `copyToClipboard`, the one clipboard write (ErrorText's copy button, the Deezer error log, the playback failure snackbars)
-- `Share.kt`: `shareUrisIntent`, the one place an ACTION_SEND / ACTION_SEND_MULTIPLE is built (gallery + file explorer)
+- `Clipboard.kt`: `copyToClipboard`, the one clipboard write (ErrorText's copy button, the Deezer error log, the playback failure snackbars, the note card copy, the translation copy)
+- `Share.kt`: `shareUrisIntent` (files, for the gallery and the file explorer) and `shareTextIntent` (a link, for the Deezer track and playlist shares), the one place an ACTION_SEND is built
 - `BottomFadeOverlay.kt`: shared fade out gradient overlay composable
 - `Snackbar.kt`: AppSnackbar, the app wide snackbar screens post undo actions through
 - `SearchHistory.kt`: recent search terms per surface (notes, cities, Deezer, news) and the RecentSearchChips row
@@ -221,4 +221,4 @@ The map above is by feature. These are the ones you won't find by feature name:
 - **Foreground services**: `Volume.kt` (volume booster), `deezer/DeezerPlaybackService.kt`, `podcasts/PodcastPlaybackService.kt` and `podcasts/PodcastDownloadService.kt`. The Deezer offline sync deliberately has none.
 - **30 day trash**: two different mechanisms. Notes carry a `deletedAt` timestamp and are purged by `MyApplication.onCreate`. The gallery uses MediaStore's own trash (`IS_TRASHED`, `performTrashBatch`/`performRestoreBatch`), which Android empties by itself.
 - **Media consent launcher**: registered once in `MainActivity` and passed down through `LocalMediaConsent`, so an undo posted after its screen is gone can still show the system dialog. Gallery screens read it instead of calling `rememberIntentSenderRequester` themselves.
-- **Text folding**: any "are these the same thing?" comparison goes through `Normalize.kt`. `deaccented()` is the base (NFD, marks stripped, lowercased), `matchNormalized()` also drops punctuation and is what `DeezerTrack.matchKey` and the podcast title matching use, `slugified()` builds URL path segments. Do not hand-roll another Normalizer call.
+- **Text folding**: any "are these the same thing?" comparison goes through `Normalize.kt`. `deaccented()` is the base (NFD, marks stripped, lowercased), `matchNormalized()` also drops punctuation and is what `DeezerTrack.matchKey` and the podcast title matching use, `slugified()` builds URL path segments, `normalizeForSearch()` is the notes search. Do not hand-roll another Normalizer call.

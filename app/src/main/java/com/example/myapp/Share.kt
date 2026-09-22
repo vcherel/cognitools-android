@@ -16,3 +16,12 @@ fun shareUrisIntent(uris: List<Uri>, mimeType: String): Intent {
     }
     return intent.setType(mimeType).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
 }
+
+/** A plain text share (a link with its title), handed to the system chooser under [chooserTitle]. */
+fun shareTextIntent(text: String, subject: String, chooserTitle: String): Intent {
+    val send = Intent(Intent.ACTION_SEND)
+        .setType("text/plain")
+        .putExtra(Intent.EXTRA_TEXT, text)
+        .putExtra(Intent.EXTRA_SUBJECT, subject)
+    return Intent.createChooser(send, chooserTitle)
+}

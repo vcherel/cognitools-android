@@ -125,12 +125,12 @@ fun GalleryAlbumsScreen(
     BackHandler { onBack() }
 
     pendingConfirm?.let { (album, action) ->
-        val plural = album.itemCount > 1
+        val several = album.itemCount > 1
         val body = when (action) {
             LockAction.Lock -> "Le dossier ne s'ouvrira plus qu'avec le code des notes."
             LockAction.DeleteContent ->
-                "${album.itemCount} élément${if (plural) "s" else ""} " +
-                    "${if (plural) "partiront" else "partira"} à la corbeille."
+                "${album.itemCount} élément${plural(album.itemCount)} " +
+                    "${if (several) "partiront" else "partira"} à la corbeille."
             else -> null
         }
         ShowAlertDialog(

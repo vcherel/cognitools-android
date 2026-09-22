@@ -33,10 +33,8 @@ class FlashcardRepository(private val context: Context) {
         }
     }
 
-    suspend fun getLists(): List<FlashcardList> = dao.getLists()
-
     suspend fun addList(list: FlashcardList) {
-        val current = getLists()
+        val current = dao.getLists()
         val nextOrder = (current.maxOfOrNull { it.order } ?: 0) + 1
         dao.upsertList(list.copy(order = nextOrder))
     }
@@ -84,8 +82,6 @@ class FlashcardRepository(private val context: Context) {
     suspend fun deleteElement(elementId: String) = dao.deleteElement(elementId)
 
     fun observeAllElements(): Flow<List<FlashcardElement>> = dao.observeAllElements()
-
-    suspend fun getAllElements(): List<FlashcardElement> = dao.getAllElements()
 
     suspend fun getStats(listId: String? = null): FlashcardStats {
         val elements = if (listId != null) dao.getElements(listId) else dao.getAllElements()
@@ -152,22 +148,6 @@ class FlashcardRepository(private val context: Context) {
         if (currentVersion < 2) {
             seedAssets("seed_prefectures.json")
             seedAssets("seed_dept_numbers.json")
-        }
-        if (currentVersion < 3) {
-            val renames = mapOf(
-                "builtin-prefectures-v1" to "Préfectures",
-                "builtin-dept-numbers-v1" to "Départements",
-                "builtin-capitals-v1" to "Capitales"
-            )
-            val lists = dao.getLists()
-            val toUpdate = lists.filter { it.id in renames }.map { it.copy(name = renames[it.id]!!) }
-            if (toUpdate.isNotEmpty()) dao.upsertLists(toUpdate)
-        }
-        if (currentVersion < 4) {
-            // Anglais is meant to be asked in one direction only. Turned on here once so the
-            // existing cards get it too; toggling it off later stays a manual choice.
-            dao.getLists().filter { it.name.equals("Anglais", ignoreCase = true) }
-                .forEach { setListFixedSide(it.id, true) }
         }
 
         context.flashcardDataStore.edit { it[seedVersionKey] = SEED_VERSION }

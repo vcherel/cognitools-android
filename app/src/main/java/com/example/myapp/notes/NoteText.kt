@@ -8,7 +8,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.withStyle
-import java.text.Normalizer
+import com.example.myapp.normalizeForSearch
 
 // A note is plain text. Everything the app reads into it (checkboxes, separators, inline markers,
 // quantity and waiting-date suffixes) is a convention on a line's characters, parsed here.
@@ -62,8 +62,8 @@ fun String.checkboxPrefix(): String = when {
     else -> ""
 }
 
-// Inline markers within a line: **gras**, *italique*, ***les deux***,
-// __souligné__. The markers stay in the stored text and are hidden when
+// Inline markers within a line: **bold**, *italic*, ***both***,
+// __underlined__. The markers stay in the stored text and are hidden when
 // rendering. Content inside a marker pair is parsed again, so markers combine.
 fun String.formatInline(): AnnotatedString {
     val s = this
@@ -144,34 +144,6 @@ fun noteTitleAndPreview(note: Note): Pair<String, String> {
         lines.getOrElse(0) { "Note vide" } to lines.getOrElse(1) { "" }
     }
 }
-
-/**
- * Lowercased and stripped of accents, so "creme" finds "crème". Deliberately one output character
- * per input character (a decomposed letter keeps only its base): every index into the result is also
- * a valid index into the original, which is what lets [searchMatchRanges] highlight what it found.
- */
-fun normalizeForSearch(text: String): String {
-    val out = StringBuilder(text.length)
-    for (ch in text) out.append(foldChar(ch))
-    return out.toString()
-}
-
-// Folding one character is the expensive part: NFD normalization allocates a String per call.
-// Plain ASCII skips it, and the Latin range every accented letter the app sees lives in is folded
-// once and kept, so a search over long notes stops normalizing the same letters over and over.
-private const val FOLD_CACHE_SIZE = 0x250
-private val foldCache = CharArray(FOLD_CACHE_SIZE)
-
-private fun foldChar(ch: Char): Char {
-    if (ch.code < 128) return ch.lowercaseChar()
-    if (ch.code >= FOLD_CACHE_SIZE) return decomposedBase(ch)
-    val cached = foldCache[ch.code]
-    if (cached != '\u0000') return cached
-    return decomposedBase(ch).also { foldCache[ch.code] = it }
-}
-
-private fun decomposedBase(ch: Char): Char =
-    (Normalizer.normalize(ch.toString(), Normalizer.Form.NFD).firstOrNull() ?: ch).lowercaseChar()
 
 /**
  * The query split into the words a note has to contain. Order and position don't matter: "poulet

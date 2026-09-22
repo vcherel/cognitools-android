@@ -306,14 +306,11 @@ suspend fun performRename(
     newName: String,
     requestConsent: suspend (IntentSender) -> Boolean
 ): Boolean = performMediaWrite(context, listOf(item.uri), requestConsent) {
-    renameMediaItem(context, item, newName)
-}
-
-private fun renameMediaItem(context: Context, item: MediaItem, newName: String): WriteOutcome =
     writeOutcome("Renommage impossible") {
         val values = ContentValues().apply { put(MediaStore.Files.FileColumns.DISPLAY_NAME, newName) }
         context.contentResolver.update(item.uri, values, null, null) > 0
     }
+}
 
 private fun updateRelativePath(context: Context, item: MediaItem, targetRelativePath: String): WriteOutcome =
     writeOutcome("Déplacement impossible") {
@@ -374,7 +371,9 @@ private suspend fun performDelete(
         val pending = MediaStore.createDeleteRequest(context.contentResolver, listOf(item.uri))
         return requestConsent(pending.intentSender)
     }
-    val delete = { deleteMediaItem(context, item) }
+    val delete = {
+        writeOutcome("Suppression impossible") { context.contentResolver.delete(item.uri, null, null) > 0 }
+    }
     return delete().orConsentThenRetry(requestConsent, delete)
 }
 
@@ -457,11 +456,6 @@ private suspend fun setTrashed(
     return requestConsent(pending.intentSender)
 }
 
-private fun deleteMediaItem(context: Context, item: MediaItem): WriteOutcome =
-    writeOutcome("Suppression impossible") {
-        context.contentResolver.delete(item.uri, null, null) > 0
-    }
-
 // Used to save a crop or a video trim back into the original file (overwrite in place).
 suspend fun performOverwrite(
     context: Context,
@@ -469,10 +463,6 @@ suspend fun performOverwrite(
     requestConsent: suspend (IntentSender) -> Boolean,
     writeBytes: (OutputStream) -> Unit
 ): Boolean = performMediaWrite(context, listOf(item.uri), requestConsent) {
-    overwriteMediaItemBytes(context, item, writeBytes)
-}
-
-private fun overwriteMediaItemBytes(context: Context, item: MediaItem, writeBytes: (OutputStream) -> Unit): WriteOutcome =
     writeOutcome("Impossible d'ouvrir le fichier") {
         val output = context.contentResolver.openOutputStream(item.uri, "wt") ?: return@writeOutcome false
         output.use(writeBytes)
@@ -482,3 +472,4 @@ private fun overwriteMediaItemBytes(context: Context, item: MediaItem, writeByte
         context.contentResolver.update(item.uri, values, null, null)
         true
     }
+}
