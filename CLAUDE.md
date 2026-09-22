@@ -79,21 +79,21 @@ Root package (shared/misc):
 - `DeezerTrackRow.kt`: TrackRow (the one tappable track line with its heart and menu), the playlist picker dialog, and the add-to-queue / Best pépites / add-to-playlist actions that return the toast to show, reused by every Deezer screen
 - `DeezerPlaylistScreen.kt`: reusable ordered track list (play, remove, like, add to pépites)
 - `DeezerSearchScreen.kt`: search screen, tracks and podcast shows
-- `DeezerArtistScreen.kt`: one artist: header (Lire / Aléatoire), "Titres populaires" (top tracks), "Discographie" grouped albums/EP/singles, each release opening a track list. Opened from the search artist card, a `TrackRow` menu ("Voir l'artiste", resolved by name), or the full player artist line
+- `DeezerArtistScreen.kt`: one artist: header, top tracks, discography grouped by release type
 - `DeezerDiscoveries.kt`: the daily "Découvertes du jour" batch; new release scan over the profile artists, Flow/track-mix discoveries, the persisted batch/backlog/proposed state
 - `RollingLog.kt`: the capped text log the offline sync, the discoveries batch and the error log write, in the external files dir so a release build's log reads with plain adb
-- `DeezerErrorsScreen.kt`: the "Journal d'erreurs" (`repo.errorLog`, `deezer_errors.txt`), every API/stream/playback failure with its cause chain and the raw response excerpt, copied whole with one tap. Opened from the library header's bug icon
+- `DeezerErrorsScreen.kt`: the "Journal d'erreurs" (`repo.errorLog`), every failure with its cause chain, copyable in one tap
 - `DeezerDiscoveriesScreen.kt`: the batch's list screen (add, ignore, add all, ignore all, regenerate)
 
 `podcasts/` (podcast subscriptions and playback, surfaced inside the Musique tool):
 - `Models.kt`: PodcastFavorite/PodcastEpisode/PodcastCatalogItem/PodcastEpisodeProgress/PodcastDownload and PodcastDao
 - `PodcastApi.kt`: the iTunes directory search and the RSS feed parsing
-- `PodcastRepository.kt`: the singleton; followed shows (Room), the merged episode list re-fetched live from each feed, heard/seen state, listening progress, the MediaController. Downloads and the sleep timer are the two objects below, reached as `repo.downloads` and `repo.sleepTimer`
+- `PodcastRepository.kt`: the singleton; followed shows, the merged live episode list, heard state, progress, the MediaController; `repo.downloads` and `repo.sleepTimer` below
 - `PodcastDownloads.kt`: the download queue and what counts as downloaded (derived from the bytes held, never a flag), the one-at-a-time worker, and `openAudio` (the by-hand redirect following podcast enclosures need)
 - `PodcastSleepTimer.kt`: the timer that pauses playback, plus the pre-fetch, the coverage badge and the watchdog that make sure the audio to reach its end is on the phone
-- `PodcastStreamCache.kt`: the one store for podcast audio, keyed by the episode's audio URL, read and written by playback, the sleep timer pre-fetch and the downloads alike. A download is the whole resource held plus a protected key, which its custom evictor never evicts and never counts against the LRU cap
+- `PodcastStreamCache.kt`: the one store for podcast audio, keyed by audio URL; a download is a protected key its custom evictor never evicts
 - `PodcastPlaybackService.kt`: MediaSessionService owning the episode ExoPlayer; its own notification id and channel, distinct from the Deezer one
-- `PodcastDownloadService.kt`: foreground service holding the download notification (progress, cancel) and a wake lock, so a download survives the lock screen and the app closing. The work itself stays in the repository
+- `PodcastDownloadService.kt`: foreground service holding the download notification and a wake lock; the work stays in the repository
 - `PodcastDownloadsScreen.kt`: every downloaded episode, all shows merged, read from the downloads table
 - `PodcastNowPlaying.kt`: PodcastFullPlayerSheet, the mark-heard toggle, the sleep timer dialog and its coverage badge
 - `PodcastEpisodesScreen.kt`: one followed show's episode list (play, download, mark heard, unfollow)
@@ -136,7 +136,7 @@ Root package (shared/misc):
 
 `mail/` (the Yahoo inbox, read and delete only, fetched only when the screen opens or on refresh; no background work):
 - `MailSettings.kt`: DataStore for the Yahoo address and its app password
-- `MailRepository.kt`: the singleton; one IMAP session per fetch (JavaMail, inbox opened READ_ONLY so nothing is marked read), delete as a move to the Trash folder with undo, the latest 30 headers first, then each body newest first, the MIME walk (HTML preferred, cid images inlined) and the MailState the screens read
+- `MailRepository.kt`: the singleton; one read only IMAP session per fetch, delete as a move to Trash with undo, the MIME walk, MailState
 - `VerificationCode.kt`: `findVerificationCode`, the one-time code a mail carries, found near a code keyword. Pure, covered by a JVM unit test
 - `MailScreen.kt`: the inbox list with a bin on each row, the code chip that copies in one tap, the account dialog
 - `MailMessageScreen.kt`: one mail in a WebView (no JavaScript), links handed to the browser, a bin in the header
@@ -148,12 +148,12 @@ Root package (shared/misc):
 - `MotsFlechesStore.kt`: MotsFlechesLang (FR/EN, one dictionary asset and one save file each), the language setting, the grid in progress per language saved as JSON in filesDir, plus the next grid pre-generated in the background
 - `PuzzleGrid.kt`: the grid drawn on one Canvas, definitions printed in their cells with arrows, pinch to zoom
 - `MotsFlechesScreen.kt`: the tool screen, clue bar and letter keyboard, per-word check and reveal
-- The assets are generated by `src/generate_motsfleches.py` (Lexique + fr.wiktionary), `src/generate_motsfleches_en.py` (wordfreq + WordNet glosses) and `src/generate_layouts.py`, the layouts being shared by both languages. What the two dictionary scripts have in common (the size limits, the clue shortening, the asset format) lives in `src/motsfleches_common.py`. Ship the dictionary as plain text: the Android build unpacks a `.gz` asset at packaging time, which renames it out from under the loader.
+- The assets are generated by `src/generate_motsfleches.py`, `src/generate_motsfleches_en.py` and `src/generate_layouts.py`, sharing `src/motsfleches_common.py`. Ship the dictionary as plain text: the build unpacks a `.gz` asset at packaging time.
 
 `news/` (news reader, French and world headlines from RSS):
 - `NewsModels.kt`: NewsArticle, the NewsRead/NewsSaved/NewsProgress Room entities and NewsDao, plus the 7 day retention shared by the read marks and the reading positions
-- `NewsFeeds.kt`: the hardcoded categories (À la une, France, Monde, Éco, Tech, Sciences), the outlet feeds each one merges (Le Monde, franceinfo, Le Figaro; France 24 is deliberately absent, its article bodies are client rendered and never extractable), and `NewsSources`, the DataStore set of outlets actually fetched (franceinfo alone by default, the others opt-in from the screen's overflow menu), plus the franceinfo sections "charger plus" pages through
-- `NewsApi.kt`: RSS/Atom parsing, the canonical article link, `parseArchivePage` (franceinfo's own section pages, the only way to articles older than a feed's fixed window) and `extractArticle`, the jsoup readable-body extraction. Pure, covered by a JVM unit test
+- `NewsFeeds.kt`: the hardcoded categories, the outlet feeds each merges (France 24 deliberately absent: its bodies are client rendered), `NewsSources` (the DataStore of fetched outlets)
+- `NewsApi.kt`: RSS/Atom parsing, `parseArchivePage` for older franceinfo articles, `extractArticle` (jsoup body extraction). Pure, JVM tested
 - `NewsRepository.kt`: the singleton; the merged articles per category with their freshness window, the read state, the saved articles and their offline text, and the reading position of the article left unfinished
 - `NewsScreen.kt`: the tool screen; category tabs, the resume card on top, article list, search across everything loaded
 - `NewsArticleScreen.kt`: one article read in the app, with save/open in the browser, the progress bar under the header, the restore-where-you-stopped scroll, and the paywall fallback
@@ -174,10 +174,10 @@ Root package (shared/misc):
 - `NoteLock.kt`: the app's one PIN (notes *and* locked gallery albums, see `gallery/GalleryLock.kt`) and PinDialog
 - `NotesTrashScreen.kt`: the trashed notes screen (restore, delete for good, empty the trash)
 - `NoteSyncActions.kt`: the flows the editor triggers across the Courses/Ingrédients/model notes (move, add, re-sort, reconcile) and the batch state behind the reconcile dialog
-- `IngredientSync.kt`: the pure text side of that sync: parsing the one `Modèle courses` note (named "--- Nom" sections, a `(non alimentaire)` suffix flagging the ones kept out of Ingrédients), rendering Courses as labeled sections and Ingrédients as blank-line groups of the food sections, NoteSyncBatch/ReconcileItem, closeness ranking
+- `IngredientSync.kt`: the pure text side of that sync, parsing the `Modèle courses` note and rendering Courses and Ingrédients from it
 - `IngredientDialogs.kt`: the reconcile dialog and the add-an-item name prompt
-- `CarPartsNote.kt`: the "Car Mechanic Simulator" note's model; the Stock / Pris du stock / À acheter sections, the `Name +N (Q)` line format, taking a requested part from stock (unrated only, or best bonus first) or sending it to the buy list, the name suggestions. Pure, covered by a JVM unit test
-- `CarPartsBar.kt`: the bar pinned under that note (Achats / Stock switch, suggestion chips, the in-stock line) and CarPartsMemory, the DataStore holding how often each name was entered plus the rating mode toggled from the header
+- `CarPartsNote.kt`: the "Car Mechanic Simulator" note's model (stock, taken, to buy sections, `Name +N (Q)` lines). Pure, JVM tested
+- `CarPartsBar.kt`: the bar pinned under that note and CarPartsMemory, the DataStore of entered names and the rating mode
 - `DjNote.kt`: `appendToDjNote`, the "Artiste - Titre" line appended to the DJ note (the tracks to download), written by the music tool
 
 `reader/` (epub reader):
