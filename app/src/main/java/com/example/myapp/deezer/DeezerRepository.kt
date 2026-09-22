@@ -490,6 +490,10 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
     fun bestPepitesContains(sngId: String): Boolean? =
         bestPepitesId?.let { playlistTrackIds[it] }?.contains(sngId)
 
+    /** True when [source] is the Best pépites playlist, the only place the diamond takes a track back out. */
+    fun isBestPepites(source: TrackSource?): Boolean =
+        source is TrackSource.Playlist && source.id == bestPepitesId
+
     /** Adds [track] to any of the owner's playlists, unless it is already in it. */
     suspend fun addToPlaylist(playlistId: String, track: DeezerTrack): PlaylistAddResult {
         val ids = membership(playlistId)

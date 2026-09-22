@@ -111,12 +111,15 @@ fun FullPlayerSheet(
     var showQueue by remember { mutableStateOf(false) }
 
     // Same for the diamond: it is filled when the track is already in Best pépites, and tapping it
-    // then takes the track back out. [pepitesTick] re-reads it after the toggle has landed.
+    // takes the track back out only when playing from Best pépites. [pepitesTick] re-reads it after
+    // the tap has landed.
     var pepitesTick by remember { mutableIntStateOf(0) }
     var inPepites by remember { mutableStateOf(false) }
-    LaunchedEffect(state.sngId, pepitesTick) {
+    var removesFromPepites by remember { mutableStateOf(false) }
+    LaunchedEffect(state.sngId, state.source, pepitesTick) {
         runIgnoringErrors { repo.ensureBestPepitesLoaded() }
         inPepites = state.sngId != null && repo.bestPepitesContains(state.sngId) == true
+        removesFromPepites = inPepites && repo.isBestPepites(state.source)
     }
 
     if (showQueue) QueueSheet(repo = repo, onDismiss = { showQueue = false })
@@ -181,18 +184,18 @@ fun FullPlayerSheet(
                 IconButton(onClick = {
                     val track = currentTrack(repo, state) ?: return@IconButton
                     scope.launch {
-                        Toast.makeText(context, toggleBestPepitesMessage(context, repo, track), Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, bestPepitesMessage(context, repo, track, state.source), Toast.LENGTH_SHORT).show()
                         pepitesTick++
                     }
                 }) {
                     Icon(
                         Icons.Filled.Diamond,
-                        contentDescription = if (inPepites) "Retirer de Best pépites" else "Ajouter à Best pépites",
+                        contentDescription = if (removesFromPepites) "Retirer de Best pépites" else "Ajouter à Best pépites",
                         tint = if (inPepites) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
                 // Sends the track to the DJ note, the list of what to download. The diamond does
-                // it too (see toggleBestPepitesMessage), this is the way to ask for it alone.
+                // it too (see bestPepitesMessage), this is the way to ask for it alone.
                 IconButton(onClick = {
                     val track = currentTrack(repo, state) ?: return@IconButton
                     scope.launch {

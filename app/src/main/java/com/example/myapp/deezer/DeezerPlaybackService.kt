@@ -30,7 +30,6 @@ import com.example.myapp.copyToClipboard
 import com.example.myapp.MainActivity
 import com.example.myapp.MyApplication
 import com.example.myapp.R
-import com.example.myapp.notes.appendToDjNote
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import kotlinx.coroutines.CoroutineScope
@@ -131,7 +130,7 @@ class DeezerPlaybackService : MediaSessionService() {
      * The heart takes the slot before the transport controls, the pépites button the one after, which
      * leaves previous/play/next untouched in the collapsed notification.
      */
-    private fun actionButtons(liked: Boolean, inPepites: Boolean): List<CommandButton> = listOf(
+    private fun actionButtons(liked: Boolean, inPepites: Boolean, removesFromPepites: Boolean = false): List<CommandButton> = listOf(
         CommandButton.Builder(if (liked) CommandButton.ICON_HEART_FILLED else CommandButton.ICON_HEART_UNFILLED)
             .setSessionCommand(SessionCommand(CMD_TOGGLE_LIKE, Bundle.EMPTY))
             .setDisplayName(if (liked) "Retirer des favoris" else "Ajouter aux favoris")
@@ -143,7 +142,7 @@ class DeezerPlaybackService : MediaSessionService() {
         CommandButton.Builder(if (inPepites) CommandButton.ICON_CHECK_CIRCLE_FILLED else CommandButton.ICON_PLAYLIST_ADD)
             .setCustomIconResId(if (inPepites) R.drawable.ic_diamond_filled else R.drawable.ic_diamond)
             .setSessionCommand(SessionCommand(CMD_TOGGLE_PEPITES, Bundle.EMPTY))
-            .setDisplayName(if (inPepites) "Retirer de Best pépites" else "Ajouter à Best pépites")
+            .setDisplayName(if (removesFromPepites) "Retirer de Best pépites" else "Ajouter à Best pépites")
             .setSlots(CommandButton.SLOT_FORWARD_SECONDARY, CommandButton.SLOT_OVERFLOW)
             .build()
     )
@@ -152,10 +151,12 @@ class DeezerPlaybackService : MediaSessionService() {
     private fun refreshActionButtons() {
         val session = mediaSession ?: return
         val sngId = session.player.currentMediaItem?.mediaId
+        val inPepites = sngId != null && repo.bestPepitesContains(sngId) == true
         session.setMediaButtonPreferences(
             actionButtons(
                 liked = sngId != null && repo.isFavorite(sngId),
-                inPepites = sngId != null && repo.bestPepitesContains(sngId) == true
+                inPepites = inPepites,
+                removesFromPepites = inPepites && repo.isBestPepites(repo.player.playerState.value.source)
             )
         )
     }
@@ -251,32 +252,7 @@ class DeezerPlaybackService : MediaSessionService() {
                     refreshActionButtons()
                 }
                 CMD_TOGGLE_PEPITES -> scope.launch {
-                    // Reading the playlist first: without it a track played straight from Best
-                    // pépites, whose membership was never loaded, would look absent and get re-added
-                    // instead of removed.
-                    runCatching { repo.ensureBestPepitesLoaded() }
-                    if (repo.bestPepitesContains(track.sngId) == true) {
-                        runCatching { repo.removeFromBestPepites(track.sngId) }
-                            .onSuccess { toast(if (it) "Retiré de Best pépites" else "Playlist Best pépites introuvable") }
-                            .onFailure { toast("Échec du retrait") }
-                    } else {
-                        runCatching { repo.addToBestPepites(track) }
-                            .onSuccess {
-                                // Filing it in Best pépites means wanting it downloaded, so it also
-                                // goes to the DJ note (see appendToDjNote).
-                                if (it != PlaylistAddResult.NO_PLAYLIST) {
-                                    runCatching { appendToDjNote(applicationContext, track.artist, track.title) }
-                                }
-                                toast(
-                                    when (it) {
-                                        PlaylistAddResult.ADDED -> "Ajouté à Best pépites"
-                                        PlaylistAddResult.DUPLICATE -> "Déjà dans Best pépites"
-                                        PlaylistAddResult.NO_PLAYLIST -> "Playlist Best pépites introuvable"
-                                    }
-                                )
-                            }
-                            .onFailure { toast("Échec de l'ajout") }
-                    }
+                    toast(bestPepitesMessage(applicationContext, repo, track, repo.player.playerState.value.source))
                     refreshActionButtons()
                 }
                 else -> return Futures.immediateFuture(SessionResult(SessionResult.RESULT_ERROR_NOT_SUPPORTED))

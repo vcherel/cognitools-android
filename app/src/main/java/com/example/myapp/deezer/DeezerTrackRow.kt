@@ -178,14 +178,20 @@ suspend fun addToQueueMessage(repo: DeezerRepository, track: DeezerTrack): Strin
 
 /**
  * Shared: runs the diamond action and returns the toast to show. Every entry point (row menu, now
- * playing sheet, notification) toggles: a track already in Best pépites comes back out of it.
+ * playing sheet, notification) adds to Best pépites; only a track played from Best pépites itself
+ * ([playingFrom]) comes back out of it, so a tap elsewhere never removes one by surprise.
  * Adding one also files it in the DJ note, since putting a track there means wanting it downloaded.
  */
-suspend fun toggleBestPepitesMessage(context: Context, repo: DeezerRepository, track: DeezerTrack): String =
+suspend fun bestPepitesMessage(
+    context: Context,
+    repo: DeezerRepository,
+    track: DeezerTrack,
+    playingFrom: TrackSource? = null
+): String =
     runCatching {
         // Without the membership loaded the track would look absent and be added a second time.
         runCatching { repo.ensureBestPepitesLoaded() }
-        if (repo.bestPepitesContains(track.sngId) == true) {
+        if (repo.isBestPepites(playingFrom) && repo.bestPepitesContains(track.sngId) == true) {
             if (repo.removeFromBestPepites(track.sngId)) "Retiré de Best pépites"
             else "Playlist Best pépites introuvable"
         } else when (val result = repo.addToBestPepites(track)) {

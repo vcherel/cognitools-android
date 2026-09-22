@@ -108,8 +108,9 @@ class NoteSyncActions(
      * into a correctly placed shopping list entry. An item Modèle courses doesn't know goes through
      * the same reconcile dialog as a direct add, so it gets a real section instead of silently
      * landing in a trailing "Autres"; its Ingrédients line only disappears once that is answered.
+     * With [keep] the Ingrédients line stays: the item is only added to Courses.
      */
-    fun moveLineToCourses(index: Int) {
+    fun moveLineToCourses(index: Int, keep: Boolean = false) {
         val removed = content.split("\n")[index]
         scope.launch {
             val notes = dao.getNotes()
@@ -123,9 +124,11 @@ class NoteSyncActions(
             val ingredientsSnapshot = content
 
             if (known) {
-                val lines = content.split("\n").toMutableList()
-                lines.removeAt(index)
-                saveContent(lines.joinToString("\n"))
+                if (!keep) {
+                    val lines = content.split("\n").toMutableList()
+                    lines.removeAt(index)
+                    saveContent(lines.joinToString("\n"))
+                }
                 val canonical = groups[groupIndex].items.first { it.itemKey() == itemName.itemKey() }
                 updateNoteContent(
                     courses.id,
@@ -137,13 +140,13 @@ class NoteSyncActions(
                 NoteSyncBatch(
                     targetId = courses.id,
                     modelId = modelNote.id,
-                    sourceId = noteId,
-                    sourceSnapshot = ingredientsSnapshot,
+                    sourceId = noteId.takeUnless { keep },
+                    sourceSnapshot = ingredientsSnapshot.takeUnless { keep },
                     targetSnapshot = courses.content,
                     modelSnapshot = modelNote.content,
                     groups = groups,
                     pending = if (known) emptyList()
-                    else listOf(ReconcileItem(name = itemName, sourceLine = removed, inTarget = false)),
+                    else listOf(ReconcileItem(name = itemName, sourceLine = removed.takeUnless { keep }, inTarget = false)),
                     movedCount = if (known) 1 else 0,
                     kind = SyncKind.COURSE
                 )

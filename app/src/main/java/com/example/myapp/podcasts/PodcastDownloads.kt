@@ -2,6 +2,7 @@ package com.example.myapp.podcasts
 
 import com.example.myapp.writeAtomically
 import com.example.myapp.userMessage
+import com.example.myapp.deezerRepository
 import android.content.Context
 import android.net.ConnectivityManager
 import android.net.Network
@@ -239,6 +240,9 @@ class PodcastDownloads(private val appContext: Context, private val dao: () -> P
                 throw e
             } catch (e: Exception) {
                 Log.w(TAG, "Download failed for ${episode.title}", e)
+                // Logged where the music tool's errors go: the snackbar alone said "Problème de
+                // réseau" for any IOException, which hid whether the CDN refused or the fetch was cut.
+                appContext.deezerRepository.logError("Téléchargement podcast ${episode.title} (${episode.audioUrl})", e)
                 AppSnackbar.show(userMessage(e, "Échec du téléchargement"))
             } finally {
                 // Only this job's own entry: a cancel followed by a fresh enqueue of the same episode
@@ -277,7 +281,7 @@ class PodcastDownloads(private val appContext: Context, private val dao: () -> P
      */
     private suspend fun download(episode: PodcastEpisode) {
         if (isDownloaded(episode.id)) return
-        if (episode.audioUrl.isBlank()) throw IOException("Pas de flux audio pour cet épisode")
+        if (episode.audioUrl.isBlank()) throw IllegalStateException("Pas de flux audio pour cet épisode")
         // Protected up front: the fetch itself must not be evicted by what playback caches meanwhile.
         PodcastStreamCache.setProtected(appContext, episode.audioUrl, true)
         try {
@@ -311,7 +315,7 @@ class PodcastDownloads(private val appContext: Context, private val dao: () -> P
                 // and a truncated episode kept as a download is worse than none: it plays up to where
                 // it stops, the player calls that the end, and the episode gets marked heard.
                 if (!PodcastStreamCache.holdsWholeResource(appContext, episode.audioUrl)) {
-                    throw IOException("Téléchargement incomplet")
+                    throw IllegalStateException("Téléchargement incomplet")
                 }
             }
             dao().upsertDownload(episode.toDownload())

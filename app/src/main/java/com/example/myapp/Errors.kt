@@ -1,5 +1,6 @@
 package com.example.myapp
 
+import androidx.media3.datasource.HttpDataSource
 import java.io.IOException
 import java.net.ConnectException
 import java.net.SocketTimeoutException
@@ -15,9 +16,12 @@ import kotlin.coroutines.cancellation.CancellationException
  */
 fun userMessage(e: Throwable, fallback: String = "Une erreur est survenue"): String {
     if (e is CancellationException) throw e
+    // Media3 wraps the socket failure of a stream or a download in its own IOException.
+    val cause = if (e is HttpDataSource.HttpDataSourceException && e.cause != null) e.cause!! else e
     return when {
-        e is UnknownHostException || e is ConnectException -> "Pas de connexion"
-        e is SocketTimeoutException -> "Le serveur ne répond pas"
+        e is HttpDataSource.InvalidResponseCodeException -> "Erreur serveur (${e.responseCode})"
+        cause is UnknownHostException || cause is ConnectException -> "Pas de connexion"
+        cause is SocketTimeoutException -> "Le serveur ne répond pas"
         e is HttpStatusException && e.code == 429 -> "Trop de requêtes, réessaie dans un instant"
         e is HttpStatusException && e.code in 500..599 -> "Le serveur est en panne"
         e is HttpStatusException -> "Erreur serveur (${e.code})"

@@ -78,6 +78,7 @@ fun DeezerScreen(
                         onOpenSearch = { nav.navigate("search") },
                         onOpenFavorites = { nav.navigate("favorites") },
                         onOpenFavoritesHistory = { nav.navigate("favoritesHistory") },
+                        onOpenDownloaded = { nav.navigate("downloaded") },
                         onOpenPlaylist = { pl -> nav.navigate("playlist/${pl.id}/${java.net.URLEncoder.encode(pl.title, "UTF-8")}") },
                         onOpenPodcast = { fav -> nav.navigate("podcast/${java.net.URLEncoder.encode(fav.id, "UTF-8")}") },
                         onOpenPodcastDownloads = { nav.navigate("podcastDownloads") },
@@ -95,6 +96,15 @@ fun DeezerScreen(
                         title = "Favoris",
                         source = TrackSource.Favorites,
                         loader = { repo.ensureFavorites() },
+                        onBack = { nav.popBackStackOnce() },
+                        onOpenArtist = { track -> openArtistByName(track.artist) }
+                    )
+                }
+                composable("downloaded") {
+                    DeezerTrackListScreen(
+                        repo = repo,
+                        title = "Hors ligne",
+                        loader = { repo.player.downloadedTracks() },
                         onBack = { nav.popBackStackOnce() },
                         onOpenArtist = { track -> openArtistByName(track.artist) }
                     )

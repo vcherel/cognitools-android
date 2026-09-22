@@ -71,6 +71,7 @@ fun DeezerLibraryScreen(
     onOpenSearch: () -> Unit,
     onOpenFavorites: () -> Unit,
     onOpenFavoritesHistory: () -> Unit,
+    onOpenDownloaded: () -> Unit,
     onOpenPlaylist: (DeezerPlaylist) -> Unit,
     onOpenPodcast: (PodcastFavorite) -> Unit,
     onOpenPodcastDownloads: () -> Unit,
@@ -243,7 +244,8 @@ fun DeezerLibraryScreen(
                 ShuffleActionCard(
                     icon = Icons.Filled.OfflinePin,
                     label = "$downloadedCount titres · disponible hors ligne",
-                    onShuffle = { scope.launch { runCatching { repo.player.shuffleDownloaded() }.onFailure { error = userMessage(it) } } }
+                    onShuffle = { scope.launch { runCatching { repo.player.shuffleDownloaded() }.onFailure { error = userMessage(it) } } },
+                    onOpen = onOpenDownloaded
                 )
             }
             Spacer(Modifier.height(16.dp))

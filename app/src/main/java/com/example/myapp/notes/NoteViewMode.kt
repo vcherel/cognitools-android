@@ -25,8 +25,8 @@ import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.CodeOff
+import androidx.compose.material.icons.filled.AddShoppingCart
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.EventBusy
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.FormatBold
@@ -82,6 +82,7 @@ data class NoteLineActions(
     val onToggleLine: (Int) -> Unit,
     val onDeleteLine: (Int) -> Unit,
     val onMoveToCourses: (Int) -> Unit,
+    val onCopyToCourses: (Int) -> Unit,
     val onChangeQuantity: (index: Int, delta: Int) -> Unit,
     val onShiftMuscu: (Int, Int) -> Unit,
     val onRemoveDateSuffix: (Int) -> Unit,
@@ -426,6 +427,9 @@ private fun NoteLine(
                     }
                 }
                 if (isIngredientsNote) {
+                    LineIconButton(Icons.Default.AddShoppingCart, "Ajouter à Courses", iconTopPadding) {
+                        actions.onCopyToCourses(lineIndex)
+                    }
                     LineIconButton(Icons.Default.ShoppingCart, "Déplacer vers Courses", iconTopPadding) {
                         actions.onMoveToCourses(lineIndex)
                     }
@@ -504,6 +508,10 @@ private fun NoteLine(
                             actions.onToggleTitleLine(lineIndex)
                         }
                         if (isIngredientsNote) {
+                            LineIconButton(Icons.Default.AddShoppingCart, "Ajouter à Courses") {
+                                actions.onCopyToCourses(lineIndex)
+                                onDeselect()
+                            }
                             LineIconButton(Icons.Default.ShoppingCart, "Déplacer vers Courses") {
                                 actions.onMoveToCourses(lineIndex)
                                 onDeselect()
@@ -512,10 +520,6 @@ private fun NoteLine(
                         LineIconButton(Icons.Default.Delete, "Supprimer la ligne") {
                             actions.onDeleteLine(lineIndex)
                             onDeselect()
-                        }
-                        LineIconButton(Icons.Default.Edit, "Éditer") {
-                            onDeselect()
-                            actions.onEnterEditAt(lineStart + line.length)
                         }
                     }
                 }

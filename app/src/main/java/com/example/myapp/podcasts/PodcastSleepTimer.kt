@@ -10,6 +10,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
@@ -28,6 +29,10 @@ private const val PRELOAD_MARGIN_MS = 120_000L
 // And secured a little behind the player too: a playback position maps to a byte offset only
 // approximately (see cacheRange), and the fetched range must not start after what is playing.
 private const val PRELOAD_BACK_MARGIN_MS = 60_000L
+
+/** The timer's last minute lowers the volume step by step, so sleep isn't cut by a sudden silence. */
+private const val FADE_MS = 60_000L
+private const val FADE_STEP_MS = 500L
 
 /** How often the secured stretch is checked again while the timer runs. */
 private const val COVERAGE_CHECK_INTERVAL_MS = 30_000L
@@ -95,8 +100,20 @@ class PodcastSleepTimer(private val appContext: Context, private val repo: Podca
         timerJob?.cancel()
         _endAt.value = System.currentTimeMillis() + minutes * 60_000L
         timerJob = scope.launch {
-            delay(minutes * 60_000L)
-            withContext(Dispatchers.Main) { repo.controller?.pause() }
+            val totalMs = minutes * 60_000L
+            val fadeMs = minOf(FADE_MS, totalMs)
+            delay(totalMs - fadeMs)
+            try {
+                val steps = (fadeMs / FADE_STEP_MS).toInt().coerceAtLeast(1)
+                for (step in 1..steps) {
+                    withContext(Dispatchers.Main) { repo.controller?.volume = 1f - step.toFloat() / steps }
+                    delay(fadeMs / steps)
+                }
+                withContext(Dispatchers.Main) { repo.controller?.pause() }
+            } finally {
+                // Back to full volume whether it paused or the timer was cancelled mid-fade.
+                withContext(NonCancellable + Dispatchers.Main) { repo.controller?.volume = 1f }
+            }
             _endAt.value = null
             _cacheProgress.value = null
             watchdogJob?.cancel()
