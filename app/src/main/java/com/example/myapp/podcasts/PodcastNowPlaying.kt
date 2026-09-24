@@ -68,7 +68,7 @@ fun PodcastFullPlayerSheet(
     val scope = rememberCoroutineScope()
     val goHome = LocalGoHome.current
     val episodes by repo.episodes.collectAsState()
-    val episode = episodes.firstOrNull { it.id == state.episodeId }
+    val episode = episodes.firstOrNull { it.id == state.episodeId } ?: repo.currentEpisode()
     val isSeen = episode?.seen == true
     val downloadedIds by repo.downloads.ids.collectAsState()
     val downloadingIds by repo.downloads.activeIds.collectAsState()

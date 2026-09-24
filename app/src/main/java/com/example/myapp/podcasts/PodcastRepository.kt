@@ -79,6 +79,17 @@ class PodcastRepository(private val appContext: Context) {
     private val _episodes = MutableStateFlow<List<PodcastEpisode>>(emptyList())
     val episodes: StateFlow<List<PodcastEpisode>> = _episodes
 
+    /**
+     * What the player was last handed. An episode played from the downloads screen, or before the
+     * feeds are read (offline, cold start), is missing from [_episodes], and the sleep timer and the
+     * playback recovery still need to know it.
+     */
+    @Volatile
+    private var playedQueue: List<PodcastEpisode> = emptyList()
+
+    private fun knownEpisode(id: String): PodcastEpisode? =
+        playedQueue.firstOrNull { it.id == id } ?: _episodes.value.firstOrNull { it.id == id }
+
     private val _loading = MutableStateFlow(false)
     val loading: StateFlow<Boolean> = _loading
 
@@ -269,7 +280,7 @@ class PodcastRepository(private val appContext: Context) {
             // Deezer-sourced one is a numeric id with nothing cached against it, and an episode gone
             // from the merged list can't be traced back to its URL: only the cache is skipped then,
             // the download above is keyed by the id alone and goes either way.
-            val url = _episodes.value.firstOrNull { it.id == episodeId }?.audioUrl
+            val url = knownEpisode(episodeId)?.audioUrl
                 ?.takeIf { it.isNotBlank() } ?: return@withContext
             PodcastStreamCache.remove(appContext, url)
         }
@@ -461,7 +472,7 @@ class PodcastRepository(private val appContext: Context) {
         Log.w(TAG, "Episode $episodeId ended right after it started, not marking it heard")
         val attempt = (shortSourceRetries[episodeId] ?: 0) + 1
         if (attempt > 2) return
-        val episode = _episodes.value.firstOrNull { it.id == episodeId } ?: return
+        val episode = knownEpisode(episodeId) ?: return
         shortSourceRetries[episodeId] = attempt
         progressScope.launch {
             // A downloaded file that ends on the spot is truncated, whatever the position: it goes,
@@ -534,6 +545,7 @@ class PodcastRepository(private val appContext: Context) {
         } else savedMs
         withContext(Dispatchers.Main) {
             trackEpisode(episode.id)
+            playedQueue = queue
             controller.setMediaItems(items, startIndex, startPositionMs)
             controller.prepare()
             controller.play()
@@ -558,9 +570,9 @@ class PodcastRepository(private val appContext: Context) {
         _playerState.value = PodcastPlayerUiState()
     }
 
-    /** The episode the player is on, as a full episode. Read by [sleepTimer]. */
+    /** The episode the player is on, as a full episode. Read by [sleepTimer] and the full player. */
     internal fun currentEpisode(): PodcastEpisode? =
-        _playerState.value.episodeId?.let { id -> _episodes.value.firstOrNull { it.id == id } }
+        _playerState.value.episodeId?.let { knownEpisode(it) }
 
     private fun buildMediaItem(episode: PodcastEpisode): MediaItem {
         val metadata = MediaMetadata.Builder()

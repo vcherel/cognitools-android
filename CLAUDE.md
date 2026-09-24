@@ -101,7 +101,7 @@ Root package (shared/misc):
 `files/` (file explorer, one folder at a time):
 - `FileOps.kt`: the java.io.File side; listing/sorting a folder, the breadcrumb chain, size/date formatting, rename/create/delete/copy/move, and the FileProvider intents that open or share a file
 - `FileDefaults.kt`: the app chosen for each extension, captured from the system "Ouvrir avec" sheet by its receiver and stored in DataStore
-- `FilesScreen.kt`: the screen; breadcrumb, long press selection with its action bar, the cut/copy clipboard bar, the rename and new-folder dialogs
+- `FilesScreen.kt`: the screen; breadcrumb, pictures and videos opened in the gallery viewer (found in MediaStore by path), long press selection with its action bar, the cut/copy clipboard bar, the rename and new-folder dialogs
 
 `flashcards/` (spaced repetition flashcards tool):
 - `Models.kt`: FlashcardList/FlashcardElement data classes, JSON (de)serialization, stats helpers

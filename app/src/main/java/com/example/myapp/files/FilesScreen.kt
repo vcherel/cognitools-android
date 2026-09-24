@@ -69,12 +69,15 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import com.example.myapp.AppDialog
 import com.example.myapp.AppSnackbar
 import com.example.myapp.MyButton
 import com.example.myapp.ScreenTopBar
 import com.example.myapp.ShowAlertDialog
 import com.example.myapp.gallery.hasAllFilesAccess
+import com.example.myapp.gallery.queryMediaIdByPath
 import com.example.myapp.gallery.rememberAllFilesAccessRequester
 import com.example.myapp.plural
 import kotlinx.coroutines.Dispatchers
@@ -93,7 +96,7 @@ private data class Clipboard(val files: List<File>, val move: Boolean)
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun FilesScreen(onBack: () -> Unit) {
+fun FilesScreen(onBack: () -> Unit, onOpenMedia: (Long) -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
@@ -121,6 +124,26 @@ fun FilesScreen(onBack: () -> Unit) {
         entries = null
         selected = emptySet()
         entries = if (hasAccess) withContext(Dispatchers.IO) { listFolder(currentDir) } else emptyList()
+    }
+
+    // Another app can drop a file here while this screen sits in the background (a WhatsApp save),
+    // so the folder is read again on every return, quietly, without the loading state.
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        if (hasAccess) scope.launch { entries = withContext(Dispatchers.IO) { listFolder(currentDir) } }
+    }
+
+    /** Pictures and videos open in the gallery viewer; anything else, or one MediaStore refuses, goes to another app. */
+    fun open(file: File) {
+        scope.launch {
+            val mime = mimeTypeOf(file)
+            val mediaId = if (mime.startsWith("image/") || mime.startsWith("video/")) {
+                withContext(Dispatchers.IO) { queryMediaIdByPath(context, file) }
+            } else null
+            when {
+                mediaId != null -> onOpenMedia(mediaId)
+                !openFile(context, file, defaultFor(file)) -> AppSnackbar.show("Aucune application pour ce fichier")
+            }
+        }
     }
 
     val selectedEntries = entries.orEmpty().filter { it.path in selected }
@@ -264,8 +287,7 @@ fun FilesScreen(onBack: () -> Unit) {
                                     selected = if (entry.path in selected) selected - entry.path
                                     else selected + entry.path
                                 entry.isDirectory -> currentDir = entry.file
-                                !openFile(context, entry.file, defaultFor(entry.file)) ->
-                                    AppSnackbar.show("Aucune application pour ce fichier")
+                                else -> open(entry.file)
                             }
                         },
                         onLongClick = {

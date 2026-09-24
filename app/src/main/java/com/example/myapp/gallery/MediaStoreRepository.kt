@@ -6,11 +6,15 @@ import android.content.ContentUris
 import android.content.ContentValues
 import android.content.Context
 import android.content.IntentSender
+import android.media.MediaScannerConnection
 import android.net.Uri
 import android.os.Bundle
 import android.os.Environment
 import android.provider.MediaStore
+import java.io.File
 import java.io.OutputStream
+import kotlin.coroutines.resume
+import kotlinx.coroutines.suspendCancellableCoroutine
 
 sealed interface WriteOutcome {
     data object Done : WriteOutcome
@@ -152,6 +156,32 @@ fun resolveMediaTarget(context: Context, uri: Uri): Pair<Long, Long>? = try {
 } catch (e: SecurityException) {
     null
 }
+
+/**
+ * The gallery id of the image or video at [file], so the file explorer can open it in the viewer.
+ * A file MediaStore has not indexed yet (just saved by another app) is scanned first. Null when it
+ * is not a picture or a video, or the scan refuses it.
+ */
+suspend fun queryMediaIdByPath(context: Context, file: File): Long? {
+    mediaIdByPath(context, file.absolutePath)?.let { return it }
+    suspendCancellableCoroutine { cont ->
+        MediaScannerConnection.scanFile(context, arrayOf(file.absolutePath), null) { _, _ -> cont.resume(Unit) }
+    }
+    return mediaIdByPath(context, file.absolutePath)
+}
+
+private fun mediaIdByPath(context: Context, path: String): Long? =
+    context.contentResolver.query(
+        MediaStore.Files.getContentUri("external"),
+        arrayOf(MediaStore.Files.FileColumns._ID),
+        "${MediaStore.Files.FileColumns.DATA} = ? AND (${MediaStore.Files.FileColumns.MEDIA_TYPE} = ? OR ${MediaStore.Files.FileColumns.MEDIA_TYPE} = ?)",
+        arrayOf(
+            path,
+            MediaStore.Files.FileColumns.MEDIA_TYPE_IMAGE.toString(),
+            MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO.toString()
+        ),
+        null
+    )?.use { cursor -> if (cursor.moveToFirst()) cursor.getLong(0) else null }
 
 /** The trashed items, most recently trashed first. */
 fun queryTrashedItems(context: Context): List<MediaItem> = queryMediaItems(context, trashedOnly = true)

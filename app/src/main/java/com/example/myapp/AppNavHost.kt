@@ -123,7 +123,9 @@ fun MainScreen(
                     composable("volumeBooster") { VolumeBoosterScreen(onBack = back) }
                     composable("undercover") { UndercoverScreen(onBack = back) }
                     composable("wikipedia") { WikipediaScreen(onBack = back) }
-                    composable("files") { FilesScreen(onBack = back) }
+                    composable("files") {
+                        FilesScreen(onBack = back, onOpenMedia = { id -> navController.navigate("gallery/item/$id") })
+                    }
                     composable("weather") { WeatherScreen(onBack = back) }
                     composable("news") {
                         NewsScreen(
@@ -206,6 +208,10 @@ fun MainScreen(
                         ViewerSource.Pinned to (args?.getString("itemId")?.toLongOrNull() ?: -1L)
                     }
                     viewerRoute("gallery/wallet", navController, back) { ViewerSource.Wallet to -1L }
+                    viewerRoute("gallery/item/{itemId}", navController, back) { args ->
+                        val itemId = args?.getString("itemId")?.toLongOrNull() ?: -1L
+                        ViewerSource.Single(itemId) to itemId
+                    }
                     composable("gallery/crop/{itemId}") { backStackEntry ->
                         val itemId = backStackEntry.arguments?.getString("itemId")?.toLongOrNull() ?: 0L
                         GalleryCropScreen(itemId = itemId, onBack = back)
