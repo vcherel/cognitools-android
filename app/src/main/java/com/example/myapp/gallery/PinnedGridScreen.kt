@@ -47,7 +47,7 @@ fun GalleryPinnedGridScreen(onBack: () -> Unit, onOpenItem: (Long) -> Unit) {
     val requestConsent = LocalMediaConsent.current
     val gridState = rememberLazyGridState()
     val pinDao = remember { AppDatabase.get(context).pinnedMediaItemDao() }
-    val pinnedRows by pinDao.observePinned().collectAsState(initial = emptyList())
+    val pinnedRows by remember { pinDao.observePinned() }.collectAsState(initial = emptyList())
     var items by remember { mutableStateOf<List<MediaItem>?>(null) }
     var selectedIds by remember { mutableStateOf<Set<Long>>(emptySet()) }
     var showMoveDialog by remember { mutableStateOf(false) }

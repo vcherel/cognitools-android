@@ -56,7 +56,7 @@ fun AddToFlashcardsDialog(
     val context = LocalContext.current
     val repo = remember { context.flashcardRepository }
     val scope = rememberCoroutineScope()
-    val lists by repo.observeLists().collectAsState(initial = emptyList())
+    val lists by remember { repo.observeLists() }.collectAsState(initial = emptyList())
 
     var chosen by remember { mutableStateOf<FlashcardList?>(null) }
     var picked by remember { mutableStateOf(false) }

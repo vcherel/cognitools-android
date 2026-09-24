@@ -57,8 +57,8 @@ fun TranslateScreen(onBack: () -> Unit) {
     val scope = rememberCoroutineScope()
     val speak = rememberSpeaker()
 
-    val target by TranslateStore.target(context).collectAsState(initial = TranslateLang.FR)
-    val history by TranslateStore.history(context).collectAsState(initial = emptyList())
+    val target by remember { TranslateStore.target(context) }.collectAsState(initial = TranslateLang.FR)
+    val history by remember { TranslateStore.history(context) }.collectAsState(initial = emptyList())
 
     var input by remember { mutableStateOf("") }
     var result by remember { mutableStateOf<TranslationResult?>(null) }

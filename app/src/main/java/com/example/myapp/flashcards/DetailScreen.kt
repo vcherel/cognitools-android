@@ -138,7 +138,7 @@ fun FlashcardDetailScreen(
 
     val isAllLists = listId == "all"
 
-    val lists by repository.observeLists().collectAsState(initial = emptyList())
+    val lists by remember { repository.observeLists() }.collectAsState(initial = emptyList())
     val listName = remember(lists, listId) {
         if (isAllLists) "Tout"
         else lists.find { it.id == listId }?.name ?: ""

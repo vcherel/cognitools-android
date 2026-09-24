@@ -57,7 +57,7 @@ fun BookLibraryScreen(onBack: () -> Unit, onOpenBook: (String) -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val dao = remember { AppDatabase.get(context).bookDao() }
-    val books by dao.observeBooks().collectAsState(initial = emptyList())
+    val books by remember { dao.observeBooks() }.collectAsState(initial = emptyList())
     var importing by remember { mutableStateOf(false) }
     var toDelete by remember { mutableStateOf<Book?>(null) }
 

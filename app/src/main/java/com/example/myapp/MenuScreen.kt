@@ -120,7 +120,7 @@ fun MenuScreen(
             DeezerMenuButton(height = buttonHeight, onOpenDeezer = onOpenDeezer)
             Spacer(modifier = Modifier.height(spaceHeight))
             // The right half shows how many cards are due right now instead of a play icon.
-            val allCards by context.flashcardRepository.observeAllElements().collectAsState(initial = emptyList())
+            val allCards by remember { context.flashcardRepository.observeAllElements() }.collectAsState(initial = emptyList())
             // Cards come due while the menu sits open (the app returns to it when idle), so the
             // count is recomputed every minute rather than only when the list itself changes.
             var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
@@ -130,7 +130,7 @@ fun MenuScreen(
                     now = System.currentTimeMillis()
                 }
             }
-            val dueCount = allCards.count { isDue(it, now) }
+            val dueCount = remember(allCards, now) { allCards.count { isDue(it, now) } }
             SplitMyButton(
                 text = "Flashcards",
                 rightIcon = Icons.Default.PlayArrow,
@@ -142,7 +142,7 @@ fun MenuScreen(
             )
             Spacer(modifier = Modifier.height(spaceHeight))
             val pinDao = remember { AppDatabase.get(context).pinnedMediaItemDao() }
-            val pinnedRows by pinDao.observePinned().collectAsState(initial = emptyList())
+            val pinnedRows by remember { pinDao.observePinned() }.collectAsState(initial = emptyList())
             val somethingPinned = pinnedRows.isNotEmpty()
             SplitMyButton(
                 text = "Galerie",

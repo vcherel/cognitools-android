@@ -97,9 +97,9 @@ fun FlashcardGameScreen(listId: String, navController: NavController) {
     val sessionRandom = remember { Random(System.currentTimeMillis()) }
 
     val allElements by if (isAllListsMode) {
-        repository.observeAllElements().collectAsState(initial = emptyList())
+        remember { repository.observeAllElements() }.collectAsState(initial = emptyList())
     } else {
-        repository.observeElements(listId).collectAsState(initial = emptyList())
+        remember(listId) { repository.observeElements(listId) }.collectAsState(initial = emptyList())
     }
 
     var currentCard by remember { mutableStateOf<FlashcardElement?>(null) }

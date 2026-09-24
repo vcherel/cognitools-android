@@ -104,7 +104,7 @@ fun GalleryViewerScreen(
     // Null until the Room Flow's first real emission arrives: collectAsState's own initial value
     // (an empty list) is indistinguishable from "really no pins", which would otherwise bounce a
     // Pinned-source viewer straight back out before the actual pins ever get read.
-    val pinnedRowsState by pinDao.observePinned().collectAsState(initial = null)
+    val pinnedRowsState by remember { pinDao.observePinned() }.collectAsState(initial = null)
     val pinnedRows = pinnedRowsState ?: emptyList()
     val pinnedIds = remember(pinnedRows) { pinnedRows.map { it.mediaItemId }.toSet() }
     val heroId = remember(pinnedRows) { orderedPinnedIds(pinnedRows).firstOrNull() }

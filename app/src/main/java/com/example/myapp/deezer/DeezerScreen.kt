@@ -12,6 +12,8 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import com.example.myapp.screenEnter
+import com.example.myapp.screenExit
 import com.example.myapp.AppSnackbar
 import kotlinx.coroutines.launch
 import androidx.navigation.compose.NavHost
@@ -69,6 +71,8 @@ fun DeezerScreen(
             NavHost(
                 navController = nav,
                 startDestination = "library",
+                enterTransition = { screenEnter },
+                exitTransition = { screenExit },
                 modifier = Modifier.fillMaxSize().weight(1f)
             ) {
                 composable("library") {

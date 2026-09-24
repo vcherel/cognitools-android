@@ -2,6 +2,9 @@ package com.example.myapp
 
 import android.net.Uri
 import android.os.Bundle
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
@@ -99,7 +102,12 @@ fun MainScreen(
 
         Scaffold(snackbarHost = { SnackbarHost(snackbarHostState) }) { innerPadding ->
             Box(modifier = Modifier.padding(innerPadding)) {
-                NavHost(navController = navController, startDestination = "menu") {
+                NavHost(
+                    navController = navController,
+                    startDestination = "menu",
+                    enterTransition = { screenEnter },
+                    exitTransition = { screenExit }
+                ) {
                     composable("menu") {
                         MenuScreen(
                             isDarkMode = isDarkMode,
@@ -276,3 +284,8 @@ private fun NavGraphBuilder.viewerRoute(
         onTrim = { id -> navController.navigate("gallery/trim/$id") }
     )
 }
+
+// Navigation's default is a 700 ms crossfade, long enough that opening a screen felt slow and
+// heavy enough to drop most frames on the phone. Every NavHost in the app uses these instead.
+internal val screenEnter = fadeIn(tween(150))
+internal val screenExit = fadeOut(tween(150))

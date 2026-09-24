@@ -84,8 +84,8 @@ fun ReaderScreen(bookId: String, onBack: () -> Unit) {
     val scope = rememberCoroutineScope()
     val dao = remember { AppDatabase.get(context).bookDao() }
     val listState = rememberLazyListState()
-    val fontSize by ReaderPrefs.fontSize(context).collectAsState(initial = ReaderPrefs.DEFAULT_FONT_SIZE)
-    val lookupTarget by TranslateStore.target(context).collectAsState(initial = TranslateLang.FR)
+    val fontSize by remember { ReaderPrefs.fontSize(context) }.collectAsState(initial = ReaderPrefs.DEFAULT_FONT_SIZE)
+    val lookupTarget by remember { TranslateStore.target(context) }.collectAsState(initial = TranslateLang.FR)
 
     var book by remember { mutableStateOf<Book?>(null) }
     var chapters by remember { mutableStateOf<List<EpubChapter>>(emptyList()) }

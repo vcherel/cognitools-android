@@ -84,7 +84,7 @@ fun GalleryAlbumsScreen(
     var trashCount by remember { mutableStateOf(0) }
     val refreshVersion by GalleryRefresh.version.collectAsState()
     val pinDao = remember { AppDatabase.get(context).pinnedMediaItemDao() }
-    val pinnedRows by pinDao.observePinned().collectAsState(initial = emptyList())
+    val pinnedRows by remember { pinDao.observePinned() }.collectAsState(initial = emptyList())
     var heroItem by remember { mutableStateOf<MediaItem?>(null) }
     var pinnedCount by remember { mutableStateOf(0) }
     val lockedBuckets by remember { GalleryLock.lockedBucketIds(context) }.collectAsState(initial = emptySet())

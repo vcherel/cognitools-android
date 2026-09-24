@@ -13,7 +13,8 @@ import androidx.compose.ui.text.TextRange
  */
 internal val autoContinueCheckboxTransformation = InputTransformation {
     val cursor = selection.start
-    val oldText = originalText.toString()
+    // Not copied to a String: this runs on every keystroke, and a long note would be copied each time.
+    val oldText = originalText
 
     val typedNewline = length == oldText.length + 1 &&
         cursor > 0 && cursor <= length && charAt(cursor - 1) == '\n'

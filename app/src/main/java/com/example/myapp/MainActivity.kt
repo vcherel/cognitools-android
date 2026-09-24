@@ -7,16 +7,15 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
-import android.view.animation.AnticipateInterpolator
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.example.myapp.gallery.LockedQuickView
@@ -47,26 +46,17 @@ class MainActivity : ComponentActivity() {
     // the just-deleted item no longer resolvable.
     private var lockedSession = false
 
+    private val themeManager by lazy { ThemeManager(applicationContext) }
+    private var themeLoaded = false
+
     override fun onCreate(savedInstanceState: Bundle?) {
         val splashScreen = installSplashScreen()
         super.onCreate(savedInstanceState)
 
-        splashScreen.setOnExitAnimationListener { splashScreenView ->
-            // Some launch paths (e.g. "open with" from another app) hand back a splash view with
-            // no icon view; the compat library's getter throws instead of returning null there.
-            val iconView = try { splashScreenView.iconView } catch (e: NullPointerException) { null }
-            if (iconView != null) {
-                iconView.animate()
-                    .scaleX(1.5f)
-                    .scaleY(1.5f)
-                    .alpha(0f)
-                    .setInterpolator(AnticipateInterpolator())
-                    .setDuration(500L)
-                    .withEndAction { splashScreenView.remove() }
-            } else {
-                splashScreenView.remove()
-            }
-        }
+        // Held until the saved theme is read, so the first frame is drawn in the right colors
+        // instead of flashing light before switching to dark. No exit animation: the app is
+        // usable the moment it is drawn.
+        splashScreen.setKeepOnScreenCondition { !themeLoaded }
 
         val quickViewItem = resolveLockedQuickViewItem(intent)
         lockedQuickViewItem.value = quickViewItem
@@ -100,8 +90,9 @@ class MainActivity : ComponentActivity() {
 
         enableEdgeToEdge()
         setContent {
-            val themeManager = remember { ThemeManager(applicationContext) }
-            val isDarkMode by themeManager.isDarkMode.collectAsState(initial = false)
+            val isDarkMode = themeManager.isDarkMode.collectAsState(initial = null).value
+                ?: return@setContent
+            SideEffect { themeLoaded = true }
             val pendingRoute by pendingRoute
             val lockedQuickViewItem by lockedQuickViewItem
 

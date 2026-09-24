@@ -111,7 +111,7 @@ fun FilesScreen(onBack: () -> Unit, onOpenMedia: (Long) -> Unit) {
     var busy by remember { mutableStateOf(false) }
 
     // Which app opens which extension, chosen the first time a file of that kind was opened.
-    val defaults by FileDefaults.flow(context).collectAsState(initial = emptyMap())
+    val defaults by remember { FileDefaults.flow(context) }.collectAsState(initial = emptyMap())
     fun defaultFor(file: File): String? = defaults[file.extension.lowercase(Locale.ROOT)]
 
     var showMenu by remember { mutableStateOf(false) }

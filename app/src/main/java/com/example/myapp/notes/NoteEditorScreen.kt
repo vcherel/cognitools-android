@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
@@ -281,29 +282,7 @@ fun NoteEditorScreen(
                 Spacer(Modifier.height(16.dp))
 
                 if (isEditing) {
-                    // Typing "/" at the start of a line proposes commands as chips
-                    val slash = slashQuery(textFieldState)
-                    val slashMatches = if (slash == null) emptyList() else SLASH_COMMANDS.filter { cmd ->
-                        cmd.keywords.any { it.startsWith(slash.second, ignoreCase = true) }
-                    }
-                    if (slashMatches.isNotEmpty()) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            slashMatches.forEach { cmd ->
-                                SuggestionChip(
-                                    onClick = {
-                                        val lineStart = slash!!.first
-                                        val cursor = textFieldState.selection.start
-                                        textFieldState.edit {
-                                            replace(lineStart, cursor, cmd.prefix + cmd.suffix)
-                                            selection = TextRange(lineStart + cmd.prefix.length)
-                                        }
-                                    },
-                                    label = { Text(cmd.label) }
-                                )
-                            }
-                        }
-                        Spacer(Modifier.height(8.dp))
-                    }
+                    SlashCommandChips(textFieldState)
 
                     BasicTextField(
                         state = textFieldState,
@@ -502,4 +481,30 @@ private fun LockedNotePlaceholder(title: String, onBack: () -> Unit) {
             }
         }
     }
+}
+
+// Typing "/" at the start of a line proposes commands as chips. Its own composable so the cursor and
+// text it reads on every keystroke recompose only these chips, not the whole editor.
+@Composable
+private fun SlashCommandChips(textFieldState: TextFieldState) {
+    val slash = slashQuery(textFieldState)
+    val slashMatches = if (slash == null) emptyList() else SLASH_COMMANDS.filter { cmd ->
+        cmd.keywords.any { it.startsWith(slash.second, ignoreCase = true) }
+    }
+    if (slashMatches.isEmpty()) return
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        slashMatches.forEach { cmd ->
+            SuggestionChip(
+                onClick = {
+                    val cursor = textFieldState.selection.start
+                    textFieldState.edit {
+                        replace(slash!!.first, cursor, cmd.prefix + cmd.suffix)
+                        selection = TextRange(slash.first + cmd.prefix.length)
+                    }
+                },
+                label = { Text(cmd.label) }
+            )
+        }
+    }
+    Spacer(Modifier.height(8.dp))
 }

@@ -138,7 +138,7 @@ private const val DEFAULT_LIST_NAME = "Anglais"
 fun AddToFlashcardsButton(source: String, translation: String, modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val repo = remember { context.flashcardRepository }
-    val lists by repo.observeLists().collectAsState(initial = emptyList())
+    val lists by remember { repo.observeLists() }.collectAsState(initial = emptyList())
     var filing by remember { mutableStateOf(false) }
     var startWithPicker by remember { mutableStateOf(false) }
 
