@@ -5,7 +5,9 @@ import android.util.Base64
 import com.example.myapp.AppSnackbar
 import com.example.myapp.userMessage
 import com.sun.mail.imap.IMAPFolder
+import java.util.Date
 import java.util.Properties
+import javax.activation.DataHandler
 import javax.mail.AuthenticationFailedException
 import javax.mail.FetchProfile
 import javax.mail.Flags
@@ -16,7 +18,11 @@ import javax.mail.Part
 import javax.mail.Session
 import javax.mail.Store
 import javax.mail.UIDFolder
+import javax.mail.util.ByteArrayDataSource
 import javax.mail.internet.InternetAddress
+import javax.mail.internet.MimeBodyPart
+import javax.mail.internet.MimeMessage
+import javax.mail.internet.MimeMultipart
 import javax.mail.internet.MimeUtility
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -55,7 +61,8 @@ data class MailState(
  * The Yahoo inbox, fetched over IMAP only when asked: no background connection, no notification.
  * A fetch lists the latest messages first (one round trip), then reads their bodies newest first so
  * the codes appear on the rows one by one. The inbox is opened read only, so reading here never marks
- * a mail read on Yahoo's side; the one write is deleting, which moves a mail to Yahoo's Trash.
+ * a mail read on Yahoo's side; the one inbox write is deleting, which moves a mail to Yahoo's Trash.
+ * The CogniTools folder is the exception: the app backups are written there and pruned.
  */
 class MailRepository(context: Context) {
     val settings = MailSettings(context)
@@ -148,6 +155,42 @@ class MailRepository(context: Context) {
             if (inboxUid != null) putBack(removed.copy(uid = inboxUid)) else refresh()
         } catch (e: Exception) {
             AppSnackbar.show("Restauration impossible : ${userMessage(e)}")
+        }
+    }
+
+    /**
+     * Appends a backup to the CogniTools folder as a mail with the JSON attached (nothing is sent, the
+     * APPEND writes straight into the mailbox), then deletes all but the [keep] newest of that kind.
+     */
+    suspend fun uploadBackup(stem: String, fileName: String, json: String, keep: Int) = withContext(Dispatchers.IO) {
+        val address = settings.address.first()
+        val password = settings.password.first()
+        if (address.isBlank() || password.isBlank()) error("Compte Yahoo non configuré")
+        withStore(address, password) { store ->
+            val folder = store.getFolder(BACKUP_FOLDER)
+            if (!folder.exists()) folder.create(Folder.HOLDS_MESSAGES)
+            folder.open(Folder.READ_WRITE)
+            val message = MimeMessage(Session.getInstance(Properties())).apply {
+                setFrom(InternetAddress(address))
+                setRecipient(Message.RecipientType.TO, InternetAddress(address))
+                subject = fileName
+                sentDate = Date()
+                setContent(MimeMultipart().apply {
+                    addBodyPart(MimeBodyPart().apply { setText("Sauvegarde CogniTools") })
+                    addBodyPart(MimeBodyPart().apply {
+                        dataHandler = DataHandler(ByteArrayDataSource(json.toByteArray(), "application/json"))
+                        this.fileName = fileName
+                    })
+                })
+            }
+            folder.appendMessages(arrayOf(message))
+            val messages = folder.messages
+            folder.fetch(messages, FetchProfile().apply { add(FetchProfile.Item.ENVELOPE) })
+            val stale = messages.filter { it.subject.orEmpty().startsWith("${stem}_") }
+                .sortedByDescending { (it.receivedDate ?: it.sentDate)?.time ?: 0L }
+                .drop(keep)
+            if (stale.isNotEmpty()) folder.setFlags(stale.toTypedArray(), Flags(Flags.Flag.DELETED), true)
+            folder.close(true)
         }
     }
 
@@ -268,6 +311,7 @@ class MailRepository(context: Context) {
 
     private companion object {
         const val IMAP_HOST = "imap.mail.yahoo.com"
+        const val BACKUP_FOLDER = "CogniTools"
         const val FETCH_COUNT = 30
         const val PREVIEW_LENGTH = 160
         const val MAX_INLINE_IMAGE = 300_000

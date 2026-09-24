@@ -62,6 +62,7 @@ import androidx.activity.compose.BackHandler
 import androidx.navigation.NavController
 import com.example.myapp.BackIconButton
 import com.example.myapp.flashcardRepository
+import com.example.myapp.BackupKind
 import com.example.myapp.BackupRestoreActions
 import com.example.myapp.BottomFadeOverlay
 import com.example.myapp.MyButton
@@ -167,10 +168,9 @@ fun FlashcardListsScreen(navController: NavController) {
                     }
 
                     BackupRestoreActions(
-                        backupFileName = "cognitools_flashcards",
+                        kind = BackupKind.FLASHCARDS,
                         importDialogText = "Les listes et cartes du fichier seront ajoutées. " +
                                 "Celles qui existent déjà seront remplacées par la version du fichier.",
-                        createBackupJson = { repository.createBackupJson() },
                         importFromJson = { repository.importFromJson(it) }
                     )
                 }

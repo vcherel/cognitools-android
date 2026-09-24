@@ -55,7 +55,7 @@ Root package (shared/misc):
 - `BottomFadeOverlay.kt`: shared fade out gradient overlay composable
 - `Snackbar.kt`: AppSnackbar, the app wide snackbar screens post undo actions through
 - `SearchHistory.kt`: recent search terms per surface (notes, cities, Deezer, news) and the RecentSearchChips row
-- `BackupRestore.kt`: export/import actions for app data
+- `BackupRestore.kt`: the notes and flashcards backups; one save writes Téléchargements and uploads to Yahoo, keeping the 3 newest in each place, plus the import dialog and the menu's save button (its icon ages with the last Yahoo copy)
 - `Random.kt`: random number generator tool screen
 - `Volume.kt`: volume booster foreground service and its screen
 - `Wikipedia.kt`: random Wikipedia article tool screen
@@ -140,9 +140,9 @@ Root package (shared/misc):
 - `CropScreen.kt`: image crop editor
 - `TrimScreen.kt`: video trim editor
 
-`mail/` (the Yahoo inbox, read and delete only, fetched only when the screen opens or on refresh; no background work):
+`mail/` (the Yahoo inbox, read and delete only, fetched only when the screen opens or on refresh; no background work; plus the backup upload):
 - `MailSettings.kt`: DataStore for the Yahoo address and its app password
-- `MailRepository.kt`: the singleton; one read only IMAP session per fetch, delete as a move to Trash with undo, the MIME walk, MailState
+- `MailRepository.kt`: the singleton; one read only IMAP session per fetch, delete as a move to Trash with undo, the MIME walk, MailState, and `uploadBackup` (the app backups APPENDed to a CogniTools folder and pruned there)
 - `VerificationCode.kt`: `findVerificationCode`, the one-time code a mail carries, found near a code keyword. Pure, covered by a JVM unit test
 - `MailScreen.kt`: the inbox list with a bin on each row, the code chip that copies in one tap, the account dialog
 - `MailMessageScreen.kt`: one mail in a WebView (no JavaScript), links handed to the browser, a bin in the header

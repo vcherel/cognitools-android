@@ -2,14 +2,12 @@ package com.example.myapp
 
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -91,100 +89,95 @@ fun MenuScreen(
         compareByDescending<MenuTool> { usage[it.id] ?: 0 }.thenBy { it.label.deaccented() }
     )
 
-    Box(
+    Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(12.dp)
+            .verticalScroll(rememberScrollState()),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState()),
-            horizontalAlignment = Alignment.CenterHorizontally
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
                 text = "Bienvenue !",
                 style = MaterialTheme.typography.headlineLarge,
-                textAlign = TextAlign.Center
+                modifier = Modifier.weight(1f)
             )
-            Spacer(modifier = Modifier.height(25.dp))
-            Text(
-                text = "Choisis une option pour commencer :",
-                style = MaterialTheme.typography.titleMedium,
-                fontStyle = FontStyle.Italic,
-                textAlign = TextAlign.Center
-            )
-            Spacer(modifier = Modifier.height(20.dp))
-            MyButton(text = "Notes", height = buttonHeight, onClick = onOpenNotes)
-            Spacer(modifier = Modifier.height(spaceHeight))
-            DeezerMenuButton(height = buttonHeight, onOpenDeezer = onOpenDeezer)
-            Spacer(modifier = Modifier.height(spaceHeight))
-            // The right half shows how many cards are due right now instead of a play icon.
-            val allCards by remember { context.flashcardRepository.observeAllElements() }.collectAsState(initial = emptyList())
-            // Cards come due while the menu sits open (the app returns to it when idle), so the
-            // count is recomputed every minute rather than only when the list itself changes.
-            var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
-            LaunchedEffect(Unit) {
-                while (true) {
-                    delay(60_000)
-                    now = System.currentTimeMillis()
-                }
-            }
-            val dueCount = remember(allCards, now) { allCards.count { isDue(it, now) } }
-            SplitMyButton(
-                text = "Flashcards",
-                rightIcon = Icons.Default.PlayArrow,
-                rightText = dueCount.toString(),
-                rightEnabled = dueCount > 0,
-                height = buttonHeight,
-                onMainClick = onOpenFlashcards,
-                onRightClick = onPlayFlashcards
-            )
-            Spacer(modifier = Modifier.height(spaceHeight))
-            val pinDao = remember { AppDatabase.get(context).pinnedMediaItemDao() }
-            val pinnedRows by remember { pinDao.observePinned() }.collectAsState(initial = emptyList())
-            val somethingPinned = pinnedRows.isNotEmpty()
-            SplitMyButton(
-                text = "Galerie",
-                rightIcon = if (somethingPinned) Icons.Default.PushPin else Icons.Default.AccountBalanceWallet,
-                height = buttonHeight,
-                onMainClick = onOpenGallery,
-                onRightClick = if (somethingPinned) onOpenPinnedPictures else onOpenWallet
-            )
-            Spacer(modifier = Modifier.height(spaceHeight))
-            orderedTools.chunked(2).forEach { row ->
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    row.forEach { tool ->
-                        MyButton(
-                            text = tool.label,
-                            modifier = Modifier.weight(1f),
-                            height = buttonHeight,
-                            fontSize = 20.sp,
-                            onClick = {
-                                scope.launch { usageStore.recordClick(tool.id) }
-                                onOpenTool(tool.route)
-                            }
-                        )
-                    }
-                    repeat(2 - row.size) { Spacer(modifier = Modifier.weight(1f)) }
-                }
-                Spacer(modifier = Modifier.height(spaceHeight))
+            BackupMenuButton()
+            IconButton(onClick = onToggleDarkMode) {
+                Icon(
+                    imageVector = if (isDarkMode) Icons.Default.LightMode else Icons.Default.DarkMode,
+                    contentDescription = if (isDarkMode) "Mode clair" else "Mode sombre"
+                )
             }
         }
-
-        IconButton(
-            onClick = onToggleDarkMode,
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .offset(y = 8.dp)
-        ) {
-            Icon(
-                imageVector = if (isDarkMode) Icons.Default.LightMode else Icons.Default.DarkMode,
-                contentDescription = if (isDarkMode) "Mode clair" else "Mode sombre"
-            )
+        Spacer(modifier = Modifier.height(25.dp))
+        Text(
+            text = "Choisis une option pour commencer :",
+            style = MaterialTheme.typography.titleMedium,
+            fontStyle = FontStyle.Italic,
+            textAlign = TextAlign.Center
+        )
+        Spacer(modifier = Modifier.height(20.dp))
+        MyButton(text = "Notes", height = buttonHeight, onClick = onOpenNotes)
+        Spacer(modifier = Modifier.height(spaceHeight))
+        DeezerMenuButton(height = buttonHeight, onOpenDeezer = onOpenDeezer)
+        Spacer(modifier = Modifier.height(spaceHeight))
+        // The right half shows how many cards are due right now instead of a play icon.
+        val allCards by remember { context.flashcardRepository.observeAllElements() }.collectAsState(initial = emptyList())
+        // Cards come due while the menu sits open (the app returns to it when idle), so the
+        // count is recomputed every minute rather than only when the list itself changes.
+        var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
+        LaunchedEffect(Unit) {
+            while (true) {
+                delay(60_000)
+                now = System.currentTimeMillis()
+            }
+        }
+        val dueCount = remember(allCards, now) { allCards.count { isDue(it, now) } }
+        SplitMyButton(
+            text = "Flashcards",
+            rightIcon = Icons.Default.PlayArrow,
+            rightText = dueCount.toString(),
+            rightEnabled = dueCount > 0,
+            height = buttonHeight,
+            onMainClick = onOpenFlashcards,
+            onRightClick = onPlayFlashcards
+        )
+        Spacer(modifier = Modifier.height(spaceHeight))
+        val pinDao = remember { AppDatabase.get(context).pinnedMediaItemDao() }
+        val pinnedRows by remember { pinDao.observePinned() }.collectAsState(initial = emptyList())
+        val somethingPinned = pinnedRows.isNotEmpty()
+        SplitMyButton(
+            text = "Galerie",
+            rightIcon = if (somethingPinned) Icons.Default.PushPin else Icons.Default.AccountBalanceWallet,
+            height = buttonHeight,
+            onMainClick = onOpenGallery,
+            onRightClick = if (somethingPinned) onOpenPinnedPictures else onOpenWallet
+        )
+        Spacer(modifier = Modifier.height(spaceHeight))
+        orderedTools.chunked(2).forEach { row ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                row.forEach { tool ->
+                    MyButton(
+                        text = tool.label,
+                        modifier = Modifier.weight(1f),
+                        height = buttonHeight,
+                        fontSize = 20.sp,
+                        onClick = {
+                            scope.launch { usageStore.recordClick(tool.id) }
+                            onOpenTool(tool.route)
+                        }
+                    )
+                }
+                repeat(2 - row.size) { Spacer(modifier = Modifier.weight(1f)) }
+            }
+            Spacer(modifier = Modifier.height(spaceHeight))
         }
     }
 }

@@ -55,6 +55,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.myapp.AppSnackbar
 import com.example.myapp.BackIconButton
+import com.example.myapp.BackupKind
 import com.example.myapp.BackupRestoreActions
 import com.example.myapp.BottomFadeOverlay
 import com.example.myapp.copyToClipboard
@@ -209,10 +210,9 @@ fun NotesListScreen(navController: NavController) {
                             Icon(Icons.Default.Search, contentDescription = "Rechercher")
                         }
                         BackupRestoreActions(
-                            backupFileName = "cognitools_notes",
+                            kind = BackupKind.NOTES,
                             importDialogText = "Les notes du fichier seront ajoutées. " +
                                     "Celles qui existent déjà seront remplacées par la version du fichier.",
-                            createBackupJson = { notesToJsonString(dao.getNotes()) },
                             importFromJson = { json ->
                                 val imported = Note.listFromJsonString(json)
                                 if (imported.isEmpty()) throw IllegalArgumentException("Aucune note dans le fichier")
