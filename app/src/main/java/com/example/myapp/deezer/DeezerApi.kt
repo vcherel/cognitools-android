@@ -386,7 +386,10 @@ class DeezerApi {
             val errors = data0["errors"]?.jsonArray
             if (!errors.isNullOrEmpty()) {
                 val msg = errors.joinToString { it.jsonObject["message"]?.jsonPrimitive?.content.orEmpty() }
-                val tokenError = errors.toString().contains("token", true)
+                // "Track token has no sufficient rights" is Deezer refusing the track for good, not a
+                // stale session, even though it mentions a token.
+                val refused = msg.contains("no sufficient rights", true)
+                val tokenError = !refused && errors.toString().contains("token", true)
                 throw DeezerApiException("get_url error for $sngId: $msg", tokenError, unavailable = !tokenError)
             }
             val media0 = data0["media"]?.jsonArray?.firstOrNull() as? JsonObject

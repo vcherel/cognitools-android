@@ -10,6 +10,7 @@ import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
+import androidx.media3.common.Timeline
 import androidx.media3.datasource.DataSink
 import androidx.media3.datasource.DataSpec
 import androidx.media3.datasource.cache.Cache
@@ -34,8 +35,10 @@ import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
@@ -275,6 +278,22 @@ class DeezerPlaybackService : MediaSessionService() {
         private var retriedCurrent = false
         private var consecutiveSkips = 0
         private var lastErrorLine = ""
+        private var awaitingQueue: Job? = null
+        private var awaitingTitle: String? = null
+
+        override fun onTimelineChanged(timeline: Timeline, reason: Int) {
+            if (awaitingQueue == null) return
+            // A new list started meanwhile clears the error: that queue is not ours to skip.
+            if (player.playerError == null) {
+                awaitingQueue?.cancel()
+                awaitingQueue = null
+                return
+            }
+            if (!player.hasNextMediaItem()) return
+            awaitingQueue?.cancel()
+            awaitingQueue = null
+            skipToNext(awaitingTitle)
+        }
 
         override fun onPlayerError(error: PlaybackException) {
             val mediaItem = player.currentMediaItem
@@ -330,7 +349,15 @@ class DeezerPlaybackService : MediaSessionService() {
 
         private fun skipToNext(title: String?) {
             if (!player.hasNextMediaItem()) {
-                giveUp(title)
+                // playTracks sets the playing track alone and adds the rest a moment later, so a
+                // track refused on its first resolve can fail before its queue exists.
+                awaitingQueue?.cancel()
+                awaitingQueue = scope.launch {
+                    delay(QUEUE_FILL_WAIT_MS)
+                    awaitingQueue = null
+                    giveUp(title)
+                }
+                awaitingTitle = title
                 return
             }
             showError(
@@ -373,6 +400,8 @@ class DeezerPlaybackService : MediaSessionService() {
         // Audio actually coming out means the queue is healthy again: forget the failure history.
         override fun onIsPlayingChanged(isPlaying: Boolean) {
             if (!isPlaying) return
+            awaitingQueue?.cancel()
+            awaitingQueue = null
             failedMediaId = null
             retriedCurrent = false
             consecutiveSkips = 0
@@ -402,6 +431,7 @@ class DeezerPlaybackService : MediaSessionService() {
     companion object {
         private const val TAG = "DeezerPlayback"
         private const val MAX_SKIPS = 5
+        private const val QUEUE_FILL_WAIT_MS = 3_000L
         private const val CMD_TOGGLE_LIKE = "com.example.myapp.deezer.TOGGLE_LIKE"
         private const val CMD_TOGGLE_PEPITES = "com.example.myapp.deezer.TOGGLE_BEST_PEPITES"
 
