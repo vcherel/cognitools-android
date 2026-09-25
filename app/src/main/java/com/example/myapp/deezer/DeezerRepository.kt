@@ -330,6 +330,9 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
         list
     }
 
+    /** The disk half of [ensureFavorites] alone: no network, nothing to wait on after the first call. */
+    suspend fun seedFavoritesFromDisk() = favoritesMutex.withLock { seedLibraryFromDisk() }
+
     // The largest favorites list seen this run (seeded from the disk snapshot, then every fetch).
     // A "complete" list that is a big drop from this is treated as a bad fetch: the UI takes it, but
     // the cache purge is skipped so a glitchy response can't wipe the downloaded tracks.

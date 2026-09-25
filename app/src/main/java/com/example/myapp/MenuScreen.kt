@@ -199,6 +199,10 @@ private fun DeezerMenuButton(height: Dp, onOpenDeezer: () -> Unit) {
     val loaded = if (onPodcast) podcastState.hasItem else musicState.hasItem
     val isPlaying = if (onPodcast) podcastState.isPlaying else musicState.isPlaying
 
+    LaunchedEffect(loaded) {
+        if (!loaded) context.deezerRepository.player.warmUp()
+    }
+
     SplitMyButton(
         text = "Musique",
         rightIcon = when {

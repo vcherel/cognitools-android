@@ -184,22 +184,69 @@ class DeezerPlayer(private val appContext: Context, private val repo: DeezerRepo
         } else {
             tracks
         }
-        val items = order.map { buildMediaItem(it, source = source) }
+        // Thousands of favorites handed over in one call kept the service busy unpacking them for
+        // half a second before the first note. The track that plays goes in alone, and the rest in a
+        // second main thread turn: the service shares this process's main thread, so adding them in
+        // the same turn would still hold the play command back until they were all through.
+        val first = if (shuffle) 0 else startIndex
         withContext(Dispatchers.Main) {
-            controller.setMediaItems(items, if (shuffle) 0 else startIndex, 0L)
+            controller.setMediaItems(listOf(buildMediaItem(order[first], source = source)), 0, 0L)
             controller.prepare()
             controller.play()
         }
+        // Built off the main thread even when the caller is on it, which is also what gives the
+        // service its turn in between.
+        val (before, after) = withContext(Dispatchers.Default) {
+            order.subList(0, first).map { buildMediaItem(it, source = source) } to
+                order.subList(first + 1, order.size).map { buildMediaItem(it, source = source) }
+        }
+        withContext(Dispatchers.Main) {
+            controller.addMediaItems(0, before)
+            controller.addMediaItems(after)
+        }
     }
 
-    /** Queues every favorite and plays them shuffled, starting from a random one. */
+    /**
+     * Queues every favorite and plays them shuffled. The first one is picked among the favorites
+     * already whole on disk when there are any: any other track first waits on the session login,
+     * the stream URL and the CDN, a good second of silence on a cold process.
+     */
     suspend fun shuffleFavorites() = coroutineScope {
         // Binding the playback service takes a moment of its own on a cold process, so it runs
         // alongside the favorites read instead of after it.
         val connecting = async { ensureController() }
         val favorites = repo.ensureFavorites()
+        if (favorites.isEmpty()) return@coroutineScope
+        val start = withContext(Dispatchers.IO) {
+            favorites.indices.shuffled().firstOrNull { isOnDisk(favorites[it].sngId) }
+        } ?: favorites.indices.random()
         connecting.await()
-        shuffleTracks(favorites, TrackSource.Favorites)
+        setShuffleSetting(true)
+        playTracks(favorites, start, TrackSource.Favorites, shuffle = true)
+    }
+
+    /**
+     * What the menu does while it shows the shuffle button: reads the favorites snapshot and opens
+     * both audio caches off the main thread, so the tap itself only has to bind the service.
+     */
+    fun warmUp() {
+        ioScope.launch {
+            runCatching {
+                repo.seedFavoritesFromDisk()
+                repo.offline.cache
+                repo.streamCache
+            }
+        }
+    }
+
+    private fun isOnDisk(sngId: String): Boolean {
+        val key = deezerCacheKey(sngId)
+        return isWhole(repo.offline.cache, key) || isWhole(repo.streamCache, key)
+    }
+
+    private fun isWhole(cache: SimpleCache, key: String): Boolean {
+        val length = ContentMetadata.getContentLength(cache.getContentMetadata(key))
+        return length > 0 && cache.isCached(key, 0, length)
     }
 
     /**
@@ -279,9 +326,7 @@ class DeezerPlayer(private val appContext: Context, private val repo: DeezerRepo
             val seen = HashSet<String>()
             val result = ArrayList<DeezerTrack>()
             fun tryAdd(sngId: String, key: String, track: DeezerTrack?, cache: SimpleCache) {
-                if (track == null || !seen.add(sngId)) return
-                val length = ContentMetadata.getContentLength(cache.getContentMetadata(key))
-                if (length > 0 && cache.isCached(key, 0, length)) result += track
+                if (track != null && seen.add(sngId) && isWhole(cache, key)) result += track
             }
             repo.offline.allTracks().forEach { tryAdd(it.sngId, deezerCacheKey(it.sngId), it, repo.offline.cache) }
             repo.streamCache.keys.forEach { key -> sngIdFromCacheKey(key)?.let { tryAdd(it, key, queuedTracks[it], repo.streamCache) } }
