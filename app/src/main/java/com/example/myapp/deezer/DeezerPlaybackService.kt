@@ -31,6 +31,7 @@ import com.example.myapp.copyToClipboard
 import com.example.myapp.MainActivity
 import com.example.myapp.MyApplication
 import com.example.myapp.R
+import com.example.myapp.pauseOnOutputLost
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import kotlinx.coroutines.CoroutineScope
@@ -58,6 +59,7 @@ class DeezerPlaybackService : MediaSessionService() {
     private var mediaSession: MediaSession? = null
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private lateinit var repo: DeezerRepository
+    private var stopOutputWatch: () -> Unit = {}
 
     override fun onCreate() {
         super.onCreate()
@@ -103,6 +105,7 @@ class DeezerPlaybackService : MediaSessionService() {
             .build()
         player.addListener(ErrorRecovery(player))
         player.addListener(TrackWatcher(player))
+        stopOutputWatch = pauseOnOutputLost(this, player)
         mediaSession = MediaSession.Builder(this, player)
             .setCallback(SessionCallback())
             .setMediaButtonPreferences(actionButtons(liked = false, inPepites = false))
@@ -309,6 +312,16 @@ class DeezerPlaybackService : MediaSessionService() {
             // release of the same song right away.
             if (error.isTrackUnavailable()) retriedCurrent = true
 
+            // A paused player stays paused: the audio route changing under it (a speaker dropping)
+            // can fail the renderer, and resuming here would carry on through the phone speaker.
+            if (!player.playWhenReady) {
+                if (!retriedCurrent) {
+                    retriedCurrent = true
+                    player.prepare()
+                }
+                return
+            }
+
             if (!retriedCurrent) {
                 retriedCurrent = true
                 player.prepare() // resumes the same item at the position it died at
@@ -420,6 +433,7 @@ class DeezerPlaybackService : MediaSessionService() {
 
     override fun onDestroy() {
         scope.cancel()
+        stopOutputWatch()
         mediaSession?.run {
             player.release()
             release()

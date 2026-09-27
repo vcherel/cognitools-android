@@ -16,6 +16,7 @@ import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionResult
 import com.example.myapp.MainActivity
 import com.example.myapp.R
+import com.example.myapp.pauseOnOutputLost
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 
@@ -29,6 +30,7 @@ import com.google.common.util.concurrent.ListenableFuture
 class PodcastPlaybackService : MediaSessionService() {
 
     private var mediaSession: MediaSession? = null
+    private var stopOutputWatch: () -> Unit = {}
 
     override fun onCreate() {
         super.onCreate()
@@ -45,6 +47,7 @@ class PodcastPlaybackService : MediaSessionService() {
             .setSeekBackIncrementMs(SEEK_INCREMENT_MS)
             .setSeekForwardIncrementMs(SEEK_INCREMENT_MS)
             .build()
+        stopOutputWatch = pauseOnOutputLost(this, player)
         mediaSession = MediaSession.Builder(this, player)
             .setCallback(SessionCallback())
             // On a podcast, jumping back over a passage matters more than skipping to another
@@ -137,6 +140,7 @@ class PodcastPlaybackService : MediaSessionService() {
     }
 
     override fun onDestroy() {
+        stopOutputWatch()
         mediaSession?.run {
             player.release()
             release()

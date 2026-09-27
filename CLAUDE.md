@@ -44,6 +44,7 @@ Root package (shared/misc):
 - `ScreenTopBar.kt`: shared back-arrow + title header used by the tool screens
 - `Home.kt`: BackIconButton (tap = back, long press = main menu), the LocalGoHome hook, and the idle-return-to-menu lifecycle watcher with its IdleResetGuard
 - `PlayerUi.kt`: the surfaces `deezer/` and `podcasts/` both draw; MediaArt, MediaListRow, MiniPlayerBar, PlayPauseButton, PlayerSeekBar (which owns the position polling), formatPlaybackTime
+- `PauseOnOutputLost.kt`: `pauseOnOutputLost`, the device callback both playback services use to pause when a Bluetooth or wired output disappears (MIUI skips the noisy broadcast for some disconnects)
 - `MediaControllerHolder.kt`: the MediaController connect-once/stop-the-service plumbing both playback repositories use
 - `Plural.kt`: `plural(count)`, the one place the French count-to-plural rule lives
 - `Normalize.kt`: `deaccented` / `matchNormalized` / `slugified`, plus `normalizeForSearch` (one char out per char in, so the notes search can highlight by index); the one place text is folded for comparison
