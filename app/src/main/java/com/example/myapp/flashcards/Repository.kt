@@ -8,6 +8,7 @@ import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -32,6 +33,8 @@ class FlashcardRepository(private val context: Context) {
             lists to counts
         }
     }
+
+    fun observeDueCount(now: Long): Flow<Int> = dao.observeDueCounts(now).map { rows -> rows.sumOf { it.c } }
 
     suspend fun addList(list: FlashcardList) {
         val current = dao.getLists()
@@ -136,21 +139,13 @@ class FlashcardRepository(private val context: Context) {
      * doesn't have yet, then drops mastered cards outside them (interval above 6 months).
      */
     suspend fun seedAndPurge() {
-        applyBuiltinSeedMigrations()
-        dao.purgeMasteredCards(SIX_MONTHS_MINUTES, builtinListIds)
-    }
-
-    private suspend fun applyBuiltinSeedMigrations() {
-        val currentVersion = context.flashcardDataStore.data.first()[seedVersionKey] ?: 0
-        if (currentVersion >= SEED_VERSION) return
-
-        if (currentVersion < 1) seedAssets("seed_capitals.json")
-        if (currentVersion < 2) {
+        if ((context.flashcardDataStore.data.first()[seedVersionKey] ?: 0) < SEED_VERSION) {
+            seedAssets("seed_capitals.json")
             seedAssets("seed_prefectures.json")
             seedAssets("seed_dept_numbers.json")
+            context.flashcardDataStore.edit { it[seedVersionKey] = SEED_VERSION }
         }
-
-        context.flashcardDataStore.edit { it[seedVersionKey] = SEED_VERSION }
+        dao.purgeMasteredCards(SIX_MONTHS_MINUTES, builtinListIds)
     }
 
     private suspend fun seedAssets(filename: String) {
@@ -164,6 +159,7 @@ class FlashcardRepository(private val context: Context) {
 
     companion object {
         private val seedVersionKey = intPreferencesKey("seed_version")
+        // Seeding upserts the cards, wiping their progress: bump only to ship new builtin lists.
         private const val SEED_VERSION = 4
         private const val SIX_MONTHS_MINUTES = 6 * 30 * 24 * 60
         private val builtinListIds = listOf(

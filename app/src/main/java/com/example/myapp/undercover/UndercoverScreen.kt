@@ -93,7 +93,7 @@ fun UndercoverScreen(onBack: () -> Unit) {
             }
 
             is GameState.PlayerSetup -> {
-                HandlePlayerSetup(
+                PlayerSetupFlow(
                     gameState = gameState,
                     state = state,
                     onStateUpdate = { newState -> state = newState }

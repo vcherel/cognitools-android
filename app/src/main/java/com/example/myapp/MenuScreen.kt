@@ -27,6 +27,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -41,7 +42,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.myapp.flashcards.AppDatabase
-import com.example.myapp.flashcards.isDue
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -126,9 +126,8 @@ fun MenuScreen(
         DeezerMenuButton(height = buttonHeight, onOpenDeezer = onOpenDeezer)
         Spacer(modifier = Modifier.height(spaceHeight))
         // The right half shows how many cards are due right now instead of a play icon.
-        val allCards by remember { context.flashcardRepository.observeAllElements() }.collectAsState(initial = emptyList())
         // Cards come due while the menu sits open (the app returns to it when idle), so the
-        // count is recomputed every minute rather than only when the list itself changes.
+        // count is requeried every minute rather than only when the cards themselves change.
         var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
         LaunchedEffect(Unit) {
             while (true) {
@@ -136,7 +135,10 @@ fun MenuScreen(
                 now = System.currentTimeMillis()
             }
         }
-        val dueCount = remember(allCards, now) { allCards.count { isDue(it, now) } }
+        var dueCount by remember { mutableIntStateOf(0) }
+        LaunchedEffect(now) {
+            context.flashcardRepository.observeDueCount(now).collect { dueCount = it }
+        }
         SplitMyButton(
             text = "Flashcards",
             rightIcon = Icons.Default.PlayArrow,

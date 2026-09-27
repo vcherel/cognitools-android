@@ -87,7 +87,8 @@ Root package (shared/misc):
 - `DeezerPlaylistScreen.kt`: reusable ordered track list (play, remove, like, add to pépites)
 - `DeezerSearchScreen.kt`: search screen, tracks and podcast shows
 - `DeezerArtistScreen.kt`: one artist: header, top tracks, discography grouped by release type
-- `DeezerDiscoveries.kt`: the daily "Découvertes du jour" batch; new release scan over the profile artists, Flow/track-mix discoveries, the persisted batch/backlog/proposed state
+- `DeezerDiscoveries.kt`: the daily "Découvertes du jour" batch; Flow/track-mix discoveries, the scan scheduling and its results folded into the backlog, the persisted batch/backlog/proposed state
+- `DeezerReleaseScan.kt`: `scanNewReleases`, the network half of the new release scan over the profile and library artists; reads copies of the state, writes none
 - `RollingLog.kt`: the capped text log the offline sync, the discoveries batch and the error log write, in the external files dir so a release build's log reads with plain adb
 - `DeezerErrorsScreen.kt`: the "Journal d'erreurs" (`repo.errorLog`), every failure with its cause chain, copyable in one tap
 - `DeezerDiscoveriesScreen.kt`: the batch's list screen (add, ignore, add all, ignore all, regenerate)
@@ -201,10 +202,10 @@ Root package (shared/misc):
 - `TranslateScreen.kt`: the tool screen, debounced live translation and the history
 
 `undercover/` (party game tool):
-- `Data.kt`: Player, GameSettings, GameState, MrWhiteScenario, ScoreValues data model
-- `Functions.kt`: elimination, win condition, Mr. White guess resolution logic
-- `Setup.kt`: player setup screen, role/word assignment
-- `MainScreen.kt`: game entry screen
+- `GameModels.kt`: Player, GameSettings, GameState, MrWhiteScenario, ScoreValues data model
+- `GameRules.kt`: elimination, win condition, Mr. White guess resolution logic
+- `Setup.kt`: role/word assignment and PlayerSetupFlow, the name, warning and secret word steps per player
+- `UndercoverScreen.kt`: game entry screen, the GameState dispatcher
 - `PlayScreen.kt`: main play/discussion screen
 - `VotingScreen.kt`: voting screen
 - `EliminationResultScreen.kt`: result after a vote

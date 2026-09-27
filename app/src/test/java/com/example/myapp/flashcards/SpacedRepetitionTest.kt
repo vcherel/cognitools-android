@@ -31,8 +31,6 @@ private fun card(
 
 class SpacedRepetitionTest {
 
-    // ---- Ease factor ----
-
     @Test
     fun easeFactor_perfectRecall_increases() {
         // quality 5 adds 0.1
@@ -74,8 +72,6 @@ class SpacedRepetitionTest {
         assertEquals(2.6 * 1.05, result.easeFactor, EPS)
     }
 
-    // ---- Repetitions ----
-
     @Test
     fun repetitions_incrementOnPass() {
         val result = reviewCard(card(repetitions = 3), quality = 3, sawAnswer = true)
@@ -87,8 +83,6 @@ class SpacedRepetitionTest {
         val result = reviewCard(card(repetitions = 7), quality = 2, sawAnswer = true)
         assertEquals(0, result.repetitions)
     }
-
-    // ---- Wins / losses / score ----
 
     @Test
     fun score_firstWinIsTen() {
@@ -118,8 +112,6 @@ class SpacedRepetitionTest {
         assertEquals(1, result.totalLosses)
         assertEquals(8.0, result.score, EPS)
     }
-
-    // ---- Interval ----
 
     @Test
     fun interval_firstWinIsSixMinutes() {
@@ -191,8 +183,6 @@ class SpacedRepetitionTest {
         val result = reviewCard(card(lastReview = 0L), quality = 4, sawAnswer = true, now = 12345L)
         assertEquals(12345L, result.lastReview)
     }
-
-    // ---- isDue ----
 
     @Test
     fun isDue_zeroIntervalIsAlwaysDue() {

@@ -118,7 +118,7 @@ class DeezerDataSource(
             return false
         }
 
-        decBuf = if (chunkIndex % 3 == 0 && got == DeezerCrypto.CHUNK_SIZE) {
+        decBuf = if (DeezerCrypto.isEncryptedChunk(chunkIndex, got)) {
             DeezerCrypto.decryptChunk(key!!, chunkTmp.copyOf(DeezerCrypto.CHUNK_SIZE))
         } else {
             chunkTmp.copyOf(got)

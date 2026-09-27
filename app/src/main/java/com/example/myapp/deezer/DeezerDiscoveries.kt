@@ -9,20 +9,16 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withLock
-import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.add
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -89,26 +85,18 @@ class DeezerDiscoveries(private val appContext: Context, private val repo: Deeze
         const val BATCH_SIZE = 10
         /** Half the batch at most, so a heavy release week still leaves room for real discoveries. */
         private const val RELEASE_SLOTS = BATCH_SIZE / 2
-        private const val RELEASE_WINDOW_DAYS = 60L
         private const val FLOW_CALLS = 8
         /** Discovery candidates gathered before ranking: more than fit, so the ranking has a choice. */
         private const val DISCOVERY_POOL = BATCH_SIZE * 3
         private const val MIX_SEEDS = 4
-        /** Album track fetches per scan. The rest stay unmarked, so the next scan picks them up. */
-        private const val ALBUMS_PER_SCAN = 40
         private const val BACKLOG_CAP = 120
         private const val PROPOSED_CAP = 4000
         private const val SEEN_ALBUMS_CAP = 4000
-        private const val ARTIST_PARALLELISM = 6
         /**
          * How many automatic generations a day may attempt at most. A finished one claims the day and
          * nothing else runs; this only bounds the retries after a run that died before claiming it.
          */
         private const val MAX_DAILY_ATTEMPTS = 4
-        /** An artist's releases are re-read at most this often: well inside [RELEASE_WINDOW_DAYS]. */
-        private const val ARTIST_RESCAN_DAYS = 4L
-        /** Artists whose releases are read on one scan, the best known first, the rest rotating in. */
-        private const val ARTISTS_PER_SCAN = 150
         private const val ARTIST_SCANS_CAP = 4000
         private const val TAG = "DeezerDiscoveries"
     }
@@ -437,12 +425,6 @@ class DeezerDiscoveries(private val appContext: Context, private val repo: Deeze
         }
     }
 
-    /** What one scan read, applied to the state in one go by [startScan] once the network part is over. */
-    private class ScanResult(
-        val artists: List<DeezerArtist>,
-        val fetched: List<Pair<DeezerRelease, List<DeezerTrack>>>
-    )
-
     /**
      * Runs the release scan in the background, outside [mutex]: it takes minutes, and holding the lock
      * that long kept the screen on a progress bar and every like or dismiss waiting behind it, for a
@@ -453,7 +435,7 @@ class DeezerDiscoveries(private val appContext: Context, private val repo: Deeze
         if (scanJob?.isActive == true) return
         scanJob = scope.launch {
             val (scans, seen) = mutex.withLock { HashMap(artistScans) to HashSet(seenAlbums) }
-            val result = runCatching { scanNewReleases(known, scans, seen) }.getOrElse {
+            val result = runCatching { scanNewReleases(repo, generationLog, known, scans, seen) }.getOrElse {
                 Log.w(TAG, "New release scan failed", it)
                 generationLog.log("scan failed: ${generationLog.describe(it)}")
                 return@launch
@@ -468,86 +450,6 @@ class DeezerDiscoveries(private val appContext: Context, private val repo: Deeze
                 save()
             }
         }
-    }
-
-    /**
-     * Diffs the known artists' discographies against the albums already seen and returns what came out
-     * of it. Bounded twice over, because this is what makes the scan slow: only [ARTISTS_PER_SCAN]
-     * artists are read per run, the best known ([known]) first and the rest rotating in oldest-read
-     * first, and an artist read less than [ARTIST_RESCAN_DAYS] ago is skipped outright (the release
-     * window is fifteen times that, so nothing is missed). Of what that turns up, the newest
-     * [ALBUMS_PER_SCAN] candidates get their lead track fetched, the rest stay unseen for the next scan.
-     *
-     * Works on copies of [artistScans] and [seenAlbums] and touches no state, so it can run without the
-     * lock. Returns null when not one artist could be read, i.e. the pass never happened.
-     */
-    private suspend fun scanNewReleases(
-        known: Map<String, Int>,
-        scans: Map<String, String>,
-        seen: Set<String>
-    ): ScanResult? = withContext(Dispatchers.IO) {
-        // Two sources, because neither covers the other: the profile tab is Deezer's own view of who
-        // Valentin listens to and skips artists he only has a track or two from, while the library
-        // artists are exactly the ones he liked, whatever Deezer thinks of his habits.
-        val profile = runCatching { repo.profileArtists() }.getOrElse {
-            Log.w(TAG, "Profile artists failed", it)
-            emptyList()
-        }
-        val library = runCatching { repo.libraryArtists() }.getOrElse {
-            Log.w(TAG, "Library artists failed", it)
-            emptyList()
-        }
-        val all = (profile + library).distinctBy { it.id }
-        if (all.isEmpty()) {
-            generationLog.log("scan: no artist reachable")
-            return@withContext null
-        }
-        val cutoff = LocalDate.now().minusDays(RELEASE_WINDOW_DAYS).toString()
-        val today = today()
-        val staleBefore = LocalDate.now().minusDays(ARTIST_RESCAN_DAYS).toString()
-
-        val artists = all
-            .filter { (scans[it.id] ?: "") < staleBefore }
-            .sortedWith(
-                compareByDescending<DeezerArtist> { known[it.name.matchNormalized()] ?: 0 }
-                    .thenBy { scans[it.id] ?: "" }
-            )
-            .take(ARTISTS_PER_SCAN)
-        // Nothing stale left to read is a scan that is already done, not one that failed.
-        if (artists.isEmpty()) return@withContext ScanResult(emptyList(), emptyList())
-
-        val gate = Semaphore(ARTIST_PARALLELISM)
-        val candidates = coroutineScope {
-            artists.map { artist ->
-                async {
-                    gate.withPermit {
-                        runCatching { repo.artistReleases(artist.id, artist.name) }.getOrElse {
-                            Log.w(TAG, "Releases failed for ${artist.name}", it)
-                            emptyList()
-                        }
-                    }
-                }
-            }.awaitAll()
-        }.flatten().filter {
-            it.releaseDate >= cutoff && it.releaseDate <= today && it.albumId !in seen
-        }.distinctBy { it.albumId }
-            .sortedByDescending { it.releaseDate }
-            .take(ALBUMS_PER_SCAN)
-
-        val fetched = coroutineScope {
-            candidates.map { release ->
-                async {
-                    gate.withPermit {
-                        release to runCatching { repo.albumTracks(release) }.getOrElse {
-                            Log.w(TAG, "Album tracks failed for ${release.title}", it)
-                            emptyList()
-                        }
-                    }
-                }
-            }.awaitAll()
-        }
-        generationLog.log("scan: ${artists.size} artist(s), ${candidates.size} release(s) fetched")
-        ScanResult(artists, fetched)
     }
 
     /** Writes a finished scan into the state: the releases into the backlog, the artists and albums as read. */
@@ -643,7 +545,7 @@ class DeezerDiscoveries(private val appContext: Context, private val repo: Deeze
         item.releaseDate?.let { put("r", it) }
     }
 
-    private fun itemFromJson(o: kotlinx.serialization.json.JsonObject) = DiscoveryTrack(
+    private fun itemFromJson(o: JsonObject) = DiscoveryTrack(
         track = DeezerLibraryCache.trackFromJson(o),
         isNewRelease = o["n"]?.jsonPrimitive?.content == "true",
         releaseDate = o["r"]?.jsonPrimitive?.content?.ifBlank { null }

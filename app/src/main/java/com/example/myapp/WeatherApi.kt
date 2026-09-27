@@ -82,11 +82,11 @@ private class ModelSeries(json: JSONObject, field: String) {
     private val meteoFrance = json.getJSONArray("${field}_meteofrance_seamless")
     private val bestMatch = json.getJSONArray("${field}_best_match")
 
-    private fun series(useFallback: Boolean) = if (useFallback) bestMatch else meteoFrance
-    fun double(index: Int, useFallback: Boolean, fallbackValue: Double) =
-        series(useFallback).optDouble(index, fallbackValue)
-    fun int(index: Int, useFallback: Boolean, fallbackValue: Int) =
-        series(useFallback).optInt(index, fallbackValue)
+    private fun series(useBestMatch: Boolean) = if (useBestMatch) bestMatch else meteoFrance
+    fun double(index: Int, useBestMatch: Boolean, default: Double) =
+        series(useBestMatch).optDouble(index, default)
+    fun int(index: Int, useBestMatch: Boolean, default: Int) =
+        series(useBestMatch).optInt(index, default)
 }
 
 // A forecast doesn't change from one minute to the next, and Open-Meteo throttles by IP, so every
@@ -132,15 +132,15 @@ private suspend fun downloadForecast(lat: Double, lon: Double): WeatherForecast 
     val hourlyRainProb = hourlyJson.getJSONArray("precipitation_probability_best_match")
     val hourly = (0 until hourlyTimes.length()).mapNotNull { i ->
         // A missing temperature is what marks the end of Météo-France's horizon for that hour.
-        val useFallback = hourlyTemps.double(i, false, Double.NaN).isNaN()
-        val temp = hourlyTemps.double(i, useFallback, Double.NaN)
+        val useBestMatch = hourlyTemps.double(i, false, Double.NaN).isNaN()
+        val temp = hourlyTemps.double(i, useBestMatch, Double.NaN)
         if (temp.isNaN()) return@mapNotNull null
         HourlyPoint(
             time = LocalDateTime.parse(hourlyTimes.getString(i)),
             temp = temp,
             rainProb = hourlyRainProb.optInt(i, 0),
-            rainAmount = hourlyAmounts.double(i, useFallback, 0.0),
-            weatherCode = hourlyCodes.int(i, useFallback, 0)
+            rainAmount = hourlyAmounts.double(i, useBestMatch, 0.0),
+            weatherCode = hourlyCodes.int(i, useBestMatch, 0)
         )
     }
 
@@ -152,18 +152,18 @@ private suspend fun downloadForecast(lat: Double, lon: Double): WeatherForecast 
     val dailyCodes = ModelSeries(dailyJson, "weathercode")
     val dailyRainProb = dailyJson.getJSONArray("precipitation_probability_max_best_match")
     val daily = (0 until dailyDates.length()).mapNotNull { i ->
-        val useFallback = dailyMax.double(i, false, Double.NaN).isNaN() ||
+        val useBestMatch = dailyMax.double(i, false, Double.NaN).isNaN() ||
             dailyMin.double(i, false, Double.NaN).isNaN()
-        val tempMax = dailyMax.double(i, useFallback, Double.NaN)
-        val tempMin = dailyMin.double(i, useFallback, Double.NaN)
+        val tempMax = dailyMax.double(i, useBestMatch, Double.NaN)
+        val tempMin = dailyMin.double(i, useBestMatch, Double.NaN)
         if (tempMax.isNaN() || tempMin.isNaN()) return@mapNotNull null
         DailyPoint(
             date = LocalDate.parse(dailyDates.getString(i)),
             tempMax = tempMax,
             tempMin = tempMin,
             rainProb = dailyRainProb.optInt(i, 0),
-            rainAmount = dailyAmounts.double(i, useFallback, 0.0),
-            weatherCode = dailyCodes.int(i, useFallback, 0)
+            rainAmount = dailyAmounts.double(i, useBestMatch, 0.0),
+            weatherCode = dailyCodes.int(i, useBestMatch, 0)
         )
     }
 

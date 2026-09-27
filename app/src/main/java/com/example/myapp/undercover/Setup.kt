@@ -102,7 +102,7 @@ fun reassignRolesAndWords(context: Context, state: UndercoverGameState): List<Pl
 }
 
 @Composable
-fun HandlePlayerSetup(
+fun PlayerSetupFlow(
     gameState: GameState.PlayerSetup,
     state: UndercoverGameState,
     onStateUpdate: (UndercoverGameState) -> Unit

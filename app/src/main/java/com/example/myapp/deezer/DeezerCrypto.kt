@@ -39,26 +39,6 @@ object DeezerCrypto {
         return cipher.doFinal(chunk)
     }
 
-    /**
-     * Decrypts a whole downloaded track buffer in one pass. Used by the download-then-decrypt path;
-     * the streaming DataSource reuses [blowfishKey] and [decryptChunk] with its own chunk alignment.
-     */
-    fun decryptFullTrack(sngId: String, data: ByteArray): ByteArray {
-        val key = blowfishKey(sngId)
-        val out = ByteArray(data.size)
-        var pos = 0
-        var chunkIndex = 0
-        while (pos < data.size) {
-            val len = minOf(CHUNK_SIZE, data.size - pos)
-            if (chunkIndex % 3 == 0 && len == CHUNK_SIZE) {
-                val decrypted = decryptChunk(key, data.copyOfRange(pos, pos + CHUNK_SIZE))
-                decrypted.copyInto(out, pos)
-            } else {
-                data.copyInto(out, pos, pos, pos + len)
-            }
-            pos += len
-            chunkIndex++
-        }
-        return out
-    }
+    /** The striping rule: only a full chunk whose index is a multiple of 3 is encrypted. */
+    fun isEncryptedChunk(index: Int, length: Int): Boolean = index % 3 == 0 && length == CHUNK_SIZE
 }
