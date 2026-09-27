@@ -52,10 +52,9 @@ private const val TAG = "PodcastDownloads"
 /**
  * The episodes kept on the phone. A download is the whole episode held in [PodcastStreamCache],
  * protected from eviction, plus a row in podcast_downloads for its metadata (the cache names
- * nothing). One store for everything means the three things that fetch audio feed each other:
- * playing an episode fills the cache the download would have fetched, downloading one covers the
- * sleep timer's night, and a download started over an episode already streamed only pulls what is
- * missing.
+ * nothing). One store for everything means the downloads and the sleep pre-fetch feed each other,
+ * and playback reads both: downloading an episode covers the sleep timer's night, and a download
+ * started after a pre-fetch only pulls what is missing.
  *
  * "Downloaded" stays derived from the bytes actually held, never from a flag: [refresh] drops any
  * row whose audio is no longer whole.
@@ -276,8 +275,8 @@ class PodcastDownloads(private val appContext: Context, private val dao: () -> P
     }
 
     /**
-     * Pulls the whole episode into the shared cache and keeps it there. Bytes already held, whether
-     * from playing it or from a sleep pre-fetch, are not fetched again. No-op if already downloaded.
+     * Pulls the whole episode into the shared cache and keeps it there. Bytes already held from a
+     * sleep pre-fetch are not fetched again. No-op if already downloaded.
      */
     private suspend fun download(episode: PodcastEpisode) {
         if (isDownloaded(episode.id)) return
@@ -292,7 +291,7 @@ class PodcastDownloads(private val appContext: Context, private val dao: () -> P
                     .setLength(C.LENGTH_UNSET.toLong())
                     .build()
                 val writer = CacheWriter(
-                    PodcastStreamCache.cacheDataSourceFactory(appContext).createDataSource(),
+                    PodcastStreamCache.writerDataSource(appContext),
                     spec,
                     null,
                     CacheWriter.ProgressListener { requestLength, bytesCached, _ ->

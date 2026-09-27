@@ -17,10 +17,10 @@ import java.io.File
 import java.util.TreeSet
 
 /**
- * The one place podcast audio lives, keyed by the episode's audio URL: playing, pre-fetching for the
- * sleep timer and downloading all read and write the same bytes. Whatever is held plays with no
+ * The one place podcast audio lives, keyed by the episode's audio URL: pre-fetching for the sleep
+ * timer and downloading write the same bytes, and playback reads them. Whatever is held plays with no
  * connection, and the rest still streams normally, so an episode half downloaded is already half
- * secured for the night, and a download started while streaming only fetches what is missing.
+ * secured for the night.
  *
  * A download is nothing more than the whole resource being held plus a *protected* key: protected
  * bytes are never evicted and don't count against the cache's limit, so downloads stay put for as
@@ -43,9 +43,7 @@ object PodcastStreamCache {
         StandaloneDatabaseProvider(context.applicationContext)
     ).also { cache = it }
 
-    /** Cache-backed source for an episode's http(s) audio: what playback, the pre-fetch and the
-     *  downloads all go through, so none of them fetches bytes another one already holds. */
-    fun cacheDataSourceFactory(context: Context): CacheDataSource.Factory =
+    private fun cacheDataSourceFactory(context: Context): CacheDataSource.Factory =
         CacheDataSource.Factory()
             .setCache(cache(context))
             .setUpstreamDataSourceFactory(
@@ -57,10 +55,23 @@ object PodcastStreamCache {
             )
             .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
 
-    /** What the player reads through. Same cache as everything else, so a running download feeds it. */
-    fun playerDataSourceFactory(context: Context): DataSource.Factory = cacheDataSourceFactory(context)
+    /**
+     * What the downloads and the sleep pre-fetch write through. It waits for a range another writer
+     * holds instead of reading past it uncached, which would end the fetch cleanly with a hole in it.
+     */
+    fun writerDataSource(context: Context): CacheDataSource =
+        cacheDataSourceFactory(context).createDataSourceForDownloading()
 
-    /** Size of [url]'s audio if it was learned while streaming, else [androidx.media3.common.C.LENGTH_UNSET]. */
+    /**
+     * What the player reads through: whatever is held plays from the phone, the rest streams, and
+     * nothing it streams is written. A writing player locks the whole rest of the episode for as long
+     * as it plays, so a download or a sleep pre-fetch of the episode on air read past that range
+     * without keeping it and always ended "Téléchargement incomplet".
+     */
+    fun playerDataSourceFactory(context: Context): DataSource.Factory =
+        cacheDataSourceFactory(context).setCacheWriteDataSinkFactory(null)
+
+    /** Size of [url]'s audio if a fetch into the cache learned it, else [androidx.media3.common.C.LENGTH_UNSET]. */
     fun knownContentLength(context: Context, url: String): Long =
         ContentMetadata.getContentLength(cache(context).getContentMetadata(url))
 

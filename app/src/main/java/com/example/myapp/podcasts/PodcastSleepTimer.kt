@@ -268,7 +268,7 @@ class PodcastSleepTimer(private val appContext: Context, private val repo: Podca
             .setLength(length)
             .build()
         val writer = CacheWriter(
-            PodcastStreamCache.cacheDataSourceFactory(appContext).createDataSource(),
+            PodcastStreamCache.writerDataSource(appContext),
             spec,
             null,
             CacheWriter.ProgressListener { requestLength, bytesCached, _ ->
