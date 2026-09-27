@@ -40,7 +40,7 @@ Root package (shared/misc):
 - `MenuUsage.kt`: MenuUsageStore, the per-tool tap counters that order the menu grid
 - `Theme.kt`: ThemeManager (dark mode DataStore), AppTheme, LocalIsDarkMode
 - `MyApplication.kt`: Application class, holds the FlashcardRepository / DeezerRepository / PodcastRepository singletons plus their `Context.<name>Repository` extensions, and the app start housekeeping
-- `Buttons.kt`: shared composables, MyButton, SplitMyButton, MySwitch, ShowAlertDialog, ErrorText, AppDialog (the buttons all built on RaisedSurface, the custom dialogs all on AppDialog)
+- `Buttons.kt`: shared composables, MyButton, SplitMyButton, MySwitch, ShowAlertDialog, ErrorText, AppDialog, LightIconButton (the one-node icon button for anything repeated per card or line; the buttons all built on RaisedSurface, the custom dialogs all on AppDialog)
 - `ScreenTopBar.kt`: shared back-arrow + title header used by the tool screens
 - `Home.kt`: BackIconButton (tap = back, long press = main menu), the LocalGoHome hook, and the idle-return-to-menu lifecycle watcher with its IdleResetGuard
 - `PlayerUi.kt`: the surfaces `deezer/` and `podcasts/` both draw; MediaArt, MediaListRow, MiniPlayerBar, PlayPauseButton, PlayerSeekBar (which owns the position polling), formatPlaybackTime
@@ -168,7 +168,7 @@ Root package (shared/misc):
 - `NewsUi.kt`: NewsArticleRow, NewsResumeCard, the relative date formatting and the browser intent
 
 `notes/` (notes tool, the biggest one):
-- `Models.kt`: the Note entity, its JSON (de)serialization, and NoteDao (the Room DAO)
+- `Models.kt`: the Note entity, its JSON (de)serialization, NoteDao (the Room DAO), and NotesLists, the notes and trash observed from app start so the list opens with its first frame filled
 - `NoteText.kt`: everything a note's plain text encodes; the special note titles, checkbox/separator prefixes, formatInline, quantity and waiting-date suffixes, noteTitleAndPreview
 - `NotesListScreen.kt`: list of notes screen; the grid, the search, the trash entry, and NoteCard, the colored card every note is drawn on
 - `TodoWidget.kt`: TodoWidgetCard, the pinned Todo preview on the list; toggle and delete lines in place, add an item at either end of the active block

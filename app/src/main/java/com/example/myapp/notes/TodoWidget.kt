@@ -12,7 +12,6 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -23,6 +22,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
+import com.example.myapp.LightIconButton
 
 /** Pinned preview of the "Todo list" note: only the lines before its first separator, checkboxes toggle in place. */
 @Composable
@@ -128,9 +128,12 @@ private fun AddItemRow(onClick: () -> Unit) {
             .fillMaxWidth()
             .clickable(onClick = onClick)
     ) {
-        IconButton(onClick = onClick, modifier = Modifier.size(40.dp)) {
-            Icon(Icons.Default.Add, contentDescription = null, tint = Color.Gray)
-        }
+        Icon(
+            Icons.Default.Add,
+            contentDescription = null,
+            tint = Color.Gray,
+            modifier = Modifier.padding(8.dp)
+        )
         Text(
             "Nouvel élément",
             style = MaterialTheme.typography.bodyMedium,
@@ -142,15 +145,13 @@ private fun AddItemRow(onClick: () -> Unit) {
 /** Small trailing "x" to remove a single line of the Todo widget, checked or not. */
 @Composable
 private fun DeleteLineButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
-    IconButton(
+    LightIconButton(
+        Icons.Default.Close,
+        "Supprimer la ligne",
         onClick = onClick,
-        modifier = modifier.size(32.dp)
-    ) {
-        Icon(
-            Icons.Default.Close,
-            contentDescription = "Supprimer la ligne",
-            modifier = Modifier.size(18.dp),
-            tint = Color.Gray
-        )
-    }
+        modifier = modifier,
+        size = 32.dp,
+        iconSize = 18.dp,
+        tint = Color.Gray
+    )
 }

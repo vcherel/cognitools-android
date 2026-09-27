@@ -25,8 +25,11 @@ import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.minimumInteractiveComponentSize
+import androidx.compose.material3.ripple
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
@@ -40,6 +43,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.takeOrElse
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -411,4 +416,35 @@ fun AppDialog(onDismiss: () -> Unit, content: @Composable ColumnScope.() -> Unit
             )
         }
     }
+}
+/**
+ * An IconButton drawn as one node: the icon itself is the clickable, padded out to [size]. Same
+ * look, touch target and round ripple, but a screen repeating it per card or per line (the notes
+ * list, the note view) composes and lays out a fraction of what IconButton costs.
+ */
+@Composable
+fun LightIconButton(
+    icon: ImageVector,
+    contentDescription: String?,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    size: Dp = 36.dp,
+    iconSize: Dp = 24.dp,
+    tint: Color = Color.Unspecified
+) {
+    Icon(
+        icon,
+        contentDescription = contentDescription,
+        tint = tint.takeOrElse { LocalContentColor.current },
+        modifier = modifier
+            .minimumInteractiveComponentSize()
+            .size(size)
+            .clickable(
+                interactionSource = null,
+                indication = ripple(bounded = false, radius = size / 2),
+                role = Role.Button,
+                onClick = onClick
+            )
+            .padding((size - iconSize) / 2)
+    )
 }

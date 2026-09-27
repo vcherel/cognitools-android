@@ -24,7 +24,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -38,8 +38,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.myapp.AppSnackbar
+import com.example.myapp.LightIconButton
 import com.example.myapp.ScreenTopBar
 import com.example.myapp.ShowAlertDialog
+import com.example.myapp.notesLists
 import com.example.myapp.flashcards.AppDatabase
 import kotlinx.coroutines.launch
 
@@ -54,10 +56,7 @@ fun NotesTrashScreen(onBack: () -> Unit) {
     val scope = rememberCoroutineScope()
     val dao = remember { AppDatabase.get(context).noteDao() }
 
-    var notes by remember { mutableStateOf<List<Note>>(emptyList()) }
-    LaunchedEffect(dao) {
-        dao.observeTrashedNotes().collect { notes = it }
-    }
+    val notes by context.notesLists.trashed.collectAsState()
     // The note a "supprimer définitivement" confirmation is waiting on, or null when the pending
     // confirmation is for emptying the whole trash.
     var confirmDelete by remember { mutableStateOf<Note?>(null) }
@@ -191,13 +190,9 @@ internal fun TrashedNoteCard(
                     color = Color.Gray,
                     modifier = Modifier.weight(1f)
                 )
-                IconButton(onClick = onRestore, modifier = Modifier.size(36.dp)) {
-                    Icon(Icons.Default.Restore, contentDescription = "Restaurer")
-                }
+                LightIconButton(Icons.Default.Restore, "Restaurer", onClick = onRestore)
                 Spacer(Modifier.size(4.dp))
-                IconButton(onClick = onDeleteForever, modifier = Modifier.size(36.dp)) {
-                    Icon(Icons.Default.Delete, contentDescription = "Supprimer définitivement")
-                }
+                LightIconButton(Icons.Default.Delete, "Supprimer définitivement", onClick = onDeleteForever)
             }
         }
     }

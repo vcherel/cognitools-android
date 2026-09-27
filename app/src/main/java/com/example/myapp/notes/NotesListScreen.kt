@@ -38,6 +38,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -59,8 +60,10 @@ import com.example.myapp.BackupKind
 import com.example.myapp.BackupRestoreActions
 import com.example.myapp.BottomFadeOverlay
 import com.example.myapp.copyToClipboard
+import com.example.myapp.LightIconButton
 import com.example.myapp.LocalIsDarkMode
 import com.example.myapp.MyButton
+import com.example.myapp.notesLists
 import com.example.myapp.popBackStackOnce
 import com.example.myapp.RecentSearchChips
 import com.example.myapp.SearchHistory
@@ -100,19 +103,13 @@ fun NotesListScreen(navController: NavController) {
     val scope = rememberCoroutineScope()
     val dao = remember { AppDatabase.get(context).noteDao() }
 
-    var notes by remember { mutableStateOf<List<Note>?>(null) }
+    val notes by context.notesLists.notes.collectAsState()
     LaunchedEffect(dao) {
         // CLI escape hatch: unlock everything if the reset sentinel file is present
         NoteLock.applyResetSentinelIfPresent(context, dao)
     }
-    LaunchedEffect(dao) {
-        dao.observeNotes().collect { notes = it }
-    }
     // The whole list, not just its size: a search looks through the trash too.
-    var trashedNotes by remember { mutableStateOf<List<Note>>(emptyList()) }
-    LaunchedEffect(dao) {
-        dao.observeTrashedNotes().collect { trashedNotes = it }
-    }
+    val trashedNotes by context.notesLists.trashed.collectAsState()
     val trashedCount = trashedNotes.size
     // Set while a "supprimer définitivement" confirmation is waiting on a trashed search result.
     var confirmDelete by remember { mutableStateOf<Note?>(null) }
@@ -241,13 +238,14 @@ fun NotesListScreen(navController: NavController) {
             ) {
                 val currentNotes = notes
                 // Each note's searchable text, folded once per edit rather than once per keystroke:
-                // normalizing every note's whole body is what a search actually costs.
+                // normalizing every note's whole body is what a search actually costs. Lazy, so
+                // opening the list without searching never pays it.
                 val searchable = remember(currentNotes) {
-                    currentNotes.orEmpty().map { it to searchHaystackOf(it) }
+                    lazy { currentNotes.orEmpty().map { it to searchHaystackOf(it) } }
                 }
-                val displayedNotes = remember(searchable, searchTerms) {
-                    if (searchTerms.isEmpty()) searchable.map { it.first }
-                    else searchable.filter { haystackMatches(it.second, searchTerms) }.map { it.first }
+                val displayedNotes = remember(currentNotes, searchable, searchTerms) {
+                    if (searchTerms.isEmpty()) currentNotes.orEmpty()
+                    else searchable.value.filter { haystackMatches(it.second, searchTerms) }.map { it.first }
                 }
                 // Something deleted by mistake stays findable without opening the trash screen.
                 val trashedMatches = remember(trashedNotes, searchTerms) {
@@ -536,34 +534,19 @@ private fun NoteItem(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.End
         ) {
-            IconButton(
-                onClick = onRecolor,
-                modifier = Modifier.size(36.dp)
-            ) {
-                Icon(Icons.Default.Palette, contentDescription = "Couleur suivante")
-            }
+            LightIconButton(Icons.Default.Palette, "Couleur suivante", onClick = onRecolor)
             if (!note.locked) {
                 Spacer(Modifier.size(4.dp))
                 val context = LocalContext.current
-                IconButton(
-                    onClick = {
-                        copyToClipboard(context, note.content)
-                        if (note.title.trim().equals(INGREDIENTS_TITLE, ignoreCase = true)) {
-                            Toast.makeText(context, "${(1..15).random()}", Toast.LENGTH_SHORT).show()
-                        }
-                    },
-                    modifier = Modifier.size(36.dp)
-                ) {
-                    Icon(Icons.Default.ContentCopy, contentDescription = "Copier le contenu")
-                }
+                LightIconButton(Icons.Default.ContentCopy, "Copier le contenu", onClick = {
+                    copyToClipboard(context, note.content)
+                    if (note.title.trim().equals(INGREDIENTS_TITLE, ignoreCase = true)) {
+                        Toast.makeText(context, "${(1..15).random()}", Toast.LENGTH_SHORT).show()
+                    }
+                })
             }
             Spacer(Modifier.size(4.dp))
-            IconButton(
-                onClick = onDelete,
-                modifier = Modifier.size(36.dp)
-            ) {
-                Icon(Icons.Default.Delete, contentDescription = "Supprimer")
-            }
+            LightIconButton(Icons.Default.Delete, "Supprimer", onClick = onDelete)
         }
     }
 }

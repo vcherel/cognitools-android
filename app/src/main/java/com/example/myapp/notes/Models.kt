@@ -5,7 +5,11 @@ import androidx.room.Entity
 import androidx.room.PrimaryKey
 import androidx.room.Query
 import androidx.room.Upsert
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.stateIn
 import org.json.JSONArray
 import org.json.JSONObject
 import java.util.UUID
@@ -98,4 +102,14 @@ interface NoteDao {
     /** Drops trashed notes whose retention window is over. Called at app start. */
     @Query("DELETE FROM notes WHERE deletedAt > 0 AND deletedAt < :cutoff")
     suspend fun purgeExpiredTrashedNotes(cutoff: Long)
+}
+
+/**
+ * The notes list and the trash, observed from app start rather than from the list screen, so the
+ * screen's first frame already has its notes instead of a spinner while Room answers.
+ */
+class NotesLists(dao: NoteDao, scope: CoroutineScope) {
+    /** Null only until the first query answers. */
+    val notes: StateFlow<List<Note>?> = dao.observeNotes().stateIn(scope, SharingStarted.Eagerly, null)
+    val trashed: StateFlow<List<Note>> = dao.observeTrashedNotes().stateIn(scope, SharingStarted.Eagerly, emptyList())
 }

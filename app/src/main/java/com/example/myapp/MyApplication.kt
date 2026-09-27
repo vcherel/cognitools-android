@@ -14,9 +14,11 @@ import com.example.myapp.mail.MailRepository
 import com.example.myapp.news.NEWS_READ_RETENTION_DAYS
 import com.example.myapp.news.NewsRepository
 import com.example.myapp.notes.NOTES_TRASH_RETENTION_DAYS
+import com.example.myapp.notes.NotesLists
 import com.example.myapp.podcasts.PodcastRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 
 class MyApplication : Application(), SingletonImageLoader.Factory {
@@ -25,11 +27,14 @@ class MyApplication : Application(), SingletonImageLoader.Factory {
     val podcastRepository: PodcastRepository by lazy { PodcastRepository(this) }
     val newsRepository: NewsRepository by lazy { NewsRepository(this) }
     val mailRepository: MailRepository by lazy { MailRepository(this) }
+    lateinit var notesLists: NotesLists
+        private set
 
     // The notes trash keeps its own retention window; the gallery trash is MediaStore's, which
     // Android empties on its own.
     override fun onCreate() {
         super.onCreate()
+        notesLists = NotesLists(AppDatabase.get(this).noteDao(), CoroutineScope(SupervisorJob() + Dispatchers.IO))
         CoroutineScope(Dispatchers.IO).launch {
             val cutoff = System.currentTimeMillis() -
                 NOTES_TRASH_RETENTION_DAYS * 24L * 60L * 60L * 1000L
@@ -74,6 +79,9 @@ val Context.podcastRepository: PodcastRepository
 
 val Context.newsRepository: NewsRepository
     get() = (applicationContext as MyApplication).newsRepository
+
+val Context.notesLists: NotesLists
+    get() = (applicationContext as MyApplication).notesLists
 
 val Context.mailRepository: MailRepository
     get() = (applicationContext as MyApplication).mailRepository
