@@ -10,7 +10,7 @@ import kotlinx.coroutines.launch
 
 /**
  * Every edit the note's read-only view can make to a single line: toggling its checkbox, changing
- * its quantity, bumping a muscu day, deleting it. They all have the same shape (rewrite the note's
+ * its quantity, bumping a muscu day or a series episode, deleting it. They all have the same shape (rewrite the note's
  * lines in place, save), which is what [editLines] holds; the actual text rules live in NoteEditing.
  *
  * Built by the editor and handed to NoteViewMode as part of a [NoteLineActions].
@@ -56,6 +56,11 @@ class NoteLineEdits(
         val newDay = frenchDays[(dayIndex + days) % 7]
         val newText = text.substring(0, dayGroup.range.first) + newDay + text.substring(dayGroup.range.last + 1)
         lines[index] = line.checkboxPrefix() + newText
+    }
+
+    /** Moves a Movies note series line to its next episode, or with [season] to the next season. */
+    fun bumpEpisode(index: Int, season: Boolean) = editLines { lines ->
+        lines[index] = lines[index].withEpisodeBumped(season)
     }
 
     /**

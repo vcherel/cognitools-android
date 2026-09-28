@@ -101,6 +101,18 @@ fun muscuDayMatch(lineText: String) =
     Regex("""^Muscu\s*\(([^)]+)\)""", RegexOption.IGNORE_CASE).find(lineText)
         ?.takeIf { frenchDays.contains(it.groupValues[1].trim().lowercase()) }
 
+private val episodeRegex = Regex("""\bS(\d+)\s*E(\d+)\b""", RegexOption.IGNORE_CASE)
+
+/** True for a Movies note line tracking a series, "- Breaking bad S1E10". */
+fun String.hasEpisode(): Boolean = episodeRegex.containsMatchIn(this)
+
+/** The next episode ("S1E10" to "S1E11"), or with [season] the next season's first ("S2E1"). */
+fun String.withEpisodeBumped(season: Boolean): String = episodeRegex.replace(this) { match ->
+    val s = match.groupValues[1].toInt()
+    val e = match.groupValues[2].toInt()
+    if (season) "S${s + 1}E1" else "S${s}E${e + 1}"
+}
+
 // Bold ("**") and italic ("*") both use the asterisk, so a plain prefix check can't
 // tell "already bold, adding italic" from "already italic": the asterisk run length
 // (0..3) encodes the combination, matching formatInline (1 = italic, 2 = bold, 3 = both).

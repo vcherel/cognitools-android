@@ -2,6 +2,11 @@ package com.example.myapp.notes
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.Role
+import androidx.compose.material3.ripple
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -85,6 +90,7 @@ data class NoteLineActions(
     val onCopyToCourses: (Int) -> Unit,
     val onChangeQuantity: (index: Int, delta: Int) -> Unit,
     val onShiftMuscu: (Int, Int) -> Unit,
+    val onBumpEpisode: (index: Int, season: Boolean) -> Unit,
     val onRemoveDateSuffix: (Int) -> Unit,
     val onToggleLineMarker: (index: Int, marker: String) -> Unit,
     val onToggleTitleLine: (Int) -> Unit,
@@ -123,6 +129,7 @@ fun NoteViewMode(
     val isCoursesNote = title.equals(COURSES_TITLE, ignoreCase = true)
     val isTodoListNote = title.equals(TODO_LIST_TITLE, ignoreCase = true)
     val isClaudeNote = title.equals(CLAUDE_NOTE_TITLE, ignoreCase = true)
+    val isMoviesNote = title.equals(MOVIES_TITLE, ignoreCase = true)
     // Split once per text change and reused below, instead of re-converting the whole note's text
     // to a String for every line, or re-splitting it every time a selection or a drag recomposes.
     val fullText = textFieldState.text.toString()
@@ -274,6 +281,7 @@ fun NoteViewMode(
                     isCoursesNote = isCoursesNote,
                     isTodoListNote = isTodoListNote,
                     isClaudeNote = isClaudeNote,
+                    isMoviesNote = isMoviesNote,
                     hasResumeAfter = lines.getOrNull(lineIndex + 1)?.isMarkerLine(RESUME_LINE) == true,
                     hasEnhanceAfter = lineIndex in enhanceTitles,
                     actions = actions,
@@ -315,6 +323,7 @@ private fun NoteLine(
     isCoursesNote: Boolean,
     isTodoListNote: Boolean,
     isClaudeNote: Boolean,
+    isMoviesNote: Boolean,
     hasResumeAfter: Boolean,
     hasEnhanceAfter: Boolean,
     actions: NoteLineActions,
@@ -476,6 +485,10 @@ private fun NoteLine(
                                 )
                             }
                     )
+                    if (isMoviesNote && line.hasEpisode()) {
+                        LineTextButton("E+", "Épisode suivant") { actions.onBumpEpisode(lineIndex, false) }
+                        LineTextButton("S+", "Saison suivante") { actions.onBumpEpisode(lineIndex, true) }
+                    }
                     if (isTitle) {
                         LineIconButton(
                             if (hasResumeAfter) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
@@ -537,4 +550,24 @@ private fun LineIconButton(
     onClick: () -> Unit
 ) {
     LightIconButton(icon, description, onClick = onClick, modifier = modifier, tint = Color.Gray)
+}
+
+// The same gray trailing control, with a short label where no icon says it (the Movies E+/S+).
+@Composable
+private fun LineTextButton(label: String, description: String, onClick: () -> Unit) {
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = Modifier
+            .minimumInteractiveComponentSize()
+            .size(36.dp)
+            .clickable(
+                interactionSource = null,
+                indication = ripple(bounded = false, radius = 18.dp),
+                role = Role.Button,
+                onClick = onClick
+            )
+            .semantics { contentDescription = description }
+    ) {
+        Text(label, style = MaterialTheme.typography.labelLarge, color = Color.Gray)
+    }
 }
