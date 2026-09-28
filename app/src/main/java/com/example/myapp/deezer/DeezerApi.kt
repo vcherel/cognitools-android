@@ -12,6 +12,7 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonPrimitive
 import java.net.HttpURLConnection
 import java.net.URL
@@ -401,6 +402,42 @@ class DeezerApi {
             } ?: formats.first()
             DeezerStream(track, url, actualFormat)
         }
+
+    /** Everything the public catalog says about [sngId] and its album, for the full player's info sheet. */
+    suspend fun trackDetails(sngId: String): DeezerTrackDetails = withContext(Dispatchers.IO) {
+        val track = publicObject("https://api.deezer.com/track/$sngId")
+        val albumId = track["album"]?.jsonObject?.get("id")?.jsonPrimitive?.content
+        val album = albumId?.let { runCatching { publicObject("https://api.deezer.com/album/$it") }.getOrNull() }
+        fun JsonObject.str(key: String) = this[key]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() }
+        val artists = track["contributors"]?.jsonArray?.mapNotNull { it.jsonObject.str("name") }?.distinct()
+            ?.ifEmpty { null }
+            ?: listOfNotNull(track["artist"]?.jsonObject?.str("name"))
+        DeezerTrackDetails(
+            title = track.str("title").orEmpty(),
+            artists = artists,
+            album = track["album"]?.jsonObject?.str("title").orEmpty(),
+            releaseDate = track.str("release_date")?.takeIf { it != "0000-00-00" } ?: album?.str("release_date"),
+            durationSec = track.str("duration")?.toIntOrNull() ?: 0,
+            trackPosition = track.str("track_position")?.toIntOrNull(),
+            diskNumber = track.str("disk_number")?.toIntOrNull(),
+            bpm = track.str("bpm")?.toFloatOrNull()?.takeIf { it > 0f },
+            explicit = track["explicit_lyrics"]?.jsonPrimitive?.booleanOrNull == true,
+            label = album?.str("label"),
+            genres = album?.get("genres")?.jsonObject?.get("data")?.jsonArray
+                ?.mapNotNull { it.jsonObject.str("name") }.orEmpty(),
+            isrc = track.str("isrc")
+        )
+    }
+
+    /** One public API object call; its 200-with-an-error answer is thrown, not returned. */
+    private fun publicObject(url: String): JsonObject {
+        val conn = open(url, "GET")
+        val raw = readBody(conn)
+        val root = runCatching { json.parseToJsonElement(raw) }.getOrNull() as? JsonObject
+            ?: throw DeezerApiException("$url unexpected response: ${raw.excerpt()}")
+        root["error"]?.let { throw DeezerApiException("$url error: $it") }
+        return root
+    }
 
     private fun qualityChain(preferred: DeezerQuality): List<DeezerQuality> =
         (listOf(preferred) + DeezerQuality.MP3_128).distinct()

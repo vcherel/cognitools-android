@@ -18,6 +18,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Diamond
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.DownloadDone
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FormatListNumbered
 import androidx.compose.material.icons.filled.FavoriteBorder
@@ -28,6 +29,7 @@ import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -119,6 +121,14 @@ fun FullPlayerSheet(
 
     if (showQueue) QueueSheet(repo = repo, onDismiss = { showQueue = false })
 
+    var showInfo by remember { mutableStateOf(false) }
+    if (showInfo && state.sngId != null) TrackInfoSheet(repo = repo, sngId = state.sngId, onDismiss = { showInfo = false })
+
+    // The download button's three shapes: to save, being saved, already in Download.
+    val saving by repo.saver.saving.collectAsState()
+    val isSaving = state.sngId != null && state.sngId in saving
+    val isSaved = remember(state.sngId, isSaving) { currentTrack(repo, state)?.let { repo.saver.isSaved(it) } == true }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -148,7 +158,8 @@ fun FullPlayerSheet(
                 state.title.ifBlank { "…" },
                 style = MaterialTheme.typography.headlineSmall,
                 maxLines = 2,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.clickable(enabled = state.sngId != null) { showInfo = true }
             )
             Text(
                 state.artist,
@@ -189,16 +200,22 @@ fun FullPlayerSheet(
                         tint = if (inPepites) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-                // Sends the track to the DJ note, the list of what to download. The diamond does
-                // it too (see bestPepitesMessage), this is the way to ask for it alone.
+                // Saves the track as an MP3 in Download and lists it in the DJ note. The diamond
+                // adds the DJ line too (see bestPepitesMessage), without the file.
                 IconButton(onClick = {
                     val track = currentTrack(repo, state) ?: return@IconButton
-                    scope.launch {
-                        val added = runCatching { appendToDjNote(context, track.artist, track.title) }.getOrDefault(false)
-                        Toast.makeText(context, if (added) "Ajouté à DJ" else "Déjà dans DJ", Toast.LENGTH_SHORT).show()
+                    scope.launch { runCatching { appendToDjNote(context, track.artist, track.title) } }
+                    when {
+                        isSaving -> Unit
+                        isSaved -> Toast.makeText(context, "Déjà téléchargé", Toast.LENGTH_SHORT).show()
+                        else -> repo.saver.save(track)
                     }
                 }) {
-                    Icon(Icons.Filled.Download, contentDescription = "Ajouter à DJ", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    when {
+                        isSaving -> CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                        isSaved -> Icon(Icons.Filled.DownloadDone, contentDescription = "Déjà téléchargé", tint = MaterialTheme.colorScheme.primary)
+                        else -> Icon(Icons.Filled.Download, contentDescription = "Télécharger", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                 }
                 IconButton(onClick = {
                     val track = currentTrack(repo, state) ?: return@IconButton

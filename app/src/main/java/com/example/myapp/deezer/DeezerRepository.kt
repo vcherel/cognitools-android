@@ -112,6 +112,9 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
     /** The favorites count day by day, behind the curve on the library screen. */
     val favoritesHistory: DeezerFavoritesHistory by lazy { DeezerFavoritesHistory(appContext) }
 
+    /** Saves a track as a tagged MP3 in the phone's Download folder. */
+    val saver: DeezerTrackSaver by lazy { DeezerTrackSaver(appContext, this) }
+
     /** The MediaController, the queue and everything the now playing surfaces drive. */
     val player = DeezerPlayer(appContext, this)
 
@@ -197,6 +200,9 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
     /** [artistId]'s whole discography, newest first. Public catalog, no session needed. */
     suspend fun artistReleases(artistId: String, artistName: String): List<DeezerRelease> =
         api.artistReleases(artistId, artistName)
+
+    /** Release date, credits, label and the rest of what the full player's info sheet shows. Public catalog. */
+    suspend fun trackDetails(sngId: String): DeezerTrackDetails = api.trackDetails(sngId)
 
     /** [release]'s tracks. Public catalog, no session needed. */
     suspend fun albumTracks(release: DeezerRelease): List<DeezerTrack> = api.albumTracks(release)

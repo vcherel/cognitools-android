@@ -137,3 +137,19 @@ data class QueueUiState(
     val entries: List<QueueEntry> = emptyList(),
     val currentIndex: Int = 0
 )
+
+/** What the full player's info sheet shows about one track, from the public track and album calls. */
+data class DeezerTrackDetails(
+    val title: String,
+    val artists: List<String>,
+    val album: String,
+    val releaseDate: String?,
+    val durationSec: Int,
+    val trackPosition: Int?,
+    val diskNumber: Int?,
+    val bpm: Float?,
+    val explicit: Boolean,
+    val label: String?,
+    val genres: List<String>,
+    val isrc: String?
+)

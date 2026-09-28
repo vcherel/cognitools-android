@@ -81,6 +81,8 @@ Root package (shared/misc):
 - `DeezerPlaybackService.kt`: MediaSessionService owning the ExoPlayer; media notification, its heart/diamond action buttons (`actionButtons`), error recovery
 - `DeezerScreen.kt`: host for the whole Musique tool (music *and* podcasts), nested NavHost + the two persistent mini-players
 - `DeezerNowPlaying.kt`: FullPlayerSheet, plus the share-a-track sheet. The mini-player bar itself is the shared one in `PlayerUi.kt`
+- `DeezerTrackInfoSheet.kt`: TrackInfoSheet, opened by tapping the title in the full player; release date, credits, album, label, BPM from the public track and album calls
+- `DeezerTrackSaver.kt`: `repo.saver`, the full player's download button; saves the track as an ID3 tagged MP3 320 in Download, "already saved" being the file there under its name
 - `DeezerQueueSheet.kt`: QueueSheet, the queue opened from the full player: jump to a track, drag to reorder, remove, each edit applied straight to the controller
 - `DeezerLibraryScreen.kt`: landing screen; favorites card, playlists rows, followed podcast rows, offline status
 - `DeezerTrackRow.kt`: TrackRow (the one tappable track line with its heart and menu), the playlist picker dialog, and the add-to-queue / Best pépites / add-to-playlist actions that return the toast to show, reused by every Deezer screen
@@ -177,7 +179,7 @@ Root package (shared/misc):
 - `NoteEditorState.kt`: NoteEditorState and `rememberNoteEditorState`, everything about the note itself; load, autosave, undo stack, saveContent, the lock and its PIN gate, and the fake blank lines edit mode pads the text with
 - `NoteEditorTopBar.kt`: the editor's header; the editable title plus every button and menu entry, driven by a NoteEditorBarState/NoteEditorBarActions pair
 - `NoteLineEdits.kt`: the per-line edits the read-only view makes (toggle, quantity, muscu day, delete with undo), all going through one editLines
-- `NoteEditing.kt`: pure text helpers; input transformations, slash commands, inline/line marker toggling, muscu day
+- `NoteEditing.kt`: pure text helpers; input transformations, slash commands, inline/line marker toggling, muscu day, the Movies note's S1E10 episode bump
 - `NoteViewMode.kt`: the read-only note rendering; per-line checkbox/separator/text, drag reorder, double-tap to edit. Takes one NoteLineActions from the editor
 - `NoteLock.kt`: the app's one PIN (notes *and* locked gallery albums, see `gallery/GalleryLock.kt`) and PinDialog
 - `NotesTrashScreen.kt`: the trashed notes screen (restore, delete for good, empty the trash)
