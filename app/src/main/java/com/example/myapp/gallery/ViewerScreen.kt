@@ -456,7 +456,7 @@ private fun ViewerActionBar(
                 }
                 if (item.type == MediaType.IMAGE) {
                     DropdownMenuItem(
-                        text = { Text("Rogner") },
+                        text = { Text("Modifier") },
                         leadingIcon = { Icon(Icons.Default.Crop, contentDescription = null) },
                         onClick = { showMoreMenu = false; onCrop() }
                     )

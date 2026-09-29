@@ -1,7 +1,8 @@
 package com.example.myapp.gallery
 
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
+import android.graphics.ImageDecoder
+import android.graphics.Matrix
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
@@ -13,10 +14,15 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Rotate90DegreesCw
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -57,6 +63,7 @@ fun GalleryCropScreen(itemId: Long, onBack: () -> Unit) {
     var item by remember { mutableStateOf<MediaItem?>(null) }
     var displayBitmap by remember { mutableStateOf<Bitmap?>(null) }
     var cropRect by remember { mutableStateOf<Rect?>(null) }
+    var rotation by remember { mutableIntStateOf(0) }
     var imageRect by remember { mutableStateOf(Rect.Zero) }
     var saving by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
@@ -78,7 +85,17 @@ fun GalleryCropScreen(itemId: Long, onBack: () -> Unit) {
     val bitmap = displayBitmap
 
     Column(modifier = Modifier.fillMaxSize()) {
-        ScreenTopBar(title = "Rogner", onBack = onBack, modifier = Modifier.padding(16.dp))
+        ScreenTopBar(title = "Modifier", onBack = onBack, modifier = Modifier.padding(16.dp), titleWeight = true) {
+            if (bitmap != null && !saving) {
+                IconButton(onClick = {
+                    displayBitmap = bitmap.rotated(90)
+                    rotation = (rotation + 90) % 360
+                    cropRect = null
+                }) {
+                    Icon(Icons.Default.Rotate90DegreesCw, contentDescription = "Pivoter")
+                }
+            }
+        }
 
         if (currentItem == null || bitmap == null) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
@@ -106,9 +123,7 @@ fun GalleryCropScreen(itemId: Long, onBack: () -> Unit) {
                     Rect(left, top, left + displayWidth, top + displayHeight)
                 }
                 SideEffect { imageRect = computedImageRect }
-                if (cropRect == null) {
-                    cropRect = computedImageRect.deflate(computedImageRect.width * 0.1f)
-                }
+                if (cropRect == null) cropRect = computedImageRect
                 val rect = cropRect
                 if (rect != null) {
                     Image(
@@ -141,14 +156,18 @@ fun GalleryCropScreen(itemId: Long, onBack: () -> Unit) {
                 modifier = Modifier.fillMaxWidth().padding(16.dp).height(64.dp)
             ) {
                 val rect = cropRect ?: return@MyButton
+                if (rotation == 0 && rect == imageRect) {
+                    onBack()
+                    return@MyButton
+                }
                 scope.launch {
                     saving = true
                     val cropped = withContext(Dispatchers.Default) {
-                        cropToFullResolution(context, currentItem, bitmap, imageRect, rect)
+                        editToFullResolution(context, currentItem, rotation, imageRect, rect)
                     }
                     if (cropped == null) {
                         saving = false
-                        errorMessage = "Rognage impossible"
+                        errorMessage = "Modification impossible"
                         return@launch
                     }
                     val ok = performOverwrite(context, currentItem, requestConsent) { out ->
@@ -270,33 +289,40 @@ private fun Modifier.pointerInputDragCrop(
     }
 )
 
-private fun decodeSampledBitmap(context: android.content.Context, uri: android.net.Uri, maxDimension: Int): Bitmap? {
-    // Bounds pass: inJustDecodeBounds makes decodeStream always return null (it only fills the
-    // Options), so we check the stream itself for null, not the decode result.
-    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-    (context.contentResolver.openInputStream(uri) ?: return null).use {
-        BitmapFactory.decodeStream(it, null, bounds)
+// ImageDecoder applies the EXIF orientation, so the pixels come out the way the photo is seen: the
+// saved file carries no EXIF, and a sideways camera shot would otherwise be written sideways.
+private fun decodeSampledBitmap(context: android.content.Context, uri: android.net.Uri, maxDimension: Int): Bitmap? =
+    try {
+        ImageDecoder.decodeBitmap(ImageDecoder.createSource(context.contentResolver, uri)) { decoder, info, _ ->
+            var sample = 1
+            while (info.size.width / (sample * 2) >= maxDimension && info.size.height / (sample * 2) >= maxDimension) {
+                sample *= 2
+            }
+            decoder.setTargetSampleSize(sample)
+            decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
+        }
+    } catch (_: Exception) {
+        null
     }
-    if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
-    var sample = 1
-    while (bounds.outWidth / (sample * 2) >= maxDimension && bounds.outHeight / (sample * 2) >= maxDimension) {
-        sample *= 2
-    }
-    val opts = BitmapFactory.Options().apply { inSampleSize = sample }
-    return context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, opts) }
+
+private fun Bitmap.rotated(degrees: Int): Bitmap {
+    if (degrees == 0) return this
+    return Bitmap.createBitmap(this, 0, 0, width, height, Matrix().apply { postRotate(degrees.toFloat()) }, true)
 }
 
-// Re-decodes the source at (near) full resolution and applies the crop rectangle, which was
-// drawn against the smaller, screen-sized `displayBitmap`. imageRect/cropRect are in the crop
-// screen's Box pixel coordinates, so they're first normalized against displayBitmap's own bounds.
-private fun cropToFullResolution(
+// Re-decodes the source at (near) full resolution, rotates it, and applies the crop rectangle, which
+// was drawn against the smaller, screen-sized rotated `displayBitmap`. imageRect/cropRect are in the
+// edit screen's Box pixel coordinates, so they're first normalized against the displayed image.
+private fun editToFullResolution(
     context: android.content.Context,
     item: MediaItem,
-    displayBitmap: Bitmap,
+    rotation: Int,
     imageRect: Rect,
     cropRect: Rect
 ): Bitmap? {
-    val full = decodeSampledBitmap(context, item.uri, maxDimension = 4096) ?: return null
+    val decoded = decodeSampledBitmap(context, item.uri, maxDimension = 4096) ?: return null
+    val full = decoded.rotated(rotation)
+    if (full !== decoded) decoded.recycle()
     val fracLeft = ((cropRect.left - imageRect.left) / imageRect.width).coerceIn(0f, 1f)
     val fracTop = ((cropRect.top - imageRect.top) / imageRect.height).coerceIn(0f, 1f)
     val fracRight = ((cropRect.right - imageRect.left) / imageRect.width).coerceIn(0f, 1f)

@@ -141,7 +141,7 @@ Root package (shared/misc):
 - `ViewerDialogs.kt`: `ViewerDialog`/`ViewerDialogs`, the viewer's whole dialog run, plus the share, rename, move and info dialogs themselves (MoveDialog is also used by the album grid)
 - `GalleryPins.kt`: PinnedMediaItem Room entity/DAO and pin/unpin/setHero/resolve helpers
 - `GalleryLock.kt`: the albums put behind the notes PIN, kept as a set of bucket ids in DataStore
-- `CropScreen.kt`: image crop editor
+- `CropScreen.kt`: image editor, crop and 90° rotation, decoded with its EXIF orientation
 - `TrimScreen.kt`: video trim editor
 
 `mail/` (the Yahoo inbox, read and delete only, fetched only when the screen opens or on refresh; no background work; plus the backup upload):
@@ -188,7 +188,7 @@ Root package (shared/misc):
 - `IngredientDialogs.kt`: the reconcile dialog and the add-an-item name prompt
 - `CarPartsNote.kt`: the "Car Mechanic Simulator" note's model (stock, taken, to buy sections, `Name +N (Q)` lines). Pure, JVM tested
 - `CarPartsBar.kt`: the bar pinned under that note and CarPartsMemory, the DataStore of entered names and the rating mode
-- `DjNote.kt`: `appendToDjNote`, the "Artiste - Titre" line appended to the DJ note (the tracks to download), written by the music tool
+- `DjNote.kt`: `appendToDjNote`, the "Artiste - Titre" line appended to the DJ note (the tracks to download), written by the music tool, suffixed "(téléchargé)" once the app saved the MP3
 
 `reader/` (epub reader):
 - `Epub.kt`: the whole epub format side, no library: java.util.zip opens the archive, jsoup parses the OPF manifest, the table of contents and the chapter markup into TextBlock/InlineSpan. Pure, covered by a JVM unit test
