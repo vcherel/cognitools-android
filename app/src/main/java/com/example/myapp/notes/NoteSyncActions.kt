@@ -79,7 +79,8 @@ class NoteSyncActions(
 
             if (matchedNames.isNotEmpty()) {
                 val present = presentIngredients(ingredientsNote.content)
-                val newPresent = (present + matchedNames).distinctBy { it.itemKey() }
+                // A bought ingredient replaces its "Lait (entamé)" line: the note on what was left is stale.
+                val newPresent = (matchedNames + present).distinctBy { it.ingredientLineKey() }
                 updateNoteContent(ingredientsNote.id, renderIntoIngredientsNote(ingredientsNote.content, newPresent, groups))
             }
             if (matchedLines.isNotEmpty()) {
@@ -116,7 +117,7 @@ class NoteSyncActions(
             val notes = dao.getNotes()
             val courses = notes.findOrReport(COURSES_TITLE) ?: return@launch
             val modelNote = notes.findOrReport(COURSES_MODEL_TITLE) ?: return@launch
-            val itemName = removed.checkboxText().withoutQuantitySuffix().trim()
+            val itemName = removed.courseItemName()
 
             val groups = parseCourseGroups(modelNote.content)
             val groupIndex = courseGroupIndexOf(groups, itemName)
@@ -168,7 +169,7 @@ class NoteSyncActions(
 
             val pending = if (modelIndex >= 0) {
                 val present = presentIngredients(content)
-                val newPresent = (present + flatModel[modelIndex]).distinctBy { it.itemKey() }
+                val newPresent = (listOf(flatModel[modelIndex]) + present).distinctBy { it.ingredientLineKey() }
                 saveContent(renderIntoIngredientsNote(content, newPresent, groups))
                 emptyList()
             } else {
@@ -208,7 +209,7 @@ class NoteSyncActions(
             val groups = parseCourseGroups(modelContent)
             val modelKeys = groups.allItems().map { it.itemKey() }
             val present = presentIngredients(ingredientsContent)
-            val unknown = present.filter { it.itemKey() !in modelKeys }
+            val unknown = present.filter { it.ingredientLineKey() !in modelKeys }
 
             val newContent = renderIntoIngredientsNote(ingredientsContent, present, groups)
             if (newContent != ingredientsContent) {

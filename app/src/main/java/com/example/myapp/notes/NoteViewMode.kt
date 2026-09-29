@@ -30,6 +30,7 @@ import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.CodeOff
+import androidx.compose.material.icons.filled.ContentCut
 import androidx.compose.material.icons.filled.AddShoppingCart
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.EventBusy
@@ -96,6 +97,7 @@ data class NoteLineActions(
     val onToggleTitleLine: (Int) -> Unit,
     val onToggleResume: (Int) -> Unit,
     val onToggleEnhance: (Int) -> Unit,
+    val onCutCategory: (Int) -> Unit,
     val onEnterEditAt: (offset: Int) -> Unit,
     val onReorder: (newContent: String) -> Unit
 )
@@ -486,8 +488,8 @@ private fun NoteLine(
                             }
                     )
                     if (isMoviesNote && line.hasEpisode()) {
-                        LineTextButton("E+", "Épisode suivant") { actions.onBumpEpisode(lineIndex, false) }
                         LineTextButton("S+", "Saison suivante") { actions.onBumpEpisode(lineIndex, true) }
+                        LineTextButton("E+", "Épisode suivant") { actions.onBumpEpisode(lineIndex, false) }
                     }
                     if (isTitle) {
                         LineIconButton(
@@ -498,6 +500,9 @@ private fun NoteLine(
                             if (hasEnhanceAfter) Icons.Default.Code else Icons.Default.CodeOff,
                             if (hasEnhanceAfter) "Retirer Enhance code" else "Ajouter Enhance code"
                         ) { actions.onToggleEnhance(lineIndex) }
+                        LineIconButton(Icons.Default.ContentCut, "Couper les lignes") {
+                            actions.onCutCategory(lineIndex)
+                        }
                     }
                 }
                 if (selected) {

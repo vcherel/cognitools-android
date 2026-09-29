@@ -1,9 +1,12 @@
 package com.example.myapp.notes
 
+import android.content.Context
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
+import com.example.myapp.copyToClipboard
 import com.example.myapp.showUndoSnackbar
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -16,6 +19,7 @@ import kotlinx.coroutines.launch
  * Built by the editor and handed to NoteViewMode as part of a [NoteLineActions].
  */
 class NoteLineEdits(
+    private val context: Context,
     private val textFieldState: TextFieldState,
     private val saveContent: (String) -> Unit,
     private val snackbar: SnackbarHostState,
@@ -106,6 +110,25 @@ class NoteLineEdits(
         lines.add(end, ENHANCE_LINE)
     }
 
+    /**
+     * Cuts the lines of the Claude note category a title at [index] opens: copied to the clipboard
+     * and removed, the title and the blank lines before the next title left in place.
+     */
+    fun cutCategory(index: Int) {
+        val before = textFieldState.text.toString()
+        val lines = before.split("\n").toMutableList()
+        var end = index + 1 + lines.categoryAfter(index).size
+        while (end > index + 1 && lines[end - 1].isBlank()) end--
+        if (end == index + 1) return
+        val cut = lines.subList(index + 1, end)
+        copyToClipboard(context, cut.joinToString("\n"))
+        cut.clear()
+        saveContent(lines.joinToString("\n"))
+        scope.launch {
+            if (snackbar.showUndoSnackbar("Lignes coupées")) saveContent(before)
+        }
+    }
+
     fun deleteLine(index: Int) {
         val before = textFieldState.text.toString()
         val lines = before.split("\n").toMutableList()
@@ -126,6 +149,9 @@ fun rememberNoteLineEdits(
     scope: CoroutineScope,
     saveContent: (String) -> Unit,
     isCoursesNote: () -> Boolean
-): NoteLineEdits = remember(textFieldState, snackbar) {
-    NoteLineEdits(textFieldState, saveContent, snackbar, scope, isCoursesNote)
+): NoteLineEdits {
+    val context = LocalContext.current
+    return remember(textFieldState, snackbar) {
+        NoteLineEdits(context, textFieldState, saveContent, snackbar, scope, isCoursesNote)
+    }
 }

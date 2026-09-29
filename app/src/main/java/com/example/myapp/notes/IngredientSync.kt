@@ -59,6 +59,17 @@ data class NoteSyncBatch(
 /** The one fold two item names are compared under, in the model, Courses and Ingrédients alike. */
 fun String.itemKey(): String = trim().lowercase()
 
+private val PARENTHESES = Regex("""\s*\([^)]*\)""")
+
+/**
+ * An Ingrédients line as a Courses item: every "(...)" dropped, the quantity and the notes on the
+ * state of what is left at home alike ("Lait (entamé)"), neither belongs on the shopping list.
+ */
+fun String.courseItemName(): String = checkboxText().replace(PARENTHESES, "").trim()
+
+/** [itemKey] of an Ingrédients line: "Lait (entamé)" is still the model's "Lait". */
+fun String.ingredientLineKey(): String = courseItemName().itemKey()
+
 /** [itemKey] of a note line: no checkbox prefix, no "(N)" quantity. */
 fun String.ingredientKey(): String = checkboxText().withoutQuantitySuffix().itemKey()
 
@@ -104,13 +115,13 @@ private fun renderIngredientSection(present: List<String>, groups: List<CourseGr
     val blocks = mutableListOf<String>()
     for (g in food) {
         val keys = g.map { it.itemKey() }.toSet()
-        val members = distinct.filter { it.lowercase() in keys }
+        val members = distinct.filter { it.ingredientLineKey() in keys }
             .map { canonical[it.lowercase()] ?: it }
             .sortedWith(byFrenchName)
         if (members.isNotEmpty()) blocks.add(members.joinToString("\n"))
     }
     val known = food.flatten().map { it.itemKey() }.toSet()
-    val unknown = distinct.filter { it.lowercase() !in known }.sortedWith(byFrenchName)
+    val unknown = distinct.filter { it.ingredientLineKey() !in known }.sortedWith(byFrenchName)
     if (unknown.isNotEmpty()) blocks.add(unknown.joinToString("\n"))
     return blocks.joinToString("\n\n")
 }

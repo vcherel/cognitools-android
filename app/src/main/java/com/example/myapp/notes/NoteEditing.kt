@@ -1,6 +1,7 @@
 package com.example.myapp.notes
 
 import androidx.compose.foundation.text.input.InputTransformation
+import androidx.compose.foundation.text.input.TextFieldBuffer
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.ui.text.TextRange
 
@@ -10,54 +11,85 @@ import androidx.compose.ui.text.TextRange
  * within the prefix of a non empty checkbox line inserts an empty checkbox
  * above the item. Backspacing right after a checkbox prefix removes the whole
  * prefix in one go instead of one character at a time.
+ *
+ * The first letter typed into an empty checkbox is uppercased, since the keyboard
+ * only capitalizes after a full stop or at a line start, never after "[ ] ".
+ * Erasing that capital turns it off for the line, so a lowercase item stays possible.
  */
-internal val autoContinueCheckboxTransformation = InputTransformation {
-    val cursor = selection.start
-    // Not copied to a String: this runs on every keystroke, and a long note would be copied each time.
-    val oldText = originalText
+internal class CheckboxInputTransformation : InputTransformation {
+    private var capitalizedLineStart = -1
+    private var lowercaseLineStart = -1
 
-    val typedNewline = length == oldText.length + 1 &&
-        cursor > 0 && cursor <= length && charAt(cursor - 1) == '\n'
-    if (typedNewline) {
-        val oldCursor = cursor - 1
-        val oldLineStart = if (oldCursor == 0) 0 else oldText.lastIndexOf('\n', oldCursor - 1) + 1
-        val oldLineEnd = oldText.indexOf('\n', oldCursor).let { if (it == -1) oldText.length else it }
-        val oldLine = oldText.substring(oldLineStart, oldLineEnd)
-        if (oldLine.isCheckboxLine() &&
-            oldCursor - oldLineStart <= UNCHECKED_PREFIX.length &&
-            oldLine.checkboxText().isNotBlank()
-        ) {
-            replace(cursor - 1, cursor, "")
-            replace(oldLineStart, oldLineStart, UNCHECKED_PREFIX + "\n")
-            selection = TextRange(oldLineStart + UNCHECKED_PREFIX.length)
-            return@InputTransformation
+    override fun TextFieldBuffer.transformInput() {
+        val cursor = selection.start
+        // Not copied to a String: this runs on every keystroke, and a long note would be copied each time.
+        val oldText = originalText
+
+        val typedNewline = length == oldText.length + 1 &&
+            cursor > 0 && cursor <= length && charAt(cursor - 1) == '\n'
+        if (typedNewline) {
+            val oldCursor = cursor - 1
+            val oldLineStart = if (oldCursor == 0) 0 else oldText.lastIndexOf('\n', oldCursor - 1) + 1
+            val oldLineEnd = oldText.indexOf('\n', oldCursor).let { if (it == -1) oldText.length else it }
+            val oldLine = oldText.substring(oldLineStart, oldLineEnd)
+            if (oldLine.isCheckboxLine() &&
+                oldCursor - oldLineStart <= UNCHECKED_PREFIX.length &&
+                oldLine.checkboxText().isNotBlank()
+            ) {
+                replace(cursor - 1, cursor, "")
+                replace(oldLineStart, oldLineStart, UNCHECKED_PREFIX + "\n")
+                selection = TextRange(oldLineStart + UNCHECKED_PREFIX.length)
+                capitalizedLineStart = -1
+                lowercaseLineStart = -1
+                return
+            }
+
+            val newText = asCharSequence().toString()
+            val prevLineStart = if (cursor == 1) 0 else newText.lastIndexOf('\n', cursor - 2) + 1
+            val prevLine = newText.substring(prevLineStart, cursor - 1)
+            capitalizedLineStart = -1
+            lowercaseLineStart = -1
+            if (!prevLine.isCheckboxLine()) return
+
+            if (prevLine.checkboxText().isBlank()) {
+                // Empty checkbox line: Enter exits the list, dropping the empty item
+                replace(prevLineStart, cursor, "")
+                selection = TextRange(prevLineStart)
+            } else {
+                replace(cursor, cursor, UNCHECKED_PREFIX)
+                selection = TextRange(cursor + UNCHECKED_PREFIX.length)
+            }
+            return
         }
 
-        val newText = asCharSequence().toString()
-        val prevLineStart = if (cursor == 1) 0 else newText.lastIndexOf('\n', cursor - 2) + 1
-        val prevLine = newText.substring(prevLineStart, cursor - 1)
-        if (!prevLine.isCheckboxLine()) return@InputTransformation
-
-        if (prevLine.checkboxText().isBlank()) {
-            // Empty checkbox line: Enter exits the list, dropping the empty item
-            replace(prevLineStart, cursor, "")
-            selection = TextRange(prevLineStart)
-        } else {
-            replace(cursor, cursor, UNCHECKED_PREFIX)
-            selection = TextRange(cursor + UNCHECKED_PREFIX.length)
+        val deletedOneChar = selection.collapsed && length == oldText.length - 1
+        if (deletedOneChar) {
+            val newText = asCharSequence().toString()
+            val lineStart = if (cursor == 0) 0 else newText.lastIndexOf('\n', cursor - 1) + 1
+            val remainder = newText.substring(lineStart, cursor)
+            if (remainder == UNCHECKED_PREFIX.dropLast(1) || remainder == CHECKED_PREFIX.dropLast(1)) {
+                // The last character of a checkbox prefix was just erased; drop the rest in one go
+                replace(lineStart, cursor, "")
+                selection = TextRange(lineStart)
+            } else if (lineStart == capitalizedLineStart && remainder == UNCHECKED_PREFIX &&
+                (cursor == length || charAt(cursor) == '\n')
+            ) {
+                lowercaseLineStart = lineStart
+            }
+            return
         }
-        return@InputTransformation
-    }
 
-    val deletedOneChar = selection.collapsed && length == oldText.length - 1
-    if (deletedOneChar) {
-        val newText = asCharSequence().toString()
-        val lineStart = if (cursor == 0) 0 else newText.lastIndexOf('\n', cursor - 1) + 1
-        val remainder = newText.substring(lineStart, cursor)
-        if (remainder == UNCHECKED_PREFIX.dropLast(1) || remainder == CHECKED_PREFIX.dropLast(1)) {
-            // The last character of a checkbox prefix was just erased; drop the rest in one go
-            replace(lineStart, cursor, "")
-            selection = TextRange(lineStart)
+        val typedOneChar = selection.collapsed && length == oldText.length + 1 && cursor > 0
+        if (typedOneChar && charAt(cursor - 1).isLowerCase()) {
+            val at = cursor - 1
+            val lineStart = if (at == 0) 0 else oldText.lastIndexOf('\n', at - 1) + 1
+            val emptyCheckbox = at - lineStart == UNCHECKED_PREFIX.length &&
+                oldText.regionMatches(lineStart, UNCHECKED_PREFIX, 0, UNCHECKED_PREFIX.length) &&
+                (at == oldText.length || oldText[at] == '\n')
+            if (emptyCheckbox && lineStart != lowercaseLineStart) {
+                replace(at, cursor, charAt(at).uppercase())
+                capitalizedLineStart = lineStart
+            }
         }
     }
 }

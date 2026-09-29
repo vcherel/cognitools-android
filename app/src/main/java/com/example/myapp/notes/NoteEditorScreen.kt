@@ -286,7 +286,7 @@ fun NoteEditorScreen(
 
                     BasicTextField(
                         state = textFieldState,
-                        inputTransformation = autoContinueCheckboxTransformation,
+                        inputTransformation = remember { CheckboxInputTransformation() },
                         modifier = Modifier
                             .fillMaxSize()
                             .focusRequester(focusRequester),
@@ -327,6 +327,7 @@ fun NoteEditorScreen(
                                 onToggleTitleLine = lineEdits::toggleTitleLine,
                                 onToggleResume = lineEdits::toggleResumeAfter,
                                 onToggleEnhance = lineEdits::toggleEnhanceAtEnd,
+                                onCutCategory = lineEdits::cutCategory,
                                 onEnterEditAt = { state.enterEditAt(it) },
                                 onReorder = { state.saveContent(it) }
                             )
