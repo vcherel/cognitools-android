@@ -41,6 +41,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -58,7 +59,10 @@ import com.example.myapp.PlayPauseButton
 import com.example.myapp.PlayerSeekBar
 import com.example.myapp.runIgnoringErrors
 import com.example.myapp.notes.appendToDjNote
+import com.example.myapp.notes.isDownloadedInDjNote
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * The full track playing right now: the player state only carries what the MediaItem shows, so we ask
@@ -124,10 +128,16 @@ fun FullPlayerSheet(
     var showInfo by remember { mutableStateOf(false) }
     if (showInfo && state.sngId != null) TrackInfoSheet(repo = repo, sngId = state.sngId, onDismiss = { showInfo = false })
 
-    // The download button's three shapes: to save, being saved, already in Download.
+    // The download button's three shapes: to save, being saved, already downloaded (in Download,
+    // or marked so in the DJ note).
     val saving by repo.saver.saving.collectAsState()
     val isSaving = state.sngId != null && state.sngId in saving
-    val isSaved = remember(state.sngId, isSaving) { currentTrack(repo, state)?.let { repo.saver.isSaved(it) } == true }
+    val isSaved by produceState(false, state.sngId, isSaving) {
+        val track = currentTrack(repo, state)
+        value = track != null && withContext(Dispatchers.IO) {
+            repo.saver.isSaved(track) || isDownloadedInDjNote(context, track.artist, track.title)
+        }
+    }
 
     Box(
         modifier = Modifier
@@ -200,14 +210,16 @@ fun FullPlayerSheet(
                         tint = if (inPepites) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-                // Saves the track as an MP3 in Download and lists it in the DJ note. The diamond
-                // adds the DJ line too (see bestPepitesMessage), without the file.
+                // Saves the track as an MP3 in Download, which lists it in the DJ note marked as
+                // downloaded. The diamond adds the plain DJ line (see bestPepitesMessage), without the file.
                 IconButton(onClick = {
                     val track = currentTrack(repo, state) ?: return@IconButton
-                    scope.launch { runCatching { appendToDjNote(context, track.artist, track.title) } }
                     when {
                         isSaving -> Unit
-                        isSaved -> Toast.makeText(context, "Déjà téléchargé", Toast.LENGTH_SHORT).show()
+                        isSaved -> {
+                            scope.launch { runCatching { appendToDjNote(context, track.artist, track.title, downloaded = true) } }
+                            Toast.makeText(context, "Déjà téléchargé", Toast.LENGTH_SHORT).show()
+                        }
                         else -> repo.saver.save(track)
                     }
                 }) {
