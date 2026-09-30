@@ -30,7 +30,7 @@ Always install the release build: performance on device matters, and debug build
 
 - **Actus**: French and world headlines merged from a fixed set of RSS feeds, readable in the app with the boilerplate stripped out, saved articles kept offline.
 - **Mots fléchés**: arrow-word grids generated on the phone, French or English, with a per-word check and reveal. The dictionaries are built offline (see below).
-- **Traducteur**: live translation with dictionary entries, text to speech, and a one tap "add to flashcards".
+- **Traduction**: live translation with dictionary entries, text to speech, and a one tap "add to flashcards".
 - **Lecture**: an epub reader written against the format directly, no library. Long press a word to open the translator's lookup sheet.
 - **Météo**: forecast for your GPS location or a searched city, with temperature, conditions and rain amount.
 - **Undercover**: the social deduction party game. Most players share a secret word, the *Undercover* have a different one and *Mr. White* has none. The ~80,000 word pairs were generated with NLP and FastText embeddings (see below).

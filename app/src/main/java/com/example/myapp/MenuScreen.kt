@@ -74,7 +74,7 @@ fun MenuScreen(
     val tools = listOf(
         MenuTool("weather", "Météo"),
         MenuTool("motsFleches", "Mots fléchés"),
-        MenuTool("translate", "Traducteur"),
+        MenuTool("translate", "Traduction"),
         MenuTool("reader", "Lecture"),
         MenuTool("volume", "Volume", route = "volumeBooster"),
         MenuTool("undercover", "Undercover"),

@@ -89,7 +89,7 @@ fun TranslateScreen(onBack: () -> Unit) {
     }
 
     Column(Modifier.fillMaxSize()) {
-        ScreenTopBar(title = "Traducteur", onBack = onBack) {
+        ScreenTopBar(title = "Traduction", onBack = onBack) {
             Spacer(Modifier.weight(1f))
             IconButton(onClick = { scope.launch { TranslateStore.setTarget(context, target.other) } }) {
                 Icon(Icons.Filled.SwapHoriz, contentDescription = "Inverser le sens")
