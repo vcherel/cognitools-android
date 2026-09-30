@@ -66,6 +66,7 @@ fun GalleryCropScreen(itemId: Long, onBack: () -> Unit) {
     var rotation by remember { mutableIntStateOf(0) }
     var imageRect by remember { mutableStateOf(Rect.Zero) }
     var saving by remember { mutableStateOf(false) }
+    var rotating by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(itemId) {
@@ -87,10 +88,14 @@ fun GalleryCropScreen(itemId: Long, onBack: () -> Unit) {
     Column(modifier = Modifier.fillMaxSize()) {
         ScreenTopBar(title = "Modifier", onBack = onBack, modifier = Modifier.padding(16.dp), titleWeight = true) {
             if (bitmap != null && !saving) {
-                IconButton(onClick = {
-                    displayBitmap = bitmap.rotated(90)
-                    rotation = (rotation + 90) % 360
-                    cropRect = null
+                IconButton(enabled = !rotating, onClick = {
+                    rotating = true
+                    scope.launch {
+                        displayBitmap = withContext(Dispatchers.Default) { bitmap.rotated(90) }
+                        rotation = (rotation + 90) % 360
+                        cropRect = null
+                        rotating = false
+                    }
                 }) {
                     Icon(Icons.Default.Rotate90DegreesCw, contentDescription = "Pivoter")
                 }
@@ -295,7 +300,8 @@ private fun decodeSampledBitmap(context: android.content.Context, uri: android.n
     try {
         ImageDecoder.decodeBitmap(ImageDecoder.createSource(context.contentResolver, uri)) { decoder, info, _ ->
             var sample = 1
-            while (info.size.width / (sample * 2) >= maxDimension && info.size.height / (sample * 2) >= maxDimension) {
+            val longSide = maxOf(info.size.width, info.size.height)
+            while (longSide / (sample * 2) >= maxDimension) {
                 sample *= 2
             }
             decoder.setTargetSampleSize(sample)
