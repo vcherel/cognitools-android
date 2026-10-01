@@ -125,10 +125,11 @@ class MailRepository(context: Context) {
         scope.launch {
             try {
                 val trashUid = withStore { store ->
+                    val trash = trashFolder(store)
                     val inbox = store.getFolder("INBOX") as IMAPFolder
                     inbox.open(Folder.READ_WRITE)
                     val message = inbox.getMessageByUID(uid) ?: return@withStore null
-                    inbox.moveUIDMessages(arrayOf(message), trashFolder(store)).firstOrNull()?.uid
+                    inbox.moveUIDMessages(arrayOf(message), trash).firstOrNull()?.uid
                 }
                 if (trashUid == null) {
                     AppSnackbar.show("Mail supprimé")
@@ -198,7 +199,8 @@ class MailRepository(context: Context) {
         state.copy(messages = (state.messages.filter { it.uid != message.uid } + message).sortedByDescending { it.date })
     }
 
-    // The folder Yahoo flags as the trash (special use attribute), by its usual name otherwise.
+    // The folder Yahoo flags as the trash (special use attribute), by its usual name otherwise. The LIST
+    // runs on the store's connection, which an open folder holds, so call it before opening one.
     private fun trashFolder(store: Store): IMAPFolder =
         store.defaultFolder.list("*").filterIsInstance<IMAPFolder>()
             .firstOrNull { folder -> folder.attributes.any { it.equals("\\Trash", ignoreCase = true) } }
