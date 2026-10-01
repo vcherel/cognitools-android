@@ -513,19 +513,21 @@ private fun NoteLine(
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
                         modifier = Modifier.bringIntoViewRequester(intoView)
                     ) {
-                        LineIconButton(Icons.Default.FormatBold, "Gras") {
-                            actions.onToggleLineMarker(lineIndex, "**")
-                        }
-                        LineIconButton(Icons.Default.FormatItalic, "Italique") {
-                            actions.onToggleLineMarker(lineIndex, "*")
-                        }
-                        LineIconButton(Icons.Default.FormatUnderlined, "Souligné") {
-                            actions.onToggleLineMarker(lineIndex, "__")
-                        }
-                        LineIconButton(Icons.Default.Title, "Titre") {
-                            actions.onToggleTitleLine(lineIndex)
-                        }
-                        if (isIngredientsNote) {
+                        // Ingrédients trades the formatting for its cart buttons, all of them do not fit.
+                        if (!isIngredientsNote) {
+                            LineIconButton(Icons.Default.FormatBold, "Gras") {
+                                actions.onToggleLineMarker(lineIndex, "**")
+                            }
+                            LineIconButton(Icons.Default.FormatItalic, "Italique") {
+                                actions.onToggleLineMarker(lineIndex, "*")
+                            }
+                            LineIconButton(Icons.Default.FormatUnderlined, "Souligné") {
+                                actions.onToggleLineMarker(lineIndex, "__")
+                            }
+                            LineIconButton(Icons.Default.Title, "Titre") {
+                                actions.onToggleTitleLine(lineIndex)
+                            }
+                        } else {
                             LineIconButton(Icons.Default.AddShoppingCart, "Ajouter à Courses") {
                                 actions.onCopyToCourses(lineIndex)
                                 onDeselect()
