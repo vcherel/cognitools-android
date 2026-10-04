@@ -39,7 +39,16 @@ class DeezerTrackSaver(private val appContext: Context, private val repo: Deezer
     /** The sngIds being downloaded right now. */
     val saving: StateFlow<Set<String>> = _saving
 
-    fun isSaved(track: DeezerTrack): Boolean = File(downloadsDir(), fileName(track)).exists()
+    /**
+     * The file is named after every artist, which the track alone doesn't know, so a featuring is
+     * matched by its main artist and title instead of by the exact name.
+     */
+    fun isSaved(track: DeezerTrack): Boolean {
+        if (File(downloadsDir(), fileName(listOf(track.artist), track.title)).exists()) return true
+        val prefix = safeForFileName(track.artist) + " & "
+        val suffix = " - " + fileName(emptyList(), track.title)
+        return downloadsDir().list()?.any { it.startsWith(prefix) && it.endsWith(suffix) } == true
+    }
 
     fun save(track: DeezerTrack) {
         if (track.sngId in _saving.value) return
@@ -49,7 +58,11 @@ class DeezerTrackSaver(private val appContext: Context, private val repo: Deezer
                 val audio = fetchAudio(track.sngId)
                 val cover = track.coverUrl(1000)?.let { runCatching { URL(it).readBytes() }.getOrNull() }
                 val tag = id3Tag(track.title, track.artist, track.album, cover)
-                writeToDownloads(fileName(track), tag, audio)
+                val artists = runCatching { repo.trackDetails(track.sngId).artists }.getOrNull()
+                    ?.takeIf { track.artist in it }
+                    ?.let { listOf(track.artist) + (it - track.artist) }
+                    ?: listOf(track.artist)
+                writeToDownloads(fileName(artists, track.title), tag, audio)
                 runCatching { appendToDjNote(appContext, track.artist, track.title, downloaded = true) }
                 "Téléchargé dans Download"
             } catch (e: Exception) {
@@ -105,11 +118,14 @@ class DeezerTrackSaver(private val appContext: Context, private val repo: Deezer
     private fun downloadsDir(): File = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
 }
 
-/** "Artiste - Titre.mp3", with the characters a file name can't hold replaced. */
-internal fun fileName(track: DeezerTrack): String {
-    val stem = if (track.artist.isBlank()) track.title else "${track.artist} - ${track.title}"
-    return stem.replace(Regex("""[/\\:*?"<>|]"""), "_").trim() + ".mp3"
+/** "Artiste & Invité - Titre.mp3", with the characters a file name can't hold replaced. */
+internal fun fileName(artists: List<String>, title: String): String {
+    val names = artists.filter { it.isNotBlank() }.joinToString(" & ")
+    val stem = if (names.isEmpty()) title else "$names - $title"
+    return safeForFileName(stem).trim() + ".mp3"
 }
+
+private fun safeForFileName(text: String) = text.replace(Regex("""[/\\:*?"<>|]"""), "_")
 
 /** The size of the ID3v2 tag [bytes] opens with, footer included, or 0 when there is none. */
 internal fun existingId3Length(bytes: ByteArray): Int {

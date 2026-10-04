@@ -418,14 +418,11 @@ class DeezerApi {
             album = track["album"]?.jsonObject?.str("title").orEmpty(),
             releaseDate = track.str("release_date")?.takeIf { it != "0000-00-00" } ?: album?.str("release_date"),
             durationSec = track.str("duration")?.toIntOrNull() ?: 0,
-            trackPosition = track.str("track_position")?.toIntOrNull(),
-            diskNumber = track.str("disk_number")?.toIntOrNull(),
             bpm = track.str("bpm")?.toFloatOrNull()?.takeIf { it > 0f },
             explicit = track["explicit_lyrics"]?.jsonPrimitive?.booleanOrNull == true,
             label = album?.str("label"),
             genres = album?.get("genres")?.jsonObject?.get("data")?.jsonArray
-                ?.mapNotNull { it.jsonObject.str("name") }.orEmpty(),
-            isrc = track.str("isrc")
+                ?.mapNotNull { it.jsonObject.str("name") }.orEmpty()
         )
     }
 

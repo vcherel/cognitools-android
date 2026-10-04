@@ -70,7 +70,6 @@ private fun TrackInfo(d: DeezerTrackDetails, addedAtSec: Long) {
         InfoRow("Album", d.album.ifBlank { null })
         InfoRow("Sortie", d.releaseDate?.let { runCatching { LocalDate.parse(it).format(dateFormat) }.getOrDefault(it) })
         InfoRow("Durée", d.durationSec.takeIf { it > 0 }?.let { formatPlaybackTime(it * 1000L) })
-        InfoRow("Piste", d.trackPosition?.let { pos -> if ((d.diskNumber ?: 1) > 1) "$pos (disque ${d.diskNumber})" else "$pos" })
         InfoRow("BPM", d.bpm?.let { "%.0f".format(it) })
         InfoRow("Genre", d.genres.joinToString(", ").ifBlank { null })
         InfoRow("Label", d.label)
@@ -79,7 +78,6 @@ private fun TrackInfo(d: DeezerTrackDetails, addedAtSec: Long) {
             "Aimé le",
             addedAtSec.takeIf { it > 0 }?.let { Instant.ofEpochSecond(it).atZone(ZoneId.systemDefault()).format(dateFormat) }
         )
-        InfoRow("ISRC", d.isrc)
     }
 }
 

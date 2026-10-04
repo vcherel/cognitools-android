@@ -426,6 +426,15 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
         } catch (e: Exception) {
             Log.w(TAG, "Favorite ${if (add) "add" else "remove"} for ${track.sngId} left queued", e)
         }
+        // A track no longer liked has no place among the best ones either. Online only: unlike the
+        // like, a playlist edit has no offline queue.
+        if (liked) try {
+            ensureBestPepitesLoaded()
+            if (bestPepitesContains(track.sngId) == true) removeFromBestPepites(track.sngId)
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            logError("remove unliked ${track.sngId} from Best pépites", e)
+        }
     }
 
     /**

@@ -145,11 +145,8 @@ data class DeezerTrackDetails(
     val album: String,
     val releaseDate: String?,
     val durationSec: Int,
-    val trackPosition: Int?,
-    val diskNumber: Int?,
     val bpm: Float?,
     val explicit: Boolean,
     val label: String?,
-    val genres: List<String>,
-    val isrc: String?
+    val genres: List<String>
 )

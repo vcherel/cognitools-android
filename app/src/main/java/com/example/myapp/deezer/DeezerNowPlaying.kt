@@ -189,7 +189,7 @@ fun FullPlayerSheet(
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 IconButton(onClick = {
                     val track = currentTrack(repo, state) ?: return@IconButton
-                    scope.launch { runCatching { repo.toggleFavorite(track) } }
+                    scope.launch { runCatching { repo.toggleFavorite(track) }; pepitesTick++ }
                 }) {
                     Icon(
                         if (isFav) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
@@ -211,7 +211,7 @@ fun FullPlayerSheet(
                     )
                 }
                 // Saves the track as an MP3 in Download, which lists it in the DJ note marked as
-                // downloaded. The diamond adds the plain DJ line (see bestPepitesMessage), without the file.
+                // downloaded. The diamond does the same on top of its Best pépites add (see bestPepitesMessage).
                 IconButton(onClick = {
                     val track = currentTrack(repo, state) ?: return@IconButton
                     when {

@@ -49,6 +49,8 @@ import com.example.myapp.MediaArt
 import com.example.myapp.MediaListRow
 import com.example.myapp.MediaRowSubtitle
 import com.example.myapp.deezerRepository
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /**
  * Shared: one tappable track line. Tap plays. When [showActions] is on, a heart (like/unlike, filled
@@ -197,7 +199,12 @@ suspend fun bestPepitesMessage(
         } else when (val result = repo.addToBestPepites(track)) {
             PlaylistAddResult.NO_PLAYLIST -> "Playlist Best pépites introuvable"
             else -> {
-                runCatching { appendToDjNote(context, track.artist, track.title) }
+                // Best pépites is what the DJ set is drawn from, so the file goes to Download with it.
+                if (withContext(Dispatchers.IO) { repo.saver.isSaved(track) }) {
+                    runCatching { appendToDjNote(context, track.artist, track.title, downloaded = true) }
+                } else {
+                    repo.saver.save(track)
+                }
                 if (result == PlaylistAddResult.ADDED) "Ajouté à Best pépites" else "Déjà dans Best pépites"
             }
         }

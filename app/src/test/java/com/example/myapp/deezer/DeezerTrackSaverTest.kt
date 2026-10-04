@@ -18,7 +18,11 @@ class DeezerTrackSaverTest {
 
     @Test
     fun fileNameDropsForbiddenCharacters() {
-        val track = DeezerTrack("1", "AC/DC: Live?", "Artiste", "", 0, null)
-        assertEquals("Artiste - AC_DC_ Live_.mp3", fileName(track))
+        assertEquals("Artiste - AC_DC_ Live_.mp3", fileName(listOf("Artiste"), "AC/DC: Live?"))
+    }
+
+    @Test
+    fun fileNameJoinsEveryArtist() {
+        assertEquals("A & B - Titre.mp3", fileName(listOf("A", "B"), "Titre"))
     }
 }
