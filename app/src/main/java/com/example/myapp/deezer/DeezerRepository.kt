@@ -17,7 +17,10 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -123,6 +126,13 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
 
     init {
         pendingFavorites.flushOnNetwork(ioScope)
+        // Playback started from the main menu never passes through the library screen, which is the
+        // other place the day's batch is built, so it would otherwise wait for the tool to be opened.
+        ioScope.launch {
+            player.playerState.map { it.isPlaying }.distinctUntilChanged().filter { it }.collect {
+                if (hasArl()) discoveries.ensureToday()
+            }
+        }
     }
 
     suspend fun hasArl(): Boolean = settings.arl.first().isNotBlank()

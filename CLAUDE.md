@@ -141,7 +141,7 @@ Root package (shared/misc):
 - `ViewerDialogs.kt`: `ViewerDialog`/`ViewerDialogs`, the viewer's whole dialog run, plus the share, rename, move and info dialogs themselves (MoveDialog is also used by the album grid)
 - `GalleryPins.kt`: PinnedMediaItem Room entity/DAO and pin/unpin/setHero/resolve helpers
 - `GalleryLock.kt`: the albums put behind the notes PIN, kept as a set of bucket ids in DataStore
-- `CropScreen.kt`: image editor, crop and 90° rotation, decoded with its EXIF orientation
+- `CropScreen.kt`: image editor, crop, 90° rotation and a pen (colors, widths, undo), decoded with its EXIF orientation
 - `TrimScreen.kt`: video trim editor
 
 `mail/` (the Yahoo inbox, read and delete only, fetched only when the screen opens or on refresh; no background work; plus the backup upload):

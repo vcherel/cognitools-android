@@ -69,6 +69,7 @@ fun GalleryTrimScreen(itemId: Long, onBack: () -> Unit) {
     }
 
     BackHandler { onBack() }
+    ShowSystemBars()
 
     val currentItem = item
 
