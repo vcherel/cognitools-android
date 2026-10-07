@@ -15,10 +15,17 @@ import androidx.compose.ui.text.TextRange
  * The first letter typed into an empty checkbox is uppercased, since the keyboard
  * only capitalizes after a full stop or at a line start, never after "[ ] ".
  * Erasing that capital turns it off for the line, so a lowercase item stays possible.
+ *
+ * With [autoCheckbox] (the Todo list note), the first character typed on an empty line gets a
+ * checkbox in front of it, so a new block under a separator starts as a list too. A line starting
+ * with "/" or "-" is left plain for the slash commands and separators, and backspacing the box
+ * away keeps that line plain. Typing at the start of a separator line opens a new item above it.
  */
-internal class CheckboxInputTransformation : InputTransformation {
+internal class CheckboxInputTransformation(private val autoCheckbox: () -> Boolean = { false }) : InputTransformation {
     private var capitalizedLineStart = -1
     private var lowercaseLineStart = -1
+    private var autoBoxedLineStart = -1
+    private var plainLineStart = -1
 
     override fun TextFieldBuffer.transformInput() {
         val cursor = selection.start
@@ -39,16 +46,14 @@ internal class CheckboxInputTransformation : InputTransformation {
                 replace(cursor - 1, cursor, "")
                 replace(oldLineStart, oldLineStart, UNCHECKED_PREFIX + "\n")
                 selection = TextRange(oldLineStart + UNCHECKED_PREFIX.length)
-                capitalizedLineStart = -1
-                lowercaseLineStart = -1
+                resetLineMemory()
                 return
             }
 
             val newText = asCharSequence().toString()
             val prevLineStart = if (cursor == 1) 0 else newText.lastIndexOf('\n', cursor - 2) + 1
             val prevLine = newText.substring(prevLineStart, cursor - 1)
-            capitalizedLineStart = -1
-            lowercaseLineStart = -1
+            resetLineMemory()
             if (!prevLine.isCheckboxLine()) return
 
             if (prevLine.checkboxText().isBlank()) {
@@ -71,6 +76,7 @@ internal class CheckboxInputTransformation : InputTransformation {
                 // The last character of a checkbox prefix was just erased; drop the rest in one go
                 replace(lineStart, cursor, "")
                 selection = TextRange(lineStart)
+                if (lineStart == autoBoxedLineStart) plainLineStart = lineStart
             } else if (lineStart == capitalizedLineStart && remainder == UNCHECKED_PREFIX &&
                 (cursor == length || charAt(cursor) == '\n')
             ) {
@@ -80,6 +86,24 @@ internal class CheckboxInputTransformation : InputTransformation {
         }
 
         val typedOneChar = selection.collapsed && length == oldText.length + 1 && cursor > 0
+        if (typedOneChar && autoCheckbox()) {
+            val at = cursor - 1
+            val typed = charAt(at)
+            val lineStart = if (at == 0) 0 else oldText.lastIndexOf('\n', at - 1) + 1
+            val emptyLine = at == lineStart && (at == oldText.length || oldText[at] == '\n')
+            // Typing at the very start of a separator means a new item above it, never a renamed separator.
+            val beforeSeparator = at == lineStart && oldText.regionMatches(at, "---", 0, 3)
+            if ((emptyLine || beforeSeparator) && lineStart != plainLineStart &&
+                !typed.isWhitespace() && typed != '/' && typed != '-'
+            ) {
+                replace(at, cursor, UNCHECKED_PREFIX + typed.uppercase() + if (beforeSeparator) "\n" else "")
+                selection = TextRange(at + UNCHECKED_PREFIX.length + 1)
+                autoBoxedLineStart = lineStart
+                capitalizedLineStart = lineStart
+                lowercaseLineStart = -1
+                return
+            }
+        }
         if (typedOneChar && charAt(cursor - 1).isLowerCase()) {
             val at = cursor - 1
             val lineStart = if (at == 0) 0 else oldText.lastIndexOf('\n', at - 1) + 1
@@ -91,6 +115,13 @@ internal class CheckboxInputTransformation : InputTransformation {
                 capitalizedLineStart = lineStart
             }
         }
+    }
+
+    private fun resetLineMemory() {
+        capitalizedLineStart = -1
+        lowercaseLineStart = -1
+        autoBoxedLineStart = -1
+        plainLineStart = -1
     }
 }
 

@@ -286,7 +286,11 @@ fun NoteEditorScreen(
 
                     BasicTextField(
                         state = textFieldState,
-                        inputTransformation = remember { CheckboxInputTransformation() },
+                        inputTransformation = remember {
+                            CheckboxInputTransformation(autoCheckbox = {
+                                titleFieldState.text.toString().trim().equals(TODO_LIST_TITLE, ignoreCase = true)
+                            })
+                        },
                         modifier = Modifier
                             .fillMaxSize()
                             .focusRequester(focusRequester),

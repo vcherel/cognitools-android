@@ -1,6 +1,7 @@
 package com.example.myapp.translate
 
 import android.speech.tts.TextToSpeech
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -9,10 +10,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -107,22 +112,138 @@ fun TranslationCard(
             Spacer(Modifier.height(8.dp))
             HorizontalDivider()
             Spacer(Modifier.height(8.dp))
+            result.detailWord?.let { DetailCaption("« $it »") }
             result.entries.forEach { entry ->
-                Row(modifier = Modifier.padding(vertical = 3.dp)) {
+                PartOfSpeechRow(entry.partOfSpeech, entry.terms.joinToString(", ") { it.word })
+            }
+        }
+
+        if (result.hasExtraDetails()) {
+            var expanded by remember(result) { mutableStateOf(false) }
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { expanded = !expanded }
+                    .padding(vertical = 8.dp)
+            ) {
+                Icon(
+                    if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Text(
+                    text = if (expanded) "Moins de détails" else "Plus de détails",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+            if (expanded) TranslationDetails(result)
+        }
+    }
+}
+
+/** True when the expander has more to show than the one line summary of each part of speech. */
+private fun TranslationResult.hasExtraDetails(): Boolean =
+    entries.any { entry -> entry.terms.any { it.back.isNotEmpty() } } ||
+        definitions.isNotEmpty() || examples.isNotEmpty() || alternatives.isNotEmpty()
+
+@Composable
+private fun TranslationDetails(result: TranslationResult) {
+    val muted = MaterialTheme.colorScheme.onSurfaceVariant
+    Column(modifier = Modifier.fillMaxWidth()) {
+        if (result.alternatives.isNotEmpty()) {
+            DetailCaption("Autres traductions")
+            Text(result.alternatives.joinToString(", "), style = MaterialTheme.typography.bodyMedium)
+            Spacer(Modifier.height(12.dp))
+        }
+
+        result.entries.filter { entry -> entry.terms.any { it.back.isNotEmpty() } }.forEach { entry ->
+            DetailCaption(entry.partOfSpeech)
+            entry.terms.forEach { term ->
+                Row(modifier = Modifier.padding(vertical = 2.dp)) {
                     Text(
-                        text = entry.partOfSpeech,
+                        text = term.word,
                         style = MaterialTheme.typography.bodyMedium,
-                        fontStyle = FontStyle.Italic,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.width(88.dp)
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.width(110.dp)
                     )
                     Text(
-                        text = entry.terms.joinToString(", "),
-                        style = MaterialTheme.typography.bodyMedium
+                        text = term.back.joinToString(", "),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = muted
                     )
                 }
             }
+            Spacer(Modifier.height(12.dp))
         }
+
+        if (result.definitions.isNotEmpty()) {
+            DetailCaption("Définitions")
+            result.definitions.groupBy { it.partOfSpeech }.forEach { (partOfSpeech, definitions) ->
+                Text(
+                    text = partOfSpeech,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontStyle = FontStyle.Italic,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+                definitions.forEach { definition ->
+                    Text(
+                        text = "• ${definition.text}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.padding(top = 2.dp)
+                    )
+                    definition.example?.let {
+                        Text(
+                            text = "« $it »",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontStyle = FontStyle.Italic,
+                            color = muted,
+                            modifier = Modifier.padding(start = 12.dp)
+                        )
+                    }
+                }
+            }
+            Spacer(Modifier.height(12.dp))
+        }
+
+        if (result.examples.isNotEmpty()) {
+            DetailCaption("Exemples")
+            result.examples.forEach {
+                Text(
+                    text = "« $it »",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontStyle = FontStyle.Italic,
+                    color = muted,
+                    modifier = Modifier.padding(vertical = 2.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun DetailCaption(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.labelLarge,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(bottom = 4.dp)
+    )
+}
+
+@Composable
+private fun PartOfSpeechRow(partOfSpeech: String, terms: String) {
+    Row(modifier = Modifier.padding(vertical = 3.dp)) {
+        Text(
+            text = partOfSpeech,
+            style = MaterialTheme.typography.bodyMedium,
+            fontStyle = FontStyle.Italic,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.width(88.dp)
+        )
+        Text(text = terms, style = MaterialTheme.typography.bodyMedium)
     }
 }
 
@@ -208,6 +329,7 @@ fun WordLookupSheet(word: String, target: TranslateLang, onDismiss: () -> Unit) 
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 20.dp)
                 .padding(bottom = 32.dp)
         ) {

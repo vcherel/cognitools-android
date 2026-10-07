@@ -131,6 +131,8 @@ dependencies {
 
     // Unit testing
     testImplementation(libs.junit)
+    // The real org.json, since the android.jar one is a stub that throws in JVM tests.
+    testImplementation(libs.org.json)
 
     // Baseline profile
     implementation(libs.androidx.profileinstaller)

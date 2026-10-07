@@ -19,6 +19,7 @@ reorderable = "2.4.3"
 coil = "3.3.0"
 media3 = "1.10.1"
 junit = "4.13.2"
+orgJson = "20240303"
 macrobenchmark = "1.4.1"
 profileinstaller = "1.4.1"
 uiautomator = "2.3.0"
@@ -26,6 +27,7 @@ testExtJunit = "1.2.1"
 
 [libraries]
 junit = { group = "junit", name = "junit", version.ref = "junit" }
+org-json = { group = "org.json", name = "json", version.ref = "orgJson" }
 androidx-benchmark-macro-junit4 = { group = "androidx.benchmark", name = "benchmark-macro-junit4", version.ref = "macrobenchmark" }
 androidx-profileinstaller = { group = "androidx.profileinstaller", name = "profileinstaller", version.ref = "profileinstaller" }
 androidx-test-uiautomator = { group = "androidx.test.uiautomator", name = "uiautomator", version.ref = "uiautomator" }
