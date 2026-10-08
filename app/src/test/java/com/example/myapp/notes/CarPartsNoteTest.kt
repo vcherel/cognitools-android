@@ -7,14 +7,14 @@ import org.junit.Test
 class CarPartsNoteTest {
 
     private val content = """
+        --- À acheter
+        [ ] Piston V8 x8
+
         --- Stock
         Brake Disc V8 x4
         Camshaft V8 OHV x2
         Camshaft V8 OHV +3
         Head Gasket I4
-
-        --- À acheter
-        [ ] Piston V8 x8
     """.trimIndent()
 
     @Test
@@ -29,7 +29,8 @@ class CarPartsNoteTest {
             ),
             note.stock
         )
-        assertEquals(listOf(CarPart("Piston V8", quantity = 8)), note.toBuy)
+        assertEquals(listOf(CarPart("Piston V8", quantity = 8)), note.tuning.toBuy)
+        assertEquals(CarShopping(), note.repair)
         assertEquals(content, note.render())
     }
 
@@ -49,23 +50,23 @@ class CarPartsNoteTest {
     }
 
     @Test
-    fun unratedModeLeavesRatedPartsAlone() {
+    fun repairModeLeavesRatedPartsAloneInItsOwnLists() {
         val note = parseCarPartsNote(content)
-        val result = note.request("camshaft v8 ohv", 3, bestRated = false)
+        val result = note.request("camshaft v8 ohv", 3, star = false)
         assertEquals(listOf(CarPart("Camshaft V8 OHV", quantity = 2)), result.taken)
         assertEquals(CarPart("Camshaft V8 OHV"), result.toBuy)
         assertEquals(listOf(CarPart("Camshaft V8 OHV", score = 3)), result.note.stockOf("Camshaft V8 OHV"))
-        assertEquals(listOf(CarPart("Camshaft V8 OHV", quantity = 2)), result.note.taken)
         assertEquals(
-            listOf(CarPart("Camshaft V8 OHV"), CarPart("Piston V8", quantity = 8)),
-            result.note.toBuy
+            CarShopping(listOf(CarPart("Camshaft V8 OHV", quantity = 2)), listOf(CarPart("Camshaft V8 OHV"))),
+            result.note.repair
         )
+        assertEquals(note.tuning, result.note.tuning)
     }
 
     @Test
     fun bestRatedModeTakesTheBonusFirstThenUnrated() {
         val note = parseCarPartsNote(content)
-        val result = note.request("Camshaft V8 OHV", 2, bestRated = true)
+        val result = note.request("Camshaft V8 OHV", 2, star = true)
         assertEquals(
             listOf(CarPart("Camshaft V8 OHV"), CarPart("Camshaft V8 OHV", score = 3)),
             result.taken
@@ -76,18 +77,18 @@ class CarPartsNoteTest {
 
     @Test
     fun missingPartGoesToBuyList() {
-        val result = CarPartsNote().request("Water Pump", 1, bestRated = true)
+        val result = CarPartsNote().request("Water Pump", 1, star = true)
         assertEquals(emptyList<CarPart>(), result.taken)
-        assertEquals(listOf(CarPart("Water Pump")), result.note.toBuy)
-        assertEquals("--- Stock\n\n--- À acheter\n[ ] Water Pump", result.note.render())
+        assertEquals(listOf(CarPart("Water Pump")), result.note.tuning.toBuy)
+        assertEquals("--- À acheter\n[ ] Water Pump\n\n--- Stock", result.note.render())
     }
 
     @Test
     fun finishShoppingDropsTakenAndBuyList() {
-        val note = parseCarPartsNote(content).request("Head Gasket I4", 1, bestRated = false).note
-        val done = note.finishShopping()
-        assertEquals(emptyList<CarPart>(), done.taken)
-        assertEquals(emptyList<CarPart>(), done.toBuy)
+        val note = parseCarPartsNote(content).request("Head Gasket I4", 1, star = false).note
+        val done = note.finishShopping(star = false)
+        assertEquals(CarShopping(), done.repair)
+        assertEquals(note.tuning, done.tuning)
         assertEquals(emptyList<CarPart>(), done.stockOf("Head Gasket I4"))
     }
 
@@ -111,5 +112,41 @@ class CarPartsNoteTest {
         assertEquals(listOf(CarPart("Bougie", quantity = 3), CarPart("Bougie", score = 3)), note.stock)
         assertEquals("--- Stock\nBougie x3\nBougie +3", note.render())
         assertEquals(CarPart("Bougie", score = 3, quantity = 2), parseCarPartInput("Bougie, +3 x2"))
+    }
+
+    @Test
+    fun bothJobsRenderOnTopAndHideEachOther() {
+        val note = parseCarPartsNote(content).request("Head Gasket I4", 2, star = false).note
+        val text = note.render()
+        assertEquals(
+            """
+            --- À acheter (réparations)
+            [ ] Head Gasket I4
+
+            --- Pris du stock (réparations)
+            Head Gasket I4
+
+            --- À acheter
+            [ ] Piston V8 x8
+
+            --- Stock
+            Brake Disc V8 x4
+            Camshaft V8 OHV x2
+            Camshaft V8 OHV +3
+            """.trimIndent(),
+            text
+        )
+        assertEquals(note, parseCarPartsNote(text))
+        assertEquals(setOf(0, 1, 2, 3, 4, 5), carHiddenLines(text, star = true))
+        assertEquals(setOf(6, 7, 8, 12), carHiddenLines(text, star = false))
+        assertEquals(listOf(CarPart("Camshaft V8 OHV", quantity = 2)), note.stockOf("Camshaft V8 OHV", star = false))
+    }
+
+    @Test
+    fun suggestionsForgiveATypo() {
+        val counts = mapOf("Camshaft V8" to 5, "Crankshaft V8" to 9, "Water Pump" to 1)
+        assertEquals(listOf("Camshaft V8"), suggestCarPartNames("camshft", counts, emptyList()))
+        assertEquals(listOf("Water Pump"), suggestCarPartNames("watr pump", counts, emptyList()))
+        assertEquals(emptyList<String>(), suggestCarPartNames("cmx", counts, emptyList()))
     }
 }

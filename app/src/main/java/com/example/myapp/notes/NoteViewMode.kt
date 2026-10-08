@@ -117,12 +117,14 @@ private fun windowY(coords: LayoutCoordinates?, position: Offset): Float =
 private val ICON_TOP_PADDING = 6.dp
 
 // The read-only rendering of a note: each line drawn as a checkbox, separator, or plain text,
-// with long-press drag to reorder, double-tap to edit, and per-line action buttons.
+// with long-press drag to reorder, double-tap to edit, and per-line action buttons. The
+// [hiddenLines] stay in the text but are not drawn (the car parts note's other job).
 @Composable
 fun NoteViewMode(
     textFieldState: TextFieldState,
     title: String,
     actions: NoteLineActions,
+    hiddenLines: Set<Int> = emptySet(),
     searchTerms: List<String> = emptyList(),
     focusedLine: Int = -1,
     focusNonce: Int = 0
@@ -181,11 +183,11 @@ fun NoteViewMode(
             return@LaunchedEffect
         }
         var waited = 0
-        while (waited < 20 && (0 until focusedLine).any { lineHeights[it] == null }) {
+        while (waited < 20 && (0 until focusedLine).any { it !in hiddenLines && lineHeights[it] == null }) {
             delay(16)
             waited++
         }
-        val target = (0 until focusedLine).sumOf { lineHeights[it] ?: 0 }
+        val target = (0 until focusedLine).sumOf { if (it in hiddenLines) 0 else lineHeights[it] ?: 0 }
         scrollState.animateScrollTo((target - MATCH_SCROLL_MARGIN_PX).coerceAtLeast(0))
     }
 
@@ -211,8 +213,16 @@ fun NoteViewMode(
         var offset = dragOffset + deltaY
         var moved = false
         while (true) {
+            // A hidden neighbour has no height: the dragged line passes it for free.
             if (offset > 0) {
                 val next = order.getOrNull(pos + 1) ?: break
+                if (next in hiddenLines) {
+                    order[pos] = next
+                    order[pos + 1] = draggedLine
+                    pos++
+                    moved = true
+                    continue
+                }
                 val h = lineHeights[next] ?: break
                 if (h <= 0 || offset <= h / 2f) break
                 order[pos] = next
@@ -221,6 +231,13 @@ fun NoteViewMode(
                 offset -= h
             } else {
                 val prev = order.getOrNull(pos - 1) ?: break
+                if (prev in hiddenLines) {
+                    order[pos] = prev
+                    order[pos - 1] = draggedLine
+                    pos--
+                    moved = true
+                    continue
+                }
                 val h = lineHeights[prev] ?: break
                 if (h <= 0 || -offset <= h / 2f) break
                 order[pos] = prev
@@ -270,6 +287,7 @@ fun NoteViewMode(
             }
     ) {
         (displayOrder ?: lines.indices.toList()).forEach { lineIndex ->
+            if (lineIndex in hiddenLines) return@forEach
             key(lineIndex) {
                 NoteLine(
                     lineIndex = lineIndex,

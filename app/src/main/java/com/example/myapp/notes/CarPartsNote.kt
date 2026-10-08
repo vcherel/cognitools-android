@@ -3,16 +3,27 @@ package com.example.myapp.notes
 import com.example.myapp.deaccented
 import com.example.myapp.matchNormalized
 
-// The Car Mechanic Simulator note: the spare parts held in the game, as plain text under three
-// separators (Stock, Pris du stock, À acheter). A part line is "Name +N xQ": the game's quality
-// bonus (only some parts carry one) and a quantity, both optional. The quantity is never the
-// "(Q)" of the other notes because part names carry their own parentheses ("Bolt (12)"). Two
-// lines are the same part when their names fold to the same key; a +3 and an unrated one stay
-// separate lines.
+// The Car Mechanic Simulator note: the spare parts held in the game, as plain text under
+// separators. A part line is "Name +N xQ": the game's quality bonus (only some parts carry one)
+// and a quantity, both optional. The quantity is never the "(Q)" of the other notes because part
+// names carry their own parentheses ("Bolt (12)"). Two lines are the same part when their names
+// fold to the same key; a +3 and an unrated one stay separate lines.
+//
+// The header star switches between two jobs sharing one stock: repairs (no star) use the unrated
+// parts only, and the rated ones are hidden; tuning (star) sees the whole stock and takes the best
+// bonus first. Each job keeps its own Pris du stock / À acheter pair, the other one hidden.
 
 const val CAR_STOCK_SECTION = "Stock"
+// The star lists keep the plain names: the lists the note held before the two jobs were star ones.
 const val CAR_TAKEN_SECTION = "Pris du stock"
 const val CAR_TO_BUY_SECTION = "À acheter"
+const val CAR_TAKEN_REPAIR_SECTION = "Pris du stock (réparations)"
+const val CAR_TO_BUY_REPAIR_SECTION = "À acheter (réparations)"
+
+private val TAKEN_KEY = CAR_TAKEN_SECTION.matchNormalized()
+private val TO_BUY_KEY = CAR_TO_BUY_SECTION.matchNormalized()
+private val TAKEN_REPAIR_KEY = CAR_TAKEN_REPAIR_SECTION.matchNormalized()
+private val TO_BUY_REPAIR_KEY = CAR_TO_BUY_REPAIR_SECTION.matchNormalized()
 
 data class CarPart(
     val name: String,
@@ -28,16 +39,27 @@ data class CarPart(
     fun render(): String = if (quantity > 1) "$label x$quantity" else label
 }
 
+/** One job's shopping: the units taken from stock and what is left to buy. */
+data class CarShopping(val taken: List<CarPart> = emptyList(), val toBuy: List<CarPart> = emptyList()) {
+    val isEmpty: Boolean get() = taken.isEmpty() && toBuy.isEmpty()
+}
+
 data class CarPartsNote(
     val stock: List<CarPart> = emptyList(),
-    val taken: List<CarPart> = emptyList(),
-    val toBuy: List<CarPart> = emptyList()
+    val repair: CarShopping = CarShopping(),
+    val tuning: CarShopping = CarShopping()
 ) {
-    val hasShopping: Boolean get() = taken.isNotEmpty() || toBuy.isNotEmpty()
+    fun shopping(star: Boolean): CarShopping = if (star) tuning else repair
 
-    fun stockOf(name: String): List<CarPart> {
+    fun hasShopping(star: Boolean): Boolean = !shopping(star).isEmpty
+
+    private fun withShopping(star: Boolean, shopping: CarShopping): CarPartsNote =
+        if (star) copy(tuning = shopping) else copy(repair = shopping)
+
+    /** The stock lines held for [name] that [star] shows: all of them, or the unrated ones. */
+    fun stockOf(name: String, star: Boolean = true): List<CarPart> {
         val key = name.matchNormalized()
-        return stock.filter { it.key == key }
+        return stock.filter { it.key == key && (star || it.score == null) }
     }
 
     fun withStock(part: CarPart): CarPartsNote = copy(stock = merged(stock + part))
@@ -46,18 +68,18 @@ data class CarPartsNote(
     fun sorted(): CarPartsNote = copy(stock = merged(stock))
 
     /**
-     * One part of the in-game shopping list entered. Units the stock can supply move to Pris du
-     * stock, the rest goes to À acheter. [bestRated] takes the highest bonus first and falls back
-     * to an unrated part; without it only unrated parts are taken and the rated ones stay put.
+     * One part of the in-game shopping list entered, into [star]'s lists. Units the stock can
+     * supply move to Pris du stock, the rest goes to À acheter. With [star] the highest bonus goes
+     * first and an unrated part is the fallback; without it only unrated parts are taken.
      */
-    fun request(name: String, quantity: Int, bestRated: Boolean): CarRequest {
+    fun request(name: String, quantity: Int, star: Boolean): CarRequest {
         val key = name.matchNormalized()
         val remainingStock = stock.toMutableList()
         val takenNow = mutableListOf<CarPart>()
         var remaining = quantity
         while (remaining > 0) {
             val (index, candidate) = remainingStock.withIndex()
-                .filter { (_, part) -> part.key == key && (bestRated || part.score == null) }
+                .filter { (_, part) -> part.key == key && (star || part.score == null) }
                 .maxByOrNull { (_, part) -> part.score ?: -1 } ?: break
             val units = minOf(candidate.quantity, remaining)
             remaining -= units
@@ -68,36 +90,55 @@ data class CarPartsNote(
         // Keep the spelling the stock already uses, so the buy list and the stock agree.
         val spelling = stock.firstOrNull { it.key == key }?.name ?: name
         val buy = if (remaining > 0) CarPart(spelling, quantity = remaining) else null
+        val shopping = shopping(star)
         return CarRequest(
-            note = copy(
-                stock = remainingStock,
-                taken = merged(taken + takenNow),
-                toBuy = if (buy == null) toBuy else merged(toBuy + buy)
+            note = copy(stock = remainingStock).withShopping(
+                star,
+                CarShopping(
+                    taken = merged(shopping.taken + takenNow),
+                    toBuy = if (buy == null) shopping.toBuy else merged(shopping.toBuy + buy)
+                )
             ),
             taken = merged(takenNow),
             toBuy = buy
         )
     }
 
-    /** Shopping done: what was bought went into the car, what was taken from stock too. */
-    fun finishShopping(): CarPartsNote = copy(taken = emptyList(), toBuy = emptyList())
+    /** [star]'s shopping done: what was bought went into the car, what was taken from stock too. */
+    fun finishShopping(star: Boolean): CarPartsNote = withShopping(star, CarShopping())
 
-    fun render(): String = buildString {
-        appendLine(SEPARATOR_PREFIX + CAR_STOCK_SECTION)
-        stock.forEach { appendLine(it.render()) }
-        if (taken.isNotEmpty()) {
-            appendLine()
-            appendLine(SEPARATOR_PREFIX + CAR_TAKEN_SECTION)
-            taken.forEach { appendLine(it.render()) }
+    /** The shopping lists on top, repairs then tuning, then the stock. */
+    fun render(): String = listOfNotNull(
+        section(CAR_TO_BUY_REPAIR_SECTION, repair.toBuy.map { it.renderChecked() }),
+        section(CAR_TAKEN_REPAIR_SECTION, repair.taken.map { it.render() }),
+        section(CAR_TO_BUY_SECTION, tuning.toBuy.map { it.renderChecked() }),
+        section(CAR_TAKEN_SECTION, tuning.taken.map { it.render() }),
+        (listOf(SEPARATOR_PREFIX + CAR_STOCK_SECTION) + stock.map { it.render() }).joinToString("\n")
+    ).joinToString("\n\n")
+}
+
+private fun CarPart.renderChecked(): String = (if (checked) CHECKED_PREFIX else UNCHECKED_PREFIX) + render()
+
+private fun section(name: String, lines: List<String>): String? =
+    if (lines.isEmpty()) null else (listOf(SEPARATOR_PREFIX + name) + lines).joinToString("\n")
+
+/**
+ * The indices of the note's lines [star] hides: the other job's shopping sections (separator,
+ * lines and the blank after them), and without the star the rated stock lines.
+ */
+fun carHiddenLines(content: String, star: Boolean): Set<Int> {
+    val hidden = mutableSetOf<Int>()
+    var section = CAR_STOCK_SECTION.matchNormalized()
+    content.split("\n").forEachIndexed { index, line ->
+        if (line.isSeparatorLine()) section = line.separatorName().matchNormalized()
+        val hide = when (section) {
+            TAKEN_REPAIR_KEY, TO_BUY_REPAIR_KEY -> star
+            TAKEN_KEY, TO_BUY_KEY -> !star
+            else -> !star && parseCarPart(line)?.score != null
         }
-        if (toBuy.isNotEmpty()) {
-            appendLine()
-            appendLine(SEPARATOR_PREFIX + CAR_TO_BUY_SECTION)
-            toBuy.forEach {
-                appendLine((if (it.checked) CHECKED_PREFIX else UNCHECKED_PREFIX) + it.render())
-            }
-        }
-    }.trimEnd()
+        if (hide) hidden += index
+    }
+    return hidden
 }
 
 /** What one [CarPartsNote.request] did, for the message under the bar. */
@@ -145,13 +186,10 @@ fun parseCarPartInput(text: String): CarPart? {
 /** A part name without the comma some lines were typed with before the bonus ("Bougie, +3"). */
 fun String.cleanCarPartName(): String = trim().trimEnd(',', ' ')
 
-/** The note's text read into its three sections. Lines under no known separator count as stock. */
+/** The note's text read into its sections. Lines under no known separator count as stock. */
 fun parseCarPartsNote(content: String): CarPartsNote {
     val stock = mutableListOf<CarPart>()
-    val taken = mutableListOf<CarPart>()
-    val toBuy = mutableListOf<CarPart>()
-    val takenKey = CAR_TAKEN_SECTION.matchNormalized()
-    val toBuyKey = CAR_TO_BUY_SECTION.matchNormalized()
+    val sections = mutableMapOf<String, MutableList<CarPart>>()
     var section = CAR_STOCK_SECTION.matchNormalized()
     content.lineSequence().forEach { line ->
         if (line.isSeparatorLine()) {
@@ -160,12 +198,18 @@ fun parseCarPartsNote(content: String): CarPartsNote {
         }
         val part = parseCarPart(line) ?: return@forEach
         when (section) {
-            takenKey -> taken += part
-            toBuyKey -> toBuy += part.copy(checked = line.isCheckedLine())
+            TAKEN_KEY, TAKEN_REPAIR_KEY -> sections.getOrPut(section) { mutableListOf() } += part
+            TO_BUY_KEY, TO_BUY_REPAIR_KEY ->
+                sections.getOrPut(section) { mutableListOf() } += part.copy(checked = line.isCheckedLine())
             else -> stock += part
         }
     }
-    return CarPartsNote(merged(stock), merged(taken), merged(toBuy))
+    fun of(key: String) = merged(sections[key].orEmpty())
+    return CarPartsNote(
+        stock = merged(stock),
+        repair = CarShopping(of(TAKEN_REPAIR_KEY), of(TO_BUY_REPAIR_KEY)),
+        tuning = CarShopping(of(TAKEN_KEY), of(TO_BUY_KEY))
+    )
 }
 
 // Same part, same bonus (and same tick, in the buy list) folded into one line, first spelling kept.
@@ -177,9 +221,10 @@ private fun merged(parts: List<CarPart>): List<CarPart> =
         .sortedWith(compareBy({ it.name.deaccented() }, { it.score ?: -1 }))
 
 /**
- * The names to propose for what is being typed: every name ever entered plus what the stock holds,
- * the ones starting with the query first, then the ones used most. An empty query proposes the
- * most used names.
+ * The names to propose for what is being typed: every name ever entered plus what the stock holds.
+ * The ones starting with the query come first, then the ones containing it, then, from 4 letters
+ * typed, the ones within a typo or two of it, each group by use. An empty query proposes the most
+ * used names.
  */
 fun suggestCarPartNames(
     query: String,
@@ -191,13 +236,40 @@ fun suggestCarPartNames(
     counts.forEach { (name, count) -> known[name.matchNormalized()] = name to count }
     stockNames.forEach { name -> known.putIfAbsent(name.matchNormalized(), name to 0) }
     val folded = query.trim().deaccented()
+    val compact = query.matchNormalized()
+    val maxTypos = if (compact.length < 4) 0 else compact.length / 4
+    // 0 prefix, 1 contains, 2 + typos for a near miss; null leaves the name out.
+    fun rank(name: String): Int? {
+        val candidate = name.deaccented()
+        return when {
+            folded.isEmpty() || candidate.startsWith(folded) -> 0
+            candidate.contains(folded) -> 1
+            maxTypos == 0 -> null
+            else -> substringDistance(compact, name.matchNormalized()).takeIf { it <= maxTypos }?.plus(2)
+        }
+    }
     return known.values
-        .filter { (name, _) -> folded.isEmpty() || name.deaccented().contains(folded) }
+        .mapNotNull { (name, count) -> rank(name)?.let { Triple(name, count, it) } }
         .sortedWith(
-            compareByDescending<Pair<String, Int>> { (name, _) -> name.deaccented().startsWith(folded) }
-                .thenByDescending { (_, count) -> count }
-                .thenBy { (name, _) -> name.deaccented() }
+            compareBy<Triple<String, Int, Int>> { it.third }
+                .thenByDescending { it.second }
+                .thenBy { it.first.deaccented() }
         )
         .take(limit)
         .map { it.first }
+}
+
+/** The fewest edits turning [pattern] into some stretch of [text] (Sellers' approximate match). */
+private fun substringDistance(pattern: String, text: String): Int {
+    var previous = IntArray(text.length + 1)
+    for (i in 1..pattern.length) {
+        val current = IntArray(text.length + 1)
+        current[0] = i
+        for (j in 1..text.length) {
+            val substitution = previous[j - 1] + if (pattern[i - 1] == text[j - 1]) 0 else 1
+            current[j] = minOf(previous[j] + 1, current[j - 1] + 1, substitution)
+        }
+        previous = current
+    }
+    return previous.min()
 }

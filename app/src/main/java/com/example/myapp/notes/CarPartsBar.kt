@@ -66,7 +66,8 @@ import kotlinx.coroutines.launch
 private val Context.carPartsDataStore by preferencesDataStore("car_parts")
 
 private const val COUNT_KEY_PREFIX = "count:"
-private val BEST_RATED_KEY = booleanPreferencesKey("best_rated")
+// Still named after the rating mode the star was before it switched jobs, so the setting carries over.
+private val STAR_MODE_KEY = booleanPreferencesKey("best_rated")
 private val STOCK_MODE_KEY = booleanPreferencesKey("stock_mode")
 
 private val SCORE_CHOICES = listOf(null, 1, 2, 3, 4, 5)
@@ -74,7 +75,7 @@ private val QUANTITY_CHOICES = listOf(1, 2, 3, 4, 5)
 
 /**
  * What the Car Mechanic Simulator bar remembers: how many times each part name was entered, so
- * the list proposes the usual ones first, which rating mode the header toggle is in, and which
+ * the list proposes the usual ones first, which job the header star is on (repairs or tuning), and which
  * of Achats / Stock the bar was left on.
  */
 class CarPartsMemory(private val context: Context) {
@@ -85,7 +86,7 @@ class CarPartsMemory(private val context: Context) {
         }.groupBy({ it.first }, { it.second }).mapValues { (_, uses) -> uses.sum() }
     }
 
-    val bestRated: Flow<Boolean> = context.carPartsDataStore.data.map { it[BEST_RATED_KEY] ?: false }
+    val starMode: Flow<Boolean> = context.carPartsDataStore.data.map { it[STAR_MODE_KEY] ?: false }
 
     val stockMode: Flow<Boolean> = context.carPartsDataStore.data.map { it[STOCK_MODE_KEY] ?: false }
 
@@ -127,8 +128,8 @@ class CarPartsMemory(private val context: Context) {
         context.carPartsDataStore.edit { it[intPreferencesKey(COUNT_KEY_PREFIX + name)] = count }
     }
 
-    suspend fun setBestRated(value: Boolean) {
-        context.carPartsDataStore.edit { it[BEST_RATED_KEY] = value }
+    suspend fun setStarMode(value: Boolean) {
+        context.carPartsDataStore.edit { it[STAR_MODE_KEY] = value }
     }
 
     suspend fun setStockMode(value: Boolean) {
@@ -157,7 +158,7 @@ class CarPartsBarState internal constructor(
     private val onSave: (String) -> Unit
 ) {
     internal var note by mutableStateOf(CarPartsNote())
-    internal var bestRated by mutableStateOf(false)
+    internal var starMode by mutableStateOf(false)
     internal var counts by mutableStateOf<Map<String, Int>>(emptyMap())
     internal var stockMode by mutableStateOf(false)
     internal var imeVisible by mutableStateOf(false)
@@ -176,7 +177,7 @@ class CarPartsBarState internal constructor(
     }
     internal val suggestions: List<String>
         get() = suggestCarPartNames(typed?.name ?: "", counts, note.stock.map { it.name })
-    internal val inStock: List<CarPart> get() = typed?.let { note.stockOf(it.name) } ?: emptyList()
+    internal val inStock: List<CarPart> get() = typed?.let { note.stockOf(it.name, starMode) } ?: emptyList()
 
     /** True while the known names should float over the note. */
     val listShown: Boolean get() = step == null && focused && imeVisible && suggestions.isNotEmpty()
@@ -188,7 +189,7 @@ class CarPartsBarState internal constructor(
             updated = note.withStock(part)
             message = "Ajouté au stock : ${part.render()}"
         } else {
-            val result = note.request(part.name, part.quantity, bestRated)
+            val result = note.request(part.name, part.quantity, starMode)
             updated = result.note
             message = listOfNotNull(
                 result.taken.takeIf { it.isNotEmpty() }
@@ -239,14 +240,14 @@ class CarPartsBarState internal constructor(
 @Composable
 fun rememberCarPartsBarState(
     note: CarPartsNote,
-    bestRated: Boolean,
+    starMode: Boolean,
     memory: CarPartsMemory,
     onSave: (String) -> Unit
 ): CarPartsBarState {
     val scope = rememberCoroutineScope()
     val state = remember { CarPartsBarState(scope, memory, onSave) }
     state.note = note
-    state.bestRated = bestRated
+    state.starMode = starMode
     state.counts = memory.counts.collectAsState(initial = emptyMap()).value
     state.stockMode = memory.stockMode.collectAsState(initial = false).value
     state.imeVisible = WindowInsets.isImeVisible
@@ -391,7 +392,7 @@ fun CarPartsNameList(state: CarPartsBarState, modifier: Modifier = Modifier) {
     ) {
         LazyColumn(modifier = Modifier.fillMaxWidth()) {
             items(state.suggestions, key = { it }) { name ->
-                val held = note.stockOf(name)
+                val held = note.stockOf(name, state.starMode)
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier

@@ -134,7 +134,10 @@ fun NoteEditorScreen(
             val isCoursesModelNote = !isEditing && title.equals(COURSES_MODEL_TITLE, ignoreCase = true)
             val isCarPartsNote = !isEditing && title.equals(CAR_PARTS_TITLE, ignoreCase = true)
             val carNote = remember(content, isCarPartsNote) { if (isCarPartsNote) parseCarPartsNote(content) else null }
-            val carBestRated by carPartsMemory.bestRated.collectAsState(initial = false)
+            val carStarMode by carPartsMemory.starMode.collectAsState(initial = false)
+            val carHidden = remember(content, carNote != null, carStarMode) {
+                if (carNote != null) carHiddenLines(content, carStarMode) else emptySet()
+            }
 
             val searchTerms = if (searchOpen) remember(noteQuery) { searchTermsOf(noteQuery) } else listSearchTerms
             // The lines holding any of the searched words, in order: what the arrows step through.
@@ -189,8 +192,8 @@ fun NoteEditorScreen(
                         isIngredientsNote = isIngredientsNote,
                         isCoursesModelNote = isCoursesModelNote,
                         isCarPartsNote = isCarPartsNote,
-                        carBestRated = carBestRated,
-                        carHasShopping = carNote?.hasShopping == true
+                        carStarMode = carStarMode,
+                        carHasShopping = carNote?.hasShopping(carStarMode) == true
                     ),
                     actions = NoteEditorBarActions(
                         onBack = { state.goBack(onBack) },
@@ -219,11 +222,11 @@ fun NoteEditorScreen(
                         onClearContent = { state.saveContent("") },
                         onToggleInlineMarker = { textFieldState.toggleInlineMarker(it) },
                         onToggleTitle = { textFieldState.toggleTitleLine() },
-                        onToggleCarBestRated = { scope.launch { carPartsMemory.setBestRated(!carBestRated) } },
+                        onToggleCarStarMode = { scope.launch { carPartsMemory.setStarMode(!carStarMode) } },
                         onFinishCarShopping = {
                             carNote?.let { car ->
                                 val before = content
-                                state.saveContent(car.finishShopping().render())
+                                state.saveContent(car.finishShopping(carStarMode).render())
                                 scope.launch {
                                     if (snackbarHostState.showUndoSnackbar("Achats terminés")) state.saveContent(before)
                                 }
@@ -306,7 +309,7 @@ fun NoteEditorScreen(
                     val carBar = carNote?.let {
                         rememberCarPartsBarState(
                             note = it,
-                            bestRated = carBestRated,
+                            starMode = carStarMode,
                             memory = carPartsMemory,
                             onSave = { text -> state.saveContent(text) }
                         )
@@ -315,6 +318,7 @@ fun NoteEditorScreen(
                         NoteViewMode(
                             textFieldState = textFieldState,
                             title = title,
+                            hiddenLines = carHidden,
                             searchTerms = searchTerms,
                             focusedLine = if (searchOpen) matchLines.getOrNull(matchPos) ?: -1 else -1,
                             focusNonce = focusNonce,

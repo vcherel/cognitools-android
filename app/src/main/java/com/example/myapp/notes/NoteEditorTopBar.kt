@@ -77,7 +77,7 @@ data class NoteEditorBarState(
     val isIngredientsNote: Boolean,
     val isCoursesModelNote: Boolean,
     val isCarPartsNote: Boolean,
-    val carBestRated: Boolean,
+    val carStarMode: Boolean,
     val carHasShopping: Boolean
 )
 
@@ -98,7 +98,7 @@ data class NoteEditorBarActions(
     val onClearContent: () -> Unit,
     val onToggleInlineMarker: (String) -> Unit,
     val onToggleTitle: () -> Unit,
-    val onToggleCarBestRated: () -> Unit,
+    val onToggleCarStarMode: () -> Unit,
     val onSortCarStock: () -> Unit,
     val onFinishCarShopping: () -> Unit,
     val onMemorizeCarStock: () -> Unit
@@ -192,11 +192,12 @@ fun NoteEditorTopBar(
                 }
             }
             if (state.isCarPartsNote) {
-                // Filled star: rated parts may be taken from stock. Outline: unrated only.
-                IconButton(onClick = actions.onToggleCarBestRated) {
+                // Filled star: tuning, the whole stock and the best bonus first. Outline: repairs,
+                // unrated parts only. Each has its own shopping lists.
+                IconButton(onClick = actions.onToggleCarStarMode) {
                     Icon(
-                        if (state.carBestRated) Icons.Default.Star else Icons.Default.StarBorder,
-                        contentDescription = if (state.carBestRated) "Prendre la meilleure note" else "Sans note seulement"
+                        if (state.carStarMode) Icons.Default.Star else Icons.Default.StarBorder,
+                        contentDescription = if (state.carStarMode) "Mode amélioration" else "Mode réparations"
                     )
                 }
                 if (state.carHasShopping) {
