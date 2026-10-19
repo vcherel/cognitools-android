@@ -68,12 +68,12 @@ data class DiscoveryState(
  * Two sources feed it:
  *  - new releases from the artists on his Deezer profile and from every artist in his favorites or
  *    in Best pépites, found by diffing each artist's public discography against the album ids we
- *    have already seen. They take up to half the batch, the artists he has the most tracks from
+ *    have already seen. They take up to seven of the ten slots, the artists he has the most tracks from
  *    first; what doesn't fit queues up in a backlog for the following days. The scan itself runs
  *    once the day's batch is out, so what it finds is offered from the next day on.
  *  - discoveries from Deezer's own personalized recommendations: Flow ([DeezerApi.flowTracks]), topped
  *    up with the track mix of a few random favorites when Flow runs thin after filtering. They fill
- *    whatever the releases left, which is half the batch at the very least.
+ *    whatever the releases left, which is three tracks at the very least.
  *
  * Nothing already in his favorites, in Best pépites, or ever proposed before can appear. There is
  * deliberately no play tracking: Deezer's own listening history is a rolling window of 100 plays,
@@ -83,8 +83,8 @@ class DeezerDiscoveries(private val appContext: Context, private val repo: Deeze
 
     companion object {
         const val BATCH_SIZE = 10
-        /** Half the batch at most, so a heavy release week still leaves room for real discoveries. */
-        private const val RELEASE_SLOTS = BATCH_SIZE / 2
+        /** Seven slots at most, so a heavy release week still leaves room for three real discoveries. */
+        private const val RELEASE_SLOTS = 7
         private const val FLOW_CALLS = 8
         /** Discovery candidates gathered before ranking: more than fit, so the ranking has a choice. */
         private const val DISCOVERY_POOL = BATCH_SIZE * 3
@@ -149,7 +149,7 @@ class DeezerDiscoveries(private val appContext: Context, private val repo: Deeze
         launchExclusive {
             load()
             val exhausted = attemptDate == today() && attempts >= MAX_DAILY_ATTEMPTS
-            // With no network the discovery half comes back empty and the batch would claim the day
+            // With no network the discovery share comes back empty and the batch would claim the day
             // with nothing but the backlog's releases in it. Waiting for the next entry costs nothing.
             val ready = repo.hasNetwork()
             if (batchDate == today() || exhausted || !ready) publish()
@@ -158,7 +158,7 @@ class DeezerDiscoveries(private val appContext: Context, private val repo: Deeze
     }
 
     /**
-     * Throws away the discovery half and rolls a fresh one, as often as asked. New releases already on
+     * Throws away the discovery share and rolls a fresh one, as often as asked. New releases already on
      * screen stay put, since a refresh asked for out of boredom with the Flow picks should not burn
      * them, but a batch whose releases were all handled refills its release slots from the backlog.
      */
@@ -286,7 +286,7 @@ class DeezerDiscoveries(private val appContext: Context, private val repo: Deeze
             val needsScan = lastScanDate != today()
             generationLog.log("generate ${if (automatic) "daily" else "refresh"}: scan=$needsScan, ${kept.size} release(s) kept")
 
-            // The discovery half is collected before the scan, not after it: the Flow calls that
+            // The discovery share is collected before the scan, not after it: the Flow calls that
             // used to follow the scan came back empty often enough to leave the day's batch with
             // nothing but new releases.
             val discoveries = collectDiscoveries(excluded, known)
