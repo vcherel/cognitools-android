@@ -31,6 +31,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material3.Card
@@ -196,6 +197,10 @@ private fun WeatherContent(forecast: WeatherForecast, modifier: Modifier = Modif
     // to today; tapping the open day collapses it, and the summary card falls back to today.
     var expandedDate by remember(forecast) { mutableStateOf<LocalDate?>(today) }
     val summaryDate = expandedDate ?: today
+    // The past days stay folded behind one row; stepping back into them with the hour strip's
+    // arrow unfolds them too, so the open day is never hidden.
+    var showHistory by remember { mutableStateOf(false) }
+    val historyVisible = showHistory || expandedDate?.isBefore(today) == true
 
     // Hours grouped by day once, so expanding a day is a cheap lookup rather than a full filter.
     val hoursByDate = remember(forecast) { forecast.hourly.groupBy { it.time.toLocalDate() } }
@@ -244,7 +249,18 @@ private fun WeatherContent(forecast: WeatherForecast, modifier: Modifier = Modif
 
         Spacer(modifier = Modifier.height(16.dp))
 
+        val firstUpcoming = forecast.daily.indexOfFirst { it.date >= today }
         forecast.daily.forEachIndexed { index, day ->
+            if (index == firstUpcoming && firstUpcoming > 0) {
+                HistoryToggle(
+                    expanded = historyVisible,
+                    onClick = {
+                        if (historyVisible && expandedDate?.isBefore(today) == true) expandedDate = today
+                        showHistory = !historyVisible
+                    }
+                )
+            }
+            if (index < firstUpcoming && !historyVisible) return@forEachIndexed
             val expanded = day.date == expandedDate
             DayRow(
                 day = day,
@@ -475,6 +491,27 @@ private fun DayNavArrow(icon: ImageVector, onClick: () -> Unit) {
 }
 
 @Composable
+private fun HistoryToggle(expanded: Boolean, onClick: () -> Unit) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 10.dp)
+    ) {
+        Icon(
+            if (expanded) Icons.Default.KeyboardArrowDown else Icons.AutoMirrored.Filled.KeyboardArrowRight,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary
+        )
+        Text("7 derniers jours", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Medium)
+    }
+}
+
+@Composable
 private fun DayRow(day: DailyPoint, selected: Boolean, onClick: () -> Unit) {
     val containerColor = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant
     val contentColor = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
@@ -502,8 +539,12 @@ private fun DayRow(day: DailyPoint, selected: Boolean, onClick: () -> Unit) {
             modifier = Modifier.weight(1f)
         )
         Column(horizontalAlignment = Alignment.End) {
-            Text("${day.rainProb}% 🌧️", color = contentColor)
-            if (day.rainAmount >= 0.1) {
+            if (day.date < LocalDate.now()) {
+                Text("${formatRainAmount(day.rainAmount)}mm 🌧️", color = contentColor)
+            } else {
+                Text("${day.rainProb}% 🌧️", color = contentColor)
+            }
+            if (day.date >= LocalDate.now() && day.rainAmount >= 0.1) {
                 Text(
                     "${formatRainAmount(day.rainAmount)}mm",
                     style = MaterialTheme.typography.bodySmall,

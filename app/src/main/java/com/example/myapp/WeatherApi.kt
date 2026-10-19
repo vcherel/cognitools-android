@@ -93,12 +93,13 @@ private class ModelSeries(json: JSONObject, field: String) {
 // position keeps its last one for a quarter of an hour. Switching between two cities, or leaving
 // and reopening the screen, then costs no request at all, which is what used to earn a 429.
 private const val FORECAST_TTL_MS = 15 * 60_000L
+private const val PAST_DAYS = 7
 private val forecastCache = mutableMapOf<String, Pair<Long, WeatherForecast>>()
 
 /** Rounded to Open-Meteo's own grid resolution: two nearby positions share one forecast. */
 private fun cacheKey(lat: Double, lon: Double) = String.format(Locale.US, "%.2f,%.2f", lat, lon)
 
-/** The 16 day forecast for a position, from the cache when it holds a recent enough one. */
+/** The past 7 days and the 16 day forecast for a position, from the cache when it holds a recent enough one. */
 suspend fun fetchWeatherForecast(lat: Double, lon: Double): WeatherForecast {
     val key = cacheKey(lat, lon)
     synchronized(forecastCache) {
@@ -121,7 +122,7 @@ private suspend fun downloadForecast(lat: Double, lon: Double): WeatherForecast 
     val url = "https://api.open-meteo.com/v1/forecast?latitude=$lat&longitude=$lon" +
             "&hourly=temperature_2m,precipitation_probability,precipitation,weathercode" +
             "&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum,weathercode" +
-            "&timezone=auto&forecast_days=16&models=meteofrance_seamless,best_match"
+            "&timezone=auto&past_days=$PAST_DAYS&forecast_days=16&models=meteofrance_seamless,best_match"
     val json = JSONObject(httpGetRetrying(url))
 
     val hourlyJson = json.getJSONObject("hourly")

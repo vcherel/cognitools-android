@@ -14,6 +14,7 @@ internal fun formatRainAmount(amount: Double): String =
 internal fun shortDayLabel(date: LocalDate): String {
     val today = LocalDate.now()
     return when (date) {
+        today.minusDays(1) -> "Hier"
         today -> "Auj."
         today.plusDays(1) -> "Dem."
         else -> {
@@ -40,8 +41,13 @@ internal fun weatherCodeToEmoji(code: Int): String = when (code) {
 
 // Reports the first hour of the selected day with a real chance of rain,
 // rather than just the current condition (which is easy enough to check by looking outside).
+// A past day reports the rain that actually fell instead.
 internal fun daySummary(hours: List<HourlyPoint>, date: LocalDate): String {
     if (hours.isEmpty()) return "Prévisions indisponibles"
+    if (date < LocalDate.now()) {
+        val total = hours.sumOf { it.rainAmount }
+        return if (total < 0.1) "☀️ Pas de pluie ce jour-là" else "🌧️ ${formatRainAmount(total)}mm de pluie ce jour-là"
+    }
 
     val isToday = date == LocalDate.now()
     val rainThreshold = 50
