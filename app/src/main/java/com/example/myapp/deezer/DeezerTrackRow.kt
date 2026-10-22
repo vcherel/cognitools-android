@@ -1,7 +1,7 @@
 package com.example.myapp.deezer
 
 import android.content.Context
-import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.animate
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.Orientation
@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -40,7 +39,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
@@ -48,10 +49,10 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
@@ -61,9 +62,9 @@ import com.example.myapp.MediaListRow
 import com.example.myapp.MediaRowSubtitle
 import com.example.myapp.deezerRepository
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlin.math.roundToInt
 
 /**
  * Shared: one tappable track line. Tap plays. When [showActions] is on, a heart (like/unlike, filled
@@ -196,13 +197,16 @@ private fun SwipeToQueue(onQueue: (() -> Unit)?, content: @Composable () -> Unit
         content()
         return
     }
-    val offset = remember { Animatable(0f) }
+    // Same synchronous offset as MiniPlayerBar, for the same reason.
+    var offset by remember { mutableFloatStateOf(0f) }
+    var settle by remember { mutableStateOf<Job?>(null) }
     val scope = rememberCoroutineScope()
     val haptic = LocalHapticFeedback.current
     val threshold = with(LocalDensity.current) { 88.dp.toPx() }
-    val armed = offset.value >= threshold
+    val revealed by remember { derivedStateOf { offset > 0f } }
+    val armed by remember { derivedStateOf { offset >= threshold } }
     Box(Modifier.fillMaxWidth()) {
-        if (offset.value > 0f) {
+        if (revealed) {
             Box(
                 Modifier
                     .matchParentSize()
@@ -220,21 +224,24 @@ private fun SwipeToQueue(onQueue: (() -> Unit)?, content: @Composable () -> Unit
         }
         Box(
             Modifier
-                .offset { IntOffset(offset.value.roundToInt(), 0) }
+                // Before the translation, so the finger is measured against the row's resting place
+                // and not against a row that moves with it.
                 .draggable(
                     orientation = Orientation.Horizontal,
                     state = rememberDraggableState { delta ->
-                        val next = (offset.value + delta).coerceIn(0f, threshold * 1.6f)
-                        if ((next >= threshold) != (offset.value >= threshold)) {
+                        val next = (offset + delta).coerceIn(0f, threshold * 1.6f)
+                        if ((next >= threshold) != (offset >= threshold)) {
                             haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                         }
-                        scope.launch { offset.snapTo(next) }
+                        offset = next
                     },
+                    onDragStarted = { settle?.cancel() },
                     onDragStopped = {
-                        if (offset.value >= threshold) onQueue()
-                        offset.animateTo(0f)
+                        if (offset >= threshold) onQueue()
+                        settle = scope.launch { animate(offset, 0f) { value, _ -> offset = value } }
                     }
                 )
+                .graphicsLayer { translationX = offset }
         ) { content() }
     }
 }

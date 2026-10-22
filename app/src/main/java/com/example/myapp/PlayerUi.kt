@@ -1,6 +1,6 @@
 package com.example.myapp
 
-import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.animate
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.Orientation
@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -44,19 +43,19 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import java.util.Locale
 import kotlin.math.abs
-import kotlin.math.roundToInt
 
 /**
  * The pieces the two players (Deezer tracks in `deezer/`, podcast episodes in `podcasts/`) draw
@@ -171,7 +170,10 @@ fun MiniPlayerBar(
     onSwipeNext: (() -> Unit)? = null,
     onSwipePrevious: (() -> Unit)? = null
 ) {
-    val offset = remember { Animatable(0f) }
+    // Written synchronously on every drag delta: a launched snapTo lands a frame late, drops deltas,
+    // and cancels the spring back when it runs after the release.
+    var offset by remember { mutableFloatStateOf(0f) }
+    var settle by remember { mutableStateOf<Job?>(null) }
     val scope = rememberCoroutineScope()
     val haptic = LocalHapticFeedback.current
     val threshold = with(LocalDensity.current) { 72.dp.toPx() }
@@ -180,18 +182,19 @@ fun MiniPlayerBar(
         state = rememberDraggableState { delta ->
             val min = if (onSwipeNext != null) -threshold * 1.6f else 0f
             val max = if (onSwipePrevious != null) threshold * 1.6f else 0f
-            val next = (offset.value + delta).coerceIn(min, max)
-            if ((abs(next) >= threshold) != (abs(offset.value) >= threshold)) {
+            val next = (offset + delta).coerceIn(min, max)
+            if ((abs(next) >= threshold) != (abs(offset) >= threshold)) {
                 haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
             }
-            scope.launch { offset.snapTo(next) }
+            offset = next
         },
+        onDragStarted = { settle?.cancel() },
         onDragStopped = {
             when {
-                offset.value <= -threshold -> onSwipeNext?.invoke()
-                offset.value >= threshold -> onSwipePrevious?.invoke()
+                offset <= -threshold -> onSwipeNext?.invoke()
+                offset >= threshold -> onSwipePrevious?.invoke()
             }
-            offset.animateTo(0f)
+            settle = scope.launch { animate(offset, 0f) { value, _ -> offset = value } }
         }
     )
     Surface(tonalElevation = 3.dp, shadowElevation = 8.dp) {
@@ -199,8 +202,10 @@ fun MiniPlayerBar(
             modifier = Modifier
                 .fillMaxWidth()
                 .then(swipe)
-                .offset { IntOffset(offset.value.roundToInt(), 0) }
-                .alpha(1f - (abs(offset.value) / (threshold * 3f)))
+                .graphicsLayer {
+                    translationX = offset
+                    alpha = 1f - (abs(offset) / (threshold * 3f))
+                }
                 .clickable(onClick = onExpand)
                 .padding(horizontal = 12.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
