@@ -1,7 +1,11 @@
 package com.example.myapp
 
+import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,6 +16,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -33,17 +38,25 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.util.Locale
+import kotlin.math.abs
+import kotlin.math.roundToInt
 
 /**
  * The pieces the two players (Deezer tracks in `deezer/`, podcast episodes in `podcasts/`) draw
@@ -139,7 +152,11 @@ fun MediaRowSubtitle(text: String) {
     )
 }
 
-/** Slim bar pinned at the bottom of the Musique tool, tap to expand into the full player. */
+/**
+ * Slim bar pinned at the bottom of the Musique tool, tap to expand into the full player. When
+ * [onSwipeNext]/[onSwipePrevious] are given, the bar follows a horizontal drag and changes track on
+ * release past a threshold: left for the next one, right for the previous one.
+ */
 @Composable
 fun MiniPlayerBar(
     artworkUrl: String?,
@@ -150,12 +167,40 @@ fun MiniPlayerBar(
     onExpand: () -> Unit,
     onTogglePlay: () -> Unit,
     /** A third, tinted line, e.g. which playlist the track is being played from. */
-    note: String? = null
+    note: String? = null,
+    onSwipeNext: (() -> Unit)? = null,
+    onSwipePrevious: (() -> Unit)? = null
 ) {
+    val offset = remember { Animatable(0f) }
+    val scope = rememberCoroutineScope()
+    val haptic = LocalHapticFeedback.current
+    val threshold = with(LocalDensity.current) { 72.dp.toPx() }
+    val swipe = if (onSwipeNext == null && onSwipePrevious == null) Modifier else Modifier.draggable(
+        orientation = Orientation.Horizontal,
+        state = rememberDraggableState { delta ->
+            val min = if (onSwipeNext != null) -threshold * 1.6f else 0f
+            val max = if (onSwipePrevious != null) threshold * 1.6f else 0f
+            val next = (offset.value + delta).coerceIn(min, max)
+            if ((abs(next) >= threshold) != (abs(offset.value) >= threshold)) {
+                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+            }
+            scope.launch { offset.snapTo(next) }
+        },
+        onDragStopped = {
+            when {
+                offset.value <= -threshold -> onSwipeNext?.invoke()
+                offset.value >= threshold -> onSwipePrevious?.invoke()
+            }
+            offset.animateTo(0f)
+        }
+    )
     Surface(tonalElevation = 3.dp, shadowElevation = 8.dp) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                .then(swipe)
+                .offset { IntOffset(offset.value.roundToInt(), 0) }
+                .alpha(1f - (abs(offset.value) / (threshold * 3f)))
                 .clickable(onClick = onExpand)
                 .padding(horizontal = 12.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically

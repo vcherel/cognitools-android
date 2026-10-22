@@ -1,13 +1,19 @@
 package com.example.myapp.deezer
 
 import android.content.Context
+import androidx.compose.animation.core.Animatable
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -38,9 +44,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
@@ -50,7 +61,9 @@ import com.example.myapp.MediaListRow
 import com.example.myapp.MediaRowSubtitle
 import com.example.myapp.deezerRepository
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlin.math.roundToInt
 
 /**
  * Shared: one tappable track line. Tap plays. When [showActions] is on, a heart (like/unlike, filled
@@ -58,6 +71,7 @@ import kotlinx.coroutines.withContext
  * remove from Best pépites, add to a playlist, and, only if [onRemoveFromPlaylist] is provided, remove from the current
  * playlist. [isPlaying] tints the row and adds a playing icon for the track currently loaded in the player.
  * [note] adds a third tinted line under the artist, and [onDismiss] a cross that throws the row away.
+ * Swiping the row to the right also runs [onAddToQueue].
  */
 @Composable
 fun TrackRow(
@@ -85,7 +99,7 @@ fun TrackRow(
         runCatching { repo.ensureBestPepitesLoaded() }
         inPepites = repo.bestPepitesContains(track.sngId) == true
     }
-    MediaListRow(
+    SwipeToQueue(onAddToQueue) { MediaListRow(
         artworkUrl = track.coverUrl(),
         title = track.title,
         isPlaying = isPlaying,
@@ -168,7 +182,61 @@ fun TrackRow(
                 }
             }
         }
-    )
+    ) }
+}
+
+/**
+ * Swiping [content] to the right past a threshold runs [onQueue]: the row follows the finger over a
+ * queue icon, a haptic tick marks the threshold, and the row springs back on release either way.
+ * Without [onQueue] the content is drawn as is, with no gesture.
+ */
+@Composable
+private fun SwipeToQueue(onQueue: (() -> Unit)?, content: @Composable () -> Unit) {
+    if (onQueue == null) {
+        content()
+        return
+    }
+    val offset = remember { Animatable(0f) }
+    val scope = rememberCoroutineScope()
+    val haptic = LocalHapticFeedback.current
+    val threshold = with(LocalDensity.current) { 88.dp.toPx() }
+    val armed = offset.value >= threshold
+    Box(Modifier.fillMaxWidth()) {
+        if (offset.value > 0f) {
+            Box(
+                Modifier
+                    .matchParentSize()
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(if (armed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primaryContainer)
+                    .padding(start = 20.dp),
+                contentAlignment = Alignment.CenterStart
+            ) {
+                Icon(
+                    Icons.AutoMirrored.Filled.QueueMusic,
+                    contentDescription = null,
+                    tint = if (armed) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onPrimaryContainer
+                )
+            }
+        }
+        Box(
+            Modifier
+                .offset { IntOffset(offset.value.roundToInt(), 0) }
+                .draggable(
+                    orientation = Orientation.Horizontal,
+                    state = rememberDraggableState { delta ->
+                        val next = (offset.value + delta).coerceIn(0f, threshold * 1.6f)
+                        if ((next >= threshold) != (offset.value >= threshold)) {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        }
+                        scope.launch { offset.snapTo(next) }
+                    },
+                    onDragStopped = {
+                        if (offset.value >= threshold) onQueue()
+                        offset.animateTo(0f)
+                    }
+                )
+        ) { content() }
+    }
 }
 
 /** Shared: runs the "add to queue" action and returns the toast to show. */

@@ -43,7 +43,7 @@ Root package (shared/misc):
 - `Buttons.kt`: shared composables, MyButton, SplitMyButton, MySwitch, ShowAlertDialog, ErrorText, AppDialog, LightIconButton (the one-node icon button for anything repeated per card or line; the buttons all built on RaisedSurface, the custom dialogs all on AppDialog)
 - `ScreenTopBar.kt`: shared back-arrow + title header used by the tool screens
 - `Home.kt`: BackIconButton (tap = back, long press = main menu), the LocalGoHome hook, and the idle-return-to-menu lifecycle watcher with its IdleResetGuard
-- `PlayerUi.kt`: the surfaces `deezer/` and `podcasts/` both draw; MediaArt, MediaListRow, MiniPlayerBar, PlayPauseButton, PlayerSeekBar (which owns the position polling), formatPlaybackTime
+- `PlayerUi.kt`: the surfaces `deezer/` and `podcasts/` both draw; MediaArt, MediaListRow, MiniPlayerBar (swipe to change track when given the callbacks), PlayPauseButton, PlayerSeekBar (which owns the position polling), formatPlaybackTime
 - `PauseOnOutputLost.kt`: `pauseOnOutputLost`, the device callback both playback services use to pause when a Bluetooth or wired output disappears (MIUI skips the noisy broadcast for some disconnects)
 - `MediaControllerHolder.kt`: the MediaController connect-once/stop-the-service plumbing both playback repositories use
 - `Plural.kt`: `plural(count)`, the one place the French count-to-plural rule lives
@@ -79,13 +79,14 @@ Root package (shared/misc):
 - `DeezerFavoritesHistoryScreen.kt`: the curve of that count, opened by tapping the "N titres" label on the library's Favoris card
 - `DeezerOffline.kt`: DeezerOfflineLibrary, the permanent Best pépites mirror; sync, retry pass, sync log file
 - `DeezerPlaybackService.kt`: MediaSessionService owning the ExoPlayer; media notification, its heart/diamond action buttons (`actionButtons`), error recovery
+- `DeezerCrossfade.kt`: Crossfader, the 6 s blend into the next queued track (a session-less second player takes over the outgoing tail), started early on an outro or silence detected by LevelMeter, a tee on the main player's PCM
 - `DeezerScreen.kt`: host for the whole Musique tool (music *and* podcasts), nested NavHost + the two persistent mini-players
 - `DeezerNowPlaying.kt`: FullPlayerSheet, plus the share-a-track sheet. The mini-player bar itself is the shared one in `PlayerUi.kt`
 - `DeezerTrackInfoSheet.kt`: TrackInfoSheet, opened by tapping the title in the full player; release date, credits, album, label, BPM from the public track and album calls
 - `DeezerTrackSaver.kt`: `repo.saver`, the full player's download button; saves the track as an ID3 tagged MP3 320 in Download, "already saved" being the file there under its name
 - `DeezerQueueSheet.kt`: QueueSheet, the queue opened from the full player: jump to a track, drag to reorder, remove, each edit applied straight to the controller
 - `DeezerLibraryScreen.kt`: landing screen; favorites card, playlists rows, followed podcast rows, offline status
-- `DeezerTrackRow.kt`: TrackRow (the one tappable track line with its heart and menu), the playlist picker dialog, and the add-to-queue / Best pépites / add-to-playlist actions that return the toast to show, reused by every Deezer screen
+- `DeezerTrackRow.kt`: TrackRow (the one tappable track line with its heart and menu, swipe right to queue), the playlist picker dialog, and the add-to-queue / Best pépites / add-to-playlist actions that return the toast to show, reused by every Deezer screen
 - `DeezerPlaylistScreen.kt`: reusable ordered track list (play, remove, like, add to pépites)
 - `DeezerSearchScreen.kt`: search screen, tracks and podcast shows
 - `DeezerArtistScreen.kt`: one artist: header, top tracks, discography grouped by release type

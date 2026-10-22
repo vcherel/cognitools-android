@@ -187,7 +187,9 @@ fun DeezerScreen(
                     isPlaying = playerState.isPlaying,
                     isBuffering = playerState.isBuffering,
                     onExpand = { showFullPlayer = true },
-                    onTogglePlay = { repo.player.togglePlay() }
+                    onTogglePlay = { repo.player.togglePlay() },
+                    onSwipeNext = { repo.player.next() },
+                    onSwipePrevious = { repo.player.previous() }
                 )
             }
             if (podcastPlayerState.hasItem) {

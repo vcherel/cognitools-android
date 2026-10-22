@@ -1,6 +1,7 @@
 package com.example.myapp.deezer
 
 import android.app.PendingIntent
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
@@ -16,7 +17,11 @@ import androidx.media3.datasource.DataSpec
 import androidx.media3.datasource.cache.Cache
 import androidx.media3.datasource.cache.CacheDataSink
 import androidx.media3.datasource.cache.CacheDataSource
+import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.audio.AudioSink
+import androidx.media3.exoplayer.audio.DefaultAudioSink
+import androidx.media3.exoplayer.audio.TeeAudioProcessor
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.upstream.DefaultLoadErrorHandlingPolicy
 import androidx.media3.exoplayer.upstream.LoadErrorHandlingPolicy
@@ -60,6 +65,7 @@ class DeezerPlaybackService : MediaSessionService() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private lateinit var repo: DeezerRepository
     private var stopOutputWatch: () -> Unit = {}
+    private var crossfader: Crossfader? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -70,16 +76,21 @@ class DeezerPlaybackService : MediaSessionService() {
         // all. The offline layer is read-only here: only the sync writes into it, so ordinary playback
         // can't fill the uncapped store with tracks nobody asked to keep. The stream cache's write sink
         // is gated the same way, on being liked rather than being in Best pépites (see LikedOnlyCacheDataSink).
-        val streamFactory = CacheDataSource.Factory()
-            .setCache(repo.streamCache)
-            .setCacheWriteDataSinkFactory(LikedOnlyCacheDataSinkFactory(repo.streamCache, repo))
-            .setUpstreamDataSourceFactory(DeezerDataSource.Factory(repo))
-            .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
-        val cacheFactory = CacheDataSource.Factory()
-            .setCache(repo.offline.cache)
-            .setUpstreamDataSourceFactory(streamFactory)
-            .setCacheWriteDataSinkFactory(null)
-            .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
+        // The crossfade's second player only reads: the tail it plays was mostly fetched already.
+        fun cacheFactory(writesStreamCache: Boolean): CacheDataSource.Factory {
+            val streamFactory = CacheDataSource.Factory()
+                .setCache(repo.streamCache)
+                .setCacheWriteDataSinkFactory(
+                    if (writesStreamCache) LikedOnlyCacheDataSinkFactory(repo.streamCache, repo) else null
+                )
+                .setUpstreamDataSourceFactory(DeezerDataSource.Factory(repo))
+                .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
+            return CacheDataSource.Factory()
+                .setCache(repo.offline.cache)
+                .setUpstreamDataSourceFactory(streamFactory)
+                .setCacheWriteDataSinkFactory(null)
+                .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
+        }
 
         // A track Deezer has retired fails identically every time, so the default policy's three
         // backed-off retries are three pointless CDN resolves (and a good ten seconds of silence)
@@ -90,9 +101,21 @@ class DeezerPlaybackService : MediaSessionService() {
                 else super.getRetryDelayMsFor(loadErrorInfo)
         }
 
-        val player = ExoPlayer.Builder(this)
+        val meter = LevelMeter()
+        val renderers = object : DefaultRenderersFactory(this) {
+            override fun buildAudioSink(
+                context: Context,
+                enableFloatOutput: Boolean,
+                enableAudioOutputPlaybackParameters: Boolean
+            ): AudioSink = DefaultAudioSink.Builder(context)
+                .setEnableFloatOutput(enableFloatOutput)
+                .setEnableAudioOutputPlaybackParameters(enableAudioOutputPlaybackParameters)
+                .setAudioProcessors(arrayOf(TeeAudioProcessor(meter)))
+                .build()
+        }
+        val player = ExoPlayer.Builder(this, renderers)
             .setMediaSourceFactory(
-                DefaultMediaSourceFactory(cacheFactory).setLoadErrorHandlingPolicy(loadErrorPolicy)
+                DefaultMediaSourceFactory(cacheFactory(writesStreamCache = true)).setLoadErrorHandlingPolicy(loadErrorPolicy)
             )
             .setAudioAttributes(
                 AudioAttributes.Builder()
@@ -104,6 +127,7 @@ class DeezerPlaybackService : MediaSessionService() {
             .setHandleAudioBecomingNoisy(true)
             .build()
         player.addListener(ErrorRecovery(player))
+        crossfader = Crossfader(this, player, meter, DefaultMediaSourceFactory(cacheFactory(writesStreamCache = false)), scope)
         player.addListener(TrackWatcher(player))
         stopOutputWatch = pauseOnOutputLost(this, player)
         mediaSession = MediaSession.Builder(this, player)
@@ -434,6 +458,7 @@ class DeezerPlaybackService : MediaSessionService() {
     override fun onDestroy() {
         scope.cancel()
         stopOutputWatch()
+        crossfader?.release()
         mediaSession?.run {
             player.release()
             release()
