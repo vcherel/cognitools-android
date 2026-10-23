@@ -27,6 +27,8 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.DriveFileMove
+import androidx.compose.material.icons.filled.ChevronLeft
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Crop
 import androidx.compose.material.icons.filled.ContentCut
 import androidx.compose.material.icons.filled.Delete
@@ -35,7 +37,6 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -53,6 +54,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -66,7 +68,7 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.DisposableEffect
-import com.example.myapp.AppSnackbar
+import com.example.myapp.LightIconButton
 import com.example.myapp.ScreenTopBar
 import com.example.myapp.ShowAlertDialog
 import com.example.myapp.flashcards.AppDatabase
@@ -75,7 +77,7 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-// Where GalleryViewerScreen gets its items from: a normal album, the pinned set (hero first),
+// Where GalleryViewerScreen gets its items from: a normal album, the pinned set (in its order),
 // the Wallet shortcut (the album named "Wallet", opened straight to its first item), or a single
 // item on its own (the locked quick view, where nothing around it should be reachable).
 sealed interface ViewerSource {
@@ -108,7 +110,6 @@ fun GalleryViewerScreen(
     val pinnedRowsState by remember { pinDao.observePinned() }.collectAsState(initial = null)
     val pinnedRows = pinnedRowsState ?: emptyList()
     val pinnedIds = remember(pinnedRows) { pinnedRows.map { it.mediaItemId }.toSet() }
-    val heroId = remember(pinnedRows) { orderedPinnedIds(pinnedRows).firstOrNull() }
 
     LaunchedEffect(source, refreshVersion, pinnedRowsState) {
         if (source is ViewerSource.Pinned && pinnedRowsState == null) return@LaunchedEffect
@@ -176,6 +177,21 @@ fun GalleryViewerScreen(
         items = remaining
         if (remaining.isEmpty()) leave()
         else pagerState.scrollToPage(removedIndex.coerceIn(0, remaining.size - 1))
+    }
+
+    // The pinned set's arrows: swaps the current picture with its neighbour, locally first for the
+    // same reason as above, and the pager follows it so repeated taps keep carrying it along.
+    fun movePinned(by: Int) {
+        val from = pagerState.currentPage
+        val to = from + by
+        if (from !in items.indices || to !in items.indices) return
+        val moved = items[from]
+        val other = items[to]
+        items = items.toMutableList().apply { this[from] = other; this[to] = moved }
+        scope.launch {
+            pagerState.scrollToPage(to)
+            swapPinned(context, moved.id, other.id)
+        }
     }
 
     // The photo opens clean (no tools). A single tap toggles the top/bottom bars and, with them,
@@ -291,6 +307,17 @@ fun GalleryViewerScreen(
                 title = currentItem.displayName,
                 onBack = leave,
                 titleStyle = MaterialTheme.typography.titleMedium,
+                titleMaxLines = 1,
+                titleWeight = true,
+                titleSuffix = {
+                    if (source is ViewerSource.Pinned && items.size > 1) {
+                        PinnedOrderControls(
+                            index = pagerState.currentPage.coerceIn(items.indices),
+                            count = items.size,
+                            onMove = ::movePinned
+                        )
+                    }
+                },
                 modifier = Modifier
                     .fillMaxWidth()
                     .onSizeChanged { topBarHeightPx = it.height }
@@ -309,7 +336,6 @@ fun GalleryViewerScreen(
             ViewerActionBar(
                 item = currentItem,
                 isPinned = currentItem.id in pinnedIds,
-                isHero = currentItem.id == heroId,
                 onRename = { openDialog = ViewerDialog.Rename },
                 onMove = { openDialog = ViewerDialog.Move },
                 onCrop = { onCrop(currentItem.id) },
@@ -325,13 +351,6 @@ fun GalleryViewerScreen(
                         } else {
                             pinItems(context, listOf(id))
                         }
-                    }
-                },
-                onSetHero = {
-                    val id = currentItem.id
-                    scope.launch {
-                        setHero(context, id)
-                        AppSnackbar.show("Photo mise en avant")
                     }
                 },
                 onShare = { openDialog = ViewerDialog.Share },
@@ -422,13 +441,11 @@ private fun Context.findActivity(): Activity? {
 private fun ViewerActionBar(
     item: MediaItem,
     isPinned: Boolean,
-    isHero: Boolean,
     onRename: () -> Unit,
     onMove: () -> Unit,
     onCrop: () -> Unit,
     onTrim: () -> Unit,
     onTogglePin: () -> Unit,
-    onSetHero: () -> Unit,
     onShare: () -> Unit,
     onShowInfo: () -> Unit,
     onDelete: () -> Unit,
@@ -462,13 +479,6 @@ private fun ViewerActionBar(
                     },
                     onClick = { showMoreMenu = false; onTogglePin() }
                 )
-                if (isPinned && !isHero) {
-                    DropdownMenuItem(
-                        text = { Text("Mettre en avant") },
-                        leadingIcon = { Icon(Icons.Default.Star, contentDescription = null) },
-                        onClick = { showMoreMenu = false; onSetHero() }
-                    )
-                }
                 if (item.type == MediaType.IMAGE) {
                     DropdownMenuItem(
                         text = { Text("Modifier") },
@@ -486,6 +496,26 @@ private fun ViewerActionBar(
             }
         }
         ActionIcon(Icons.Default.Delete, "Supprimer", onDelete)
+    }
+}
+
+// The arrow at either end stays in place, just invisible and inert, so the counter doesn't shift.
+@Composable
+private fun PinnedOrderControls(index: Int, count: Int, onMove: (Int) -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        LightIconButton(
+            icon = Icons.Default.ChevronLeft,
+            contentDescription = "Placer avant",
+            onClick = { if (index > 0) onMove(-1) },
+            modifier = Modifier.alpha(if (index > 0) 1f else 0f)
+        )
+        Text("${index + 1} / $count", style = MaterialTheme.typography.labelLarge)
+        LightIconButton(
+            icon = Icons.Default.ChevronRight,
+            contentDescription = "Placer après",
+            onClick = { if (index < count - 1) onMove(1) },
+            modifier = Modifier.alpha(if (index < count - 1) 1f else 0f)
+        )
     }
 }
 

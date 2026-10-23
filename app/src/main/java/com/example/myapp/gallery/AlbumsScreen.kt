@@ -327,7 +327,7 @@ private fun TrashCard(itemCount: Int, onClick: () -> Unit) {
     }
 }
 
-// The big hero picture at the top: the first pinned picture (or whichever was manually promoted),
+// The big hero picture at the top: the first pinned picture in their order,
 // sized to be quickly tappable without dominating the album list below it.
 @Composable
 private fun PinnedHeroCard(
