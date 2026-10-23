@@ -25,12 +25,15 @@ import kotlin.math.sin
 
 /**
  * Loudness of what the main player is about to output, measured on its PCM as a tee in the audio
- * sink (playback thread). [shortLevel] follows the last half second, [trackLevel] is the mean over
- * the whole track so far, both as mean squares; [Crossfader] compares the two to spot an outro.
+ * sink (playback thread). [shortLevel] follows the last half second, [fastLevel] the last 50 ms,
+ * [trackLevel] is the mean over the whole track so far, all as mean squares; [Crossfader] compares
+ * them to spot an outro or a silence, and reads [fastLevel] to hear when the next track starts.
  * Works on the decoded buffers before the player's volume is applied, so the fades don't fool it.
  */
 class LevelMeter : TeeAudioProcessor.AudioBufferSink {
     @Volatile var shortLevel = 0.0
+        private set
+    @Volatile var fastLevel = 0.0
         private set
     @Volatile private var trackSum = 0.0
     @Volatile private var trackFrames = 0L
@@ -53,6 +56,8 @@ class LevelMeter : TeeAudioProcessor.AudioBufferSink {
         sampleRate = sampleRateHz
         channels = channelCount
         this.encoding = encoding
+        // A seek or a skip: whatever comes next is new audio, the old level must not linger.
+        fastLevel = 0.0
     }
 
     override fun handleBuffer(buffer: ByteBuffer) {
@@ -61,6 +66,7 @@ class LevelMeter : TeeAudioProcessor.AudioBufferSink {
             trackSum = 0.0
             trackFrames = 0
             shortLevel = 0.0
+            fastLevel = 0.0
         }
         val b = buffer.duplicate().order(ByteOrder.LITTLE_ENDIAN)
         var sum = 0.0
@@ -87,14 +93,16 @@ class LevelMeter : TeeAudioProcessor.AudioBufferSink {
         if (samples == 0) return
         val frames = samples / channels.coerceAtLeast(1)
         val meanSquare = sum / samples
-        val alpha = 1 - exp(-frames.toDouble() / sampleRate / SHORT_WINDOW_SECONDS)
-        shortLevel += alpha * (meanSquare - shortLevel)
+        val seconds = frames.toDouble() / sampleRate
+        shortLevel += (1 - exp(-seconds / SHORT_WINDOW_SECONDS)) * (meanSquare - shortLevel)
+        fastLevel += (1 - exp(-seconds / FAST_WINDOW_SECONDS)) * (meanSquare - fastLevel)
         trackSum += meanSquare * frames
         trackFrames += frames
     }
 
     private companion object {
         const val SHORT_WINDOW_SECONDS = 0.5
+        const val FAST_WINDOW_SECONDS = 0.05
         const val MIN_TRACK_SECONDS = 20
     }
 }
@@ -108,7 +116,9 @@ class LevelMeter : TeeAudioProcessor.AudioBufferSink {
  *
  * When it starts is where the smarts are, using [meter]: by default [FADE_MS] before the end, but
  * earlier when the outgoing track is already fading out on its own (a long blend over that outro) or
- * has gone silent (a straight jump, skipping the dead air). Only automatic transitions are touched:
+ * has gone silent (a straight jump, skipping the dead air). The outgoing tail stays at full volume
+ * until the next track is actually heard, so a lead in silence never opens a hole in the middle of
+ * the blend. Only automatic transitions are touched:
  * any skip, seek or pause from the user cancels a blend in progress and restores the volume.
  */
 class Crossfader(
@@ -200,9 +210,11 @@ class Crossfader(
         if (faderItemId != item.mediaId) loadFader(item)
 
         val now = SystemClock.elapsedRealtime()
-        val ratio = meter.trackLevel?.let { meter.shortLevel / it }
-        silentSince = if (ratio != null && ratio < SILENCE_RATIO) silentSince.takeIf { it > 0 } ?: now else 0L
-        lowSince = if (ratio != null && ratio < OUTRO_RATIO) lowSince.takeIf { it > 0 } ?: now else 0L
+        val trackLevel = meter.trackLevel
+        val silent = trackLevel != null && meter.fastLevel / trackLevel < SILENCE_RATIO
+        val low = trackLevel != null && meter.shortLevel / trackLevel < OUTRO_RATIO
+        silentSince = if (silent) silentSince.takeIf { it > 0 } ?: now else 0L
+        lowSince = if (low) lowSince.takeIf { it > 0 } ?: now else 0L
 
         val inWindow = remaining <= SMART_WINDOW_MS
         when {
@@ -251,15 +263,26 @@ class Crossfader(
         }
         fadeJob = scope.launch {
             try {
-                // 1. The fader joins the outgoing track muted, as close to the main player as it gets.
-                fader.seekTo(player.currentPosition)
-                fader.play()
-                if (!awaitPlaying(fader, HANDOFF_TIMEOUT_MS)) return@launch
-                val drift = player.currentPosition - fader.currentPosition
-                if (abs(drift) > MAX_DRIFT_MS) {
-                    fader.seekTo(fader.currentPosition + drift)
+                // 1. The fader joins the outgoing track muted. Each seek costs it a restart the main
+                // player doesn't pay, so it aims ahead by what the last try came out behind, and only
+                // takes over once its settled position matches: a swap between two copies a few tens
+                // of ms apart is heard as a stutter. Not aligned in time: the next tick tries again.
+                var lead = 0L
+                var aligned = false
+                for (attempt in 1..ALIGN_TRIES) {
+                    if (player.currentMediaItem?.mediaId != faderItemId) return@launch
+                    fader.seekTo(player.currentPosition + lead)
+                    fader.play()
                     if (!awaitPlaying(fader, HANDOFF_TIMEOUT_MS)) return@launch
+                    delay(SETTLE_MS)
+                    val drift = measureDrift()
+                    if (abs(drift) <= MAX_DRIFT_MS) {
+                        aligned = true
+                        break
+                    }
+                    lead += drift
                 }
+                if (!aligned) return@launch
 
                 // 2. A quick swap over the same audio hands the outgoing track to the fader.
                 ramp(SWAP_MS) { t ->
@@ -269,8 +292,8 @@ class Crossfader(
 
                 // 3. The main player moves on to the next track and the two blend, equal power.
                 seekToNext()
-                awaitPlaying(player, NEXT_TRACK_TIMEOUT_MS)
-                ramp(fadeMs) { t ->
+                awaitIncoming()
+                ramp(minOf(fadeMs, tailLeft()).coerceAtLeast(MIN_FADE_MS)) { t ->
                     fader.volume = cos(t * PI / 2).toFloat()
                     player.volume = sin(t * PI / 2).toFloat()
                 }
@@ -286,6 +309,40 @@ class Crossfader(
         fadeJob = null
         player.volume = 1f
         if (faderItemId != null) unloadFader()
+    }
+
+    /** Main minus fader position, averaged over a few reads since each one jitters by some ms. */
+    private suspend fun measureDrift(): Long {
+        var sum = 0L
+        repeat(DRIFT_SAMPLES) {
+            sum += player.currentPosition - fader.currentPosition
+            delay(DRIFT_SAMPLE_MS)
+        }
+        return sum / DRIFT_SAMPLES
+    }
+
+    /** Time left in the outgoing tail the fader plays, 0 once it ended or failed. */
+    private fun tailLeft(): Long {
+        if (fader.playbackState != Player.STATE_READY) return 0L
+        val duration = fader.duration
+        return if (duration == C.TIME_UNSET) Long.MAX_VALUE else duration - fader.currentPosition
+    }
+
+    /**
+     * Holds the fader at full volume until the next track is heard: until then the main player is
+     * buffering or playing its lead in silence. Gives up when the tail is about to run out, or when
+     * the next track has played a while without getting louder than a whisper.
+     */
+    private suspend fun awaitIncoming() {
+        var playingSince = 0L
+        while (tailLeft() > MIN_FADE_MS) {
+            if (player.isPlaying && player.playbackState == Player.STATE_READY) {
+                val now = SystemClock.elapsedRealtime()
+                if (playingSince == 0L) playingSince = now
+                if (meter.fastLevel >= AUDIBLE_LEVEL || now - playingSince >= MAX_LEAD_IN_MS) return
+            }
+            delay(FINE_POLL_MS)
+        }
     }
 
     private suspend fun awaitPlaying(p: Player, timeoutMs: Long): Boolean {
@@ -316,20 +373,28 @@ class Crossfader(
         /** When the fader starts buffering the tail, a little ahead of that window. */
         const val PREPARE_MS = 20_000L
         const val MIN_TRACK_MS = 30_000L
-        /** Time the handoff itself takes, so the default blend still gets its full length. */
-        const val HANDOFF_MS = 400L
+        /** Time the handoff and the next track's lead in take, so the default blend still gets its full length. */
+        const val HANDOFF_MS = 2_000L
         const val HANDOFF_TIMEOUT_MS = 1_500L
-        const val NEXT_TRACK_TIMEOUT_MS = 3_000L
-        const val MAX_DRIFT_MS = 30L
+        const val MIN_FADE_MS = 1_500L
+        const val ALIGN_TRIES = 3
+        /** Lets a freshly started audio track's position estimate settle before trusting it. */
+        const val SETTLE_MS = 400L
+        const val DRIFT_SAMPLES = 5
+        const val DRIFT_SAMPLE_MS = 10L
+        const val MAX_DRIFT_MS = 10L
         const val SWAP_MS = 80L
         const val RAMP_STEP_MS = 30L
         const val COARSE_POLL_MS = 500L
         const val FINE_POLL_MS = 20L
 
-        /** Short term level under the track's mean, as mean square ratios: about -8 dB, and -25 dB. */
+        /** Short level (outro) and fast level (silence) under the track's mean, as mean square ratios: about -8 dB, and -25 dB. */
         const val OUTRO_RATIO = 0.15
         const val SILENCE_RATIO = 0.003
         const val OUTRO_HOLD_MS = 1_500L
-        const val SILENCE_HOLD_MS = 1_000L
+        const val SILENCE_HOLD_MS = 800L
+        /** Absolute mean square the next track must reach to count as started, about -40 dBFS. */
+        const val AUDIBLE_LEVEL = 1e-4
+        const val MAX_LEAD_IN_MS = 3_000L
     }
 }
