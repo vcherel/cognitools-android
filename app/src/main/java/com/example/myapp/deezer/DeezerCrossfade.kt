@@ -221,7 +221,7 @@ class Crossfader(
             inWindow && silentSince > 0 && now - silentSince >= SILENCE_HOLD_MS -> jumpOverSilence()
             remaining <= FADE_MS + HANDOFF_MS -> crossfade(FADE_MS)
             inWindow && lowSince > 0 && now - lowSince >= OUTRO_HOLD_MS ->
-                crossfade(remaining.coerceIn(FADE_MS, MAX_FADE_MS))
+                crossfade((remaining - HANDOFF_MS).coerceIn(FADE_MS, MAX_FADE_MS))
         }
         return remaining
     }
@@ -366,15 +366,18 @@ class Crossfader(
     }
 
     private companion object {
-        const val FADE_MS = 6_000L
-        const val MAX_FADE_MS = 10_000L
+        const val FADE_MS = 8_000L
+        const val MAX_FADE_MS = 12_000L
         /** How far before the end an outro or silence is looked for. */
         const val SMART_WINDOW_MS = 16_000L
         /** When the fader starts buffering the tail, a little ahead of that window. */
         const val PREPARE_MS = 20_000L
         const val MIN_TRACK_MS = 30_000L
-        /** Time the handoff and the next track's lead in take, so the default blend still gets its full length. */
-        const val HANDOFF_MS = 2_000L
+        /**
+         * Time the alignment tries, the handoff and the next track's lead in take, so the blend still
+         * gets its full length out of the tail that is left.
+         */
+        const val HANDOFF_MS = 4_500L
         const val HANDOFF_TIMEOUT_MS = 1_500L
         const val MIN_FADE_MS = 1_500L
         const val ALIGN_TRIES = 3

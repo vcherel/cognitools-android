@@ -79,7 +79,7 @@ Root package (shared/misc):
 - `DeezerFavoritesHistoryScreen.kt`: the curve of that count, opened by tapping the "N titres" label on the library's Favoris card
 - `DeezerOffline.kt`: DeezerOfflineLibrary, the permanent Best pépites mirror; sync, retry pass, sync log file
 - `DeezerPlaybackService.kt`: MediaSessionService owning the ExoPlayer; media notification, its heart/diamond action buttons (`actionButtons`), error recovery
-- `DeezerCrossfade.kt`: Crossfader, the 6 s blend into the next queued track (a session-less second player takes over the outgoing tail), started early on an outro or silence detected by LevelMeter, a tee on the main player's PCM
+- `DeezerCrossfade.kt`: Crossfader, the 8 s blend into the next queued track (a session-less second player takes over the outgoing tail), started early on an outro or silence detected by LevelMeter, a tee on the main player's PCM
 - `DeezerScreen.kt`: host for the whole Musique tool (music *and* podcasts), nested NavHost + the two persistent mini-players
 - `DeezerNowPlaying.kt`: FullPlayerSheet, plus the share-a-track sheet. The mini-player bar itself is the shared one in `PlayerUi.kt`
 - `DeezerTrackInfoSheet.kt`: TrackInfoSheet, opened by tapping the title in the full player; release date, credits, album, label, BPM from the public track and album calls
@@ -138,9 +138,10 @@ Root package (shared/misc):
 - `AlbumsScreen.kt`: album list, plus the pinned-picture hero card at the top (tap opens the viewer, its grid button the pinned grid)
 - `PinnedGridScreen.kt`: every pinned picture as a grid; tap opens the viewer on it, long press starts the same multi-selection as an album grid (sweep included), whose bar detaches instead of pinning
 - `AlbumGridScreen.kt`: thumbnail grid, batch actions, and `sweepSelection`, the long-press-and-drag multi-select the trash grid reuses
-- `ViewerScreen.kt`: full screen pager (ViewerSource: an album, the pinned set, the Wallet album or a single item), image zoom and video playback, per-item tools including pin/unpin, and in the pinned set the top bar arrows that swap a picture with its neighbour
+- `ViewerScreen.kt`: full screen pager (ViewerSource: an album, the pinned set, the Wallet album or a single item), image zoom and video playback, per-item tools including pin/unpin, and in the pinned set and the Wallet the top bar arrows that swap a picture with its neighbour
 - `ViewerDialogs.kt`: `ViewerDialog`/`ViewerDialogs`, the viewer's whole dialog run, plus the share, rename, move and info dialogs themselves (MoveDialog is also used by the album grid)
 - `GalleryPins.kt`: PinnedMediaItem Room entity/DAO (ordered by `position`, the first is the hero card) and pin/unpin/swap/resolve helpers
+- `WalletOrder.kt`: the Wallet pictures' order set with those arrows, kept as ids in DataStore since MediaStore has none
 - `GalleryLock.kt`: the albums put behind the notes PIN, kept as a set of bucket ids in DataStore
 - `CropScreen.kt`: image editor, crop, 90° rotation and a pen (colors, widths, undo), decoded with its EXIF orientation
 - `TrimScreen.kt`: video trim editor

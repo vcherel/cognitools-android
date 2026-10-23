@@ -119,7 +119,7 @@ fun GalleryViewerScreen(
             ViewerSource.Wallet -> withContext(Dispatchers.IO) {
                 val wallet = queryAlbums(context).firstOrNull { it.name.equals(WALLET_ALBUM_NAME, ignoreCase = true) }
                 if (wallet != null) queryMediaItems(context, bucketId = wallet.bucketId) else emptyList()
-            }
+            }.let { WalletOrder.apply(context, it) }
             is ViewerSource.Single -> withContext(Dispatchers.IO) {
                 listOfNotNull(queryMediaItemById(context, source.itemId))
             }
@@ -179,18 +179,20 @@ fun GalleryViewerScreen(
         else pagerState.scrollToPage(removedIndex.coerceIn(0, remaining.size - 1))
     }
 
-    // The pinned set's arrows: swaps the current picture with its neighbour, locally first for the
-    // same reason as above, and the pager follows it so repeated taps keep carrying it along.
-    fun movePinned(by: Int) {
+    // The pinned set's and the Wallet's arrows: swaps the current picture with its neighbour, locally
+    // first for the same reason as above, and the pager follows it so repeated taps keep carrying it along.
+    fun moveItem(by: Int) {
         val from = pagerState.currentPage
         val to = from + by
         if (from !in items.indices || to !in items.indices) return
         val moved = items[from]
         val other = items[to]
-        items = items.toMutableList().apply { this[from] = other; this[to] = moved }
+        val reordered = items.toMutableList().apply { this[from] = other; this[to] = moved }
+        items = reordered
         scope.launch {
             pagerState.scrollToPage(to)
-            swapPinned(context, moved.id, other.id)
+            if (source is ViewerSource.Pinned) swapPinned(context, moved.id, other.id)
+            else WalletOrder.save(context, reordered)
         }
     }
 
@@ -310,11 +312,11 @@ fun GalleryViewerScreen(
                 titleMaxLines = 1,
                 titleWeight = true,
                 titleSuffix = {
-                    if (source is ViewerSource.Pinned && items.size > 1) {
-                        PinnedOrderControls(
+                    if ((source is ViewerSource.Pinned || source is ViewerSource.Wallet) && items.size > 1) {
+                        OrderControls(
                             index = pagerState.currentPage.coerceIn(items.indices),
                             count = items.size,
-                            onMove = ::movePinned
+                            onMove = ::moveItem
                         )
                     }
                 },
@@ -501,7 +503,7 @@ private fun ViewerActionBar(
 
 // The arrow at either end stays in place, just invisible and inert, so the counter doesn't shift.
 @Composable
-private fun PinnedOrderControls(index: Int, count: Int, onMove: (Int) -> Unit) {
+private fun OrderControls(index: Int, count: Int, onMove: (Int) -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         LightIconButton(
             icon = Icons.Default.ChevronLeft,
