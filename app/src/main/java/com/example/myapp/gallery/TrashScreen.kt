@@ -43,6 +43,7 @@ import androidx.compose.ui.unit.dp
 import com.example.myapp.AppSnackbar
 import com.example.myapp.ScreenTopBar
 import com.example.myapp.ShowAlertDialog
+import com.example.myapp.daysLeftUntil
 import com.example.myapp.plural
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -278,11 +279,8 @@ private fun showTrashedSnackbar(
 }
 
 /** Days left before Android deletes a trashed item, at least 1, or null if it has no expiry. */
-private fun remainingDays(dateExpires: Long): Int? {
-    if (dateExpires <= 0) return null
-    val millisLeft = dateExpires * 1000 - System.currentTimeMillis()
-    return ((millisLeft + 86_400_000L - 1) / 86_400_000L).toInt().coerceAtLeast(1)
-}
+private fun remainingDays(dateExpires: Long): Int? =
+    if (dateExpires <= 0) null else daysLeftUntil(dateExpires * 1000)
 
 private fun restoredMessage(count: Int): String =
     if (count > 1) "$count fichiers restaurés" else "Fichier restauré"

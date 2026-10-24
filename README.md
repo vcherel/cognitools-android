@@ -13,7 +13,11 @@ From the command line, with a phone plugged in and USB debugging on:
 ```bash
 ./gradlew assembleRelease
 adb install -r app/build/outputs/apk/release/app-release.apk
+adb shell am broadcast -a androidx.profileinstaller.action.INSTALL_PROFILE com.example.myapp/androidx.profileinstaller.ProfileInstallReceiver
+adb shell cmd package compile -m speed-profile -f com.example.myapp
 ```
+
+The last two lines install and apply the baseline profile shipped in the APK. Without them the app stays uncompiled until the phone's overnight idle job, about 25% slower on cold start.
 
 Always install the release build: performance on device matters, and debug builds are noticeably slower. Debug is only useful for `run-as` access, e.g. inspecting the Room database.
 
@@ -66,10 +70,12 @@ uv run jupyter notebook generate_dataset.ipynb
 The mots fléchés dictionaries and layouts, from Lexique and fr.wiktionary for French, wordfreq and WordNet for English. The French run scrapes fr.wiktionary into `data/motsfleches_senses.json`, which is not tracked: it takes a few minutes on a fresh clone and is resumable, so only rerun it when the dictionary itself needs rebuilding. `data/lexique.tsv` is a manual download from [lexique.org](http://www.lexique.org/) and is tracked, since nothing fetches it for you.
 
 ```bash
-uv run python src/generate_motsfleches.py
-uv run python src/generate_motsfleches_en.py
-uv run python src/generate_layouts.py
+uv run --no-project src/generate_motsfleches.py
+uv run --no-project --with nltk --with wordfreq src/generate_motsfleches_en.py
+uv run --no-project src/generate_layouts.py
 ```
+
+`--no-project` skips syncing the FastText and FAISS stack the word pairs need.
 
 The Drapeaux flashcard list, every ISO country and territory flag from flagcdn with its French name, territories flying their sovereign's flag left out:
 
@@ -85,7 +91,7 @@ Lint and format run on commit through pre-commit, tests run on push:
 uv run --with pre-commit pre-commit install
 ```
 
-The JVM unit tests cover the pure logic (the Deezer stream decryption, the puzzle generator, the epub parser, the RSS extraction, the translation parsing, the spaced repetition scheduler, the car parts note, the verification code detection):
+The JVM unit tests cover the pure logic (the Deezer stream decryption, the puzzle generator, the epub parser, the RSS extraction, the translation parsing, the spaced repetition scheduler, the car parts note, the verification code detection, the saved MP3 tagging, the Movies note episode bump):
 
 ```bash
 ./gradlew :app:testReleaseUnitTest

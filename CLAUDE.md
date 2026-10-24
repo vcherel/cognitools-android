@@ -46,6 +46,7 @@ Root package (shared/misc):
 - `PlayerUi.kt`: the surfaces `deezer/` and `podcasts/` both draw; MediaArt, MediaListRow, MiniPlayerBar (swipe to change track when given the callbacks), PlayPauseButton, PlayerSeekBar (which owns the position polling), formatPlaybackTime
 - `PauseOnOutputLost.kt`: `pauseOnOutputLost`, the device callback both playback services use to pause when a Bluetooth or wired output disappears (MIUI skips the noisy broadcast for some disconnects)
 - `MediaControllerHolder.kt`: the MediaController connect-once/stop-the-service plumbing both playback repositories use
+- `DaysLeft.kt`: `daysLeftUntil`, the rounded up days a trash row shows (notes and gallery)
 - `Plural.kt`: `plural(count)`, the one place the French count-to-plural rule lives
 - `Normalize.kt`: `deaccented` / `matchNormalized` / `slugified`, plus `normalizeForSearch` (one char out per char in, so the notes search can highlight by index); the one place text is folded for comparison
 - `Http.kt`: shared httpGet helper and User-Agent (Weather + Wikipedia + podcast feeds + news)
@@ -68,7 +69,7 @@ Root package (shared/misc):
 - `DeezerModels.kt`: DeezerTrack/DeezerPlaylist/DeezerQuality data classes
 - `DeezerApi.kt`: low level gw-light gateway + media.deezer.com calls, DeezerApiException
 - `DeezerCrypto.kt`: Blowfish stripe decryption of the streams, pure functions covered by a JVM unit test
-- `DeezerSettings.kt`: DataStore for the ARL credential and quality
+- `DeezerSettings.kt`: DataStore for the ARL credential and the shuffle toggle
 - `DeezerSettingsDialog.kt`: the ARL paste dialog
 - `DeezerRepository.kt`: the singleton; session lifecycle, stream cache, library access (favorites, playlists), "Best pépites" quick-add, the stream failure replacement search. The two `dzr://` cache key helpers are top level here
 - `DeezerPlayer.kt`: `repo.player`; the MediaController and its player/queue state flows, play/shuffle/queue edits, the transport controls, `buildMediaItem`, and the played tracks file behind `downloadedTracks`

@@ -80,7 +80,7 @@ class DeezerTrackSaver(private val appContext: Context, private val repo: Deezer
         val source = DeezerDataSource.Factory(repo).createDataSource()
         val out = ByteArrayOutputStream()
         try {
-            source.open(DataSpec(Uri.parse("dzr://$sngId?q=${DeezerQuality.MP3_320.name}")))
+            source.open(DataSpec(Uri.parse(deezerCacheKey(sngId, DeezerQuality.MP3_320))))
             val buffer = ByteArray(64 * 1024)
             while (true) {
                 val read = source.read(buffer, 0, buffer.size)

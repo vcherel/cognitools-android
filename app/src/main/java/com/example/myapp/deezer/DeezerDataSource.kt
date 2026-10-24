@@ -52,7 +52,7 @@ class DeezerDataSource(
     override fun open(dataSpec: DataSpec): Long {
         uri = dataSpec.uri
         val sngId = dataSpec.uri.host ?: dataSpec.uri.lastPathSegment ?: error("No SNG_ID in ${dataSpec.uri}")
-        val quality = dataSpec.uri.getQueryParameter("q") ?: DeezerQuality.MP3_128.name
+        val quality = dataSpec.uri.getQueryParameter("q") ?: DeezerRepository.DEFAULT_QUALITY.name
         key = DeezerCrypto.blowfishKey(sngId)
 
         // Media3 only retries IOExceptions; anything else is an "unexpected" fatal error that stops

@@ -41,9 +41,11 @@ import com.example.myapp.AppSnackbar
 import com.example.myapp.LightIconButton
 import com.example.myapp.ScreenTopBar
 import com.example.myapp.ShowAlertDialog
+import com.example.myapp.daysLeftUntil
 import com.example.myapp.notesLists
 import com.example.myapp.flashcards.AppDatabase
 import kotlinx.coroutines.launch
+import java.util.concurrent.TimeUnit
 
 /**
  * The notes waiting in the trash. Each one can go back to the list or be dropped for good, and
@@ -198,9 +200,6 @@ internal fun TrashedNoteCard(
     }
 }
 
-/** Days left before the purge takes the note, at least 1. */
-private fun remainingDays(deletedAt: Long): Int {
-    val retentionMillis = NOTES_TRASH_RETENTION_DAYS * 24L * 60L * 60L * 1000L
-    val millisLeft = deletedAt + retentionMillis - System.currentTimeMillis()
-    return ((millisLeft + 86_400_000L - 1) / 86_400_000L).toInt().coerceAtLeast(1)
-}
+/** Days left before the purge takes the note. */
+private fun remainingDays(deletedAt: Long): Int =
+    daysLeftUntil(deletedAt + TimeUnit.DAYS.toMillis(NOTES_TRASH_RETENTION_DAYS.toLong()))

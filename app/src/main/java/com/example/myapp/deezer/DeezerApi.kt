@@ -70,21 +70,13 @@ class DeezerApi {
         }
         val options = user?.get("OPTIONS")?.jsonObject
         val licenseToken = options?.get("license_token")?.jsonPrimitive?.content.orEmpty()
-        val canHq = options?.get("web_hq")?.jsonPrimitive?.booleanOrNull
-            ?: options?.get("web_sound_quality")?.jsonObject?.get("high")?.jsonPrimitive?.booleanOrNull ?: false
-        val canLossless = options?.get("web_lossless")?.jsonPrimitive?.booleanOrNull
-            ?: options?.get("web_sound_quality")?.jsonObject?.get("lossless")?.jsonPrimitive?.booleanOrNull ?: false
-        DeezerSession(apiToken, licenseToken, userId, canHq, canLossless)
+        DeezerSession(apiToken, licenseToken, userId)
     }
 
-    /** Fetches track metadata plus a fresh, short lived TRACK_TOKEN. */
-    suspend fun getTrack(session: DeezerSession, sngId: String): Pair<DeezerTrack, String> =
-        withContext(Dispatchers.IO) {
-            val r = gwResults("song.getData", """{"sng_id":"$sngId"}""", session.apiToken)
-            val trackToken = r["TRACK_TOKEN"]?.jsonPrimitive?.content
-                ?: throw DeezerApiException("No TRACK_TOKEN for $sngId")
-            parseGwTrack(r, sngId) to trackToken
-        }
+    /** A fresh, short lived TRACK_TOKEN for [sngId]. */
+    private fun trackToken(session: DeezerSession, sngId: String): String =
+        gwResults("song.getData", """{"sng_id":"$sngId"}""", session.apiToken)["TRACK_TOKEN"]?.jsonPrimitive?.content
+            ?: throw DeezerApiException("No TRACK_TOKEN for $sngId")
 
     /**
      * All of the owner's favorite (loved) tracks, most recently added first. Pages through the gw
@@ -362,15 +354,14 @@ class DeezerApi {
     )
 
     /**
-     * Resolves a playable encrypted CDN URL for the highest quality available at or below [preferred],
-     * always allowing MP3_128 as the final fallback.
+     * Resolves a playable encrypted CDN URL in [preferred] quality, always allowing MP3_128 as the
+     * final fallback.
      */
-    suspend fun resolveStream(session: DeezerSession, sngId: String, preferred: DeezerQuality): DeezerStream =
+    suspend fun resolveStream(session: DeezerSession, sngId: String, preferred: DeezerQuality): String =
         withContext(Dispatchers.IO) {
-            val (track, trackToken) = getTrack(session, sngId)
-            val formats = qualityChain(preferred)
-            val formatsJson = formats.joinToString(",") {
-                """{"cipher":"BF_CBC_STRIPE","format":"${it.apiFormat}"}"""
+            val trackToken = trackToken(session, sngId)
+            val formatsJson = listOf(preferred, DeezerQuality.MP3_128).distinct().joinToString(",") {
+                """{"cipher":"BF_CBC_STRIPE","format":"${it.name}"}"""
             }
             val body = """{"license_token":"${session.licenseToken}","media":[{"type":"FULL","formats":[$formatsJson]}],"track_tokens":["$trackToken"]}"""
             val raw = postJson(GET_URL, body)
@@ -395,12 +386,8 @@ class DeezerApi {
             }
             val media0 = data0["media"]?.jsonArray?.firstOrNull() as? JsonObject
                 ?: throw DeezerApiException("Track $sngId not available in any requested format: ${raw.excerpt()}", unavailable = true)
-            val url = (media0["sources"] as? JsonArray)?.firstOrNull()?.jsonObject?.get("url")?.jsonPrimitive?.content
+            (media0["sources"] as? JsonArray)?.firstOrNull()?.jsonObject?.get("url")?.jsonPrimitive?.content
                 ?: throw DeezerApiException("get_url media without a source url for $sngId: ${raw.excerpt()}")
-            val actualFormat = media0["format"]?.jsonPrimitive?.content?.let { fmt ->
-                DeezerQuality.entries.firstOrNull { it.apiFormat == fmt }
-            } ?: formats.first()
-            DeezerStream(track, url, actualFormat)
         }
 
     /** Everything the public catalog says about [sngId] and its album, for the full player's info sheet. */
@@ -435,9 +422,6 @@ class DeezerApi {
         root["error"]?.let { throw DeezerApiException("$url error: $it") }
         return root
     }
-
-    private fun qualityChain(preferred: DeezerQuality): List<DeezerQuality> =
-        (listOf(preferred) + DeezerQuality.MP3_128).distinct()
 
     /**
      * One public API list call. Deezer answers 200 with an error object rather than an HTTP status

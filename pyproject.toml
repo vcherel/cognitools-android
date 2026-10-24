@@ -1,7 +1,7 @@
 [project]
 name = "cognitools-dataset"
 version = "0.1.0"
-description = "Generate the Undercover word pairs and the mots fléchés assets for the CogniTools Android app"
+description = "Generate the Undercover word pairs, the mots fléchés assets and the flags list for the CogniTools Android app"
 requires-python = ">=3.10"
 dependencies = [
     "fasttext",
@@ -12,7 +12,7 @@ dependencies = [
 ]
 
 [dependency-groups]
-notebook = ["ipykernel"]
+notebook = ["ipykernel", "notebook"]
 
 [tool.uv]
 package = false

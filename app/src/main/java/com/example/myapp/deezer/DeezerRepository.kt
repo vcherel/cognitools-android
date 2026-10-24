@@ -38,8 +38,9 @@ private const val LIBRARY_REFRESH_DEDUPE_MS = 10_000L
 /** Outcome of adding a track to a playlist: it was added, it was already there, or the playlist doesn't exist. */
 enum class PlaylistAddResult { ADDED, DUPLICATE, NO_PLAYLIST }
 
-/** The stream cache key of [sngId]: the `dzr://` URI a queued MediaItem carries. */
-internal fun deezerCacheKey(sngId: String): String = "dzr://$sngId?q=${DeezerRepository.DEFAULT_QUALITY.name}"
+/** The stream cache key of [sngId]: the `dzr://` URI a queued MediaItem carries, and what DeezerDataSource opens. */
+internal fun deezerCacheKey(sngId: String, quality: DeezerQuality = DeezerRepository.DEFAULT_QUALITY): String =
+    "dzr://$sngId?q=${quality.name}"
 
 internal fun sngIdFromCacheKey(key: String): String? =
     key.takeIf { it.startsWith("dzr://") }?.removePrefix("dzr://")?.substringBefore("?")?.ifBlank { null }
@@ -60,7 +61,7 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
         // also means the offline mirror and live playback always share the same cache key, so a
         // downloaded track is always a guaranteed cache hit, never a silent miss.
         val DEFAULT_QUALITY = DeezerQuality.MP3_128
-        const val CACHE_LIMIT_BYTES = 5L * 1024 * 1024 * 1024 // 5 GB
+        const val CACHE_LIMIT_BYTES = 5L * 1024 * 1024 * 1024
         private const val RESOLVE_ATTEMPTS = 3
         private const val REPLACEMENT_CANDIDATES = 3
         private const val TAG = "DeezerRepository"
@@ -245,6 +246,7 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
     private val libraryMutex = Mutex()
     private val snapshotWriteMutex = Mutex()
     @Volatile private var diskSeedTried = false
+    @Volatile private var lastLibraryRefreshMs = Long.MIN_VALUE / 2
 
     /** Seeds the flows from disk (once), then revalidates over the network. Safe to call on every screen entry. */
     suspend fun ensureLibrary() {
@@ -291,8 +293,6 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
             }
         }
     }
-
-    @Volatile private var lastLibraryRefreshMs = Long.MIN_VALUE / 2
 
     /** Serializes and writes the snapshot on IO, guarded so concurrent writers can't corrupt the file. */
     private suspend fun writeSnapshot(favs: List<DeezerTrack>, pls: List<DeezerPlaylist>) =
@@ -531,7 +531,6 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
         return PlaylistAddResult.ADDED
     }
 
-    /** Removes [sngId] from [playlistId]. */
     suspend fun removeFromPlaylist(playlistId: String, sngId: String) {
         withTokenRetry { api.removeSongFromPlaylist(it, playlistId, sngId) }
         playlistTrackIds[playlistId]?.remove(sngId)
@@ -551,6 +550,7 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
         val candidates = try {
             search("${track.title} ${track.artist}")
         } catch (e: Exception) {
+            if (e is CancellationException) throw e
             return null
         }
         val matches = candidates.filter { it.sngId != track.sngId && it.matchKey == key }
@@ -564,6 +564,7 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
                         resolveStream(candidate.sngId, DEFAULT_QUALITY)
                         true
                     } catch (e: Exception) {
+                        if (e is CancellationException) throw e
                         false
                     }
                 }
@@ -611,7 +612,7 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
             try {
                 // Any retry re-bootstraps the session: a stale sid is the most common cause here.
                 val session = ensureSession(forceRefresh = attempt > 0)
-                return api.resolveStream(session, sngId, quality).cdnUrl
+                return api.resolveStream(session, sngId, quality)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {

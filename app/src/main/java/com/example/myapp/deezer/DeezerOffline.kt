@@ -250,8 +250,7 @@ class DeezerOfflineLibrary(private val appContext: Context, private val repo: De
     }
 
     /** Same key playback uses, so a downloaded track is a cache hit for the player. */
-    private fun cacheKey(track: DeezerTrack): String =
-        "dzr://${track.sngId}?q=${DeezerRepository.DEFAULT_QUALITY.name}"
+    private fun cacheKey(track: DeezerTrack): String = deezerCacheKey(track.sngId)
 
     private fun readSnapshot(): OfflineSnapshot? {
         snapshot?.let { return it }
