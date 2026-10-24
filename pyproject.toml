@@ -8,6 +8,7 @@ dependencies = [
     "faiss-cpu",
     "numpy",
     "pandas",
+    "pillow",
 ]
 
 [dependency-groups]

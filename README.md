@@ -47,7 +47,7 @@ Always install the release build: performance on device matters, and debug build
 
 ## Generating the assets
 
-Two of the tools ship data generated offline by the Python scripts in `src/`. The project uses [uv](https://docs.astral.sh/uv/).
+Three of the tools ship data generated offline by the Python scripts in `src/`. The project uses [uv](https://docs.astral.sh/uv/).
 
 The Undercover word pairs:
 
@@ -69,6 +69,12 @@ The mots fléchés dictionaries and layouts, from Lexique and fr.wiktionary for 
 uv run python src/generate_motsfleches.py
 uv run python src/generate_motsfleches_en.py
 uv run python src/generate_layouts.py
+```
+
+The Drapeaux flashcard list, every ISO country and territory flag from flagcdn with its French name, territories flying their sovereign's flag left out:
+
+```bash
+uv run python src/generate_flags.py
 ```
 
 ## Development

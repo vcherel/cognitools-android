@@ -64,7 +64,9 @@ data class FlashcardElement(
     val totalWins: Int = 0,
     val totalLosses: Int = 0,
     val score: Double = 0.0,
-    val randomSide: Boolean = true
+    val randomSide: Boolean = true,
+    /** Shown on the front side, above [name] (which a picture-only card leaves blank). See CardImage.kt. */
+    val image: String? = null
 ) {
     companion object {
         fun fromJson(json: JSONObject): FlashcardElement {
@@ -85,7 +87,8 @@ data class FlashcardElement(
                 totalWins = json.optInt("totalWins", 0),
                 totalLosses = json.optInt("totalLosses", 0),
                 score = json.optDouble("score", 0.0),
-                randomSide = json.optBoolean("randomSide", true)
+                randomSide = json.optBoolean("randomSide", true),
+                image = json.optString("image").ifEmpty { null }
             )
         }
 
@@ -194,7 +197,12 @@ fun FlashcardElement.toJson(): JSONObject = JSONObject().also {
     it.put("totalLosses", totalLosses)
     it.put("score", score)
     it.put("randomSide", randomSide)
+    it.put("image", image)
 }
+
+/** What names the card in a title: its front text, or its back for a picture-only card. */
+val FlashcardElement.label: String
+    get() = name.ifBlank { definition }
 
 data class FlashcardStats(
     val totalCards: Int,

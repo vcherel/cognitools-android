@@ -1,6 +1,9 @@
 package com.example.myapp.flashcards
 
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -13,6 +16,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -20,7 +24,9 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AddPhotoAlternate
 import androidx.compose.material.icons.filled.Flip
+import androidx.compose.material.icons.filled.HideImage
 import androidx.compose.material.icons.filled.LooksOne
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SwapVert
@@ -369,14 +375,15 @@ fun FlashcardDetailScreen(
             element = editing,
             defaultRandomSide = !listFixedSide,
             onDismiss = { editTarget = null },
-            onSave = { name, definition, randomSide ->
+            onSave = { name, definition, randomSide, image ->
                 scope.launch {
                     if (editing == null) {
                         val newElement = FlashcardElement(
                             listId = listId,
                             name = name,
                             definition = definition,
-                            randomSide = randomSide
+                            randomSide = randomSide,
+                            image = image
                         )
                         elementsState.add(newElement)
                         repository.addElement(listId, newElement)
@@ -386,7 +393,8 @@ fun FlashcardDetailScreen(
                             definition = definition,
                             normalizedName = name.deaccented(),
                             normalizedDefinition = definition.deaccented(),
-                            randomSide = randomSide
+                            randomSide = randomSide,
+                            image = image
                         )
                         replaceElement(updatedElement)
                         repository.updateElement(updatedElement)
@@ -411,7 +419,7 @@ fun FlashcardDetailScreen(
 private fun ElementScoreDialog(element: FlashcardElement, onDismiss: () -> Unit) {
     ShowAlertDialog(
         onDismiss = onDismiss,
-        title = element.name,
+        title = element.label,
         textContent = {
             Column(
                 modifier = Modifier
@@ -539,16 +547,28 @@ private fun ElementEditDialog(
     element: FlashcardElement?,
     defaultRandomSide: Boolean,
     onDismiss: () -> Unit,
-    onSave: (name: String, definition: String, randomSide: Boolean) -> Unit
+    onSave: (name: String, definition: String, randomSide: Boolean, image: String?) -> Unit
 ) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     var name by remember { mutableStateOf(element?.name ?: "") }
     var definition by remember { mutableStateOf(element?.definition ?: "") }
     var randomSide by remember { mutableStateOf(element?.randomSide ?: defaultRandomSide) }
+    var image by remember { mutableStateOf(element?.image) }
     val definitionFocusRequester = remember { FocusRequester() }
+    val pickImage = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        scope.launch {
+            val imported = importCardImage(context, uri)
+            if (imported != null) image = imported
+            else Toast.makeText(context, "Image illisible", Toast.LENGTH_SHORT).show()
+        }
+    }
 
+    // A picture can stand in for the front text.
     fun save() {
-        if (name.isNotBlank() && definition.isNotBlank()) {
-            onSave(name, definition, randomSide)
+        if ((name.isNotBlank() || image != null) && definition.isNotBlank()) {
+            onSave(name, definition, randomSide, image)
         }
     }
 
@@ -582,6 +602,28 @@ private fun ElementEditDialog(
                         checked = randomSide,
                         onCheckedChange = { randomSide = it }
                     )
+                }
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(top = 8.dp)
+                ) {
+                    val current = image
+                    if (current != null) {
+                        CardImage(image = current, modifier = Modifier.size(width = 72.dp, height = 54.dp))
+                    } else {
+                        Text("Image au recto")
+                    }
+                    Spacer(Modifier.weight(1f))
+                    IconButton(onClick = {
+                        pickImage.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                    }) {
+                        Icon(Icons.Default.AddPhotoAlternate, contentDescription = "Choisir une image")
+                    }
+                    if (current != null) {
+                        IconButton(onClick = { image = null }) {
+                            Icon(Icons.Default.HideImage, contentDescription = "Retirer l'image")
+                        }
+                    }
                 }
             }
         },

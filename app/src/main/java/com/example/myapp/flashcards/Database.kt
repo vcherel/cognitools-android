@@ -74,6 +74,9 @@ interface FlashcardDao {
     @Query("DELETE FROM lists WHERE id = :id") suspend fun deleteList(id: String)
     @Query("DELETE FROM cards WHERE id = :id") suspend fun deleteElement(id: String)
 
+    @Query("SELECT image FROM cards WHERE image IS NOT NULL")
+    suspend fun getImages(): List<String>
+
     @Query("DELETE FROM cards WHERE interval > :maxInterval AND listId NOT IN (:keepListIds)")
     suspend fun purgeMasteredCards(maxInterval: Int, keepListIds: List<String>)
 }
@@ -85,7 +88,7 @@ interface FlashcardDao {
         PodcastDownload::class, Book::class, NewsRead::class, NewsSaved::class,
         NewsProgress::class
     ],
-    version = 17
+    version = 18
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun flashcardDao(): FlashcardDao
@@ -104,7 +107,7 @@ abstract class AppDatabase : RoomDatabase() {
                     context.applicationContext,
                     AppDatabase::class.java,
                     "flashcards.db"
-                ).addMigrations(MIGRATION_16_17).build().also { instance = it }
+                ).addMigrations(MIGRATION_16_17, MIGRATION_17_18).build().also { instance = it }
             }
     }
 }
@@ -131,5 +134,11 @@ private val MIGRATION_16_17 = object : Migration(16, 17) {
         )
         db.execSQL("DROP TABLE pinned_media_items")
         db.execSQL("ALTER TABLE pinned_media_items_new RENAME TO pinned_media_items")
+    }
+}
+
+private val MIGRATION_17_18 = object : Migration(17, 18) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE cards ADD COLUMN image TEXT")
     }
 }

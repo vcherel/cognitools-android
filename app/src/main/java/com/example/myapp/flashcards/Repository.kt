@@ -107,7 +107,13 @@ class FlashcardRepository(private val context: Context) {
         val lists = dao.getLists()
         val cards = dao.getAllElements()
         val jsonLists = JSONArray().also { arr -> lists.forEach { arr.put(it.toJson()) } }
-        val jsonCards = JSONArray().also { arr -> cards.forEach { arr.put(it.toJson()) } }
+        val jsonCards = JSONArray().also { arr ->
+            cards.forEach { card ->
+                arr.put(card.toJson().also { json ->
+                    context.userImageBase64(card.image)?.let { json.put("imageData", it) }
+                })
+            }
+        }
         return JSONObject().apply {
             put("version", 1)
             put("lists", jsonLists)
@@ -118,10 +124,16 @@ class FlashcardRepository(private val context: Context) {
     suspend fun importFromJson(json: String) = upsertBundle(JSONObject(json))
 
     // Parses a { "lists": [...], "cards": [...] } bundle into the DB, dropping any
-    // card whose list isn't part of the same bundle.
+    // card whose list isn't part of the same bundle. A picked picture travels in the card as "imageData".
     private suspend fun upsertBundle(obj: JSONObject) {
         val lists = FlashcardList.listFromJsonString(obj.getJSONArray("lists").toString())
-        val cards = FlashcardElement.listFromJsonString(obj.getJSONArray("cards").toString())
+        val jsonCards = obj.getJSONArray("cards")
+        val cards = FlashcardElement.listFromJsonString(jsonCards.toString())
+        for (i in 0 until jsonCards.length()) {
+            val json = jsonCards.getJSONObject(i)
+            val data = json.optString("imageData")
+            if (data.isNotEmpty()) context.restoreUserImage(json.optString("image"), data)
+        }
         val validListIds = lists.map { it.id }.toSet()
         if (lists.isNotEmpty()) dao.upsertLists(lists)
         val validCards = cards.filter { it.listId in validListIds }
@@ -135,17 +147,18 @@ class FlashcardRepository(private val context: Context) {
     suspend fun getListNameById(listId: String): String = dao.getList(listId)?.name ?: ""
 
     /**
-     * Brings the card library up to date at app start: seeds the builtin lists a fresh install
-     * doesn't have yet, then drops mastered cards outside them (interval above 6 months).
+     * Brings the card library up to date at app start: seeds the builtin lists this install doesn't
+     * have yet, drops mastered cards outside them (interval above 6 months), then the pictures no
+     * card points at any more.
      */
     suspend fun seedAndPurge() {
-        if ((context.flashcardDataStore.data.first()[seedVersionKey] ?: 0) < SEED_VERSION) {
-            seedAssets("seed_capitals.json")
-            seedAssets("seed_prefectures.json")
-            seedAssets("seed_dept_numbers.json")
-            context.flashcardDataStore.edit { it[seedVersionKey] = SEED_VERSION }
+        val seeded = context.flashcardDataStore.data.first()[seedVersionKey] ?: 0
+        if (seeded < SEEDS.last().first) {
+            SEEDS.filter { (version, _) -> version > seeded }.forEach { (_, file) -> seedAssets(file) }
+            context.flashcardDataStore.edit { it[seedVersionKey] = SEEDS.last().first }
         }
         dao.purgeMasteredCards(SIX_MONTHS_MINUTES, builtinListIds)
+        context.sweepCardImages(dao.getImages())
     }
 
     private suspend fun seedAssets(filename: String) {
@@ -159,11 +172,18 @@ class FlashcardRepository(private val context: Context) {
 
     companion object {
         private val seedVersionKey = intPreferencesKey("seed_version")
-        // Seeding upserts the cards, wiping their progress: bump only to ship new builtin lists.
-        private const val SEED_VERSION = 4
+        // Each file with the seed version that shipped it. Seeding upserts the cards, wiping their
+        // progress, so a new list gets the next version and leaves the older ones alone.
+        private val SEEDS = listOf(
+            4 to "seed_capitals.json",
+            4 to "seed_prefectures.json",
+            4 to "seed_dept_numbers.json",
+            5 to "seed_flags.json"
+        )
         private const val SIX_MONTHS_MINUTES = 6 * 30 * 24 * 60
         private val builtinListIds = listOf(
-            "builtin-capitals-v1", "builtin-prefectures-v1", "builtin-dept-numbers-v1"
+            "builtin-capitals-v1", "builtin-prefectures-v1", "builtin-dept-numbers-v1",
+            "builtin-flags-v1"
         )
     }
 }

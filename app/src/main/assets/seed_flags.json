@@ -1,0 +1,2218 @@
+{
+ "version": 1,
+ "lists": [
+  {
+   "id": "builtin-flags-v1",
+   "name": "Drapeaux",
+   "order": 3,
+   "fixedSide": true
+  }
+ ],
+ "cards": [
+  {
+   "id": "flag-af",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Afghanistan",
+   "image": "asset:flags/af.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-za",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Afrique du Sud",
+   "image": "asset:flags/za.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-al",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Albanie",
+   "image": "asset:flags/al.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-dz",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Algérie",
+   "image": "asset:flags/dz.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-de",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Allemagne",
+   "image": "asset:flags/de.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-ad",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Andorre",
+   "image": "asset:flags/ad.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-ao",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Angola",
+   "image": "asset:flags/ao.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-ai",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Anguilla",
+   "image": "asset:flags/ai.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-aq",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Antarctique",
+   "image": "asset:flags/aq.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-ag",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Antigua-et-Barbuda",
+   "image": "asset:flags/ag.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-sa",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Arabie saoudite",
+   "image": "asset:flags/sa.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-ar",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Argentine",
+   "image": "asset:flags/ar.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-am",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Arménie",
+   "image": "asset:flags/am.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-aw",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Aruba",
+   "image": "asset:flags/aw.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-au",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Australie",
+   "image": "asset:flags/au.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-at",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Autriche",
+   "image": "asset:flags/at.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-az",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Azerbaïdjan",
+   "image": "asset:flags/az.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-bs",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Bahamas",
+   "image": "asset:flags/bs.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-bh",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Bahreïn",
+   "image": "asset:flags/bh.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-bd",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Bangladesh",
+   "image": "asset:flags/bd.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-bb",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Barbade",
+   "image": "asset:flags/bb.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-be",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Belgique",
+   "image": "asset:flags/be.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-bz",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Belize",
+   "image": "asset:flags/bz.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-bm",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Bermudes",
+   "image": "asset:flags/bm.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-bt",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Bhoutan",
+   "image": "asset:flags/bt.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-mm",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Birmanie",
+   "image": "asset:flags/mm.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-by",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Biélorussie",
+   "image": "asset:flags/by.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-bo",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Bolivie",
+   "image": "asset:flags/bo.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-ba",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Bosnie-Herzégovine",
+   "image": "asset:flags/ba.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-bw",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Botswana",
+   "image": "asset:flags/bw.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-bn",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Brunei",
+   "image": "asset:flags/bn.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-br",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Brésil",
+   "image": "asset:flags/br.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-bg",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Bulgarie",
+   "image": "asset:flags/bg.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-bf",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Burkina Faso",
+   "image": "asset:flags/bf.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-bi",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Burundi",
+   "image": "asset:flags/bi.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-bj",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Bénin",
+   "image": "asset:flags/bj.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-kh",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Cambodge",
+   "image": "asset:flags/kh.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-cm",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Cameroun",
+   "image": "asset:flags/cm.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-ca",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Canada",
+   "image": "asset:flags/ca.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-cv",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Cap-Vert",
+   "image": "asset:flags/cv.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-cl",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Chili",
+   "image": "asset:flags/cl.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-cn",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Chine",
+   "image": "asset:flags/cn.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-cy",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Chypre",
+   "image": "asset:flags/cy.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-co",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Colombie",
+   "image": "asset:flags/co.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-km",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Comores",
+   "image": "asset:flags/km.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-cg",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Congo",
+   "image": "asset:flags/cg.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-kp",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Corée du Nord",
+   "image": "asset:flags/kp.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-kr",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Corée du Sud",
+   "image": "asset:flags/kr.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-cr",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Costa Rica",
+   "image": "asset:flags/cr.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-hr",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Croatie",
+   "image": "asset:flags/hr.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-cu",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Cuba",
+   "image": "asset:flags/cu.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-cw",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Curaçao",
+   "image": "asset:flags/cw.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-ci",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Côte d'Ivoire",
+   "image": "asset:flags/ci.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-dk",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Danemark",
+   "image": "asset:flags/dk.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-dj",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Djibouti",
+   "image": "asset:flags/dj.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-dm",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Dominique",
+   "image": "asset:flags/dm.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-sv",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "El Salvador",
+   "image": "asset:flags/sv.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-es",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Espagne",
+   "image": "asset:flags/es.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-ee",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Estonie",
+   "image": "asset:flags/ee.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-sz",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Eswatini",
+   "image": "asset:flags/sz.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-fj",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Fidji",
+   "image": "asset:flags/fj.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-fi",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Finlande",
+   "image": "asset:flags/fi.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-fr",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "France",
+   "image": "asset:flags/fr.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-ga",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Gabon",
+   "image": "asset:flags/ga.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-gm",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Gambie",
+   "image": "asset:flags/gm.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-gh",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Ghana",
+   "image": "asset:flags/gh.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-gi",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Gibraltar",
+   "image": "asset:flags/gi.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-gd",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Grenade",
+   "image": "asset:flags/gd.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-gl",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Groenland",
+   "image": "asset:flags/gl.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-gr",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Grèce",
+   "image": "asset:flags/gr.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-gp",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Guadeloupe",
+   "image": "asset:flags/gp.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-gu",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Guam",
+   "image": "asset:flags/gu.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-gt",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Guatemala",
+   "image": "asset:flags/gt.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-gg",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Guernesey",
+   "image": "asset:flags/gg.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-gn",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Guinée",
+   "image": "asset:flags/gn.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-gq",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Guinée équatoriale",
+   "image": "asset:flags/gq.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-gw",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Guinée-Bissau",
+   "image": "asset:flags/gw.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-gy",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Guyana",
+   "image": "asset:flags/gy.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-gf",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Guyane",
+   "image": "asset:flags/gf.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-ge",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Géorgie",
+   "image": "asset:flags/ge.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-gs",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Géorgie du Sud-et-les Îles Sandwich du Sud",
+   "image": "asset:flags/gs.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-ht",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Haïti",
+   "image": "asset:flags/ht.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-hn",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Honduras",
+   "image": "asset:flags/hn.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-hk",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Hong Kong",
+   "image": "asset:flags/hk.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-hu",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Hongrie",
+   "image": "asset:flags/hu.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-in",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Inde",
+   "image": "asset:flags/in.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-id",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Indonésie",
+   "image": "asset:flags/id.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-iq",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Irak",
+   "image": "asset:flags/iq.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-ir",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Iran",
+   "image": "asset:flags/ir.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-ie",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Irlande",
+   "image": "asset:flags/ie.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-is",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Islande",
+   "image": "asset:flags/is.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-il",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Israël",
+   "image": "asset:flags/il.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-it",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Italie",
+   "image": "asset:flags/it.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-jm",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Jamaïque",
+   "image": "asset:flags/jm.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-jp",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Japon",
+   "image": "asset:flags/jp.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-je",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Jersey",
+   "image": "asset:flags/je.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-jo",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Jordanie",
+   "image": "asset:flags/jo.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-kz",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Kazakhstan",
+   "image": "asset:flags/kz.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-ke",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Kenya",
+   "image": "asset:flags/ke.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-kg",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Kirghizistan",
+   "image": "asset:flags/kg.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-ki",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Kiribati",
+   "image": "asset:flags/ki.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-xk",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Kosovo",
+   "image": "asset:flags/xk.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-kw",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Koweït",
+   "image": "asset:flags/kw.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-la",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Laos",
+   "image": "asset:flags/la.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-ls",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Lesotho",
+   "image": "asset:flags/ls.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-lv",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Lettonie",
+   "image": "asset:flags/lv.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-lb",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Liban",
+   "image": "asset:flags/lb.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-lr",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Liberia",
+   "image": "asset:flags/lr.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-ly",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Libye",
+   "image": "asset:flags/ly.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-li",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Liechtenstein",
+   "image": "asset:flags/li.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-lt",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Lituanie",
+   "image": "asset:flags/lt.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-lu",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Luxembourg",
+   "image": "asset:flags/lu.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-mo",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Macao",
+   "image": "asset:flags/mo.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-mk",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Macédoine du Nord",
+   "image": "asset:flags/mk.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-mg",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Madagascar",
+   "image": "asset:flags/mg.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-my",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Malaisie",
+   "image": "asset:flags/my.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-mw",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Malawi",
+   "image": "asset:flags/mw.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-mv",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Maldives",
+   "image": "asset:flags/mv.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-ml",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Mali",
+   "image": "asset:flags/ml.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-mt",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Malte",
+   "image": "asset:flags/mt.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-ma",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Maroc",
+   "image": "asset:flags/ma.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-mq",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Martinique",
+   "image": "asset:flags/mq.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-mu",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Maurice",
+   "image": "asset:flags/mu.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-mr",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Mauritanie",
+   "image": "asset:flags/mr.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-yt",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Mayotte",
+   "image": "asset:flags/yt.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-mx",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Mexique",
+   "image": "asset:flags/mx.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-fm",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Micronésie",
+   "image": "asset:flags/fm.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-md",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Moldavie",
+   "image": "asset:flags/md.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-mc",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Monaco",
+   "image": "asset:flags/mc.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-mn",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Mongolie",
+   "image": "asset:flags/mn.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-ms",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Montserrat",
+   "image": "asset:flags/ms.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-me",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Monténégro",
+   "image": "asset:flags/me.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-mz",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Mozambique",
+   "image": "asset:flags/mz.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-na",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Namibie",
+   "image": "asset:flags/na.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-nr",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Nauru",
+   "image": "asset:flags/nr.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-ni",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Nicaragua",
+   "image": "asset:flags/ni.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-ne",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Niger",
+   "image": "asset:flags/ne.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-ng",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Nigeria",
+   "image": "asset:flags/ng.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-nu",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Niue",
+   "image": "asset:flags/nu.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-no",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Norvège",
+   "image": "asset:flags/no.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-nc",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Nouvelle-Calédonie",
+   "image": "asset:flags/nc.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-nz",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Nouvelle-Zélande",
+   "image": "asset:flags/nz.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-np",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Népal",
+   "image": "asset:flags/np.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-om",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Oman",
+   "image": "asset:flags/om.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-ug",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Ouganda",
+   "image": "asset:flags/ug.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-uz",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Ouzbékistan",
+   "image": "asset:flags/uz.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-pk",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Pakistan",
+   "image": "asset:flags/pk.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-pw",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Palaos",
+   "image": "asset:flags/pw.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-ps",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Palestine",
+   "image": "asset:flags/ps.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-pa",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Panama",
+   "image": "asset:flags/pa.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-pg",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Papouasie-Nouvelle-Guinée",
+   "image": "asset:flags/pg.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-py",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Paraguay",
+   "image": "asset:flags/py.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-nl",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Pays-Bas",
+   "image": "asset:flags/nl.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-bq",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Pays-Bas caribéens",
+   "image": "asset:flags/bq.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-ph",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Philippines",
+   "image": "asset:flags/ph.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-pl",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Pologne",
+   "image": "asset:flags/pl.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-pf",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Polynésie française",
+   "image": "asset:flags/pf.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-pr",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Porto Rico",
+   "image": "asset:flags/pr.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-pt",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Portugal",
+   "image": "asset:flags/pt.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-pe",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Pérou",
+   "image": "asset:flags/pe.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-qa",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Qatar",
+   "image": "asset:flags/qa.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-cd",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "RD Congo",
+   "image": "asset:flags/cd.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-ro",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Roumanie",
+   "image": "asset:flags/ro.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-gb",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Royaume-Uni",
+   "image": "asset:flags/gb.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-ru",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Russie",
+   "image": "asset:flags/ru.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-rw",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Rwanda",
+   "image": "asset:flags/rw.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-cf",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "République centrafricaine",
+   "image": "asset:flags/cf.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-do",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "République dominicaine",
+   "image": "asset:flags/do.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-re",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Réunion",
+   "image": "asset:flags/re.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-eh",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Sahara Occidental",
+   "image": "asset:flags/eh.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-bl",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Saint-Barthélemy",
+   "image": "asset:flags/bl.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-kn",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Saint-Christophe-et-Niévès",
+   "image": "asset:flags/kn.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-sm",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Saint-Marin",
+   "image": "asset:flags/sm.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-sx",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Saint-Martin (partie néerlandaise)",
+   "image": "asset:flags/sx.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-pm",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Saint-Pierre-et-Miquelon",
+   "image": "asset:flags/pm.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-vc",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Saint-Vincent-et-les-Grenadines",
+   "image": "asset:flags/vc.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-sh",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Sainte-Hélène, Ascension et Tristan da Cunha",
+   "image": "asset:flags/sh.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-lc",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Sainte-Lucie",
+   "image": "asset:flags/lc.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-ws",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Samoa",
+   "image": "asset:flags/ws.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-as",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Samoa américaines",
+   "image": "asset:flags/as.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-st",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Sao Tomé-et-Principe",
+   "image": "asset:flags/st.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-rs",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Serbie",
+   "image": "asset:flags/rs.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-sc",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Seychelles",
+   "image": "asset:flags/sc.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-sl",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Sierra Leone",
+   "image": "asset:flags/sl.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-sg",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Singapour",
+   "image": "asset:flags/sg.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-sk",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Slovaquie",
+   "image": "asset:flags/sk.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-si",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Slovénie",
+   "image": "asset:flags/si.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-so",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Somalie",
+   "image": "asset:flags/so.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-sd",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Soudan",
+   "image": "asset:flags/sd.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-ss",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Soudan du Sud",
+   "image": "asset:flags/ss.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-lk",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Sri Lanka",
+   "image": "asset:flags/lk.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-ch",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Suisse",
+   "image": "asset:flags/ch.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-sr",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Suriname",
+   "image": "asset:flags/sr.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-se",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Suède",
+   "image": "asset:flags/se.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-sy",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Syrie",
+   "image": "asset:flags/sy.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-sn",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Sénégal",
+   "image": "asset:flags/sn.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-tj",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Tadjikistan",
+   "image": "asset:flags/tj.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-tz",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Tanzanie",
+   "image": "asset:flags/tz.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-tw",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Taïwan",
+   "image": "asset:flags/tw.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-td",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Tchad",
+   "image": "asset:flags/td.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-cz",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Tchéquie",
+   "image": "asset:flags/cz.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-tf",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Terres australes et antarctiques françaises",
+   "image": "asset:flags/tf.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-io",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Territoire britannique de l'océan Indien",
+   "image": "asset:flags/io.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-th",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Thaïlande",
+   "image": "asset:flags/th.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-tl",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Timor oriental",
+   "image": "asset:flags/tl.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-tg",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Togo",
+   "image": "asset:flags/tg.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-tk",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Tokelau",
+   "image": "asset:flags/tk.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-to",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Tonga",
+   "image": "asset:flags/to.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-tt",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Trinité-et-Tobago",
+   "image": "asset:flags/tt.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-tn",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Tunisie",
+   "image": "asset:flags/tn.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-tm",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Turkménistan",
+   "image": "asset:flags/tm.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-tr",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Turquie",
+   "image": "asset:flags/tr.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-tv",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Tuvalu",
+   "image": "asset:flags/tv.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-ua",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Ukraine",
+   "image": "asset:flags/ua.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-uy",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Uruguay",
+   "image": "asset:flags/uy.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-vu",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Vanuatu",
+   "image": "asset:flags/vu.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-va",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Vatican",
+   "image": "asset:flags/va.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-ve",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Venezuela",
+   "image": "asset:flags/ve.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-vn",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Viêt Nam",
+   "image": "asset:flags/vn.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-wf",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Wallis-et-Futuna",
+   "image": "asset:flags/wf.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-ye",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Yémen",
+   "image": "asset:flags/ye.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-zm",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Zambie",
+   "image": "asset:flags/zm.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-zw",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Zimbabwe",
+   "image": "asset:flags/zw.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-ax",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Åland",
+   "image": "asset:flags/ax.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-eg",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Égypte",
+   "image": "asset:flags/eg.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-ae",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Émirats arabes unis",
+   "image": "asset:flags/ae.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-ec",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Équateur",
+   "image": "asset:flags/ec.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-er",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Érythrée",
+   "image": "asset:flags/er.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-us",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "États-Unis",
+   "image": "asset:flags/us.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-et",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Éthiopie",
+   "image": "asset:flags/et.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-cx",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Île Christmas",
+   "image": "asset:flags/cx.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-nf",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Île Norfolk",
+   "image": "asset:flags/nf.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-im",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Île de Man",
+   "image": "asset:flags/im.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-ky",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Îles Caïmans",
+   "image": "asset:flags/ky.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-cc",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Îles Cocos",
+   "image": "asset:flags/cc.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-ck",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Îles Cook",
+   "image": "asset:flags/ck.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-fo",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Îles Féroé",
+   "image": "asset:flags/fo.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-fk",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Îles Malouines",
+   "image": "asset:flags/fk.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-mp",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Îles Mariannes du Nord",
+   "image": "asset:flags/mp.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-mh",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Îles Marshall",
+   "image": "asset:flags/mh.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-pn",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Îles Pitcairn",
+   "image": "asset:flags/pn.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-sb",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Îles Salomon",
+   "image": "asset:flags/sb.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-tc",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Îles Turques-et-Caïques",
+   "image": "asset:flags/tc.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-vg",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Îles Vierges britanniques",
+   "image": "asset:flags/vg.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-vi",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Îles Vierges des États-Unis",
+   "image": "asset:flags/vi.webp",
+   "lastReview": 0,
+   "randomSide": false
+  }
+ ]
+}

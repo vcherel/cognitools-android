@@ -31,7 +31,7 @@ Always install release builds, never debug (performance matters on device). Debu
 ## Codebase map
 The independent tools live under `app/src/main/java/com/example/myapp/`. Use this map to jump straight to the right file with Read/Grep instead of spawning an exploration agent. Keep it current when files are added or renamed: a stale map misleads more than no map.
 
-Outside that package: `src/` holds the Python asset generators (see the README): `generate_pairs.py` builds the Undercover `assets/pairs.json` (`generate_dataset.ipynb` at the root only drives it), the mots fléchés scripts are listed under `motsfleches/` below. `data/` holds their inputs, `app/src/test/` the JVM unit tests, `baselineprofile/` the startup profile module (`BaselineProfileGenerator.kt`, the journey the profile is recorded from).
+Outside that package: `src/` holds the Python asset generators (see the README): `generate_flags.py` builds the Drapeaux list (`assets/flags/` and `assets/seed_flags.json`, from flagcdn), `generate_pairs.py` builds the Undercover `assets/pairs.json` (`generate_dataset.ipynb` at the root only drives it), the mots fléchés scripts are listed under `motsfleches/` below. `data/` holds their inputs, `app/src/test/` the JVM unit tests, `baselineprofile/` the startup profile module (`BaselineProfileGenerator.kt`, the journey the profile is recorded from).
 
 Root package (shared/misc):
 - `MainActivity.kt`: app entry point; the window, the intents it is launched with, and the locked-over-the-keyguard quick view
@@ -116,6 +116,7 @@ Root package (shared/misc):
 
 `flashcards/` (spaced repetition flashcards tool):
 - `Models.kt`: FlashcardList/FlashcardElement data classes, JSON (de)serialization, stats helpers
+- `CardImage.kt`: a card's optional front picture, `asset:` (shipped, the Drapeaux flags) or `user:` (picked, copied downscaled into filesDir, carried in backups as base64), the CardImage composable and the start-up sweep of unreferenced copies
 - `AddToFlashcards.kt`: the shared filing dialog (list picker + editable card) the translator and the mots fleches clue bar both open
 - `Database.kt`: Room FlashcardDao
 - `Repository.kt`: FlashcardRepository, mediates between DB and UI
@@ -221,7 +222,7 @@ Root package (shared/misc):
 ## Cross-cutting things, and where they actually live
 The map above is by feature. These are the ones you won't find by feature name:
 
-- **Room**: one database for the whole app, declared in `flashcards/Database.kt` (version 17). The notes `Note` entity and `NoteDao` are registered there too but defined in `notes/Models.kt`; same for the gallery's `PinnedMediaItem`/`PinnedMediaItemDao` in `gallery/GalleryPins.kt`, the podcasts' tables in `podcasts/`, the reader's `Book`/`BookDao` in `reader/BookModels.kt`, and the news tool's `NewsRead`/`NewsSaved`/`NewsProgress`/`NewsDao` in `news/NewsModels.kt`.
+- **Room**: one database for the whole app, declared in `flashcards/Database.kt` (version 18). The notes `Note` entity and `NoteDao` are registered there too but defined in `notes/Models.kt`; same for the gallery's `PinnedMediaItem`/`PinnedMediaItemDao` in `gallery/GalleryPins.kt`, the podcasts' tables in `podcasts/`, the reader's `Book`/`BookDao` in `reader/BookModels.kt`, and the news tool's `NewsRead`/`NewsSaved`/`NewsProgress`/`NewsDao` in `news/NewsModels.kt`.
 - **Word to flashcard loop**: the reader, the translator and the flashcards are one chain. Long pressing a word in `reader/ReaderScreen.kt` opens `translate/WordLookupSheet`, which writes a `FlashcardElement` into the list used last (remembered in `TranslateStore`). The reader is also the only screen that calls `SuppressIdleReset`.
 - **Media notification and lockscreen buttons**: `deezer/DeezerPlaybackService.kt`, `actionButtons()`. Media3 draws the notification; the buttons are `CommandButton`s handled in `SessionCallback.onCustomCommand`, so they act without opening the app. `podcasts/PodcastPlaybackService.kt` does the same with its ±30 s pair.
 - **Two playback stacks, one player at a time**: music (`deezer/`) and podcasts (`podcasts/`) each have their own repository, service, notification and mini-player, and they are deliberately mutually exclusive: `DeezerRepository.stopPodcastPlayback()` and `PodcastRepository.playEpisode()` stop the other one, because two foreground services fighting over audio focus used to take the app down. Their two services must also keep **different notification ids and channels** (see either `onCreate`). What they share lives in the root package: `PlayerUi.kt` (every surface) and `MediaControllerHolder.kt` (the connection and the stop).

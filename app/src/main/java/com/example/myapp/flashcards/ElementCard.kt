@@ -70,15 +70,25 @@ fun FlashcardElementCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.Top
             ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    var expandedName by remember { mutableStateOf(false) }
-                    Text(
-                        text = element.name,
-                        style = MaterialTheme.typography.titleMedium,
-                        maxLines = if (expandedName) Int.MAX_VALUE else 1,
-                        overflow = if (expandedName) TextOverflow.Visible else TextOverflow.Ellipsis,
-                        modifier = Modifier.clickable { expandedName = !expandedName }
+                if (element.image != null) {
+                    CardImage(
+                        image = element.image,
+                        modifier = Modifier
+                            .padding(end = 10.dp)
+                            .size(width = 54.dp, height = 40.dp)
                     )
+                }
+                Column(modifier = Modifier.weight(1f)) {
+                    if (element.name.isNotBlank()) {
+                        var expandedName by remember { mutableStateOf(false) }
+                        Text(
+                            text = element.name,
+                            style = MaterialTheme.typography.titleMedium,
+                            maxLines = if (expandedName) Int.MAX_VALUE else 1,
+                            overflow = if (expandedName) TextOverflow.Visible else TextOverflow.Ellipsis,
+                            modifier = Modifier.clickable { expandedName = !expandedName }
+                        )
+                    }
 
                     var expandedDefinition by remember { mutableStateOf(false) }
                     Text(

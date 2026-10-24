@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -420,18 +421,34 @@ private fun CardFace(
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
-            modifier = Modifier.align(Alignment.Center)
+            modifier = Modifier
+                .align(Alignment.Center)
+                .padding(horizontal = 24.dp)
         ) {
-            Text(
-                text = if (showFront != showDefinition) card.name else card.definition,
-                style = MaterialTheme.typography.headlineMedium,
-                textAlign = TextAlign.Center,
-                fontWeight = FontWeight.Bold
-            )
-            if (showDefinition) {
+            // The picture belongs to the front, so it shows whenever the front side is visible.
+            if (card.image != null && (showFront || showDefinition)) {
+                CardImage(
+                    image = card.image,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 200.dp)
+                )
+                Spacer(Modifier.height(24.dp))
+            }
+            val asked = if (showFront != showDefinition) card.name else card.definition
+            if (asked.isNotBlank()) {
+                Text(
+                    text = asked,
+                    style = MaterialTheme.typography.headlineMedium,
+                    textAlign = TextAlign.Center,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+            val revealed = if (showFront) card.name else card.definition
+            if (showDefinition && revealed.isNotBlank()) {
                 Spacer(Modifier.height(24.dp))
                 Text(
-                    text = if (showFront) card.name else card.definition,
+                    text = revealed,
                     style = MaterialTheme.typography.bodyLarge,
                     textAlign = TextAlign.Center
                 )
