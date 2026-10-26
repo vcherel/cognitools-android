@@ -138,6 +138,11 @@ dependencies {
     implementation(libs.androidx.profileinstaller)
 }
 
+// The pre-push hook leaves the slow generator test out unless the mots fléchés tool changed.
+if (providers.gradleProperty("skipPuzzleTests").isPresent) {
+    tasks.withType<Test>().configureEach { filter.excludeTestsMatching("*.PuzzleGeneratorTest") }
+}
+
 baselineProfile {
     from(project(":baselineprofile"))
 }

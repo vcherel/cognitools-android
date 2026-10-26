@@ -18,8 +18,16 @@ repos:
 
       - id: unit-tests
         name: JVM unit tests
-        entry: ./gradlew --quiet :app:testReleaseUnitTest
+        entry: ./gradlew --quiet :app:testReleaseUnitTest -PskipPuzzleTests
         language: system
         pass_filenames: false
         always_run: true
+        stages: [pre-push]
+
+      - id: puzzle-tests
+        name: mots fleches generator test (2 min, only when the tool changed)
+        entry: ./gradlew --quiet :app:testReleaseUnitTest --tests '*.PuzzleGeneratorTest'
+        language: system
+        pass_filenames: false
+        files: ^app/src/(main/java/com/example/myapp/motsfleches/|main/assets/motsfleches_|test/java/com/example/myapp/motsfleches/)
         stages: [pre-push]

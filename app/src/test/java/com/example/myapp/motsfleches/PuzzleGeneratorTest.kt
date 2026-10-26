@@ -51,30 +51,8 @@ class PuzzleGeneratorTest {
         }
     }
 
-    /** Every word must be reachable from the others, so no corner of a grid stands on its own. */
     @Test
-    fun `the grids played are all in one piece`() {
-        for (layout in layouts) {
-            val puzzle = fill(layout, seed = 3) ?: continue
-            val linked = mutableSetOf(0)
-            var grew = true
-            while (grew) {
-                grew = false
-                puzzle.slots.forEachIndexed { index, slot ->
-                    if (index in linked) return@forEachIndexed
-                    val cells = puzzle.cellsOf(slot).toSet()
-                    if (linked.any { puzzle.cellsOf(puzzle.slots[it]).any { cell -> cell in cells } }) {
-                        linked.add(index)
-                        grew = true
-                    }
-                }
-            }
-            assertEquals(puzzle.slots.size.toLong(), linked.size.toLong())
-        }
-    }
-
-    @Test
-    fun `nearly every layout fills, and what it fills is coherent`() {
+    fun `nearly every layout fills, and what it fills is coherent and in one piece`() {
         for ((lang, dictionary) in dictionaries) {
             var failures = 0
             layouts.forEachIndexed { index, layout ->
@@ -84,6 +62,7 @@ class PuzzleGeneratorTest {
                     return@forEachIndexed
                 }
                 assertCoherent(puzzle)
+                assertInOnePiece(puzzle)
             }
             assertTrue(
                 "$lang: $failures/${layouts.size} layouts could not be filled",
@@ -142,6 +121,24 @@ class PuzzleGeneratorTest {
         (0 until 4).firstNotNullOfOrNull { attempt ->
             PuzzleGenerator.generate(layout, dictionary, Random(seed * 10 + attempt), maxRank)
         }
+
+    /** Every word must be reachable from the others, so no corner of a grid stands on its own. */
+    private fun assertInOnePiece(puzzle: Puzzle) {
+        val linked = mutableSetOf(0)
+        var grew = true
+        while (grew) {
+            grew = false
+            puzzle.slots.forEachIndexed { index, slot ->
+                if (index in linked) return@forEachIndexed
+                val cells = puzzle.cellsOf(slot).toSet()
+                if (linked.any { puzzle.cellsOf(puzzle.slots[it]).any { cell -> cell in cells } }) {
+                    linked.add(index)
+                    grew = true
+                }
+            }
+        }
+        assertEquals(puzzle.slots.size.toLong(), linked.size.toLong())
+    }
 
     /** Crossing words must agree, every word must have a definition cell, and no word repeats. */
     private fun assertCoherent(puzzle: Puzzle) {
