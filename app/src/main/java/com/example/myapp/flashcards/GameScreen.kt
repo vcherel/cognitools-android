@@ -309,7 +309,7 @@ fun FlashcardGameScreen(listId: String, navController: NavController) {
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(400.dp)
+                            .height(480.dp)
                             .graphicsLayer {
                                 translationX = cardOffset
                             }
