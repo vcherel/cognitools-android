@@ -11,6 +11,7 @@ import androidx.media3.common.Timeline
 import androidx.media3.datasource.cache.ContentMetadata
 import androidx.media3.datasource.cache.SimpleCache
 import androidx.media3.session.MediaController
+import androidx.media3.session.SessionCommand
 import com.example.myapp.MediaControllerHolder
 import com.example.myapp.podcastRepository
 import com.example.myapp.writeAtomically
@@ -366,6 +367,11 @@ class DeezerPlayer(private val appContext: Context, private val repo: DeezerRepo
 
     fun togglePlay() = controller?.let { if (it.isPlaying) it.pause() else it.play() }
     fun next() = controller?.seekToNextMediaItem()
+
+    /** Moves on to the next track through a short blend rather than a cut, see [Crossfader.fadeToNext]. */
+    fun fadeToNext() {
+        controller?.sendCustomCommand(SessionCommand(DeezerPlaybackService.CMD_FADE_TO_NEXT, Bundle.EMPTY), Bundle.EMPTY)
+    }
     fun previous() = controller?.seekToPreviousMediaItem()
     fun seekTo(ms: Long) { controller?.seekTo(ms) }
     fun positionMs(): Long = controller?.currentPosition ?: 0L

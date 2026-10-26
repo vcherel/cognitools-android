@@ -249,6 +249,7 @@ class DeezerPlaybackService : MediaSessionService() {
                         .add(SessionCommand(CMD_TOGGLE_LIKE, Bundle.EMPTY))
                         .add(SessionCommand(CMD_TOGGLE_PEPITES, Bundle.EMPTY))
                         .add(SessionCommand(CMD_STOP_ALL, Bundle.EMPTY))
+                        .add(SessionCommand(CMD_FADE_TO_NEXT, Bundle.EMPTY))
                         .build()
                 )
                 .build()
@@ -270,6 +271,10 @@ class DeezerPlaybackService : MediaSessionService() {
                 // for several seconds after a pause.
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
+                return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
+            }
+            if (customCommand.customAction == CMD_FADE_TO_NEXT) {
+                crossfader?.fadeToNext()
                 return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
             }
 
@@ -481,6 +486,7 @@ class DeezerPlaybackService : MediaSessionService() {
         // Not private: DeezerRepository sends this from the UI (the "stop everything" button), so it
         // needs the same action string the session was told to accept above.
         const val CMD_STOP_ALL = "com.example.myapp.deezer.STOP_ALL"
+        const val CMD_FADE_TO_NEXT = "com.example.myapp.deezer.FADE_TO_NEXT"
     }
 }
 
