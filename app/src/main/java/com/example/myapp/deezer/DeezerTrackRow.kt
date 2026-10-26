@@ -130,13 +130,6 @@ fun TrackRow(
                     Icon(Icons.Filled.MoreVert, contentDescription = "Plus d'options", tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
-                    if (onAddToQueue != null) {
-                        DropdownMenuItem(
-                            text = { Text("Ajouter à la file d'attente") },
-                            leadingIcon = { Icon(Icons.AutoMirrored.Filled.QueueMusic, contentDescription = null) },
-                            onClick = { menuExpanded = false; onAddToQueue() }
-                        )
-                    }
                     if (onToggleBestPepites != null) {
                         DropdownMenuItem(
                             text = { Text(if (inPepites) "Retirer de Best pépites" else "Ajouter à Best pépites") },

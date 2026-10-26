@@ -56,8 +56,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.myapp.AppSnackbar
 import com.example.myapp.BackIconButton
-import com.example.myapp.BackupKind
-import com.example.myapp.BackupRestoreActions
+import com.example.myapp.ImportBackupButton
 import com.example.myapp.BottomFadeOverlay
 import com.example.myapp.copyToClipboard
 import com.example.myapp.LightIconButton
@@ -206,8 +205,7 @@ fun NotesListScreen(navController: NavController) {
                         IconButton(onClick = { searchActive = true }) {
                             Icon(Icons.Default.Search, contentDescription = "Rechercher")
                         }
-                        BackupRestoreActions(
-                            kind = BackupKind.NOTES,
+                        ImportBackupButton(
                             importDialogText = "Les notes du fichier seront ajoutées. " +
                                     "Celles qui existent déjà seront remplacées par la version du fichier.",
                             importFromJson = { json ->

@@ -62,8 +62,7 @@ import androidx.activity.compose.BackHandler
 import androidx.navigation.NavController
 import com.example.myapp.BackIconButton
 import com.example.myapp.flashcardRepository
-import com.example.myapp.BackupKind
-import com.example.myapp.BackupRestoreActions
+import com.example.myapp.ImportBackupButton
 import com.example.myapp.BottomFadeOverlay
 import com.example.myapp.MyButton
 import com.example.myapp.ShowAlertDialog
@@ -167,8 +166,7 @@ fun FlashcardListsScreen(navController: NavController) {
                         Icon(Icons.Default.PlayArrow, contentDescription = "Jouer tout")
                     }
 
-                    BackupRestoreActions(
-                        kind = BackupKind.FLASHCARDS,
+                    ImportBackupButton(
                         importDialogText = "Les listes et cartes du fichier seront ajoutées. " +
                                 "Celles qui existent déjà seront remplacées par la version du fichier.",
                         importFromJson = { repository.importFromJson(it) }

@@ -13,7 +13,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CloudDone
 import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.Download
-import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -144,12 +143,11 @@ fun BackupMenuButton(modifier: Modifier = Modifier) {
 }
 
 /**
- * Backup and restore icon buttons plus the import confirmation dialog.
+ * The restore icon button plus the import confirmation dialog. Saving lives on the menu's button.
  * [importFromJson] runs on Dispatchers.IO and may throw to signal an invalid file.
  */
 @Composable
-fun BackupRestoreActions(
-    kind: BackupKind,
+fun ImportBackupButton(
     importDialogText: String,
     importFromJson: suspend (String) -> Unit
 ) {
@@ -179,10 +177,6 @@ fun BackupRestoreActions(
                 }
             }
         }
-    }
-
-    IconButton(onClick = { saveBackups(context, listOf(kind)) }) {
-        Icon(Icons.Default.Upload, contentDescription = "Sauvegarder")
     }
 
     IconButton(onClick = { restoreLauncher.launch("application/json") }) {
