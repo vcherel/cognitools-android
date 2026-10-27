@@ -97,11 +97,12 @@ The JVM unit tests cover the pure logic (the Deezer stream decryption, the puzzl
 ./gradlew :app:testReleaseUnitTest
 ```
 
-Two scripts drive the app on the connected phone. `frame_stats.py` runs a fixed navigation journey and prints the janky frames per step, to compare two builds. `regenerate_profile.py` records the baseline profile (about 5 minutes with the phone unlocked), checks that every screen the journey opens made it into the profile, and sends any test note the journey left behind to the notes trash:
+Three scripts drive the app on the connected phone. `frame_stats.py` runs a fixed navigation journey and prints the janky frames per step, to compare two builds. `regenerate_profile.py` records the baseline profile (about 5 minutes with the phone unlocked), checks that every screen the journey opens made it into the profile, and sends any test note the journey left behind to the notes trash. `import_flashcards.py` pushes a flashcards JSON bundle to Downloads and imports it through the lists screen, which replaces the cards it holds by id:
 
 ```bash
 uv run --no-project src/frame_stats.py 3
 uv run --no-project src/regenerate_profile.py
+uv run --no-project src/import_flashcards.py corrections.json
 ```
 
 `CLAUDE.md` carries a one line per file map of the whole codebase, kept current as files are added or renamed.
