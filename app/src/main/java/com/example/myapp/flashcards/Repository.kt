@@ -157,6 +157,11 @@ class FlashcardRepository(private val context: Context) {
             SEEDS.filter { (version, _) -> version > seeded }.forEach { (_, file) -> seedAssets(file) }
             context.flashcardDataStore.edit { it[seedVersionKey] = SEEDS.last().first }
         }
+        val reset = context.flashcardDataStore.data.first()[resetVersionKey] ?: 0
+        if (reset < RESETS.last().first) {
+            RESETS.filter { (version, _) -> version > reset }.forEach { (_, id) -> resetElement(id) }
+            context.flashcardDataStore.edit { it[resetVersionKey] = RESETS.last().first }
+        }
         dao.purgeMasteredCards(SIX_MONTHS_MINUTES, builtinListIds)
         context.sweepCardImages(dao.getImages())
     }
@@ -179,6 +184,12 @@ class FlashcardRepository(private val context: Context) {
             4 to "seed_prefectures.json",
             4 to "seed_dept_numbers.json",
             5 to "seed_flags.json"
+        )
+        private val resetVersionKey = intPreferencesKey("reset_version")
+        // Builtin cards whose text or picture was edited, with the version that shipped the edit:
+        // their progress is wiped once, since they may have been learned from the old version.
+        private val RESETS = listOf(
+            1 to "flag-yt"
         )
         private const val SIX_MONTHS_MINUTES = 6 * 30 * 24 * 60
         private val builtinListIds = listOf(

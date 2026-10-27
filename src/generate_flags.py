@@ -4,7 +4,7 @@ import json
 import urllib.request
 from pathlib import Path
 
-from PIL import Image
+from PIL import Image, ImageDraw
 
 ASSETS = Path("app/src/main/assets")
 FLAGS_DIR = ASSETS / "flags"
@@ -22,6 +22,14 @@ RENAMES = {
 }
 # Territories flying their sovereign's flag would be the same card with two answers.
 SOVEREIGN_FIRST = ["fr", "no", "us", "au", "gb", "nl"]
+# Flags that print their own name, painted over (box in the w640 image) so the card isn't given away.
+NAME_BOXES = {"yt": (145, 32, 495, 102)}
+
+
+def hide_name(image, code):
+    if code in NAME_BOXES:
+        ImageDraw.Draw(image).rectangle(NAME_BOXES[code], fill="white")
+    return image
 
 
 def fetch(url):
@@ -46,7 +54,7 @@ def main():
             print(f"{i}/{len(codes)} {code} skipped, same flag as {seen[digest]}", flush=True)
             continue
         seen[digest] = code
-        image.save(FLAGS_DIR / f"{code}.webp", "WEBP", quality=88, method=6)
+        hide_name(image, code).save(FLAGS_DIR / f"{code}.webp", "WEBP", quality=88, method=6)
         cards.append(
             {
                 "id": f"flag-{code}",
