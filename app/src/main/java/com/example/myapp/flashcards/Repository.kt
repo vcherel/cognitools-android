@@ -171,7 +171,9 @@ class FlashcardRepository(private val context: Context) {
         }
         val reset = context.flashcardDataStore.data.first()[resetVersionKey] ?: 0
         if (reset < RESETS.last().first) {
-            RESETS.filter { (version, _) -> version > reset }.forEach { (_, id) -> resetElement(id) }
+            val ids = RESETS.filter { (version, _) -> version > reset }.map { it.second }.toSet()
+            val shipped = SEEDS.flatMap { (_, file) -> seedCards(file) }.filter { it.id in ids }
+            dao.upsertElements(shipped)
             context.flashcardDataStore.edit { it[resetVersionKey] = RESETS.last().first }
         }
         dao.purgeMasteredCards(SIX_MONTHS_MINUTES, builtinListIds)
@@ -187,6 +189,11 @@ class FlashcardRepository(private val context: Context) {
         }
     }
 
+    private fun seedCards(filename: String): List<FlashcardElement> {
+        val json = context.assets.open(filename).bufferedReader().readText()
+        return FlashcardElement.listFromJsonString(JSONObject(json).getJSONArray("cards").toString())
+    }
+
     companion object {
         private val seedVersionKey = intPreferencesKey("seed_version")
         // Each file with the seed version that shipped it. Seeding upserts the cards, wiping their
@@ -199,9 +206,23 @@ class FlashcardRepository(private val context: Context) {
         )
         private val resetVersionKey = intPreferencesKey("reset_version")
         // Builtin cards whose text or picture was edited, with the version that shipped the edit:
-        // their progress is wiped once, since they may have been learned from the old version.
+        // they are replaced once by their shipped version, which also wipes their progress since
+        // they may have been learned from the old one. A card added to an already seeded list is
+        // listed here too, which inserts it.
         private val RESETS = listOf(
-            1 to "flag-yt"
+            1 to "flag-yt",
+            2 to "flag-bq",
+            2 to "flag-eh",
+            2 to "flag-gu",
+            2 to "cap-b-184",
+            3 to "flag-bn",
+            3 to "flag-cf",
+            3 to "flag-cz",
+            3 to "flag-lr",
+            3 to "flag-st",
+            3 to "flag-sz",
+            3 to "flag-af",
+            3 to "flag-af-taliban"
         )
         private const val SIX_MONTHS_MINUTES = 6 * 30 * 24 * 60
         private val builtinListIds = listOf(

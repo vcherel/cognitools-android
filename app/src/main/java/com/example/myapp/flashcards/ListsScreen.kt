@@ -144,15 +144,18 @@ fun FlashcardListsScreen(navController: NavController) {
                         "Listes",
                         style = MaterialTheme.typography.headlineSmall,
                         modifier = Modifier
-                            .padding(start = 8.dp, end = 15.dp)
+                            .padding(start = 8.dp, end = 12.dp)
                             .clickable { showGlobalStats = true }
                     )
+                    // Centered on the gap to the search glyph, whose button pads it by 12.dp.
+                    Spacer(Modifier.weight(1f))
                     Box(
                         modifier = Modifier
                             .width(1.dp)
                             .height(24.dp)
                             .background(Color.Gray)
                     )
+                    Spacer(Modifier.weight(1f))
                 }
 
                 Row {

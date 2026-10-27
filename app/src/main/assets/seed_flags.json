@@ -13,8 +13,17 @@
    "id": "flag-af",
    "listId": "builtin-flags-v1",
    "name": "",
-   "definition": "Afghanistan",
+   "definition": "Afghanistan (avant 2021)",
    "image": "asset:flags/af.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-af-taliban",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Afghanistan (talibans)",
+   "image": "asset:flags/af-taliban.webp",
    "lastReview": 0,
    "randomSide": false
   },
@@ -262,6 +271,15 @@
    "randomSide": false
   },
   {
+   "id": "flag-bq",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Bonaire",
+   "image": "asset:flags/bq.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
    "id": "flag-ba",
    "listId": "builtin-flags-v1",
    "name": "",
@@ -283,7 +301,7 @@
    "id": "flag-bn",
    "listId": "builtin-flags-v1",
    "name": "",
-   "definition": "Brunei",
+   "definition": "Brunéi",
    "image": "asset:flags/bn.webp",
    "lastReview": 0,
    "randomSide": false
@@ -366,6 +384,15 @@
    "name": "",
    "definition": "Cap-Vert",
    "image": "asset:flags/cv.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-cf",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Centrafrique",
+   "image": "asset:flags/cf.webp",
    "lastReview": 0,
    "randomSide": false
   },
@@ -537,15 +564,6 @@
    "name": "",
    "definition": "Estonie",
    "image": "asset:flags/ee.webp",
-   "lastReview": 0,
-   "randomSide": false
-  },
-  {
-   "id": "flag-sz",
-   "listId": "builtin-flags-v1",
-   "name": "",
-   "definition": "Eswatini",
-   "image": "asset:flags/sz.webp",
    "lastReview": 0,
    "randomSide": false
   },
@@ -973,20 +991,20 @@
    "randomSide": false
   },
   {
-   "id": "flag-lr",
-   "listId": "builtin-flags-v1",
-   "name": "",
-   "definition": "Liberia",
-   "image": "asset:flags/lr.webp",
-   "lastReview": 0,
-   "randomSide": false
-  },
-  {
    "id": "flag-ly",
    "listId": "builtin-flags-v1",
    "name": "",
    "definition": "Libye",
    "image": "asset:flags/ly.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-lr",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Libéria",
+   "image": "asset:flags/lr.webp",
    "lastReview": 0,
    "randomSide": false
   },
@@ -1387,15 +1405,6 @@
    "randomSide": false
   },
   {
-   "id": "flag-bq",
-   "listId": "builtin-flags-v1",
-   "name": "",
-   "definition": "Pays-Bas caribéens",
-   "image": "asset:flags/bq.webp",
-   "lastReview": 0,
-   "randomSide": false
-  },
-  {
    "id": "flag-ph",
    "listId": "builtin-flags-v1",
    "name": "",
@@ -1504,20 +1513,20 @@
    "randomSide": false
   },
   {
-   "id": "flag-cf",
-   "listId": "builtin-flags-v1",
-   "name": "",
-   "definition": "République centrafricaine",
-   "image": "asset:flags/cf.webp",
-   "lastReview": 0,
-   "randomSide": false
-  },
-  {
    "id": "flag-do",
    "listId": "builtin-flags-v1",
    "name": "",
    "definition": "République dominicaine",
    "image": "asset:flags/do.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-cz",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "République tchèque",
+   "image": "asset:flags/cz.webp",
    "lastReview": 0,
    "randomSide": false
   },
@@ -1534,7 +1543,7 @@
    "id": "flag-eh",
    "listId": "builtin-flags-v1",
    "name": "",
-   "definition": "Sahara Occidental",
+   "definition": "Sahara occidental",
    "image": "asset:flags/eh.webp",
    "lastReview": 0,
    "randomSide": false
@@ -1626,15 +1635,6 @@
    "name": "",
    "definition": "Samoa américaines",
    "image": "asset:flags/as.webp",
-   "lastReview": 0,
-   "randomSide": false
-  },
-  {
-   "id": "flag-st",
-   "listId": "builtin-flags-v1",
-   "name": "",
-   "definition": "Sao Tomé-et-Principe",
-   "image": "asset:flags/st.webp",
    "lastReview": 0,
    "randomSide": false
   },
@@ -1765,6 +1765,15 @@
    "randomSide": false
   },
   {
+   "id": "flag-st",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "São Tomé-et-Príncipe",
+   "image": "asset:flags/st.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
    "id": "flag-sn",
    "listId": "builtin-flags-v1",
    "name": "",
@@ -1806,15 +1815,6 @@
    "name": "",
    "definition": "Tchad",
    "image": "asset:flags/td.webp",
-   "lastReview": 0,
-   "randomSide": false
-  },
-  {
-   "id": "flag-cz",
-   "listId": "builtin-flags-v1",
-   "name": "",
-   "definition": "Tchéquie",
-   "image": "asset:flags/cz.webp",
    "lastReview": 0,
    "randomSide": false
   },
@@ -2058,6 +2058,15 @@
    "name": "",
    "definition": "Érythrée",
    "image": "asset:flags/er.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-sz",
+   "listId": "builtin-flags-v1",
+   "name": "",
+   "definition": "Éswatini",
+   "image": "asset:flags/sz.webp",
    "lastReview": 0,
    "randomSide": false
   },

@@ -7,7 +7,7 @@ After implementing a change, deploy it on the phone (see below) so Valentin can 
 
 Run `git push` with `run_in_background`: the pre-push hook runs the JVM unit tests through Gradle, and a push touching the mots fléchés tool adds the 2 minute generator test, past the 120 s foreground timeout.
 
-Any flashcard whose content is edited (text, answer or picture) gets its progress reset, since Valentin may have learned it the wrong way. For a builtin card, append its id to `RESETS` in `flashcards/Repository.kt` with the next version number; it is reset once at the next app start. A flag picture that gives its own name away is painted over through `NAME_BOXES` in `src/generate_flags.py`.
+Any flashcard whose content is edited (text, answer or picture) gets its progress reset, since Valentin may have learned it the wrong way. For a builtin card, fix it in its seed asset and append its id to `RESETS` in `flashcards/Repository.kt` with the next version number; at the next app start the phone's copy is replaced once by the shipped one, progress wiped. A user card lives only on the phone: fix it with an import file holding the corrected cards with zeroed progress (the import upserts by id), and run the import yourself by driving the phone through `src/phone.py`, rather than leaving it to Valentin. A flag picture that gives its own name away is painted over through `NAME_BOXES` in `src/generate_flags.py`.
 
 For UI/layout changes with more than one reasonable arrangement (where to put a control, how a view is structured, an interaction model), sketch 2-3 concrete options up front with AskUserQuestion and let Valentin pick before writing any code. Don't implement your first interpretation and iterate from corrections.
 

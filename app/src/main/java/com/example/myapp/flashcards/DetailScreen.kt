@@ -520,8 +520,7 @@ private fun DetailTopBar(
                 }
             }
 
-            Spacer(Modifier.width(2.dp))
-
+            // The sort button already pads its glyph by 12.dp, so the line only needs space after it.
             Box(
                 modifier = Modifier
                     .height(24.dp)
@@ -529,7 +528,7 @@ private fun DetailTopBar(
                     .background(Color.Gray)
             )
 
-            Spacer(Modifier.width(8.dp))
+            Spacer(Modifier.width(12.dp))
 
             Text(
                 "$dueCount à réviser",

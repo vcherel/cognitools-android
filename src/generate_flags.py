@@ -18,17 +18,60 @@ SAME_FLAG_AS_SOVEREIGN = {"hm"}
 RENAMES = {
     "cd": "RD Congo",
     "sv": "El Salvador",
+    "af": "Afghanistan (avant 2021)",
     "sx": "Saint-Martin (partie néerlandaise)",
+    "bn": "Brunéi",
+    "cf": "Centrafrique",
+    "cz": "République tchèque",
+    "lr": "Libéria",
+    "st": "São Tomé-et-Príncipe",
+    "sz": "Éswatini",
+    # flagcdn files Bonaire's flag under the Caribbean Netherlands, which fly the Dutch one.
+    "bq": "Bonaire",
+    "eh": "Sahara occidental",
 }
 # Territories flying their sovereign's flag would be the same card with two answers.
 SOVEREIGN_FIRST = ["fr", "no", "us", "au", "gb", "nl"]
-# Flags that print their own name, painted over (box in the w640 image) so the card isn't given away.
-NAME_BOXES = {"yt": (145, 32, 495, 102)}
+# Flags that print their own name, painted over (boxes in the w640 image, with the background they
+# sit on) so the card isn't given away. Guam's letters are split around the palm trunk.
+NAME_BOXES = {
+    "yt": [((145, 32, 495, 102), "white")],
+    "gu": [((283, 159, 314, 178), "#94dbfc"), ((323, 159, 358, 178), "#94dbfc")],
+}
+
+
+# Flags flagcdn lacks, each its own card, from Wikimedia Commons. Outlined, since a white flag
+# disappears on the card.
+EXTRA_FLAGS = {
+    "af-taliban": (
+        "https://commons.wikimedia.org/wiki/Special:FilePath/Flag_of_the_Taliban.svg?width=640",
+        "Afghanistan (talibans)",
+    ),
+}
+
+
+def extra_flag(url):
+    image = Image.open(io.BytesIO(fetch(url))).convert("RGBA")
+    image = image.resize((640, round(640 * image.height / image.width)))
+    ImageDraw.Draw(image).rectangle((0, 0, image.width - 1, image.height - 1), outline="#bbbbbb", width=2)
+    return image
+
+
+def card(code, name):
+    return {
+        "id": f"flag-{code}",
+        "listId": LIST_ID,
+        "name": "",
+        "definition": name,
+        "image": f"asset:flags/{code}.webp",
+        "lastReview": 0,
+        "randomSide": False,
+    }
 
 
 def hide_name(image, code):
-    if code in NAME_BOXES:
-        ImageDraw.Draw(image).rectangle(NAME_BOXES[code], fill="white")
+    for box, fill in NAME_BOXES.get(code, []):
+        ImageDraw.Draw(image).rectangle(box, fill=fill)
     return image
 
 
@@ -55,18 +98,12 @@ def main():
             continue
         seen[digest] = code
         hide_name(image, code).save(FLAGS_DIR / f"{code}.webp", "WEBP", quality=88, method=6)
-        cards.append(
-            {
-                "id": f"flag-{code}",
-                "listId": LIST_ID,
-                "name": "",
-                "definition": name,
-                "image": f"asset:flags/{code}.webp",
-                "lastReview": 0,
-                "randomSide": False,
-            }
-        )
+        cards.append(card(code, name))
         print(f"{i}/{len(codes)} {code} {name}", flush=True)
+    for code, (url, name) in EXTRA_FLAGS.items():
+        extra_flag(url).save(FLAGS_DIR / f"{code}.webp", "WEBP", quality=88, method=6)
+        cards.append(card(code, name))
+        print(f"{code} {name}", flush=True)
 
     cards.sort(key=lambda c: c["definition"])
     bundle = {
