@@ -186,7 +186,7 @@ Root package (shared/misc):
 - `NotesListScreen.kt`: list of notes screen; the grid, the search, the trash entry, and NoteCard, the colored card every note is drawn on
 - `TodoWidget.kt`: TodoWidgetCard, the pinned Todo preview on the list; toggle and delete lines in place, add an item at either end of the active block
 - `NoteEditorScreen.kt`: the note editor's layout; the edit-mode text field, the read-only view, the in-note search bar and NoteEditorDialogs (the two PIN dialogs, the reconcile run, the add-an-item prompt)
-- `NoteEditorState.kt`: NoteEditorState and `rememberNoteEditorState`, everything about the note itself; load, autosave, undo stack, saveContent, the lock and its PIN gate, and the fake blank lines edit mode pads the text with
+- `NoteEditorState.kt`: NoteEditorState and `rememberNoteEditorState`, everything about the note itself; load, autosave, undo and redo stacks, saveContent, the lock and its PIN gate, and the fake blank lines edit mode pads the text with
 - `NoteEditorTopBar.kt`: the editor's header; the editable title plus every button and menu entry, driven by a NoteEditorBarState/NoteEditorBarActions pair
 - `NoteLineEdits.kt`: the per-line edits the read-only view makes (toggle, quantity, muscu day, delete with undo), all going through one editLines
 - `NoteEditing.kt`: pure text helpers; input transformations, slash commands, inline/line marker toggling, muscu day, the Movies note's S1E10 episode bump

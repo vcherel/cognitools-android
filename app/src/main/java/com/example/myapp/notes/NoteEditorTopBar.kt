@@ -10,6 +10,7 @@ import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Sort
+import androidx.compose.material.icons.automirrored.filled.Redo
 import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckBox
@@ -69,6 +70,7 @@ data class NoteEditorBarState(
     val locked: Boolean,
     val searchOpen: Boolean,
     val canUndo: Boolean,
+    val canRedo: Boolean,
     val hasBlankEdgeLines: Boolean,
     val hasCheckboxLine: Boolean,
     val hasCheckedLine: Boolean,
@@ -85,6 +87,7 @@ data class NoteEditorBarState(
 data class NoteEditorBarActions(
     val onBack: () -> Unit,
     val onUndo: () -> Unit,
+    val onRedo: () -> Unit,
     val onToggleSearch: () -> Unit,
     val onToggleLock: () -> Unit,
     val onTrimBlankEdgeLines: () -> Unit,
@@ -217,6 +220,11 @@ fun NoteEditorTopBar(
         }
         IconButton(onClick = actions.onUndo, enabled = state.canUndo) {
             Icon(Icons.AutoMirrored.Filled.Undo, contentDescription = "Annuler")
+        }
+        if (state.canRedo) {
+            IconButton(onClick = actions.onRedo) {
+                Icon(Icons.AutoMirrored.Filled.Redo, contentDescription = "Rétablir")
+            }
         }
         if (state.isEditing) {
             Box {

@@ -60,12 +60,25 @@ class NoteEditorState(noteId: String, private val dao: NoteDao, private val scop
     // Snapshots to step back through with the undo button.
     private val undoStack = mutableStateListOf<NoteSnapshot>()
 
-    private var editPadding = EditPadding()
+    // Snapshots undo stepped away from, for the redo button. Any new edit empties it.
+    private val redoStack = mutableStateListOf<NoteSnapshot>()
+
+    private var editPadding by mutableStateOf(EditPadding())
 
     val canUndo: Boolean get() = undoStack.isNotEmpty()
+    val canRedo: Boolean get() = redoStack.isNotEmpty()
 
     private val title: String get() = titleFieldState.text.toString()
-    private val content: String get() = textFieldState.text.toString()
+
+    // The content without the edit padding: the only form that is ever saved, compared or put on
+    // the undo stack, so the fake lines can't leak into the note however the editor is left.
+    private val content: String
+        get() {
+            var text = textFieldState.text.toString()
+            if (editPadding.bottom && text.endsWith("\n")) text = text.dropLast(1)
+            if (editPadding.top && text.startsWith("\n")) text = text.drop(1)
+            return text
+        }
 
     private fun snapshot() = NoteSnapshot(title, content)
 
@@ -116,11 +129,18 @@ class NoteEditorState(noteId: String, private val dao: NoteDao, private val scop
             }
     }
 
-    // Pushes the last saved snapshot onto the undo stack before it gets replaced.
+    // Pushes the last saved snapshot onto the undo stack before a new edit replaces it.
     private fun pushUndo() {
         val previous = lastSaved ?: return
         undoStack.add(previous)
         if (undoStack.size > 50) undoStack.removeAt(0)
+        redoStack.clear()
+    }
+
+    // Puts text in the content field, wrapped in the edit padding still in effect.
+    private fun showContent(text: String) {
+        val padded = (if (editPadding.top) "\n" else "") + text + (if (editPadding.bottom) "\n" else "")
+        textFieldState.edit { replace(0, length, padded) }
     }
 
     private fun save() {
@@ -142,19 +162,30 @@ class NoteEditorState(noteId: String, private val dao: NoteDao, private val scop
 
     /** Immediate save for changes made from the view mode (checkbox toggles, reorders). */
     fun saveContent(newText: String) {
-        textFieldState.edit { replace(0, length, newText) }
+        showContent(newText)
         pushUndo()
-        lastSaved = NoteSnapshot(title, newText)
+        lastSaved = snapshot()
         save()
     }
 
     /** Steps back to the previous snapshot on the undo stack, one step per call. */
     fun undo() {
         if (undoStack.isEmpty()) return
-        val previous = undoStack.removeAt(undoStack.size - 1)
-        titleFieldState.edit { replace(0, length, previous.title) }
-        textFieldState.edit { replace(0, length, previous.content) }
-        lastSaved = previous
+        redoStack.add(snapshot())
+        restore(undoStack.removeAt(undoStack.size - 1))
+    }
+
+    /** Steps forward again through what undo stepped back from, one step per call. */
+    fun redo() {
+        if (redoStack.isEmpty()) return
+        undoStack.add(snapshot())
+        restore(redoStack.removeAt(redoStack.size - 1))
+    }
+
+    private fun restore(target: NoteSnapshot) {
+        titleFieldState.edit { replace(0, length, target.title) }
+        showContent(target.content)
+        lastSaved = target
         save()
     }
 
@@ -207,58 +238,30 @@ class NoteEditorState(noteId: String, private val dao: NoteDao, private val scop
     }
 
     // Inserts a blank line above/below the content if the first/last line isn't already blank, and
-    // shifts caretOffset to account for a line added above it.
+    // shifts caretOffset to account for a line added above it. The padding is invisible to
+    // snapshots, so it never gets autosaved or lands on the undo stack.
     private fun padForEditing(caretOffset: Int): Int {
-        val text = content
+        val text = textFieldState.text.toString()
         editPadding = EditPadding()
         if (text.isEmpty()) return caretOffset
         val firstLineEnd = text.indexOf('\n').let { if (it == -1) text.length else it }
         val lastLineStart = text.lastIndexOf('\n') + 1
         val padding = EditPadding(top = firstLineEnd > 0, bottom = lastLineStart < text.length)
         if (!padding.any) return caretOffset
-        var offset = caretOffset
-        textFieldState.edit {
-            if (padding.bottom) replace(text.length, text.length, "\n")
-            if (padding.top) {
-                replace(0, 0, "\n")
-                offset += 1
-            }
-        }
         editPadding = padding
-        // The padding isn't a real edit; keep lastSaved in sync so it doesn't get autosaved or land
-        // on the undo stack on its own.
-        lastSaved?.let { lastSaved = it.copy(content = content) }
-        return offset
+        showContent(text)
+        return if (padding.top) caretOffset + 1 else caretOffset
     }
 
     // Removes the fake padding lines added by padForEditing, but only the ones still empty;
     // anything the user typed into them is kept.
     private fun stripEditPadding() {
-        val padding = editPadding
-        if (!padding.any) return
-        var strippedBottom = false
-        var strippedTop = false
-        textFieldState.edit {
-            if (padding.bottom && length > 0 && asCharSequence()[length - 1] == '\n') {
-                replace(length - 1, length, "")
-                strippedBottom = true
-            }
-            if (padding.top && length > 0 && asCharSequence()[0] == '\n') {
-                replace(0, 1, "")
-                strippedTop = true
-            }
-        }
-        // Mirror the same removal on lastSaved so a padding-only round trip (enter edit mode, leave
-        // without typing) doesn't look like an edit.
-        if (strippedBottom || strippedTop) {
-            lastSaved?.let { saved ->
-                var kept = saved.content
-                if (strippedBottom && kept.endsWith("\n")) kept = kept.dropLast(1)
-                if (strippedTop && kept.startsWith("\n")) kept = kept.drop(1)
-                lastSaved = saved.copy(content = kept)
-            }
-        }
+        if (!editPadding.any) return
+        val stripped = content
         editPadding = EditPadding()
+        if (stripped != textFieldState.text.toString()) {
+            textFieldState.edit { replace(0, length, stripped) }
+        }
     }
 }
 

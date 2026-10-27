@@ -184,6 +184,7 @@ fun NoteEditorScreen(
                         locked = state.locked,
                         searchOpen = searchOpen,
                         canUndo = state.canUndo,
+                        canRedo = state.canRedo,
                         hasBlankEdgeLines = contentScans.hasBlankEdgeLines,
                         hasCheckboxLine = contentScans.hasCheckboxLine,
                         hasCheckedLine = contentScans.hasCheckedLine,
@@ -198,6 +199,7 @@ fun NoteEditorScreen(
                     actions = NoteEditorBarActions(
                         onBack = { state.goBack(onBack) },
                         onUndo = { state.undo() },
+                        onRedo = { state.redo() },
                         onToggleSearch = {
                             searchOpen = !searchOpen
                             if (!searchOpen) noteQuery = ""
