@@ -40,6 +40,7 @@ class MyApplication : Application(), SingletonImageLoader.Factory {
                 NOTES_TRASH_RETENTION_DAYS * 24L * 60L * 60L * 1000L
             AppDatabase.get(this@MyApplication).noteDao().purgeExpiredTrashedNotes(cutoff)
             flashcardRepository.seedAndPurge()
+            flashcardRepository.primeListsWithCounts()
             // Reads the saved discoveries batch off disk right away (no network), so the card on the
             // music screen is already there on the first frame instead of popping in a moment later.
             deezerRepository.discoveries.prime()

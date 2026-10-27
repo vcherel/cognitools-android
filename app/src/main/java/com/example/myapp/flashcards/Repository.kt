@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onEach
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -17,6 +18,13 @@ class FlashcardRepository(private val context: Context) {
     private val dao = AppDatabase.get(context).flashcardDao()
 
     fun observeLists(): Flow<List<FlashcardList>> = dao.observeLists()
+
+    /**
+     * The last lists and counts seen, so the lists screen's first frame is filled instead of a
+     * spinner. The screen's own query replaces it a moment later with fresh due counts.
+     */
+    @Volatile var lastListsWithCounts: Pair<List<FlashcardList>, Map<String, Pair<Int, Int>>>? = null
+        private set
 
     fun observeListsWithCounts(): Flow<Pair<List<FlashcardList>, Map<String, Pair<Int, Int>>>> {
         val now = System.currentTimeMillis()
@@ -31,7 +39,11 @@ class FlashcardRepository(private val context: Context) {
                 list.id to ((totalById[list.id] ?: 0) to (dueById[list.id] ?: 0))
             }
             lists to counts
-        }
+        }.onEach { lastListsWithCounts = it }
+    }
+
+    suspend fun primeListsWithCounts() {
+        observeListsWithCounts().first()
     }
 
     fun observeDueCount(now: Long): Flow<Int> = dao.observeDueCounts(now).map { rows -> rows.sumOf { it.c } }

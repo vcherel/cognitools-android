@@ -85,8 +85,10 @@ fun FlashcardListsScreen(navController: NavController) {
     var selectedListId by remember { mutableStateOf("") }
     var showGlobalStats by remember { mutableStateOf(false) }
 
-    var listsWithCountsState by remember { mutableStateOf(Pair(emptyList<FlashcardList>(), emptyMap<String, Pair<Int, Int>>())) }
-    var hasLoaded by remember { mutableStateOf(false) }
+    var listsWithCountsState by remember {
+        mutableStateOf(repository.lastListsWithCounts ?: Pair(emptyList<FlashcardList>(), emptyMap<String, Pair<Int, Int>>()))
+    }
+    var hasLoaded by remember { mutableStateOf(repository.lastListsWithCounts != null) }
 
     LaunchedEffect(repository) {
         repository.observeListsWithCounts().collect { pair ->

@@ -67,8 +67,9 @@ import com.example.myapp.flashcardRepository
 import com.example.myapp.BottomFadeOverlay
 import com.example.myapp.MyButton
 import com.example.myapp.ShowAlertDialog
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 private enum class SortField(val menuLabel: String) {
     INTERVAL("Intervalle révision"),
@@ -144,7 +145,8 @@ fun FlashcardDetailScreen(
 
     val isAllLists = listId == "all"
 
-    val lists by remember { repository.observeLists() }.collectAsState(initial = emptyList())
+    val lists by remember { repository.observeLists() }
+        .collectAsState(initial = repository.lastListsWithCounts?.first.orEmpty())
     val listName = remember(lists, listId) {
         if (isAllLists) "Tout"
         else lists.find { it.id == listId }?.name ?: ""
@@ -171,16 +173,11 @@ fun FlashcardDetailScreen(
         var firstEmission = true
         flow.collect { list ->
             if (firstEmission) {
-                // Initial load: paint in chunks to keep a big list smooth, then jump to top.
+                // The LazyColumn only composes the rows on screen, so the whole list goes in at once.
                 elementsState.clear()
-                list.chunked(20).forEach { chunk ->
-                    elementsState.addAll(chunk)
-                    elementsVersion++
-                    delay(16)
-                }
-                isLoading = false
+                elementsState.addAll(list)
+                elementsVersion++
                 firstEmission = false
-                scope.launch { listState.scrollToItem(0) }
             } else {
                 // Later DB updates (reset, edit, ...): patch only what changed so just the
                 // affected cards recompose and the scroll stays where it is.
@@ -206,8 +203,12 @@ fun FlashcardDetailScreen(
         prevQuery.value = searchQuery
         prevSort.value = sortMode
 
+        // Sorting a few hundred cards is enough to drop a frame, so it runs off the main thread.
+        val snapshot = elementsState.toList()
+        val sorted = withContext(Dispatchers.Default) { snapshot.filteredAndSorted(searchQuery, sortMode) }
         visibleElements.clear()
-        visibleElements.addAll(elementsState.filteredAndSorted(searchQuery, sortMode))
+        visibleElements.addAll(sorted)
+        if (elementsVersion > 0) isLoading = false
 
         // A new search or sort jumps to the top; a data update (reset, edit, ...) keeps the
         // viewport anchored to the same scroll offset so the touched card just moves underneath.
