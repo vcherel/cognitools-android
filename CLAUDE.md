@@ -17,7 +17,7 @@ This app's UI text (labels, toasts, snackbars, content descriptions, etc.) is Fr
 A layout complaint starts with `adb exec-out screencap -p`, never with the code. A black capture means the phone is locked: ask Valentin to unlock it and open the screen, then capture again.
 
 ## Deploy method
-Run `uv run --no-project src/deploy.py` in the background: it stops at once when no phone is connected, otherwise builds the release APK, installs it and compiles it (`--no-build` reuses the last build). It runs these steps:
+At /wrapup, check `adb devices` first. With the phone plugged in, do everything: run `uv run --no-project src/deploy.py` in the background, which builds the release APK, installs it and compiles it (`--no-build` reuses the last build). Without the phone, build no APK: `./gradlew compileReleaseKotlin` plus the pre-push tests are enough, and the deploy waits for the next wrapup with the phone. The script runs these steps:
 
 ```
 ./gradlew assembleRelease
