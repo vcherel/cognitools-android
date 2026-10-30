@@ -63,6 +63,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.myapp.BackIconButton
 import com.example.myapp.deaccented
+import com.example.myapp.formatDuration
 import com.example.myapp.flashcardRepository
 import com.example.myapp.BottomFadeOverlay
 import com.example.myapp.MyButton

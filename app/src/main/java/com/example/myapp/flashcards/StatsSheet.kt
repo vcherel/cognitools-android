@@ -1,5 +1,6 @@
 package com.example.myapp.flashcards
 
+import com.example.myapp.formatDuration
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box

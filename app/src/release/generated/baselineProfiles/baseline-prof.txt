@@ -24274,8 +24274,9 @@ PLcom/example/myapp/flashcards/ListsScreenKt$FlashcardListsScreen$lambda$33$0$1$
 PLcom/example/myapp/flashcards/ListsScreenKt$FlashcardListsScreen$lambda$33$0$1$0$0$0$$inlined$items$default$4;->invoke(Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
 PLcom/example/myapp/flashcards/ListsScreenKt$FlashcardListsScreen$reorderableState$1$1;-><init>(Landroidx/compose/runtime/MutableState;Lkotlin/coroutines/Continuation;)V
 Lcom/example/myapp/flashcards/ModelsKt;
-SPLcom/example/myapp/flashcards/ModelsKt;->formatDuration$default(JZILjava/lang/Object;)Ljava/lang/String;
-SPLcom/example/myapp/flashcards/ModelsKt;->formatDuration(JZ)Ljava/lang/String;
+Lcom/example/myapp/DurationKt;
+SPLcom/example/myapp/DurationKt;->formatDuration$default(JZILjava/lang/Object;)Ljava/lang/String;
+SPLcom/example/myapp/DurationKt;->formatDuration(JZ)Ljava/lang/String;
 PLcom/example/myapp/flashcards/ModelsKt;->getNextReviewAt(Lcom/example/myapp/flashcards/FlashcardElement;)J
 PLcom/example/myapp/flashcards/ModelsKt;->isDue$default(Lcom/example/myapp/flashcards/FlashcardElement;JILjava/lang/Object;)Z
 PLcom/example/myapp/flashcards/ModelsKt;->isDue(Lcom/example/myapp/flashcards/FlashcardElement;J)Z

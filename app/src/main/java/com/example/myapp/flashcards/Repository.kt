@@ -227,21 +227,8 @@ class FlashcardRepository(private val context: Context) {
         // Builtin cards whose text or picture was edited, with the version that shipped the edit:
         // they are replaced once by their shipped version, which also wipes their progress since
         // they may have been learned from the old one. A card added to an already seeded list is
-        // listed here too, which inserts it.
+        // listed here too, which inserts it. Entries of a version the phone already applied are dropped.
         private val RESETS = listOf(
-            1 to "flag-yt",
-            2 to "flag-bq",
-            2 to "flag-eh",
-            2 to "flag-gu",
-            2 to "cap-b-184",
-            3 to "flag-bn",
-            3 to "flag-cf",
-            3 to "flag-cz",
-            3 to "flag-lr",
-            3 to "flag-st",
-            3 to "flag-sz",
-            3 to "flag-af",
-            3 to "flag-af-taliban",
             4 to "flag-ie",
             4 to "flag-md",
             4 to "flag-ad",

@@ -61,6 +61,7 @@ import androidx.activity.compose.BackHandler
 import androidx.navigation.NavController
 import com.example.myapp.BackIconButton
 import com.example.myapp.flashcardRepository
+import com.example.myapp.formatDuration
 import com.example.myapp.ImportBackupButton
 import com.example.myapp.BottomFadeOverlay
 import com.example.myapp.MyButton
@@ -105,7 +106,6 @@ fun FlashcardListsScreen(navController: NavController) {
     }
     val lists = listsWithCountsState.first
     val countsMap = listsWithCountsState.second
-    val isLoading = !hasLoaded
 
     // Local mirror of the list order so drag feels instant. Synced from the DB flow
     // while not dragging, and written back to the DB when a drag ends.
@@ -186,7 +186,7 @@ fun FlashcardListsScreen(navController: NavController) {
                 contentAlignment = Alignment.Center
             ) {
                 when {
-                    isLoading -> {
+                    !hasLoaded -> {
                         CircularProgressIndicator()
                     }
                     lists.isEmpty() -> {

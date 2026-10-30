@@ -50,6 +50,7 @@ import com.example.myapp.ErrorText
 import com.example.myapp.MyButton
 import com.example.myapp.ScreenTopBar
 import com.example.myapp.newsRepository
+import com.example.myapp.openInBrowser
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch

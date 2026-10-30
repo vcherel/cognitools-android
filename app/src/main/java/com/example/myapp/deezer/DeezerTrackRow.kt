@@ -61,6 +61,7 @@ import com.example.myapp.MediaArt
 import com.example.myapp.MediaListRow
 import com.example.myapp.MediaRowSubtitle
 import com.example.myapp.deezerRepository
+import com.example.myapp.runIgnoringErrors
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -97,7 +98,7 @@ fun TrackRow(
     var inPepites by remember(track.sngId) { mutableStateOf(false) }
     LaunchedEffect(menuExpanded, track.sngId) {
         if (!menuExpanded) return@LaunchedEffect
-        runCatching { repo.ensureBestPepitesLoaded() }
+        runIgnoringErrors { repo.ensureBestPepitesLoaded() }
         inPepites = repo.bestPepitesContains(track.sngId) == true
     }
     SwipeToQueue(onAddToQueue) { MediaListRow(
@@ -298,7 +299,7 @@ fun PlaylistPickerDialog(
     onPick: (DeezerPlaylist) -> Unit
 ) {
     var playlists by remember { mutableStateOf<List<DeezerPlaylist>?>(null) }
-    LaunchedEffect(Unit) { runCatching { playlists = repo.fetchPlaylists() } }
+    LaunchedEffect(Unit) { runIgnoringErrors { playlists = repo.fetchPlaylists() } }
 
     AlertDialog(
         onDismissRequest = onDismiss,

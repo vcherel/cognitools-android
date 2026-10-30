@@ -45,6 +45,7 @@ import coil3.compose.AsyncImage
 import com.example.myapp.MediaListRow
 import com.example.myapp.MediaRowSubtitle
 import com.example.myapp.ScreenTopBar
+import com.example.myapp.runIgnoringErrors
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
@@ -77,12 +78,14 @@ fun DeezerArtistScreen(
 
     LaunchedEffect(artistId) {
         coroutineScope {
-            val topDeferred = async { runCatching { repo.artistTopTracks(artistId) }.getOrDefault(emptyList()) }
-            val relDeferred = async { runCatching { repo.artistReleases(artistId, artistName) }.getOrDefault(emptyList()) }
+            val topDeferred = async { runIgnoringErrors { repo.artistTopTracks(artistId) }.getOrDefault(emptyList()) }
+            val relDeferred = async {
+                runIgnoringErrors { repo.artistReleases(artistId, artistName) }.getOrDefault(emptyList())
+            }
             topTracks = topDeferred.await()
             releases = relDeferred.await()
         }
-        runCatching { repo.ensureFavorites() }
+        runIgnoringErrors { repo.ensureFavorites() }
     }
 
     Column(Modifier.fillMaxSize()) {

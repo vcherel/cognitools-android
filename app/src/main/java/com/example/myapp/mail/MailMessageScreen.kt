@@ -1,6 +1,5 @@
 package com.example.myapp.mail
 
-import android.content.Intent
 import android.graphics.Color
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
@@ -33,6 +32,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import com.example.myapp.ScreenTopBar
 import com.example.myapp.mailRepository
 import com.example.myapp.news.newsFullDate
+import com.example.myapp.openInBrowser
 
 /**
  * One mail, drawn as it was sent in a WebView (no JavaScript). A link opens outside the app, in the
@@ -105,7 +105,7 @@ private fun MailWebView(html: String, modifier: Modifier) {
                 settings.displayZoomControls = false
                 webViewClient = object : WebViewClient() {
                     override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
-                        runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, request.url)) }
+                        openInBrowser(context, request.url.toString())
                         return true
                     }
                 }

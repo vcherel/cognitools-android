@@ -69,7 +69,7 @@ import com.example.myapp.SearchHistory
 import com.example.myapp.SearchSurface
 import com.example.myapp.ShowAlertDialog
 import com.example.myapp.flashcards.AppDatabase
-import com.example.myapp.flashcards.formatDuration
+import com.example.myapp.formatDuration
 import kotlinx.coroutines.launch
 
 private fun formatNoteDate(updatedAt: Long): String {

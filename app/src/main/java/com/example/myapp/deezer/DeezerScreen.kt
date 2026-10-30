@@ -23,6 +23,7 @@ import com.example.myapp.MiniPlayerBar
 import com.example.myapp.deezerRepository
 import com.example.myapp.podcastRepository
 import com.example.myapp.popBackStackOnce
+import com.example.myapp.runIgnoringErrors
 import com.example.myapp.podcasts.PodcastDownloadsScreen
 import com.example.myapp.podcasts.PodcastEpisodesScreen
 import com.example.myapp.podcasts.PodcastFullPlayerSheet
@@ -52,7 +53,7 @@ fun DeezerScreen(
     }
     fun openArtistByName(name: String) {
         scope.launch {
-            val artist = runCatching { repo.searchArtist(name) }.getOrNull()
+            val artist = runIgnoringErrors { repo.searchArtist(name) }.getOrNull()
             if (artist != null) openArtist(artist) else AppSnackbar.show("Artiste introuvable")
         }
     }

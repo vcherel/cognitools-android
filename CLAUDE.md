@@ -60,6 +60,8 @@ Root package (shared/misc):
 - `AtomicWrite.kt`: `File.writeAtomically`, the one way a JSON state file is written (tmp then rename), since the process dies screen-off often enough to truncate a direct write
 - `Clipboard.kt`: `copyToClipboard`, the one clipboard write (ErrorText's copy button, the Deezer error log, the playback failure snackbars, the note card copy, the translation copy)
 - `Share.kt`: `shareUrisIntent` (files, for the gallery and the file explorer) and `shareTextIntent` (a link, for the Deezer track and playlist shares), the one place an ACTION_SEND is built
+- `Browser.kt`: `openInBrowser`, the one ACTION_VIEW for a link (news articles, Wiktionary from the mots fléchés, links in a mail), with a snackbar when nothing can open it
+- `Duration.kt`: `formatDuration`, the French "3j" / "2h 5min" wait formatting the flashcards and the notes list share
 - `BottomFadeOverlay.kt`: shared fade out gradient overlay composable
 - `Snackbar.kt`: AppSnackbar, the app wide snackbar screens post undo actions through
 - `SearchHistory.kt`: recent search terms per surface (notes, cities, Deezer, news) and the RecentSearchChips row

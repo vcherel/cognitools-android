@@ -366,10 +366,11 @@ private fun episodeSubtitle(
 ): String {
     val show = episode.podcastTitle.takeIf { withPodcastTitle && it.isNotBlank() }
     val date = if (episode.pubDate > 0) episodeDateFormat.format(episode.pubDate) else null
-    val duration = episode.durationSec?.let { formatDuration(it) }
+    val duration = episode.durationSec?.let { formatEpisodeLength(it) }
     val remaining = progress?.let {
         val totalMs = episodeDurationMs(episode, it)
-        if (totalMs <= 0) null else "reste ${formatDuration(((totalMs - it.positionMs) / 1000L).toInt().coerceAtLeast(60))}"
+        if (totalMs <= 0) null
+        else "reste ${formatEpisodeLength(((totalMs - it.positionMs) / 1000L).toInt().coerceAtLeast(60))}"
     }
     return listOfNotNull(show, date, duration, remaining).joinToString(" · ")
 }
@@ -386,7 +387,7 @@ private fun episodeFraction(episode: PodcastEpisode, progress: PodcastEpisodePro
 private fun episodeDurationMs(episode: PodcastEpisode, progress: PodcastEpisodeProgress): Long =
     progress.durationMs.takeIf { it > 0 } ?: ((episode.durationSec ?: 0) * 1000L)
 
-private fun formatDuration(totalSec: Int): String {
+private fun formatEpisodeLength(totalSec: Int): String {
     val hours = totalSec / 3600
     val minutes = (totalSec % 3600) / 60
     return if (hours > 0) "$hours h $minutes min" else "$minutes min"

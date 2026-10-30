@@ -1,8 +1,5 @@
 package com.example.myapp.news
 
-import android.content.Context
-import android.content.Intent
-import android.net.Uri
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -176,7 +173,3 @@ fun newsRelativeTime(publishedAt: Long): String {
 
 fun newsFullDate(publishedAt: Long): String =
     if (publishedAt <= 0) "" else newsFullDateFormat.format(publishedAt)
-
-fun openInBrowser(context: Context, url: String) {
-    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
-}

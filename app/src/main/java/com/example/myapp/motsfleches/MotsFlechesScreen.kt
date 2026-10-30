@@ -1,7 +1,6 @@
 package com.example.myapp.motsfleches
 
 import android.content.Context
-import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -56,6 +55,7 @@ import com.example.myapp.AppDialog
 import com.example.myapp.AppSnackbar
 import com.example.myapp.MyButton
 import com.example.myapp.ScreenTopBar
+import com.example.myapp.openInBrowser
 import com.example.myapp.flashcards.AddToFlashcardsDialog
 import com.example.myapp.plural
 import kotlinx.coroutines.flow.first
@@ -495,8 +495,7 @@ private fun ClueAction(
 private fun openWiktionary(context: Context, lang: MotsFlechesLang, word: String) {
     val url = "https://${lang.wiktionary}.wiktionary.org/w/index.php?search=" +
         Uri.encode(word.lowercase())
-    runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
-        .onFailure { AppSnackbar.show("Aucun navigateur pour ouvrir le lien") }
+    openInBrowser(context, url)
 }
 
 /** Letters only: the system keyboard's suggestions and autocorrect have nothing to offer here. */

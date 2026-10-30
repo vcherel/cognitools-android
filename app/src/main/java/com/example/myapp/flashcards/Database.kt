@@ -7,8 +7,6 @@ import androidx.room.Query
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.Upsert
-import androidx.room.migration.Migration
-import androidx.sqlite.db.SupportSQLiteDatabase
 import com.example.myapp.gallery.PinnedMediaItem
 import com.example.myapp.gallery.PinnedMediaItemDao
 import com.example.myapp.notes.Note
@@ -107,13 +105,7 @@ abstract class AppDatabase : RoomDatabase() {
                     context.applicationContext,
                     AppDatabase::class.java,
                     "flashcards.db"
-                ).addMigrations(MIGRATION_17_18).build().also { instance = it }
+                ).build().also { instance = it }
             }
-    }
-}
-
-private val MIGRATION_17_18 = object : Migration(17, 18) {
-    override fun migrate(db: SupportSQLiteDatabase) {
-        db.execSQL("ALTER TABLE cards ADD COLUMN image TEXT")
     }
 }

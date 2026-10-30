@@ -190,8 +190,8 @@ private fun MusicSearch(
         searching = true
         delay(350)
         coroutineScope {
-            val tracksDeferred = async { runCatching { repo.search(q) }.getOrDefault(emptyList()) }
-            val artistDeferred = async { runCatching { repo.searchArtist(q) }.getOrNull() }
+            val tracksDeferred = async { runIgnoringErrors { repo.search(q) }.getOrDefault(emptyList()) }
+            val artistDeferred = async { runIgnoringErrors { repo.searchArtist(q) }.getOrNull() }
             results = tracksDeferred.await()
             artist = artistDeferred.await()
         }
@@ -269,7 +269,7 @@ private fun PodcastSearch(podcastRepo: PodcastRepository, query: String, scope: 
     val followedIds = favorites.map { it.id }.toSet()
 
     LaunchedEffect(Unit) {
-        recommendations = runCatching { podcastRepo.recommendations() }.getOrDefault(emptyList())
+        recommendations = runIgnoringErrors { podcastRepo.recommendations() }.getOrDefault(emptyList())
     }
 
     LaunchedEffect(query) {
@@ -277,7 +277,7 @@ private fun PodcastSearch(podcastRepo: PodcastRepository, query: String, scope: 
         if (q.isBlank()) { results = emptyList(); return@LaunchedEffect }
         loading = true
         delay(350)
-        results = runCatching { podcastRepo.searchCatalog(q) }.getOrDefault(emptyList())
+        results = runIgnoringErrors { podcastRepo.searchCatalog(q) }.getOrDefault(emptyList())
         loading = false
         if (results.isNotEmpty()) SearchHistory.record(context, SearchSurface.PODCAST, q)
     }
