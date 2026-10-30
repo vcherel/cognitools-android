@@ -1,5 +1,6 @@
 package com.example.myapp.flashcards
 
+import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -58,6 +59,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.myapp.BackIconButton
 import com.example.myapp.flashcardRepository
+import com.example.myapp.formatDuration
 import com.example.myapp.LocalIsDarkMode
 import com.example.myapp.MyButton
 import com.example.myapp.popBackStackOnce
@@ -205,6 +207,15 @@ fun FlashcardGameScreen(listId: String, navController: NavController) {
 
             val quality = if (wasCorrect) 4 else 2
             val updatedCard = reviewCard(card, quality, sawAnswer = !showDefinition, golden = isGolden)
+
+            if (isGolden) {
+                val message = if (wasCorrect) {
+                    "Carte dorée gagnée : attente ×2, revient dans ${formatDuration(updatedCard.interval * 60_000L)}"
+                } else {
+                    "Carte dorée perdue : progression remise à zéro"
+                }
+                Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+            }
 
             localUpdates = localUpdates + (card.id to updatedCard)
             canUndo = true
@@ -470,7 +481,7 @@ private fun CardFace(
 
         if (isGolden) {
             Text(
-                text = "✨ Carte dorée",
+                text = "Carte dorée",
                 style = MaterialTheme.typography.titleMedium,
                 color = Gold,
                 fontWeight = FontWeight.Bold,
