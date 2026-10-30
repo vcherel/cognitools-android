@@ -154,7 +154,9 @@ class Crossfader(
             }
 
             override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
-                if (!playWhenReady) cancel()
+                if (playWhenReady) return
+                if (fadeJob?.isActive == true) log("blend cut by a pause (reason $reason)")
+                cancel()
             }
 
             override fun onPositionDiscontinuity(
@@ -166,6 +168,9 @@ class Crossfader(
             }
 
             override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+                if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO) {
+                    log("track ended without a blend (fader state ${fader.playbackState}, ${faderError ?: "no error"})")
+                }
                 meter.resetTrack()
                 lowSince = 0L
                 silentSince = 0L
@@ -180,6 +185,7 @@ class Crossfader(
             override fun onPlayerError(error: PlaybackException) {
                 // Whatever the outgoing tail was doing, the next track is what matters: let it play.
                 faderError = error.errorCodeName
+                if (fadeJob?.isActive == true) log("fader failed during a blend: ${error.errorCodeName}")
                 fader.stop()
                 faderItemId = null
             }
@@ -222,7 +228,10 @@ class Crossfader(
 
         val inWindow = remaining <= SMART_WINDOW_MS
         when {
-            inWindow && silentSince > 0 && now - silentSince >= SILENCE_HOLD_MS -> jumpOverSilence()
+            inWindow && silentSince > 0 && now - silentSince >= SILENCE_HOLD_MS -> {
+                log("silence jump on ${item.mediaId}, ${remaining / 1000} s left, level ${meter.fastLevel / trackLevel!!} of the track's")
+                jumpOverSilence()
+            }
             remaining <= FADE_MS + HANDOFF_MS -> crossfade(FADE_MS)
             inWindow && lowSince > 0 && now - lowSince >= OUTRO_HOLD_MS ->
                 crossfade((remaining - HANDOFF_MS).coerceIn(FADE_MS, MAX_FADE_MS))
@@ -269,7 +278,7 @@ class Crossfader(
         fadeJob = scope.launch {
             try {
                 // Not aligned in time: the next tick tries again.
-                blend(fadeMs)
+                blend(fadeMs)?.let { log("crossfade gave up, will retry: $it") }
             } finally {
                 player.volume = 1f
                 unloadFader()
@@ -365,6 +374,10 @@ class Crossfader(
         // 3. The main player moves on to the next track and the two blend, equal power.
         seekToNext()
         awaitIncoming()
+        val tailState = fader.playbackState
+        if (tailState != Player.STATE_READY && tailState != Player.STATE_ENDED) {
+            log("outgoing tail stopped early (fader state $tailState, ${faderError ?: "no error"})")
+        }
         val length = if (fitToTail) minOf(fadeMs, tailLeft()) else fadeMs
         ramp(length.coerceAtLeast(MIN_FADE_MS)) { t ->
             fader.volume = cos(t * PI / 2).toFloat()
