@@ -33,14 +33,19 @@ fun nextSlotAfter(now: LocalDateTime, times: ReminderTimes): LocalDateTime {
 fun reminderAfterSession(now: LocalDateTime, times: ReminderTimes): LocalDateTime =
     slotOn(now.toLocalDate().plusDays(RECOVERY_DAYS + 1), times)
 
-fun reminderSnoozedHour(now: LocalDateTime): LocalDateTime = now.plusHours(1)
+/** What the "Plus tard" snooze can draw, with even odds. */
+val SNOOZE_MINUTES = listOf(30L, 60L, 120L)
+
+fun reminderSnoozed(now: LocalDateTime, minutes: Long): LocalDateTime = now.plusMinutes(minutes)
+
+fun snoozeLabel(minutes: Long): String = if (minutes < 60) "$minutes min" else "${minutes / 60} h"
 
 fun reminderSnoozedDay(now: LocalDateTime, times: ReminderTimes): LocalDateTime =
     slotOn(now.toLocalDate().plusDays(1), times)
 
 /**
  * The reminder moved along when the times change: one sitting on its day's old slot takes the new
- * slot, one set by a one hour snooze stays where it is.
+ * slot, one set by a "Plus tard" snooze stays where it is.
  */
 fun reminderWithNewTimes(remindAt: LocalDateTime, old: ReminderTimes, new: ReminderTimes): LocalDateTime =
     if (remindAt == slotOn(remindAt.toLocalDate(), old)) slotOn(remindAt.toLocalDate(), new) else remindAt

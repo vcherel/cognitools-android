@@ -7,6 +7,7 @@ import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import androidx.datastore.preferences.core.MutablePreferences
 import androidx.datastore.preferences.core.Preferences
@@ -25,6 +26,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -100,8 +102,14 @@ object WorkoutReminder {
         }
     }
 
-    suspend fun snoozeHour(context: Context) =
-        update(context) { it.copy(remindAt = reminderSnoozedHour(LocalDateTime.now()).toMillis()) }
+    /** Snoozes for a drawn [SNOOZE_MINUTES] and toasts how long it came out. */
+    suspend fun snoozeLater(context: Context) {
+        val minutes = SNOOZE_MINUTES.random()
+        update(context) { it.copy(remindAt = reminderSnoozed(LocalDateTime.now(), minutes).toMillis()) }
+        withContext(Dispatchers.Main) {
+            Toast.makeText(context, "🎲 Rappel dans ${snoozeLabel(minutes)}", Toast.LENGTH_LONG).show()
+        }
+    }
 
     suspend fun snoozeDay(context: Context) =
         update(context) { it.copy(remindAt = reminderSnoozedDay(LocalDateTime.now(), it.times).toMillis()) }
@@ -193,7 +201,7 @@ object WorkoutReminder {
             .setContentIntent(open)
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
             .addAction(0, "C'est fait", receiverIntent(context, ACTION_DONE, 1))
-            .addAction(0, "Dans 1 h", receiverIntent(context, ACTION_SNOOZE_HOUR, 2))
+            .addAction(0, "Plus tard 🎲", receiverIntent(context, ACTION_SNOOZE_LATER, 2))
             .addAction(0, "Demain", receiverIntent(context, ACTION_SNOOZE_DAY, 3))
             .build()
         manager.notify(NOTIFICATION_ID, notification)
@@ -209,7 +217,7 @@ object WorkoutReminder {
 
 private const val ACTION_REMIND = "com.example.myapp.workout.REMIND"
 private const val ACTION_DONE = "com.example.myapp.workout.DONE"
-private const val ACTION_SNOOZE_HOUR = "com.example.myapp.workout.SNOOZE_HOUR"
+private const val ACTION_SNOOZE_LATER = "com.example.myapp.workout.SNOOZE_LATER"
 private const val ACTION_SNOOZE_DAY = "com.example.myapp.workout.SNOOZE_DAY"
 
 /** The alarm, the notification buttons, and the reboot or app update that re-arms the alarm. */
@@ -222,7 +230,7 @@ class WorkoutReceiver : BroadcastReceiver() {
                 when (intent.action) {
                     ACTION_REMIND -> WorkoutReminder.onAlarm(app)
                     ACTION_DONE -> WorkoutReminder.markDone(app)
-                    ACTION_SNOOZE_HOUR -> WorkoutReminder.snoozeHour(app)
+                    ACTION_SNOOZE_LATER -> WorkoutReminder.snoozeLater(app)
                     ACTION_SNOOZE_DAY -> WorkoutReminder.snoozeDay(app)
                     Intent.ACTION_BOOT_COMPLETED, Intent.ACTION_MY_PACKAGE_REPLACED -> WorkoutReminder.reschedule(app)
                 }

@@ -215,7 +215,7 @@ Root package (shared/misc):
 
 `workout/` (muscu reminder, the "Muscu" grid tool):
 - `WorkoutSchedule.kt`: ReminderTimes (19:30 weekdays, 15:00 weekends by default), when the reminder goes off after a session (two days off) or a snooze, the days since the last session and the month/year counts. Pure, covered by a JVM unit test
-- `WorkoutReminder.kt`: the DataStore state (next reminder, every session, due, the times), the one exact alarm, the notification with its done / 1 h / tomorrow buttons, `markDoneWithUndo` (the screen and the menu tile's right half), and WorkoutReceiver (alarm, buttons, reboot)
+- `WorkoutReminder.kt`: the DataStore state (next reminder, every session, due, the times), the one exact alarm, the notification with its done / later (a drawn 30 min, 1 h or 2 h) / tomorrow buttons, `markDoneWithUndo` (the screen and the menu tile's right half), and WorkoutReceiver (alarm, buttons, reboot)
 - `WorkoutScreen.kt`: next reminder and last session, "Séance faite", the snooze buttons while a reminder is due, the two reminder times with their time picker, the history; `lastSessionText` is shared with the notification
 
 `undercover/` (party game tool):

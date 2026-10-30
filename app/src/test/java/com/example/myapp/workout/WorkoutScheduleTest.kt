@@ -34,7 +34,13 @@ class WorkoutScheduleTest {
     @Test
     fun `snoozing a day lands on tomorrow's slot`() {
         assertEquals(at(31, 15), reminderSnoozedDay(at(30, 19, 30), times))
-        assertEquals(at(26, 20, 45), reminderSnoozedHour(at(26, 19, 45)))
+    }
+
+    @Test
+    fun `snoozing later adds the drawn minutes`() {
+        assertEquals(at(26, 20, 15), reminderSnoozed(at(26, 19, 45), 30))
+        assertEquals(at(26, 21, 45), reminderSnoozed(at(26, 19, 45), 120))
+        assertEquals(listOf("30 min", "1 h", "2 h"), SNOOZE_MINUTES.map(::snoozeLabel))
     }
 
     @Test

@@ -179,6 +179,36 @@ class SpacedRepetitionTest {
     }
 
     @Test
+    fun golden_winDoublesTheInterval() {
+        // Same draw as a plain win of 10 * 2.5 * 2.0 = 50 minutes, doubled to 100.
+        val result = reviewCard(
+            card(interval = 10, repetitions = 1, totalWins = 9, totalLosses = 0),
+            quality = 4,
+            sawAnswer = true,
+            random = { 1.0 },
+            golden = true
+        )
+        assertEquals(100, result.interval)
+    }
+
+    @Test
+    fun golden_missWipesEverything() {
+        // 9 wins and a doubled loss: 9/11 * 10. The lucky roll that would delay a plain miss is ignored.
+        val result = reviewCard(
+            card(easeFactor = 2.8, interval = 5000, repetitions = 6, totalWins = 9),
+            quality = 2,
+            sawAnswer = false,
+            random = { 0.1 },
+            golden = true
+        )
+        assertEquals(1.3, result.easeFactor, EPS)
+        assertEquals(0, result.interval)
+        assertEquals(0, result.repetitions)
+        assertEquals(2, result.totalLosses)
+        assertEquals(90.0 / 11, result.score, EPS)
+    }
+
+    @Test
     fun lastReview_setToProvidedNow() {
         val result = reviewCard(card(lastReview = 0L), quality = 4, sawAnswer = true, now = 12345L)
         assertEquals(12345L, result.lastReview)

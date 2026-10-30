@@ -1,5 +1,6 @@
 package com.example.myapp.flashcards
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -68,6 +69,11 @@ import kotlin.random.Random
 
 private const val MAX_DIFFICULT_CARDS = 5
 
+// One drawn card in this many comes up golden: double the wait on a win, a full wipe on a miss.
+private const val GOLDEN_ODDS = 30
+
+private val Gold = Color(0xFFFFC107)
+
 private data class DueState(val cards: List<FlashcardElement>, val totalCount: Int)
 
 // A random-side card shows front or back with even odds each draw; a fixed-side one always shows the front.
@@ -101,6 +107,7 @@ fun FlashcardGameScreen(listId: String, navController: NavController) {
     var cardOffset by remember { mutableFloatStateOf(0f) }
     var isProcessingSwipe by remember { mutableStateOf(false) }
     var showFront by remember { mutableStateOf(true) }
+    var isGolden by remember { mutableStateOf(false) }
     // Rolling working set: at most MAX_DIFFICULT_CARDS difficult cards (score < 2) are in
     // play at once; a new one only enters when a slot frees up (see refillWorkingSet).
     var activeDifficultCards by remember { mutableStateOf<Set<String>>(emptySet()) }
@@ -110,6 +117,7 @@ fun FlashcardGameScreen(listId: String, navController: NavController) {
     // Undo state: the card as it was before the last answer, and which side was shown
     var lastCard by remember { mutableStateOf<FlashcardElement?>(null) }
     var lastShowFront by remember { mutableStateOf(true) }
+    var lastGolden by remember { mutableStateOf(false) }
     var canUndo by remember { mutableStateOf(false) }
 
     var hasNavigatedBack by remember { mutableStateOf(false) }
@@ -152,12 +160,15 @@ fun FlashcardGameScreen(listId: String, navController: NavController) {
         activeDifficultCards = (kept + added).toSet()
     }
 
+    fun draw(card: FlashcardElement?) {
+        currentCard = card
+        if (card == null) return
+        showFront = randomFrontSide(card, sessionRandom)
+        isGolden = sessionRandom.nextInt(GOLDEN_ODDS) == 0
+    }
+
     fun pickIfIdle() {
-        if (currentCard == null && dueState.cards.isNotEmpty()) {
-            val picked = dueState.cards.random(sessionRandom)
-            currentCard = picked
-            showFront = randomFrontSide(picked, sessionRandom)
-        }
+        if (currentCard == null && dueState.cards.isNotEmpty()) draw(dueState.cards.random(sessionRandom))
     }
 
     LaunchedEffect(allElements) {
@@ -190,9 +201,10 @@ fun FlashcardGameScreen(listId: String, navController: NavController) {
         currentCard?.let { card ->
             lastCard = card
             lastShowFront = showFront
+            lastGolden = isGolden
 
             val quality = if (wasCorrect) 4 else 2
-            val updatedCard = reviewCard(card, quality, sawAnswer = !showDefinition)
+            val updatedCard = reviewCard(card, quality, sawAnswer = !showDefinition, golden = isGolden)
 
             localUpdates = localUpdates + (card.id to updatedCard)
             canUndo = true
@@ -207,11 +219,7 @@ fun FlashcardGameScreen(listId: String, navController: NavController) {
             // The card just answered only comes straight back when it is the last one still due
             val availableCards = dueState.cards.filter { it.id != card.id }.ifEmpty { dueState.cards }
 
-            currentCard = if (availableCards.isNotEmpty()) {
-                val next = availableCards.random(sessionRandom)
-                showFront = randomFrontSide(next, sessionRandom)
-                next
-            } else null
+            draw(availableCards.randomOrNull(sessionRandom))
             isProcessingSwipe = false
         }
     }
@@ -226,6 +234,7 @@ fun FlashcardGameScreen(listId: String, navController: NavController) {
 
             currentCard = card
             showFront = lastShowFront
+            isGolden = lastGolden
             showDefinition = false
 
             // If the answer had graduated the card, put it back in the working set
@@ -333,13 +342,15 @@ fun FlashcardGameScreen(listId: String, navController: NavController) {
                             ) {
                                 if (!showDefinition) showDefinition = true
                             },
+                        border = if (isGolden) BorderStroke(4.dp, Gold) else null,
                         elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
                     ) {
                         CardFace(
                             card = card,
                             showFront = showFront,
                             showDefinition = showDefinition,
-                            listName = if (isAllListsMode) listName else null
+                            listName = if (isAllListsMode) listName else null,
+                            isGolden = isGolden
                         )
                     }
                 }
@@ -393,7 +404,8 @@ private fun CardFace(
     card: FlashcardElement,
     showFront: Boolean,
     showDefinition: Boolean,
-    listName: String?
+    listName: String?,
+    isGolden: Boolean
 ) {
     val score = card.score.toInt()
     val scoreColor = scoreColor(score)
@@ -453,6 +465,18 @@ private fun CardFace(
                 ),
                 color = scoreColor,
                 fontWeight = FontWeight.Bold
+            )
+        }
+
+        if (isGolden) {
+            Text(
+                text = "✨ Carte dorée",
+                style = MaterialTheme.typography.titleMedium,
+                color = Gold,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(16.dp)
             )
         }
 
