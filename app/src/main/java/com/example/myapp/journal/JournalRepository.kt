@@ -34,8 +34,10 @@ class JournalRepository(context: Context) {
     private val dir = File(appContext.filesDir, "journal").apply { mkdirs() }
     private val pendingFile = File(dir, "pending.txt")
     private val readFile = File(dir, "read.txt")
+    private val positionsFile = File(dir, "positions.json")
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val pushLock = Mutex()
+    private val positionsLock = Mutex()
     private var pushJob: Job? = null
 
     private val _issues = MutableStateFlow<List<JournalIssue>>(emptyList())
@@ -53,6 +55,9 @@ class JournalRepository(context: Context) {
     val unread: StateFlow<Boolean> = combine(_issues, _read) { issues, read -> issues.any { it.date !in read } }
         .stateIn(scope, SharingStarted.Eagerly, false)
 
+    private val _positions = MutableStateFlow(JournalPositions())
+    val positions: StateFlow<JournalPositions> = _positions.asStateFlow()
+
     private val _loading = MutableStateFlow(false)
     val loading: StateFlow<Boolean> = _loading.asStateFlow()
 
@@ -60,7 +65,12 @@ class JournalRepository(context: Context) {
     val error: StateFlow<String?> = _error.asStateFlow()
 
     init {
-        scope.launch { loadLocal() }
+        scope.launch {
+            if (positionsFile.exists()) {
+                runCatching { parsePositions(positionsFile.readText()) }.getOrNull()?.let { _positions.value = it }
+            }
+            loadLocal()
+        }
     }
 
     private fun issueFile(date: String) = File(dir, "journal_$date.json")
@@ -78,6 +88,7 @@ class JournalRepository(context: Context) {
         val read = if (readFile.exists()) readFile.readLines().filter { it in dates }.toSet() else emptySet()
         readFile.writeAtomically(read.joinToString("\n"))
         _read.value = read
+        _positions.update { p -> p.copy(last = p.last?.takeIf { it in dates }, byDate = p.byDate.filterKeys { it in dates }) }
         _issues.value = issues
         _feedback.value = issues.mapNotNull { issue ->
             feedbackFile(issue.date).takeIf { it.exists() }
@@ -113,6 +124,33 @@ class JournalRepository(context: Context) {
     fun toggleRead(date: String) {
         val read = _read.updateAndGet { if (date in it) it - date else it + date }
         scope.launch { readFile.writeAtomically(read.joinToString("\n")) }
+    }
+
+    /** The issue to open: the one left last, unless a newer one has arrived and is still unread. */
+    fun startDate(): String? {
+        val newest = _issues.value.firstOrNull()?.date ?: return null
+        val last = _positions.value.last ?: return newest
+        return if (newest > last && newest !in _read.value) newest else last
+    }
+
+    fun setShown(date: String) = editPositions { it.copy(last = date) }
+
+    fun saveScroll(date: String, index: Int, offset: Int) = editPositions { p ->
+        val position = p.byDate[date] ?: JournalPosition()
+        p.copy(byDate = p.byDate + (date to position.copy(index = index, offset = offset)))
+    }
+
+    fun toggleExpanded(date: String, itemId: String) = editPositions { p ->
+        val position = p.byDate[date] ?: JournalPosition()
+        val expanded = if (itemId in position.expanded) position.expanded - itemId else position.expanded + itemId
+        p.copy(byDate = p.byDate + (date to position.copy(expanded = expanded)))
+    }
+
+    /** Writes the latest value under the lock, so writes landing out of order still leave the newest on disk. */
+    private fun editPositions(change: (JournalPositions) -> JournalPositions) {
+        val before = _positions.value
+        if (_positions.updateAndGet(change) == before) return
+        scope.launch { positionsLock.withLock { positionsFile.writeAtomically(_positions.value.toJson()) } }
     }
 
     /** Tapping the rating already given takes it back. */

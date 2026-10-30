@@ -46,6 +46,38 @@ data class JournalFeedback(
     val general: String = ""
 )
 
+/** Where an issue was left: the first visible row of its list with its offset, and the cards opened in it. */
+data class JournalPosition(val index: Int = 0, val offset: Int = 0, val expanded: Set<String> = emptySet())
+
+/** The positions per date plus the date of the issue shown last, what reopening the screen starts from. */
+data class JournalPositions(val last: String? = null, val byDate: Map<String, JournalPosition> = emptyMap())
+
+fun JournalPositions.toJson(): String = JSONObject().apply {
+    last?.let { put("last", it) }
+    put("issues", JSONObject().apply {
+        byDate.forEach { (date, p) ->
+            put(date, JSONObject().apply {
+                put("index", p.index)
+                put("offset", p.offset)
+                put("expanded", JSONArray(p.expanded.toList()))
+            })
+        }
+    })
+}.toString()
+
+fun parsePositions(raw: String): JournalPositions {
+    val obj = JSONObject(raw)
+    val issues = obj.optJSONObject("issues") ?: JSONObject()
+    return JournalPositions(
+        last = obj.optString("last").ifBlank { null },
+        byDate = issues.keys().asSequence().associateWith { date ->
+            val p = issues.getJSONObject(date)
+            val expanded = p.optJSONArray("expanded") ?: JSONArray()
+            JournalPosition(p.optInt("index"), p.optInt("offset"), (0 until expanded.length()).map(expanded::getString).toSet())
+        }
+    )
+}
+
 fun parseIssue(raw: String): JournalIssue {
     val obj = JSONObject(raw)
     return JournalIssue(

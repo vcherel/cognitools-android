@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -41,12 +42,15 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -63,8 +67,11 @@ import com.example.myapp.newsRepository
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
 
 private val DAY_FORMAT = DateTimeFormatter.ofPattern("EEEE d MMMM", Locale.FRENCH)
+private const val SCROLL_SAVE_DELAY_MS = 500L
 
 /** What the note dialog is editing: one item's note, or the note on the whole issue when [itemId] is null. */
 private data class NoteTarget(val itemId: String?, val title: String, val text: String)
@@ -73,7 +80,8 @@ private data class NoteTarget(val itemId: String?, val title: String, val text: 
  * The day's journal as one scroll: the sections in the order the laptop wrote them, each item a card
  * whose full text opens on tap, with its rating, its note and its sources always on it. The arrows in
  * the header walk back through the older issues, which can still be rated; the check marks the one
- * shown as read. Opening the screen fetches nothing, only the refresh button does.
+ * shown as read. Opening the screen fetches nothing, only the refresh button does. It reopens on the
+ * issue left last, scrolled and expanded as it was, unless a newer unread issue has arrived since.
  */
 @Composable
 fun JournalScreen(onBack: () -> Unit, onOpenArticle: (String) -> Unit) {
@@ -84,11 +92,20 @@ fun JournalScreen(onBack: () -> Unit, onOpenArticle: (String) -> Unit) {
     val loading by repo.loading.collectAsState()
     val error by repo.error.collectAsState()
     val read by repo.read.collectAsState()
+    val positions by repo.positions.collectAsState()
 
-    var index by rememberSaveable { mutableStateOf(0) }
+    var date by rememberSaveable { mutableStateOf<String?>(null) }
     var noteTarget by remember { mutableStateOf<NoteTarget?>(null) }
-    val issue = issues.getOrNull(index.coerceAtMost(issues.lastIndex.coerceAtLeast(0)))
+    val shownDate = date?.takeIf { d -> issues.any { it.date == d } } ?: repo.startDate()
+    val index = issues.indexOfFirst { it.date == shownDate }
+    val issue = issues.getOrNull(index)
     val feedback = issue?.let { allFeedback[it.date] } ?: JournalFeedback()
+
+    LaunchedEffect(shownDate) {
+        if (shownDate == null) return@LaunchedEffect
+        date = shownDate
+        repo.setShown(shownDate)
+    }
 
     Column(Modifier.fillMaxSize()) {
         ScreenTopBar(
@@ -97,10 +114,10 @@ fun JournalScreen(onBack: () -> Unit, onOpenArticle: (String) -> Unit) {
             titleStyle = MaterialTheme.typography.titleLarge,
             titleWeight = true
         ) {
-            IconButton(onClick = { index++ }, enabled = index < issues.lastIndex) {
+            IconButton(onClick = { date = issues[index + 1].date }, enabled = index in 0 until issues.lastIndex) {
                 Icon(Icons.Filled.ChevronLeft, contentDescription = "Numéro précédent")
             }
-            IconButton(onClick = { index-- }, enabled = index > 0) {
+            IconButton(onClick = { date = issues[index - 1].date }, enabled = index > 0) {
                 Icon(Icons.Filled.ChevronRight, contentDescription = "Numéro suivant")
             }
             if (issue != null) {
@@ -138,7 +155,20 @@ fun JournalScreen(onBack: () -> Unit, onOpenArticle: (String) -> Unit) {
             return@Column
         }
 
-        LazyColumn(Modifier.fillMaxSize().padding(horizontal = 12.dp)) {
+        val position = positions.byDate[issue.date] ?: JournalPosition()
+        val listState = remember(issue.date) { LazyListState(position.index, position.offset) }
+        LaunchedEffect(listState) {
+            snapshotFlow { listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset }
+                .collectLatest { (first, offset) ->
+                    delay(SCROLL_SAVE_DELAY_MS)
+                    repo.saveScroll(issue.date, first, offset)
+                }
+        }
+        DisposableEffect(listState) {
+            onDispose { repo.saveScroll(issue.date, listState.firstVisibleItemIndex, listState.firstVisibleItemScrollOffset) }
+        }
+
+        LazyColumn(Modifier.fillMaxSize().padding(horizontal = 12.dp), state = listState) {
             item(key = "head-${issue.date}") {
                 Column(Modifier.padding(horizontal = 4.dp, vertical = 8.dp)) {
                     Text(
@@ -158,6 +188,8 @@ fun JournalScreen(onBack: () -> Unit, onOpenArticle: (String) -> Unit) {
                     JournalItemCard(
                         item = item,
                         explore = section.kind == SectionKind.EXPLORE,
+                        expanded = item.id in position.expanded,
+                        onToggle = { repo.toggleExpanded(issue.date, item.id) },
                         rating = feedback.ratings[item.id] ?: 0,
                         note = feedback.notes[item.id],
                         onRate = { repo.rate(issue.date, item.id, it) },
@@ -224,19 +256,20 @@ private fun SectionHeader(section: JournalSection) {
 private fun JournalItemCard(
     item: JournalItem,
     explore: Boolean,
+    expanded: Boolean,
+    onToggle: () -> Unit,
     rating: Int,
     note: String?,
     onRate: (Int) -> Unit,
     onEditNote: () -> Unit,
     onOpenSource: (JournalSource) -> Unit
 ) {
-    var expanded by rememberSaveable(item.id) { mutableStateOf(false) }
     Surface(
         color = MaterialTheme.colorScheme.surfaceVariant,
         shape = RoundedCornerShape(12.dp),
         modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp)
     ) {
-        Column(Modifier.clickable { expanded = !expanded }.padding(start = 14.dp, end = 6.dp, top = 12.dp, bottom = 4.dp)) {
+        Column(Modifier.clickable(onClick = onToggle).padding(start = 14.dp, end = 6.dp, top = 12.dp, bottom = 4.dp)) {
             if (explore && item.subject.isNotBlank()) {
                 Text(
                     "Essai · ${item.subject}",
