@@ -11,9 +11,13 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.updateAndGet
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -22,12 +26,14 @@ import kotlinx.coroutines.sync.withLock
  * The daily journal the laptop writes (~/Documents/Code/daily-journal). Issues arrive as files in the
  * Yahoo mailbox's Journal folder and are kept in filesDir; the feedback given on one is written next
  * to it and sent back to the same folder a few seconds after the last change. Dates that still have
- * feedback to send survive a killed process in [pendingFile] and go out at the next refresh.
+ * feedback to send survive a killed process in [pendingFile] and go out at the next refresh. Nothing
+ * is fetched unless asked: the screen's refresh button is the only caller of [refresh].
  */
 class JournalRepository(context: Context) {
     private val appContext = context.applicationContext
     private val dir = File(appContext.filesDir, "journal").apply { mkdirs() }
     private val pendingFile = File(dir, "pending.txt")
+    private val readFile = File(dir, "read.txt")
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val pushLock = Mutex()
     private var pushJob: Job? = null
@@ -38,6 +44,14 @@ class JournalRepository(context: Context) {
 
     private val _feedback = MutableStateFlow<Map<String, JournalFeedback>>(emptyMap())
     val feedback: StateFlow<Map<String, JournalFeedback>> = _feedback.asStateFlow()
+
+    private val _read = MutableStateFlow<Set<String>>(emptySet())
+    /** Dates of the issues marked as read. */
+    val read: StateFlow<Set<String>> = _read.asStateFlow()
+
+    /** Whether any issue on the phone is still unread, which lights the menu tile. */
+    val unread: StateFlow<Boolean> = combine(_issues, _read) { issues, read -> issues.any { it.date !in read } }
+        .stateIn(scope, SharingStarted.Eagerly, false)
 
     private val _loading = MutableStateFlow(false)
     val loading: StateFlow<Boolean> = _loading.asStateFlow()
@@ -60,6 +74,10 @@ class JournalRepository(context: Context) {
             feedbackFile(stale.name.removePrefix("journal_").removeSuffix(".json")).delete()
         }
         val issues = files.take(KEEP_ISSUES).mapNotNull { runCatching { parseIssue(it.readText()) }.getOrNull() }
+        val dates = issues.map { it.date }.toSet()
+        val read = if (readFile.exists()) readFile.readLines().filter { it in dates }.toSet() else emptySet()
+        readFile.writeAtomically(read.joinToString("\n"))
+        _read.value = read
         _issues.value = issues
         _feedback.value = issues.mapNotNull { issue ->
             feedbackFile(issue.date).takeIf { it.exists() }
@@ -90,6 +108,11 @@ class JournalRepository(context: Context) {
                 _loading.value = false
             }
         }
+    }
+
+    fun toggleRead(date: String) {
+        val read = _read.updateAndGet { if (date in it) it - date else it + date }
+        scope.launch { readFile.writeAtomically(read.joinToString("\n")) }
     }
 
     /** Tapping the rating already given takes it back. */
@@ -145,7 +168,8 @@ class JournalRepository(context: Context) {
 
     private companion object {
         const val FOLDER = "Journal"
-        const val KEEP_ISSUES = 30
+        /** As many as the laptop leaves in the mailbox (KEEP_ON_MAILBOX in daily-journal's main.py). */
+        const val KEEP_ISSUES = 14
         const val PUSH_DELAY_MS = 4_000L
     }
 }

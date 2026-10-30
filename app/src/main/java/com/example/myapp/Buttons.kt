@@ -91,7 +91,7 @@ fun rememberHeldPressed(interactionSource: InteractionSource): State<Boolean> {
 
 private class ButtonStyle(val shadow: Color, val gradient: Brush, val text: Color)
 
-private fun buttonStyle(isPressed: Boolean, enabled: Boolean, isDarkMode: Boolean): ButtonStyle = when {
+private fun buttonStyle(isPressed: Boolean, enabled: Boolean, isDarkMode: Boolean, highlighted: Boolean): ButtonStyle = when {
     !enabled -> ButtonStyle(
         shadow = if (isDarkMode) Color(0xFF424242) else Color(0xFF9E9E9E),
         gradient = if (isDarkMode) {
@@ -105,6 +105,11 @@ private fun buttonStyle(isPressed: Boolean, enabled: Boolean, isDarkMode: Boolea
         shadow = Color(0xFF1565C0),
         gradient = Brush.horizontalGradient(listOf(Color(0xFF2196F3), Color(0xFF1976D2))),
         text = Color.White
+    )
+    highlighted -> ButtonStyle(
+        shadow = Color(0xFFFF8F00),
+        gradient = Brush.horizontalGradient(listOf(Color(0xFFFFCA28), Color(0xFFFFB300))),
+        text = Color.Black
     )
     else -> ButtonStyle(
         shadow = if (isDarkMode) Color(0xFF37474F) else Color(0xFFB0BEC5),
@@ -157,6 +162,7 @@ fun MyButton(
     fontSize: TextUnit = 24.sp,
     height: Dp = 90.dp,
     enabled: Boolean = true,
+    highlighted: Boolean = false,
     icon: ImageVector? = null,
     onClick: () -> Unit
 ) {
@@ -164,6 +170,7 @@ fun MyButton(
         modifier = modifier.fillMaxWidth(),
         height = height,
         enabled = enabled,
+        highlighted = highlighted,
         onClick = onClick
     ) { textColor ->
         if (icon != null) {
@@ -254,14 +261,15 @@ private fun RaisedButton(
     modifier: Modifier = Modifier,
     height: Dp = 90.dp,
     enabled: Boolean = true,
+    highlighted: Boolean = false,
     onClick: () -> Unit,
     content: @Composable (textColor: Color) -> Unit
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by rememberHeldPressed(interactionSource)
     val isDarkMode = LocalIsDarkMode.current
-    val style = remember(isPressed, enabled, isDarkMode) {
-        buttonStyle(isPressed, enabled = enabled, isDarkMode = isDarkMode)
+    val style = remember(isPressed, enabled, isDarkMode, highlighted) {
+        buttonStyle(isPressed, enabled = enabled, isDarkMode = isDarkMode, highlighted = highlighted)
     }
 
     RaisedSurface(
@@ -294,7 +302,7 @@ fun MySwitch(
 
     // The "pressed" style doubles as the "switch on" look.
     val style = remember(isEnabled, isDarkMode) {
-        buttonStyle(isPressed = isEnabled, enabled = true, isDarkMode = isDarkMode)
+        buttonStyle(isPressed = isEnabled, enabled = true, isDarkMode = isDarkMode, highlighted = false)
     }
 
     RaisedSurface(

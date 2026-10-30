@@ -164,6 +164,7 @@ fun MenuScreen(
             onRightClick = if (somethingPinned) onOpenPinnedPictures else onOpenWallet
         )
         Spacer(modifier = Modifier.height(spaceHeight))
+        val journalUnread by context.journalRepository.unread.collectAsState()
         orderedTools.chunked(2).forEach { row ->
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -192,6 +193,7 @@ fun MenuScreen(
                             modifier = Modifier.weight(1f),
                             height = buttonHeight,
                             fontSize = 20.sp,
+                            highlighted = tool.id == "journal" && journalUnread,
                             onClick = { open() }
                         )
                     }

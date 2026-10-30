@@ -41,7 +41,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -73,7 +72,8 @@ private data class NoteTarget(val itemId: String?, val title: String, val text: 
 /**
  * The day's journal as one scroll: the sections in the order the laptop wrote them, each item a card
  * whose full text opens on tap, with its rating, its note and its sources always on it. The arrows in
- * the header walk back through the older issues, which can still be rated.
+ * the header walk back through the older issues, which can still be rated; the check marks the one
+ * shown as read. Opening the screen fetches nothing, only the refresh button does.
  */
 @Composable
 fun JournalScreen(onBack: () -> Unit, onOpenArticle: (String) -> Unit) {
@@ -83,13 +83,12 @@ fun JournalScreen(onBack: () -> Unit, onOpenArticle: (String) -> Unit) {
     val allFeedback by repo.feedback.collectAsState()
     val loading by repo.loading.collectAsState()
     val error by repo.error.collectAsState()
+    val read by repo.read.collectAsState()
 
     var index by rememberSaveable { mutableStateOf(0) }
     var noteTarget by remember { mutableStateOf<NoteTarget?>(null) }
     val issue = issues.getOrNull(index.coerceAtMost(issues.lastIndex.coerceAtLeast(0)))
     val feedback = issue?.let { allFeedback[it.date] } ?: JournalFeedback()
-
-    LaunchedEffect(Unit) { repo.refresh() }
 
     Column(Modifier.fillMaxSize()) {
         ScreenTopBar(
@@ -103,6 +102,15 @@ fun JournalScreen(onBack: () -> Unit, onOpenArticle: (String) -> Unit) {
             }
             IconButton(onClick = { index-- }, enabled = index > 0) {
                 Icon(Icons.Filled.ChevronRight, contentDescription = "Numéro suivant")
+            }
+            if (issue != null) {
+                val isRead = issue.date in read
+                IconButton(onClick = { repo.toggleRead(issue.date) }) {
+                    Icon(
+                        if (isRead) Icons.Filled.CheckCircle else Icons.Outlined.CheckCircle,
+                        contentDescription = if (isRead) "Marquer comme non lu" else "Marquer comme lu"
+                    )
+                }
             }
             if (loading) {
                 Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) {
@@ -122,7 +130,7 @@ fun JournalScreen(onBack: () -> Unit, onOpenArticle: (String) -> Unit) {
         if (issue == null) {
             Box(Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
                 Text(
-                    if (loading) "Chargement du journal…" else "Aucun journal pour l'instant.",
+                    if (loading) "Chargement du journal…" else "Aucun journal pour l'instant. Actualise pour le récupérer.",
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
