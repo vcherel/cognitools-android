@@ -127,7 +127,7 @@ class DeezerPlaybackService : MediaSessionService() {
             .setHandleAudioBecomingNoisy(true)
             .build()
         player.addListener(ErrorRecovery(player))
-        crossfader = Crossfader(this, player, meter, DefaultMediaSourceFactory(cacheFactory(writesStreamCache = false)), scope)
+        crossfader = Crossfader(this, player, meter, DefaultMediaSourceFactory(cacheFactory(writesStreamCache = false)), scope, repo.errorLog::log)
         player.addListener(TrackWatcher(player))
         stopOutputWatch = pauseOnOutputLost(this, player)
         mediaSession = MediaSession.Builder(this, player)

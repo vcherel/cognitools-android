@@ -120,13 +120,15 @@ class LevelMeter : TeeAudioProcessor.AudioBufferSink {
  * until the next track is actually heard, so a lead in silence never opens a hole in the middle of
  * the blend. Only automatic transitions and [fadeToNext] (an unlike) are touched:
  * any skip, seek or pause from the user cancels a blend in progress and restores the volume.
+ * An unlike whose blend could not be set up says why through [log].
  */
 class Crossfader(
     context: Context,
     private val player: ExoPlayer,
     private val meter: LevelMeter,
     faderSourceFactory: MediaSource.Factory,
-    private val scope: CoroutineScope
+    private val scope: CoroutineScope,
+    private val log: (String) -> Unit
 ) {
     private val fader: ExoPlayer = ExoPlayer.Builder(context)
         .setMediaSourceFactory(faderSourceFactory)
@@ -140,6 +142,7 @@ class Crossfader(
     private var watchJob: Job? = null
     private var fadeJob: Job? = null
     private var faderItemId: String? = null
+    private var faderError: String? = null
     private var ownSeek = false
     private var lowSince = 0L
     private var silentSince = 0L
@@ -176,6 +179,7 @@ class Crossfader(
         fader.addListener(object : Player.Listener {
             override fun onPlayerError(error: PlaybackException) {
                 // Whatever the outgoing tail was doing, the next track is what matters: let it play.
+                faderError = error.errorCodeName
                 fader.stop()
                 faderItemId = null
             }
@@ -229,6 +233,7 @@ class Crossfader(
     /** Buffers the outgoing track's tail in the fader, paused and muted, so the handoff seeks inside it. */
     private fun loadFader(item: MediaItem) {
         faderItemId = item.mediaId
+        faderError = null
         fader.volume = 0f
         fader.playWhenReady = false
         fader.setMediaItem(item, player.currentPosition)
@@ -277,14 +282,16 @@ class Crossfader(
      * track untouched while the fader buffers and aligns, so the wait costs nothing audible. Mid track
      * the fader often streams from the network (the main player still holds the cache lock on the rest
      * of the file), so it gets [UNLIKE_SETUP_MS] to buffer and keep retrying the alignment; only past
-     * that does it fall back to a plain skip. Close to the end the outgoing tail
+     * that does it give up, logging why, and fade the track out alone before the next one fades in.
+     * Close to the end the outgoing tail
      * may run out mid blend: the next track still fades in over the full length, from a moment of
      * silence. Too close to align at all, the track simply ends and the next one starts on its own.
      */
     fun fadeToNext() {
         if (fadeJob?.isActive == true || !player.hasNextMediaItem()) return
         val item = player.currentMediaItem ?: return
-        if (!player.isPlaying) {
+        // Buffering still counts as playing: only a paused player skips straight away.
+        if (!player.playWhenReady) {
             player.seekToNextMediaItem()
             return
         }
@@ -292,8 +299,16 @@ class Crossfader(
             try {
                 val deadline = SystemClock.elapsedRealtime() + UNLIKE_SETUP_MS
                 if (faderItemId != item.mediaId) loadFader(item)
-                val blended = awaitReady(fader, UNLIKE_SETUP_MS) && blend(FADE_MS, fitToTail = false, alignUntil = deadline)
-                if (!blended && player.currentMediaItem?.mediaId == item.mediaId) seekToNext()
+                val failure = if (awaitReady(fader, UNLIKE_SETUP_MS)) {
+                    blend(FADE_MS, fitToTail = false, alignUntil = deadline)
+                } else {
+                    "fader not ready (${faderError ?: "timeout"})"
+                }
+                if (failure != null && player.currentMediaItem?.mediaId == item.mediaId) {
+                    log("unlike crossfade on ${item.mediaId} gave up: $failure")
+                    unloadFader()
+                    fadeOutToNext(item.mediaId)
+                }
             } finally {
                 player.volume = 1f
                 unloadFader()
@@ -301,35 +316,45 @@ class Crossfader(
         }
     }
 
+    /** No blend could be set up: the outgoing track fades out on its own, then the next one fades in. */
+    private suspend fun fadeOutToNext(itemId: String) {
+        ramp(FALLBACK_FADE_MS) { t -> player.volume = 1f - t }
+        // The track may have ended during the fade, the next one is then already playing.
+        if (player.currentMediaItem?.mediaId == itemId) seekToNext()
+        awaitPlaying(player, NEXT_START_TIMEOUT_MS)
+        ramp(FALLBACK_FADE_MS) { t -> player.volume = t }
+    }
+
     /**
-     * Hands the outgoing track over to the buffered fader and blends; false when it never got aligned.
-     * [fitToTail] shortens the blend to what is left of the outgoing track; without it the next track
-     * fades in over the whole [fadeMs] even after the tail ran out. Alignment gets [ALIGN_TRIES], or
-     * keeps trying until the [alignUntil] uptime when that is later.
+     * Hands the outgoing track over to the buffered fader and blends; null once blended, otherwise why
+     * it never got aligned. [fitToTail] shortens the blend to what is left of the outgoing track;
+     * without it the next track fades in over the whole [fadeMs] even after the tail ran out.
+     * Alignment gets [ALIGN_TRIES], or keeps trying until the [alignUntil] uptime when that is later.
      */
-    private suspend fun blend(fadeMs: Long, fitToTail: Boolean = true, alignUntil: Long = 0L): Boolean {
+    private suspend fun blend(fadeMs: Long, fitToTail: Boolean = true, alignUntil: Long = 0L): String? {
         // 1. The fader joins the outgoing track muted. Each seek costs it a restart the main
         // player doesn't pay, so it aims ahead by what the last try came out behind, and only
         // takes over once its settled position matches: a swap between two copies a few tens
         // of ms apart is heard as a stutter.
         var lead = 0L
+        var drift = 0L
         var aligned = false
         var attempt = 0
         while (++attempt <= ALIGN_TRIES || SystemClock.elapsedRealtime() < alignUntil) {
-            if (player.currentMediaItem?.mediaId != faderItemId) return false
+            if (player.currentMediaItem?.mediaId != faderItemId) return "track changed"
             fader.seekTo(player.currentPosition + lead)
             fader.play()
             val playTimeout = maxOf(HANDOFF_TIMEOUT_MS, alignUntil - SystemClock.elapsedRealtime())
-            if (!awaitPlaying(fader, playTimeout)) return false
+            if (!awaitPlaying(fader, playTimeout)) return "fader stalled on try $attempt (${faderError ?: "timeout"})"
             delay(SETTLE_MS)
-            val drift = measureDrift()
+            drift = measureDrift()
             if (abs(drift) <= MAX_DRIFT_MS) {
                 aligned = true
                 break
             }
             lead += drift
         }
-        if (!aligned) return false
+        if (!aligned) return "not aligned after ${attempt - 1} tries, last drift $drift ms"
 
         // 2. A quick swap over the same audio hands the outgoing track to the fader.
         ramp(SWAP_MS) { t ->
@@ -345,7 +370,7 @@ class Crossfader(
             fader.volume = cos(t * PI / 2).toFloat()
             player.volume = sin(t * PI / 2).toFloat()
         }
-        return true
+        return null
     }
 
     private fun cancel() {
@@ -424,6 +449,9 @@ class Crossfader(
         const val MAX_FADE_MS = 12_000L
         /** How long an unlike may spend buffering and aligning the fader before giving up on the blend. */
         const val UNLIKE_SETUP_MS = 10_000L
+        /** Each half of the fade out, fade in an unlike falls back on without a blend. */
+        const val FALLBACK_FADE_MS = 2_000L
+        const val NEXT_START_TIMEOUT_MS = 5_000L
         /** How far before the end an outro or silence is looked for. */
         const val SMART_WINDOW_MS = 16_000L
         /** When the fader starts buffering the tail, a little ahead of that window. */
