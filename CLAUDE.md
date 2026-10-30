@@ -14,6 +14,8 @@ For UI/layout changes with more than one reasonable arrangement (where to put a 
 ## Language exception
 This app's UI text (labels, toasts, snackbars, content descriptions, etc.) is French, deliberately, confirmed with Valentin: the app is French-only, sole user, not a shortcut or an oversight. This overrides the global English-only writing instruction, but only for in-app UI text; replies, code, comments, and commit messages to Valentin stay English as usual.
 
+A complaint about the Musique tool's errors starts with `uv run --no-project src/deezer_logs.py`, which pulls every log the tool writes (errors, crossfade, offline sync, discoveries) from `/sdcard/Android/data/com.example.myapp/files/` and groups the error and crossfade lines by kind, with the tracks refused on several days.
+
 A layout complaint starts with `adb exec-out screencap -p`, never with the code. A black capture means the phone is locked: ask Valentin to unlock it and open the screen, then capture again.
 
 ## Deploy method
@@ -37,7 +39,7 @@ Always install release builds, never debug (performance matters on device). Debu
 ## Codebase map
 The independent tools live under `app/src/main/java/com/example/myapp/`. Use this map to jump straight to the right file with Read/Grep instead of spawning an exploration agent. Keep it current when files are added or renamed: a stale map misleads more than no map.
 
-Outside that package: `src/` holds the Python asset generators (see the README): `generate_flags.py` builds the Drapeaux list (`assets/flags/` and `assets/seed_flags.json`, from flagcdn), `generate_pairs.py` builds the Undercover `assets/pairs.json` (`generate_dataset.ipynb` at the root only drives it), the mots fléchés scripts are listed under `motsfleches/` below, `deploy.py` builds, installs and compiles the release, `phone.py` drives the app over adb for `frame_stats.py` (janky frames per navigation step) `regenerate_profile.py` (records and checks the baseline profile) and `import_flashcards.py` (pushes a flashcards bundle and imports it through the lists screen). `data/` holds their inputs, `app/src/test/` the JVM unit tests, `baselineprofile/` the startup profile module (`BaselineProfileGenerator.kt`, the journey the profile is recorded from).
+Outside that package: `src/` holds the Python asset generators (see the README): `generate_flags.py` builds the Drapeaux list (`assets/flags/` and `assets/seed_flags.json`, from flagcdn), `generate_pairs.py` builds the Undercover `assets/pairs.json` (`generate_dataset.ipynb` at the root only drives it), the mots fléchés scripts are listed under `motsfleches/` below, `deploy.py` builds, installs and compiles the release, `deezer_logs.py` pulls and summarizes the music tool's logs, `phone.py` drives the app over adb for `frame_stats.py` (janky frames per navigation step) `regenerate_profile.py` (records and checks the baseline profile) and `import_flashcards.py` (pushes a flashcards bundle and imports it through the lists screen). `data/` holds their inputs, `app/src/test/` the JVM unit tests, `baselineprofile/` the startup profile module (`BaselineProfileGenerator.kt`, the journey the profile is recorded from).
 
 Root package (shared/misc):
 - `MainActivity.kt`: app entry point; the window, the intents it is launched with, and the locked-over-the-keyguard quick view

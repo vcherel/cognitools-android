@@ -105,4 +105,10 @@ uv run --no-project src/regenerate_profile.py
 uv run --no-project src/import_flashcards.py corrections.json
 ```
 
+`deezer_logs.py` pulls the music tool's logs off the phone into a temporary folder (or the one given) and groups the error and crossfade lines by kind, with counts, date ranges and the tracks Deezer refused on more than one day:
+
+```bash
+uv run --no-project src/deezer_logs.py
+```
+
 `CLAUDE.md` carries a one line per file map of the whole codebase, kept current as files are added or renamed.
