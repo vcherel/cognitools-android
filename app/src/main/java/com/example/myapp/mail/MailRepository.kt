@@ -62,7 +62,8 @@ data class MailState(
  * A fetch lists the latest messages first (one round trip), then reads their bodies newest first so
  * the codes appear on the rows one by one. The inbox is opened read only, so reading here never marks
  * a mail read on Yahoo's side; the one inbox write is deleting, which moves a mail to Yahoo's Trash.
- * The CogniTools folder is the exception: the app backups are written there and pruned.
+ * The CogniTools folder is the exception: the app backups are written there and pruned. So is the
+ * Journal folder, where the laptop leaves the daily journal and the app leaves its feedback.
  */
 class MailRepository(context: Context) {
     val settings = MailSettings(context)
@@ -164,35 +165,86 @@ class MailRepository(context: Context) {
      * APPEND writes straight into the mailbox), then deletes all but the [keep] newest of that kind.
      */
     suspend fun uploadBackup(stem: String, fileName: String, json: String, keep: Int) = withContext(Dispatchers.IO) {
-        val address = settings.address.first()
-        val password = settings.password.first()
-        if (address.isBlank() || password.isBlank()) error("Compte Yahoo non configuré")
-        withStore(address, password) { store ->
-            val folder = store.getFolder(BACKUP_FOLDER)
-            if (!folder.exists()) folder.create(Folder.HOLDS_MESSAGES)
-            folder.open(Folder.READ_WRITE)
-            val message = MimeMessage(Session.getInstance(Properties())).apply {
-                setFrom(InternetAddress(address))
-                setRecipient(Message.RecipientType.TO, InternetAddress(address))
-                subject = fileName
-                sentDate = Date()
-                setContent(MimeMultipart().apply {
-                    addBodyPart(MimeBodyPart().apply { setText("Sauvegarde CogniTools") })
-                    addBodyPart(MimeBodyPart().apply {
-                        dataHandler = DataHandler(ByteArrayDataSource(json.toByteArray(), "application/json"))
-                        this.fileName = fileName
-                    })
-                })
-            }
-            folder.appendMessages(arrayOf(message))
-            val messages = folder.messages
-            folder.fetch(messages, FetchProfile().apply { add(FetchProfile.Item.ENVELOPE) })
-            val stale = messages.filter { it.subject.orEmpty().startsWith("${stem}_") }
+        withAccount { store, address ->
+            val folder = appendFile(store, address, BACKUP_FOLDER, fileName, json, "Sauvegarde CogniTools")
+            val stale = folder.messages.filter { it.subject.orEmpty().startsWith("${stem}_") }
                 .sortedByDescending { (it.receivedDate ?: it.sentDate)?.time ?: 0L }
                 .drop(keep)
             if (stale.isNotEmpty()) folder.setFlags(stale.toTypedArray(), Flags(Flags.Flag.DELETED), true)
             folder.close(true)
         }
+    }
+
+    /**
+     * Writes a file into [folderName] the way the backups are, replacing the earlier copies under the
+     * same name. The journal's feedback goes back to the laptop this way.
+     */
+    suspend fun putFile(folderName: String, fileName: String, json: String) = withContext(Dispatchers.IO) {
+        withAccount { store, address ->
+            val folder = appendFile(store, address, folderName, fileName, json, "Journal CogniTools")
+            val copies = folder.messages.filter { it.subject == fileName }
+            val newest = copies.maxOf { it.messageNumber }
+            val stale = copies.filter { it.messageNumber != newest }
+            if (stale.isNotEmpty()) folder.setFlags(stale.toTypedArray(), Flags(Flags.Flag.DELETED), true)
+            folder.close(true)
+        }
+    }
+
+    /**
+     * The files attached to the mails of [folderName] named [prefix]..., by name, skipping the names
+     * in [known] so only new ones are downloaded. A mail's subject is its file's name.
+     */
+    suspend fun readFiles(folderName: String, prefix: String, known: Set<String>): Map<String, String> =
+        withContext(Dispatchers.IO) {
+            withAccount { store, _ ->
+                val folder = store.getFolder(folderName)
+                if (!folder.exists()) return@withAccount emptyMap()
+                folder.open(Folder.READ_ONLY)
+                val messages = folder.messages
+                folder.fetch(messages, FetchProfile().apply { add(FetchProfile.Item.ENVELOPE) })
+                messages.filter { val name = it.subject.orEmpty(); name.startsWith(prefix) && name !in known }
+                    .mapNotNull { message -> attachment(message, message.subject)?.let { message.subject to it } }
+                    .toMap()
+            }
+        }
+
+    private fun attachment(part: Part, name: String): String? = when {
+        part.isMimeType("multipart/*") -> (part.content as Multipart).let { mp ->
+            (0 until mp.count).firstNotNullOfOrNull { attachment(mp.getBodyPart(it), name) }
+        }
+        part.fileName == name -> part.inputStream.use { it.readBytes().toString(Charsets.UTF_8) }
+        else -> null
+    }
+
+    // Appends a mail carrying [json] as the attachment [fileName] (nothing is sent, the APPEND writes
+    // straight into the mailbox) and returns the folder, open for writing, its envelopes fetched.
+    private fun appendFile(store: Store, address: String, folderName: String, fileName: String, json: String, text: String): Folder {
+        val folder = store.getFolder(folderName)
+        if (!folder.exists()) folder.create(Folder.HOLDS_MESSAGES)
+        folder.open(Folder.READ_WRITE)
+        val message = MimeMessage(Session.getInstance(Properties())).apply {
+            setFrom(InternetAddress(address))
+            setRecipient(Message.RecipientType.TO, InternetAddress(address))
+            subject = fileName
+            sentDate = Date()
+            setContent(MimeMultipart().apply {
+                addBodyPart(MimeBodyPart().apply { setText(text) })
+                addBodyPart(MimeBodyPart().apply {
+                    dataHandler = DataHandler(ByteArrayDataSource(json.toByteArray(), "application/json"))
+                    this.fileName = fileName
+                })
+            })
+        }
+        folder.appendMessages(arrayOf(message))
+        folder.fetch(folder.messages, FetchProfile().apply { add(FetchProfile.Item.ENVELOPE) })
+        return folder
+    }
+
+    private suspend inline fun <T> withAccount(block: (Store, String) -> T): T {
+        val address = settings.address.first()
+        val password = settings.password.first()
+        if (address.isBlank() || password.isBlank()) error("Compte Yahoo non configuré")
+        return withStore(address, password) { block(it, address) }
     }
 
     private fun putBack(message: MailMessage) = _state.update { state ->

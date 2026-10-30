@@ -71,6 +71,7 @@ fun NewsArticleScreen(link: String, onBack: () -> Unit) {
     val savedRow = saved.firstOrNull { it.link == link }
     val article = remember(link, savedRow == null) {
         repo.allLoaded().firstOrNull { it.link == link }
+            ?: repo.outsideArticle(link)
             ?: savedRow?.toArticle()
             ?: NewsArticle(link, link, "", null, "", NEWS_CATEGORIES.first().id, 0L)
     }

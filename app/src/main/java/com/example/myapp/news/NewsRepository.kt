@@ -99,6 +99,15 @@ class NewsRepository(context: Context) {
     val resumable: Flow<NewsProgress?> = dao.observeLatestProgress()
 
     /** Every article loaded so far, whatever the tab: what the search field looks through. */
+    // Articles opened from outside the feeds (the journal's sources), so their screen has a title.
+    private val outside = ConcurrentHashMap<String, NewsArticle>()
+
+    fun registerOutside(article: NewsArticle) {
+        outside[article.link] = article
+    }
+
+    fun outsideArticle(link: String): NewsArticle? = outside[link]
+
     fun allLoaded(): List<NewsArticle> =
         _articles.value.values.flatten().distinctBy { it.link }.sortedByDescending { it.publishedAt }
 

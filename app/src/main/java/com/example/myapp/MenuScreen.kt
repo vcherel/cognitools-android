@@ -84,6 +84,7 @@ fun MenuScreen(
         MenuTool("random", "Random", route = "randomGenerator"),
         MenuTool("files", "Fichiers"),
         MenuTool("news", "Actus"),
+        MenuTool("journal", "Journal"),
         MenuTool("mail", "Mail"),
         MenuTool("workout", "Muscu")
     )

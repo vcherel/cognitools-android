@@ -10,6 +10,7 @@ import coil3.video.VideoFrameDecoder
 import com.example.myapp.deezer.DeezerRepository
 import com.example.myapp.flashcards.AppDatabase
 import com.example.myapp.flashcards.FlashcardRepository
+import com.example.myapp.journal.JournalRepository
 import com.example.myapp.mail.MailRepository
 import com.example.myapp.news.NEWS_READ_RETENTION_DAYS
 import com.example.myapp.news.NewsRepository
@@ -28,6 +29,7 @@ class MyApplication : Application(), SingletonImageLoader.Factory {
     val podcastRepository: PodcastRepository by lazy { PodcastRepository(this) }
     val newsRepository: NewsRepository by lazy { NewsRepository(this) }
     val mailRepository: MailRepository by lazy { MailRepository(this) }
+    val journalRepository: JournalRepository by lazy { JournalRepository(this) }
     lateinit var notesLists: NotesLists
         private set
 
@@ -88,3 +90,6 @@ val Context.notesLists: NotesLists
 
 val Context.mailRepository: MailRepository
     get() = (applicationContext as MyApplication).mailRepository
+
+val Context.journalRepository: JournalRepository
+    get() = (applicationContext as MyApplication).journalRepository

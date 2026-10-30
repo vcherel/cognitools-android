@@ -38,6 +38,7 @@ import com.example.myapp.gallery.LocalMediaConsent
 import com.example.myapp.gallery.ViewerSource
 import com.example.myapp.gallery.GalleryViewerScreen
 import com.example.myapp.gallery.rememberIntentSenderRequester
+import com.example.myapp.journal.JournalScreen
 import com.example.myapp.mail.MailMessageScreen
 import com.example.myapp.mail.MailScreen
 import com.example.myapp.motsfleches.MotsFlechesScreen
@@ -152,6 +153,12 @@ fun MainScreen(
                     composable("news/article/{link}") { backStackEntry ->
                         val link = backStackEntry.arguments?.getString("link").orEmpty()
                         NewsArticleScreen(link = link, onBack = back)
+                    }
+                    composable("journal") {
+                        JournalScreen(
+                            onBack = back,
+                            onOpenArticle = { link -> navController.navigate("news/article/${Uri.encode(link)}") }
+                        )
                     }
                     composable("mail") {
                         MailScreen(onBack = back, onOpenMessage = { uid -> navController.navigate("mail/message/$uid") })
