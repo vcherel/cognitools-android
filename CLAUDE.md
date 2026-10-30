@@ -81,6 +81,7 @@ Root package (shared/misc):
 - `DeezerSettingsDialog.kt`: the ARL paste dialog
 - `DeezerRepository.kt`: the singleton; session lifecycle, stream cache, library access (favorites, playlists), "Best pépites" quick-add, the stream failure replacement search. The two `dzr://` cache key helpers are top level here
 - `DeezerPlayer.kt`: `repo.player`; the MediaController and its player/queue state flows, play/shuffle/queue edits, the transport controls, `buildMediaItem`, and the played tracks file behind `downloadedTracks`
+- `DeezerRefusedTracks.kt`: `repo.refused`, the sngIds Deezer refused to stream lately (30 day expiry, forgotten on any good resolve), left out of new queues and greyed by TrackRow
 - `DeezerPendingFavorites.kt`: the likes and unlikes made offline, queued to disk and resent once the phone has internet again
 - `DeezerDataSource.kt`: resolves `dzr://<sngId>` to a fresh CDN URL at open() time and decrypts on the fly
 - `DeezerLibraryCache.kt`: JSON snapshot of favorites + playlists so a cold launch renders instantly
@@ -101,7 +102,7 @@ Root package (shared/misc):
 - `DeezerArtistScreen.kt`: one artist: header, top tracks, discography grouped by release type
 - `DeezerDiscoveries.kt`: the daily "Découvertes du jour" batch; Flow/track-mix discoveries, the scan scheduling and its results folded into the backlog, the persisted batch/backlog/proposed state
 - `DeezerReleaseScan.kt`: `scanNewReleases`, the network half of the new release scan over the profile and library artists; reads copies of the state, writes none
-- `RollingLog.kt`: the capped text log the offline sync, the discoveries batch and the error log write, in the external files dir so a release build's log reads with plain adb
+- `RollingLog.kt`: the capped text log the offline sync, the discoveries batch, the crossfade diagnostics and the error log write, in the external files dir so a release build's log reads with plain adb
 - `DeezerErrorsScreen.kt`: the "Journal d'erreurs" (`repo.errorLog`), every failure with its cause chain, copyable in one tap
 - `DeezerDiscoveriesScreen.kt`: the batch's list screen (add, ignore, add all, ignore all, regenerate)
 

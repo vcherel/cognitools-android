@@ -157,23 +157,28 @@ class DeezerPlayer(private val appContext: Context, private val repo: DeezerRepo
     }
 
     /**
-     * Replaces the queue with [tracks] and starts playing at [startIndex]. Never touches
+     * Replaces the queue with [listed] and starts playing at [listedStart]. Never touches
      * shuffleModeEnabled: ExoPlayer's own shuffle order assigns newly inserted/replaced items a random
      * slot (see [addToQueue] and the playback service's error recovery), which breaks "play next" and
      * makes "previous" lose tracks whenever the queue changes after the fact. A shuffled play is instead
      * a plain queue whose order was already randomized in Kotlin before it gets here.
      *
      * When [shuffle] is on (the saved default), the tapped track still starts right away and only the
-     * rest of the list is randomized behind it. [tracks] is kept in its original order in
+     * rest of the list is randomized behind it. The list is kept in its original order in
      * [orderedQueue], which is what turning shuffle back off restores.
      */
     suspend fun playTracks(
-        tracks: List<DeezerTrack>,
-        startIndex: Int,
+        listed: List<DeezerTrack>,
+        listedStart: Int,
         source: TrackSource? = null,
         shuffle: Boolean = _shuffleEnabled.value
     ) {
-        if (tracks.isEmpty()) return
+        if (listed.isEmpty()) return
+        // A track Deezer refused lately is left out, unless it is the one tapped: that one is tried
+        // again, and its failure goes looking for another release.
+        val refusedIds = repo.refused.ids.value
+        val tracks = listed.filterIndexed { i, t -> i == listedStart || t.sngId !in refusedIds }
+        val startIndex = listedStart - listed.subList(0, listedStart).count { it.sngId in refusedIds }
         stopPodcastPlayback()
         val controller = ensureController()
         // Never cleared: the map doubles as the metadata behind [downloadedTracks] and is pruned to
@@ -220,7 +225,8 @@ class DeezerPlayer(private val appContext: Context, private val repo: DeezerRepo
         if (favorites.isEmpty()) return@coroutineScope
         val start = withContext(Dispatchers.IO) {
             favorites.indices.shuffled().firstOrNull { isOnDisk(favorites[it].sngId) }
-        } ?: favorites.indices.random()
+        } ?: favorites.indices.filterNot { repo.refused.contains(favorites[it].sngId) }.randomOrNull()
+            ?: favorites.indices.random()
         connecting.await()
         setShuffleSetting(true)
         playTracks(favorites, start, TrackSource.Favorites, shuffle = true)
@@ -245,6 +251,17 @@ class DeezerPlayer(private val appContext: Context, private val repo: DeezerRepo
         return isWhole(repo.offline.cache, key) || isWhole(repo.streamCache, key)
     }
 
+    /** Where [sngId]'s audio is read from, for a playback error's log line. */
+    fun audioSource(sngId: String): String {
+        val key = deezerCacheKey(sngId)
+        return when {
+            isWhole(repo.offline.cache, key) -> "offline mirror"
+            isWhole(repo.streamCache, key) -> "stream cache"
+            repo.streamCache.getCachedSpans(key).isNotEmpty() -> "partly cached"
+            else -> "network"
+        }
+    }
+
     private fun isWhole(cache: SimpleCache, key: String): Boolean {
         val length = ContentMetadata.getContentLength(cache.getContentMetadata(key))
         return length > 0 && cache.isCached(key, 0, length)
@@ -267,7 +284,8 @@ class DeezerPlayer(private val appContext: Context, private val repo: DeezerRepo
     suspend fun shuffleTracks(list: List<DeezerTrack>, source: TrackSource? = null) {
         if (list.isEmpty()) return
         setShuffleSetting(true)
-        playTracks(list, list.indices.random(), source, shuffle = true)
+        val start = list.indices.filterNot { repo.refused.contains(list[it].sngId) }.randomOrNull() ?: list.indices.random()
+        playTracks(list, start, source, shuffle = true)
     }
 
     private val _shuffleEnabled = MutableStateFlow(true)

@@ -261,9 +261,13 @@ class DeezerApi {
         }
     }
 
-    /** Adds a track to the owner's favorites (loved tracks). */
+    /** Adds a track to the owner's favorites (loved tracks). A track already liked counts as added. */
     suspend fun addFavorite(session: DeezerSession, sngId: String): Unit = withContext(Dispatchers.IO) {
-        gw("favorite_song.add", """{"SNG_ID":"$sngId"}""", session.apiToken)
+        try {
+            gw("favorite_song.add", """{"SNG_ID":"$sngId"}""", session.apiToken)
+        } catch (e: DeezerApiException) {
+            if (e.message?.contains("ERROR_DATA_EXISTS") != true) throw e
+        }
     }
 
     /** Removes a track from the owner's favorites. */

@@ -29,6 +29,9 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.IOException
+import java.net.SocketException
+import java.net.SocketTimeoutException
+import java.net.UnknownHostException
 import kotlin.coroutines.cancellation.CancellationException
 import java.util.concurrent.ConcurrentHashMap
 
@@ -84,10 +87,19 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
      */
     val errorLog = RollingLog(appContext, TAG, "deezer_errors.txt", maxBytes = 200_000, keepLines = 300)
 
-    /** Records [e] under [what] and hands back the line written, for a snackbar's copy action. */
+    /** Why a blend gave up or a track ended without one: diagnostics, kept out of [errorLog]. */
+    val crossfadeLog = RollingLog(appContext, TAG, "deezer_crossfade_log.txt", maxBytes = 64 * 1024L, keepLines = 300)
+
+    /**
+     * Records [e] under [what] and hands back the line, for a snackbar's copy action. A network
+     * failure while the phone is offline is only returned: it says nothing about the app.
+     */
     fun logError(what: String, e: Throwable): String {
         val line = "$what: ${errorLog.describe(e)}"
-        errorLog.log(line)
+        val offlineNoise = !hasNetwork() && generateSequence(e) { it.cause }.take(10).any {
+            it is UnknownHostException || it is SocketException || it is SocketTimeoutException
+        }
+        if (!offlineNoise) errorLog.log(line)
         return line
     }
 
@@ -124,6 +136,9 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
 
     // Fire and forget IO work that must survive the screen that started it.
     private val ioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    /** The tracks Deezer refused to stream lately, left out of queues and greyed in the lists. */
+    val refused = DeezerRefusedTracks(appContext, ioScope)
 
     init {
         pendingFavorites.flushOnNetwork(ioScope)
@@ -612,19 +627,18 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
             try {
                 // Any retry re-bootstraps the session: a stale sid is the most common cause here.
                 val session = ensureSession(forceRefresh = attempt > 0)
-                return api.resolveStream(session, sngId, quality)
+                return api.resolveStream(session, sngId, quality).also { refused.forget(sngId) }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 last = e
                 if (e is DeezerApiException && e.unavailable) {
-                    logError("stream $sngId", e)
+                    refused.mark(sngId)
                     throw TrackUnavailableException("Deezer refuses to stream $sngId: ${e.message}", e)
                 }
                 if (attempt < RESOLVE_ATTEMPTS - 1) delay(500L * (attempt + 1))
             }
         }
-        logError("stream $sngId", last!!)
         throw IOException("Deezer stream resolve failed for $sngId: ${last?.message}", last)
     }
 }

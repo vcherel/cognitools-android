@@ -39,6 +39,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -101,14 +102,16 @@ fun TrackRow(
         runIgnoringErrors { repo.ensureBestPepitesLoaded() }
         inPepites = repo.bestPepitesContains(track.sngId) == true
     }
+    val refused = track.sngId in repo.refused.ids.collectAsState().value
     SwipeToQueue(onAddToQueue) { MediaListRow(
         artworkUrl = track.coverUrl(),
         title = track.title,
         isPlaying = isPlaying,
         onClick = onClick,
+        textAlpha = if (refused) 0.45f else 1f,
         below = {
             MediaRowSubtitle(track.artist)
-            note?.let {
+            (note ?: if (refused) "Indisponible sur Deezer" else null)?.let {
                 Text(
                     it,
                     style = MaterialTheme.typography.labelSmall,

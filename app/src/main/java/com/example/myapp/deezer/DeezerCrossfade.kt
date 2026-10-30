@@ -276,12 +276,20 @@ class Crossfader(
             return
         }
         fadeJob = scope.launch {
+            var failure: String? = null
             try {
                 // Not aligned in time: the next tick tries again.
-                blend(fadeMs)?.let { log("crossfade gave up, will retry: $it") }
+                failure = blend(fadeMs)?.also { log("crossfade gave up, will retry: $it") }
             } finally {
                 player.volume = 1f
-                unloadFader()
+                // A fader still on the same track keeps its buffer for that retry, paused and muted:
+                // unloaded, it buffered the tail all over again and the track often ended first.
+                if (failure != null && fader.playbackState == Player.STATE_READY && faderItemId == player.currentMediaItem?.mediaId) {
+                    fader.playWhenReady = false
+                    fader.volume = 0f
+                } else {
+                    unloadFader()
+                }
             }
         }
     }
@@ -347,6 +355,7 @@ class Crossfader(
         // of ms apart is heard as a stutter.
         var lead = 0L
         var drift = 0L
+        val drifts = ArrayList<Long>()
         var aligned = false
         var attempt = 0
         while (++attempt <= ALIGN_TRIES || SystemClock.elapsedRealtime() < alignUntil) {
@@ -357,13 +366,14 @@ class Crossfader(
             if (!awaitPlaying(fader, playTimeout)) return "fader stalled on try $attempt (${faderError ?: "timeout"})"
             delay(SETTLE_MS)
             drift = measureDrift()
+            drifts += drift
             if (abs(drift) <= MAX_DRIFT_MS) {
                 aligned = true
                 break
             }
             lead += drift
         }
-        if (!aligned) return "not aligned after ${attempt - 1} tries, last drift $drift ms"
+        if (!aligned) return "not aligned after ${attempt - 1} tries, drifts ${drifts.joinToString()} ms"
 
         // 2. A quick swap over the same audio hands the outgoing track to the fader.
         ramp(SWAP_MS) { t ->

@@ -37,8 +37,10 @@ import com.example.myapp.MainActivity
 import com.example.myapp.MyApplication
 import com.example.myapp.R
 import com.example.myapp.pauseOnOutputLost
+import com.example.myapp.userMessage
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -127,7 +129,7 @@ class DeezerPlaybackService : MediaSessionService() {
             .setHandleAudioBecomingNoisy(true)
             .build()
         player.addListener(ErrorRecovery(player))
-        crossfader = Crossfader(this, player, meter, DefaultMediaSourceFactory(cacheFactory(writesStreamCache = false)), scope, repo.errorLog::log)
+        crossfader = Crossfader(this, player, meter, DefaultMediaSourceFactory(cacheFactory(writesStreamCache = false)), scope, repo.crossfadeLog::log)
         player.addListener(TrackWatcher(player))
         stopOutputWatch = pauseOnOutputLost(this, player)
         mediaSession = MediaSession.Builder(this, player)
@@ -335,7 +337,12 @@ class DeezerPlaybackService : MediaSessionService() {
                 retriedCurrent = false
             }
             Log.w(TAG, "Playback error on $mediaId (${error.errorCodeName})", error)
-            lastErrorLine = repo.logError("playback $mediaId (${error.errorCodeName})", error)
+            // A decoder choking on the bytes says nothing of where they came from: a bad cache span
+            // and a bad decryption of the live stream look the same.
+            val where = if (error.errorCode == PlaybackException.ERROR_CODE_DECODING_FAILED && mediaId != null) {
+                ", ${repo.player.audioSource(mediaId)} at ${player.currentPosition / 1000} s"
+            } else ""
+            lastErrorLine = repo.logError("playback $mediaId (${error.errorCodeName}$where)", error)
 
             // Nothing to retry when Deezer itself says the track is gone: go looking for another
             // release of the same song right away.
@@ -389,7 +396,8 @@ class DeezerPlaybackService : MediaSessionService() {
             }
         }
 
-        private fun skipToNext(title: String?) {
+        /** [removable] is a track Deezer refuses with no other release to swap in, and where it was listed. */
+        private fun skipToNext(title: String?, removable: Pair<DeezerTrack, TrackSource>? = null) {
             if (!player.hasNextMediaItem()) {
                 // playTracks sets the playing track alone and adds the rest a moment later, so a
                 // track refused on its first resolve can fail before its queue exists.
@@ -402,13 +410,30 @@ class DeezerPlaybackService : MediaSessionService() {
                 awaitingTitle = title
                 return
             }
-            showError(
+            if (removable != null) offerRemoval(removable.first, removable.second)
+            else showError(
                 if (title.isNullOrBlank()) "Échec du chargement, passage au morceau suivant"
                 else "Échec du chargement de « $title », passage au morceau suivant"
             )
             player.seekToNextMediaItem()
             player.prepare()
             player.play()
+        }
+
+        /** Deezer refuses [track] and has no other release of it: offers to take it out of [source]. */
+        private fun offerRemoval(track: DeezerTrack, source: TrackSource) {
+            val where = if (source is TrackSource.Favorites) "des favoris" else "de la playlist"
+            AppSnackbar.show("« ${track.title} » indisponible sur Deezer, passage au suivant", "Retirer $where") {
+                try {
+                    when (source) {
+                        is TrackSource.Favorites -> if (repo.isFavorite(track.sngId)) repo.toggleFavorite(track)
+                        is TrackSource.Playlist -> repo.removeFromPlaylist(source.id, track.sngId)
+                    }
+                } catch (e: Exception) {
+                    if (e is CancellationException) throw e
+                    AppSnackbar.show(userMessage(e))
+                }
+            }
         }
 
         /**
@@ -422,7 +447,7 @@ class DeezerPlaybackService : MediaSessionService() {
             scope.launch {
                 val replacement = runCatching { repo.findReplacement(track) }.getOrNull()
                 if (replacement == null || player.currentMediaItem?.mediaId != track.sngId) {
-                    skipToNext(track.title)
+                    skipToNext(track.title, removable = track.takeIf { replacement == null && repo.refused.contains(it.sngId) }?.let { it to source })
                     return@launch
                 }
                 val index = player.currentMediaItemIndex
