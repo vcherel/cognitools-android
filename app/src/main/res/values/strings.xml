@@ -5,4 +5,5 @@
     <string name="music_notification_channel">Lecture musique</string>
     <string name="podcast_notification_channel">Lecture podcast</string>
     <string name="podcast_download_channel">Téléchargement podcast</string>
+    <string name="workout_channel">Rappel muscu</string>
 </resources>

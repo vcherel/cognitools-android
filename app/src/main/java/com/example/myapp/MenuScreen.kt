@@ -14,6 +14,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
@@ -42,6 +43,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.myapp.flashcards.AppDatabase
+import com.example.myapp.workout.WorkoutReminder
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -82,7 +84,8 @@ fun MenuScreen(
         MenuTool("random", "Random", route = "randomGenerator"),
         MenuTool("files", "Fichiers"),
         MenuTool("news", "Actus"),
-        MenuTool("mail", "Mail")
+        MenuTool("mail", "Mail"),
+        MenuTool("workout", "Muscu")
     )
     // Most used first, alphabetical between tools opened as often (so a fresh install is A to Z).
     val orderedTools = tools.sortedWith(
@@ -166,16 +169,30 @@ fun MenuScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 row.forEach { tool ->
-                    MyButton(
-                        text = tool.label,
-                        modifier = Modifier.weight(1f),
-                        height = buttonHeight,
-                        fontSize = 20.sp,
-                        onClick = {
-                            scope.launch { usageStore.recordClick(tool.id) }
-                            onOpenTool(tool.route)
-                        }
-                    )
+                    val open = {
+                        scope.launch { usageStore.recordClick(tool.id) }
+                        onOpenTool(tool.route)
+                    }
+                    // Muscu's right half logs a session on the spot, without opening the screen.
+                    if (tool.id == "workout") {
+                        SplitMyButton(
+                            text = tool.label,
+                            rightIcon = Icons.Default.FitnessCenter,
+                            modifier = Modifier.weight(1f),
+                            height = buttonHeight,
+                            fontSize = 20.sp,
+                            onMainClick = { open() },
+                            onRightClick = { scope.launch { WorkoutReminder.markDoneWithUndo(context) } }
+                        )
+                    } else {
+                        MyButton(
+                            text = tool.label,
+                            modifier = Modifier.weight(1f),
+                            height = buttonHeight,
+                            fontSize = 20.sp,
+                            onClick = { open() }
+                        )
+                    }
                 }
                 repeat(2 - row.size) { Spacer(modifier = Modifier.weight(1f)) }
             }

@@ -51,6 +51,7 @@ import com.example.myapp.reader.BookLibraryScreen
 import com.example.myapp.reader.ReaderScreen
 import com.example.myapp.translate.TranslateScreen
 import com.example.myapp.undercover.UndercoverScreen
+import com.example.myapp.workout.WorkoutScreen
 import kotlinx.coroutines.launch
 
 /**
@@ -159,6 +160,7 @@ fun MainScreen(
                         val uid = backStackEntry.arguments?.getString("uid")?.toLongOrNull() ?: 0L
                         MailMessageScreen(uid = uid, onBack = back)
                     }
+                    composable("workout") { WorkoutScreen(onBack = back) }
                     composable("motsFleches") { MotsFlechesScreen(onBack = back) }
                     composable("translate") { TranslateScreen(onBack = back) }
                     composable("reader") {

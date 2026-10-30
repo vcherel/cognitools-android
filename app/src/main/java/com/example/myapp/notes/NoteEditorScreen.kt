@@ -330,7 +330,6 @@ fun NoteEditorScreen(
                                 onMoveToCourses = { sync.moveLineToCourses(it) },
                                 onCopyToCourses = { sync.moveLineToCourses(it, keep = true) },
                                 onChangeQuantity = lineEdits::changeQuantity,
-                                onShiftMuscu = lineEdits::shiftMuscuDay,
                                 onBumpEpisode = lineEdits::bumpEpisode,
                                 onRemoveDateSuffix = lineEdits::removeDateSuffix,
                                 onToggleLineMarker = lineEdits::toggleLineMarker,

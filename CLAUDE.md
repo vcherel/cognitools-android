@@ -42,7 +42,7 @@ Outside that package: `src/` holds the Python asset generators (see the README):
 Root package (shared/misc):
 - `MainActivity.kt`: app entry point; the window, the intents it is launched with, and the locked-over-the-keyguard quick view
 - `AppNavHost.kt`: MainScreen, the whole app's nav graph plus the composition locals and the snackbar host every screen reads
-- `MenuScreen.kt`: the main menu; the big tools on top with their own callbacks, the rest a scrolling grid of MenuTool ranked by use and opened through one `onOpenTool(route)`
+- `MenuScreen.kt`: the main menu; the big tools on top with their own callbacks, the rest a scrolling grid of MenuTool ranked by use and opened through one `onOpenTool(route)` (Muscu's tile is split, its right half logs a session)
 - `MenuUsage.kt`: MenuUsageStore, the per-tool tap counters that order the menu grid
 - `Theme.kt`: ThemeManager (dark mode DataStore), AppTheme, LocalIsDarkMode
 - `MyApplication.kt`: Application class, holds the FlashcardRepository / DeezerRepository / PodcastRepository singletons plus their `Context.<name>Repository` extensions, and the app start housekeeping
@@ -188,8 +188,8 @@ Root package (shared/misc):
 - `NoteEditorScreen.kt`: the note editor's layout; the edit-mode text field, the read-only view, the in-note search bar and NoteEditorDialogs (the two PIN dialogs, the reconcile run, the add-an-item prompt)
 - `NoteEditorState.kt`: NoteEditorState and `rememberNoteEditorState`, everything about the note itself; load, autosave, undo and redo stacks, saveContent, the lock and its PIN gate, and the fake blank lines edit mode pads the text with
 - `NoteEditorTopBar.kt`: the editor's header; the editable title plus every button and menu entry, driven by a NoteEditorBarState/NoteEditorBarActions pair
-- `NoteLineEdits.kt`: the per-line edits the read-only view makes (toggle, quantity, muscu day, delete with undo), all going through one editLines
-- `NoteEditing.kt`: pure text helpers; input transformations, slash commands, inline/line marker toggling, muscu day, the Movies note's S1E10 episode bump
+- `NoteLineEdits.kt`: the per-line edits the read-only view makes (toggle, quantity, delete with undo), all going through one editLines
+- `NoteEditing.kt`: pure text helpers; input transformations, slash commands, inline/line marker toggling, the Movies note's S1E10 episode bump
 - `NoteViewMode.kt`: the read-only note rendering; per-line checkbox/separator/text, drag reorder, double-tap to edit. Takes one NoteLineActions from the editor
 - `NoteLock.kt`: the app's one PIN (notes *and* locked gallery albums, see `gallery/GalleryLock.kt`) and PinDialog
 - `NotesTrashScreen.kt`: the trashed notes screen (restore, delete for good, empty the trash)
@@ -212,6 +212,11 @@ Root package (shared/misc):
 - `TranslateStore.kt`: the target language and the recent lookups (the flashcard list is fixed: the big button always files into Anglais)
 - `TranslateUi.kt`: the pieces both entry points share, TranslationCard, AddToFlashcardsButton, the TextToSpeech reader, and WordLookupSheet (what the reader opens)
 - `TranslateScreen.kt`: the tool screen, debounced live translation and the history
+
+`workout/` (muscu reminder, the "Muscu" grid tool):
+- `WorkoutSchedule.kt`: ReminderTimes (19:30 weekdays, 15:00 weekends by default), when the reminder goes off after a session (two days off) or a snooze, the days since the last session and the month/year counts. Pure, covered by a JVM unit test
+- `WorkoutReminder.kt`: the DataStore state (next reminder, every session, due, the times), the one exact alarm, the notification with its done / 1 h / tomorrow buttons, `markDoneWithUndo` (the screen and the menu tile's right half), and WorkoutReceiver (alarm, buttons, reboot)
+- `WorkoutScreen.kt`: next reminder and last session, "Séance faite", the snooze buttons while a reminder is due, the two reminder times with their time picker, the history; `lastSessionText` is shared with the notification
 
 `undercover/` (party game tool):
 - `GameModels.kt`: Player, GameSettings, GameState, MrWhiteScenario, ScoreValues data model
@@ -238,6 +243,7 @@ The map above is by feature. These are the ones you won't find by feature name:
 - **App start work**: `MyApplication.onCreate` purges the expired trashed notes and the expired news read marks and reading positions, calls `FlashcardRepository.seedAndPurge()` (seeds the builtin flashcard lists on a fresh install, drops mastered cards outside them), primes the saved discoveries batch, and sweeps the stream cache of heard podcast episodes. The repositories themselves assume this has been kicked off.
 - **HTTP**: `Http.kt`'s `httpGet` serves Weather, Wikipedia, the podcast feeds/directory and the news feeds/pages. Deezer has its own client in `deezer/DeezerApi.kt`, mail goes over IMAP through JavaMail in `mail/MailRepository.kt`, podcast episode audio is fetched by hand in `PodcastDownloads.openAudio` (tracking prefixes need manual redirect following), Gallery does no networking.
 - **All files access**: `gallery/GalleryPermissions.kt` owns the MANAGE_EXTERNAL_STORAGE check and the settings requester; the file explorer reads them from there rather than duplicating the check.
+- **Alarms**: only `workout/WorkoutReminder.kt`, one exact alarm re-armed by `MyApplication.onCreate` and by WorkoutReceiver on boot and app update. Notification id 1004, after the three in the services.
 - **Foreground services**: `Volume.kt` (volume booster), `deezer/DeezerPlaybackService.kt`, `podcasts/PodcastPlaybackService.kt` and `podcasts/PodcastDownloadService.kt`. The Deezer offline sync deliberately has none.
 - **30 day trash**: two different mechanisms. Notes carry a `deletedAt` timestamp and are purged by `MyApplication.onCreate`. The gallery uses MediaStore's own trash (`IS_TRASHED`, `performTrashBatch`/`performRestoreBatch`), which Android empties by itself.
 - **Media consent launcher**: registered once in `MainActivity` and passed down through `LocalMediaConsent`, so an undo posted after its screen is gone can still show the system dialog. Gallery screens read it instead of calling `rememberIntentSenderRequester` themselves.

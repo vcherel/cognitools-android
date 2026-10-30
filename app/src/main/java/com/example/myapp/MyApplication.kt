@@ -16,6 +16,7 @@ import com.example.myapp.news.NewsRepository
 import com.example.myapp.notes.NOTES_TRASH_RETENTION_DAYS
 import com.example.myapp.notes.NotesLists
 import com.example.myapp.podcasts.PodcastRepository
+import com.example.myapp.workout.WorkoutReminder
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -39,6 +40,7 @@ class MyApplication : Application(), SingletonImageLoader.Factory {
             val cutoff = System.currentTimeMillis() -
                 NOTES_TRASH_RETENTION_DAYS * 24L * 60L * 60L * 1000L
             AppDatabase.get(this@MyApplication).noteDao().purgeExpiredTrashedNotes(cutoff)
+            WorkoutReminder.reschedule(this@MyApplication)
             flashcardRepository.seedAndPurge()
             flashcardRepository.primeListsWithCounts()
             // Reads the saved discoveries batch off disk right away (no network), so the card on the

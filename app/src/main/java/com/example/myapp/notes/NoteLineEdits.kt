@@ -13,7 +13,7 @@ import kotlinx.coroutines.launch
 
 /**
  * Every edit the note's read-only view can make to a single line: toggling its checkbox, changing
- * its quantity, bumping a muscu day or a series episode, deleting it. They all have the same shape (rewrite the note's
+ * its quantity, bumping a series episode, deleting it. They all have the same shape (rewrite the note's
  * lines in place, save), which is what [editLines] holds; the actual text rules live in NoteEditing.
  *
  * Built by the editor and handed to NoteViewMode as part of a [NoteLineActions].
@@ -44,22 +44,6 @@ class NoteLineEdits(
         val line = lines[index]
         if (!line.isCheckboxLine()) return@editLines
         lines[index] = line.checkboxPrefix() + line.checkboxText().withQuantityDelta(delta)
-    }
-
-    /**
-     * Moves the day in a "Muscu (jour)" checkbox line [days] forward, wrapping across the week: two
-     * after a session, to the next planned one, or one to push a session put off to tomorrow.
-     */
-    fun shiftMuscuDay(index: Int, days: Int) = editLines { lines ->
-        val line = lines[index]
-        if (!line.isCheckboxLine()) return@editLines
-        val text = line.checkboxText()
-        val match = muscuDayMatch(text) ?: return@editLines
-        val dayGroup = match.groups[1]!!
-        val dayIndex = frenchDays.indexOf(dayGroup.value.trim().lowercase())
-        val newDay = frenchDays[(dayIndex + days) % 7]
-        val newText = text.substring(0, dayGroup.range.first) + newDay + text.substring(dayGroup.range.last + 1)
-        lines[index] = line.checkboxPrefix() + newText
     }
 
     /** Moves a Movies note series line to its next episode, or with [season] to the next season. */

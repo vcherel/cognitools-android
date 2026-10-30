@@ -34,13 +34,11 @@ import androidx.compose.material.icons.filled.ContentCut
 import androidx.compose.material.icons.filled.AddShoppingCart
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.EventBusy
-import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.FormatBold
 import androidx.compose.material.icons.filled.FormatItalic
 import androidx.compose.material.icons.filled.FormatUnderlined
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.ShoppingCart
-import androidx.compose.material.icons.filled.Snooze
 import androidx.compose.material.icons.filled.Title
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.HorizontalDivider
@@ -90,7 +88,6 @@ data class NoteLineActions(
     val onMoveToCourses: (Int) -> Unit,
     val onCopyToCourses: (Int) -> Unit,
     val onChangeQuantity: (index: Int, delta: Int) -> Unit,
-    val onShiftMuscu: (Int, Int) -> Unit,
     val onBumpEpisode: (index: Int, season: Boolean) -> Unit,
     val onRemoveDateSuffix: (Int) -> Unit,
     val onToggleLineMarker: (index: Int, marker: String) -> Unit,
@@ -463,14 +460,7 @@ private fun NoteLine(
                         actions.onMoveToCourses(lineIndex)
                     }
                 }
-                if (isTodoListNote && muscuDayMatch(text) != null) {
-                    LineIconButton(Icons.Default.Snooze, "Remettre à demain", iconTopPadding) {
-                        actions.onShiftMuscu(lineIndex, 1)
-                    }
-                    LineIconButton(Icons.Default.FitnessCenter, "Séance suivante", iconTopPadding) {
-                        actions.onShiftMuscu(lineIndex, 2)
-                    }
-                } else if (isTodoListNote && text.hasDateSuffix()) {
+                if (isTodoListNote && text.hasDateSuffix()) {
                     LineIconButton(Icons.Default.EventBusy, "Retirer la date", iconTopPadding) {
                         actions.onRemoveDateSuffix(lineIndex)
                     }

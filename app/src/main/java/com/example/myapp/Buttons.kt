@@ -192,6 +192,7 @@ fun SplitMyButton(
     modifier: Modifier = Modifier,
     rightText: String? = null,
     height: Dp = 90.dp,
+    fontSize: TextUnit = 24.sp,
     rightLoading: Boolean = false,
     rightEnabled: Boolean = true,
     onMainClick: () -> Unit,
@@ -209,7 +210,7 @@ fun SplitMyButton(
             Text(
                 text,
                 color = textColor,
-                fontSize = 24.sp,
+                fontSize = fontSize,
                 fontWeight = FontWeight.SemiBold
             )
         }

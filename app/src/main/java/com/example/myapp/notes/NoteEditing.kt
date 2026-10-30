@@ -157,13 +157,6 @@ internal fun slashQuery(state: TextFieldState): Pair<Int, String>? {
     return lineStart to token
 }
 
-internal val frenchDays = listOf("lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche")
-
-// Finds a "(jour)" day name on a "Muscu (jour)" checkbox line, regardless of note
-fun muscuDayMatch(lineText: String) =
-    Regex("""^Muscu\s*\(([^)]+)\)""", RegexOption.IGNORE_CASE).find(lineText)
-        ?.takeIf { frenchDays.contains(it.groupValues[1].trim().lowercase()) }
-
 private val episodeRegex = Regex("""\bS(\d+)\s*E(\d+)\b""", RegexOption.IGNORE_CASE)
 
 /** True for a Movies note line tracking a series, "- Breaking bad S1E10". */
