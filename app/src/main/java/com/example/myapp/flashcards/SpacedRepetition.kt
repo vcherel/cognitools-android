@@ -54,3 +54,11 @@ fun reviewCard(
         score = newScore
     )
 }
+
+/** Copy due again in half the time it still had to wait, [lastReview][FlashcardElement.lastReview] kept. */
+fun halveRemainingWait(card: FlashcardElement, now: Long = System.currentTimeMillis()): FlashcardElement {
+    val remaining = card.nextReviewAt - now
+    if (remaining <= 0) return card
+    val newNextReviewAt = now + remaining / 2
+    return card.copy(interval = ((newNextReviewAt - card.lastReview) / 60_000L).toInt())
+}

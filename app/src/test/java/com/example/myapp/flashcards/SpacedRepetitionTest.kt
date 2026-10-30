@@ -199,4 +199,18 @@ class SpacedRepetitionTest {
     fun isDue_trueOnceIntervalElapses() {
         assertTrue(isDue(card(interval = 10, lastReview = 0L), now = 600_000L))
     }
+
+    @Test
+    fun halveRemainingWait_dueInHalfTheRemainingTime() {
+        // Interval 100 min, 20 min elapsed: 80 min left becomes 40, so due at minute 60.
+        val result = halveRemainingWait(card(interval = 100, lastReview = 0L), now = 20 * 60_000L)
+        assertEquals(60, result.interval)
+        assertEquals(0L, result.lastReview)
+    }
+
+    @Test
+    fun halveRemainingWait_leavesDueCardAlone() {
+        val due = card(interval = 10, lastReview = 0L)
+        assertEquals(due, halveRemainingWait(due, now = 600_000L))
+    }
 }

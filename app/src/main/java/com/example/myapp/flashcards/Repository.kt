@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
@@ -12,6 +13,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import org.json.JSONArray
 import org.json.JSONObject
+import java.time.LocalDate
 
 class FlashcardRepository(private val context: Context) {
 
@@ -156,6 +158,21 @@ class FlashcardRepository(private val context: Context) {
         dao.getElement(elementId)?.let { dao.upsertElement(it.resetProgress()) }
     }
 
+    /**
+     * Once a day, halves the remaining wait of one card drawn among those not due for another day,
+     * so nothing sits forgotten for months. Returns the drawn card with its wait before and after,
+     * or null when today's draw already happened or no card qualifies.
+     */
+    suspend fun dailyLottery(now: Long = System.currentTimeMillis()): DailyLottery? {
+        val today = LocalDate.now().toString()
+        if (context.flashcardDataStore.data.first()[lotteryDayKey] == today) return null
+        context.flashcardDataStore.edit { it[lotteryDayKey] = today }
+        val card = dao.getAllElements().filter { it.nextReviewAt - now > DAY_MS }.randomOrNull() ?: return null
+        val halved = halveRemainingWait(card, now)
+        dao.upsertElement(halved)
+        return DailyLottery(halved, card.nextReviewAt - now, halved.nextReviewAt - now)
+    }
+
     suspend fun getListNameById(listId: String): String = dao.getList(listId)?.name ?: ""
 
     /**
@@ -204,6 +221,8 @@ class FlashcardRepository(private val context: Context) {
             4 to "seed_dept_numbers.json",
             5 to "seed_flags.json"
         )
+        private val lotteryDayKey = stringPreferencesKey("lottery_day")
+        private const val DAY_MS = 24 * 60 * 60_000L
         private val resetVersionKey = intPreferencesKey("reset_version")
         // Builtin cards whose text or picture was edited, with the version that shipped the edit:
         // they are replaced once by their shipped version, which also wipes their progress since
@@ -231,5 +250,7 @@ class FlashcardRepository(private val context: Context) {
         )
     }
 }
+
+data class DailyLottery(val card: FlashcardElement, val waitBeforeMs: Long, val waitAfterMs: Long)
 
 val Context.flashcardDataStore by preferencesDataStore("flashcards")

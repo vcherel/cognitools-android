@@ -95,6 +95,14 @@ fun FlashcardListsScreen(navController: NavController) {
             hasLoaded = true
         }
     }
+    LaunchedEffect(repository) {
+        val draw = repository.dailyLottery() ?: return@LaunchedEffect
+        Toast.makeText(
+            context,
+            "🎲 ${draw.card.label} : ${formatDuration(draw.waitBeforeMs)} → ${formatDuration(draw.waitAfterMs)}",
+            Toast.LENGTH_LONG
+        ).show()
+    }
     val lists = listsWithCountsState.first
     val countsMap = listsWithCountsState.second
     val isLoading = !hasLoaded
