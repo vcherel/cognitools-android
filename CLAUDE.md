@@ -3,7 +3,7 @@
 Personal Android app (Jetpack Compose), sideloaded on Valentin's phone.
 
 ## Workflow
-After implementing a change, deploy it on the phone (see below) so Valentin can try it, then end with a summary of what changed. Never commit or push at that point: git operations happen only through /wrap-up or an explicit request.
+After implementing a change, build it and end with a summary of what changed, without installing it: Valentin often batches several changes and deploys once, through /wrapup or an explicit ask. Never commit or push at that point either.
 
 Run `git push` with `run_in_background`: the pre-push hook runs the JVM unit tests through Gradle, and a push touching the mots fléchés tool adds the 2 minute generator test, past the 120 s foreground timeout.
 
@@ -17,7 +17,7 @@ This app's UI text (labels, toasts, snackbars, content descriptions, etc.) is Fr
 A layout complaint starts with `adb exec-out screencap -p`, never with the code. A black capture means the phone is locked: ask Valentin to unlock it and open the screen, then capture again.
 
 ## Deploy method
-Build the release APK and install it on the connected phone:
+Run `uv run --no-project src/deploy.py` in the background: it stops at once when no phone is connected, otherwise builds the release APK, installs it and compiles it (`--no-build` reuses the last build). It runs these steps:
 
 ```
 ./gradlew assembleRelease
@@ -37,7 +37,7 @@ Always install release builds, never debug (performance matters on device). Debu
 ## Codebase map
 The independent tools live under `app/src/main/java/com/example/myapp/`. Use this map to jump straight to the right file with Read/Grep instead of spawning an exploration agent. Keep it current when files are added or renamed: a stale map misleads more than no map.
 
-Outside that package: `src/` holds the Python asset generators (see the README): `generate_flags.py` builds the Drapeaux list (`assets/flags/` and `assets/seed_flags.json`, from flagcdn), `generate_pairs.py` builds the Undercover `assets/pairs.json` (`generate_dataset.ipynb` at the root only drives it), the mots fléchés scripts are listed under `motsfleches/` below, `phone.py` drives the app over adb for `frame_stats.py` (janky frames per navigation step) `regenerate_profile.py` (records and checks the baseline profile) and `import_flashcards.py` (pushes a flashcards bundle and imports it through the lists screen). `data/` holds their inputs, `app/src/test/` the JVM unit tests, `baselineprofile/` the startup profile module (`BaselineProfileGenerator.kt`, the journey the profile is recorded from).
+Outside that package: `src/` holds the Python asset generators (see the README): `generate_flags.py` builds the Drapeaux list (`assets/flags/` and `assets/seed_flags.json`, from flagcdn), `generate_pairs.py` builds the Undercover `assets/pairs.json` (`generate_dataset.ipynb` at the root only drives it), the mots fléchés scripts are listed under `motsfleches/` below, `deploy.py` builds, installs and compiles the release, `phone.py` drives the app over adb for `frame_stats.py` (janky frames per navigation step) `regenerate_profile.py` (records and checks the baseline profile) and `import_flashcards.py` (pushes a flashcards bundle and imports it through the lists screen). `data/` holds their inputs, `app/src/test/` the JVM unit tests, `baselineprofile/` the startup profile module (`BaselineProfileGenerator.kt`, the journey the profile is recorded from).
 
 Root package (shared/misc):
 - `MainActivity.kt`: app entry point; the window, the intents it is launched with, and the locked-over-the-keyguard quick view
