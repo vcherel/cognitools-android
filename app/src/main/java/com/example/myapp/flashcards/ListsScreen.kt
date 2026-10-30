@@ -3,7 +3,6 @@ package com.example.myapp.flashcards
 import android.content.ClipboardManager
 import android.content.Context
 import android.widget.Toast
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import com.example.myapp.rememberHeldPressed
@@ -147,15 +146,6 @@ fun FlashcardListsScreen(navController: NavController) {
                             .padding(start = 8.dp, end = 12.dp)
                             .clickable { showGlobalStats = true }
                     )
-                    // Centered on the gap to the search glyph, whose button pads it by 12.dp.
-                    Spacer(Modifier.weight(1f))
-                    Box(
-                        modifier = Modifier
-                            .width(1.dp)
-                            .height(24.dp)
-                            .background(Color.Gray)
-                    )
-                    Spacer(Modifier.weight(1f))
                 }
 
                 Row {
