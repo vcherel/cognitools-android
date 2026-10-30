@@ -241,7 +241,23 @@ class FlashcardRepository(private val context: Context) {
             3 to "flag-st",
             3 to "flag-sz",
             3 to "flag-af",
-            3 to "flag-af-taliban"
+            3 to "flag-af-taliban",
+            4 to "flag-ie",
+            4 to "flag-md",
+            4 to "flag-ad",
+            4 to "flag-lu",
+            4 to "flag-si",
+            4 to "flag-qa",
+            4 to "flag-bh",
+            4 to "flag-lv",
+            4 to "flag-hn",
+            4 to "flag-sv",
+            4 to "flag-ni",
+            4 to "flag-cu",
+            4 to "flag-cr",
+            4 to "flag-lt",
+            4 to "flag-bo",
+            4 to "flag-ga"
         )
         private const val SIX_MONTHS_MINUTES = 6 * 30 * 24 * 60
         private val builtinListIds = listOf(

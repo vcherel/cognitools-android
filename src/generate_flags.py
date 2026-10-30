@@ -38,6 +38,27 @@ NAME_BOXES = {
     "yt": [((145, 32, 495, 102), "white")],
     "gu": [((283, 159, 314, 178), "#94dbfc"), ((323, 159, 358, 178), "#94dbfc")],
 }
+# Look-alikes whose official proportions would give the answer away, all stretched to 3:2 so only
+# their colors and emblems tell them apart. Indonesia and Monaco keep theirs: it is their only
+# difference.
+SAME_SHAPE = {
+    "ie",  # Côte d'Ivoire
+    "md",  # Andorra, Romania, Chad
+    "ad",
+    "lu",  # Netherlands
+    "si",  # Slovakia, Russia
+    "qa",  # Bahrain
+    "bh",
+    "lv",  # Austria
+    "hn",  # El Salvador, Nicaragua
+    "sv",
+    "ni",
+    "cu",  # Puerto Rico
+    "cr",  # Thailand
+    "lt",  # Bolivia
+    "bo",
+    "ga",  # Sierra Leone
+}
 
 
 # Flags flagcdn lacks, each its own card, from Wikimedia Commons. Outlined, since a white flag
@@ -75,6 +96,10 @@ def hide_name(image, code):
     return image
 
 
+def reshape(image, code):
+    return image.resize((640, 427)) if code in SAME_SHAPE else image
+
+
 def fetch(url):
     request = urllib.request.Request(url, headers={"User-Agent": "cognitools-flags"})
     with urllib.request.urlopen(request) as response:
@@ -97,7 +122,7 @@ def main():
             print(f"{i}/{len(codes)} {code} skipped, same flag as {seen[digest]}", flush=True)
             continue
         seen[digest] = code
-        hide_name(image, code).save(FLAGS_DIR / f"{code}.webp", "WEBP", quality=88, method=6)
+        reshape(hide_name(image, code), code).save(FLAGS_DIR / f"{code}.webp", "WEBP", quality=88, method=6)
         cards.append(card(code, name))
         print(f"{i}/{len(codes)} {code} {name}", flush=True)
     for code, (url, name) in EXTRA_FLAGS.items():
