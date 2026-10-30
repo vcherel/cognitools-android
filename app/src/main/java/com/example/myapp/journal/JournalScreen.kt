@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -53,10 +54,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import coil3.compose.AsyncImage
 import com.example.myapp.AppDialog
 import com.example.myapp.ErrorText
 import com.example.myapp.LightIconButton
@@ -277,12 +281,22 @@ private fun JournalItemCard(
                     color = MaterialTheme.colorScheme.primary
                 )
             }
-            Text(item.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-            if (item.meta.isNotBlank()) {
-                Text(item.meta, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Row {
+                Column(Modifier.weight(1f)) {
+                    Text(item.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                    if (item.meta.isNotBlank()) {
+                        Text(item.meta, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+                if (!expanded && item.image.isNotBlank()) {
+                    ItemPicture(item.image, Modifier.padding(start = 8.dp, end = 8.dp).size(64.dp))
+                }
             }
             Spacer(Modifier.height(6.dp))
             Text(item.summary, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(end = 8.dp))
+            if (expanded && item.image.isNotBlank()) {
+                ItemPicture(item.image, Modifier.padding(top = 8.dp, end = 8.dp).fillMaxWidth().heightIn(max = 240.dp))
+            }
             if (expanded && item.body.isNotBlank()) {
                 Spacer(Modifier.height(8.dp))
                 Text(item.body, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(end = 8.dp))
@@ -350,6 +364,20 @@ private fun JournalItemCard(
             }
         }
     }
+}
+
+/** An item's picture, cropped to [modifier]'s size, gone altogether when it fails to load. */
+@Composable
+private fun ItemPicture(url: String, modifier: Modifier) {
+    var failed by remember(url) { mutableStateOf(false) }
+    if (failed) return
+    AsyncImage(
+        model = url,
+        contentDescription = null,
+        contentScale = ContentScale.Crop,
+        onError = { failed = true },
+        modifier = modifier.clip(RoundedCornerShape(8.dp))
+    )
 }
 
 @Composable

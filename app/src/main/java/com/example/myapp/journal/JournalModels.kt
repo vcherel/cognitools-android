@@ -16,10 +16,12 @@ data class JournalItem(
     val meta: String,
     /** Set on the exploration items: the subject being tried. */
     val subject: String,
+    /** An https picture URL, blank when the item has none. */
+    val image: String,
     val sources: List<JournalSource>
 )
 
-enum class SectionKind { FIXED, TRENDS, EXPLORE }
+enum class SectionKind { FIXED, EXPLORE }
 
 data class JournalSection(val id: String, val title: String, val kind: SectionKind, val items: List<JournalItem>)
 
@@ -87,11 +89,7 @@ fun parseIssue(raw: String): JournalIssue {
             JournalSection(
                 id = section.getString("id"),
                 title = section.getString("title"),
-                kind = when (section.optString("kind")) {
-                    "trends" -> SectionKind.TRENDS
-                    "explore" -> SectionKind.EXPLORE
-                    else -> SectionKind.FIXED
-                },
+                kind = if (section.optString("kind") == "explore") SectionKind.EXPLORE else SectionKind.FIXED,
                 items = section.getJSONArray("items").objects().map { item ->
                     JournalItem(
                         id = item.getString("id"),
@@ -100,6 +98,7 @@ fun parseIssue(raw: String): JournalIssue {
                         body = item.optString("body"),
                         meta = item.optString("meta"),
                         subject = item.optString("subject"),
+                        image = item.optString("image"),
                         sources = item.getJSONArray("sources").objects().map {
                             JournalSource(it.optString("name"), it.getString("url"))
                         }
