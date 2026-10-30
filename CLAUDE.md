@@ -3,7 +3,7 @@
 Personal Android app (Jetpack Compose), sideloaded on Valentin's phone.
 
 ## Workflow
-After implementing a change, build it and end with a summary of what changed, without installing it: Valentin often batches several changes and deploys once, through /wrapup or an explicit ask. Never commit or push at that point either.
+After implementing a change, check it compiles with `./gradlew compileReleaseKotlin` (no APK: R8 and packaging are the slow part, and `deploy.py` builds the release anyway) and end with a summary of what changed, without installing it: Valentin often batches several changes and deploys once, through /wrapup or an explicit ask. Never commit or push at that point either.
 
 Run `git push` with `run_in_background`: the pre-push hook runs the JVM unit tests through Gradle, and a push touching the mots fléchés tool adds the 2 minute generator test, past the 120 s foreground timeout.
 
