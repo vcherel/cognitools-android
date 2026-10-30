@@ -1,7 +1,6 @@
 package com.example.myapp.notes
 
 import android.net.Uri
-import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -538,9 +537,6 @@ private fun NoteItem(
                 val context = LocalContext.current
                 LightIconButton(Icons.Default.ContentCopy, "Copier le contenu", onClick = {
                     copyToClipboard(context, note.content)
-                    if (note.title.trim().equals(INGREDIENTS_TITLE, ignoreCase = true)) {
-                        Toast.makeText(context, "${(1..15).random()}", Toast.LENGTH_SHORT).show()
-                    }
                 })
             }
             Spacer(Modifier.size(4.dp))

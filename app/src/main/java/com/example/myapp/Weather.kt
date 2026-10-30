@@ -31,7 +31,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material3.Card
@@ -197,8 +196,8 @@ private fun WeatherContent(forecast: WeatherForecast, modifier: Modifier = Modif
     // to today; tapping the open day collapses it, and the summary card falls back to today.
     var expandedDate by remember(forecast) { mutableStateOf<LocalDate?>(today) }
     val summaryDate = expandedDate ?: today
-    // The past days stay folded behind one row; stepping back into them with the hour strip's
-    // arrow unfolds them too, so the open day is never hidden.
+    // The past days stay hidden behind one button that disappears once tapped; stepping back into
+    // them with the hour strip's arrow shows them too, so the open day is never hidden.
     var showHistory by remember { mutableStateOf(false) }
     val historyVisible = showHistory || expandedDate?.isBefore(today) == true
 
@@ -251,14 +250,8 @@ private fun WeatherContent(forecast: WeatherForecast, modifier: Modifier = Modif
 
         val firstUpcoming = forecast.daily.indexOfFirst { it.date >= today }
         forecast.daily.forEachIndexed { index, day ->
-            if (index == firstUpcoming && firstUpcoming > 0) {
-                HistoryToggle(
-                    expanded = historyVisible,
-                    onClick = {
-                        if (historyVisible && expandedDate?.isBefore(today) == true) expandedDate = today
-                        showHistory = !historyVisible
-                    }
-                )
+            if (index == 0 && firstUpcoming > 0 && !historyVisible) {
+                HistoryButton(onClick = { showHistory = true })
             }
             if (index < firstUpcoming && !historyVisible) return@forEachIndexed
             val expanded = day.date == expandedDate
@@ -491,7 +484,7 @@ private fun DayNavArrow(icon: ImageVector, onClick: () -> Unit) {
 }
 
 @Composable
-private fun HistoryToggle(expanded: Boolean, onClick: () -> Unit) {
+private fun HistoryButton(onClick: () -> Unit) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -503,7 +496,7 @@ private fun HistoryToggle(expanded: Boolean, onClick: () -> Unit) {
             .padding(horizontal = 12.dp, vertical = 10.dp)
     ) {
         Icon(
-            if (expanded) Icons.Default.KeyboardArrowDown else Icons.AutoMirrored.Filled.KeyboardArrowRight,
+            Icons.AutoMirrored.Filled.KeyboardArrowRight,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.primary
         )
