@@ -192,6 +192,7 @@ fun SplitMyButton(
     modifier: Modifier = Modifier,
     rightText: String? = null,
     height: Dp = 90.dp,
+    rightWidth: Dp = 80.dp,
     fontSize: TextUnit = 24.sp,
     rightLoading: Boolean = false,
     rightEnabled: Boolean = true,
@@ -216,7 +217,7 @@ fun SplitMyButton(
         }
 
         RaisedButton(
-            modifier = Modifier.width(80.dp),
+            modifier = Modifier.width(rightWidth),
             height = height,
             enabled = rightEnabled,
             onClick = onRightClick

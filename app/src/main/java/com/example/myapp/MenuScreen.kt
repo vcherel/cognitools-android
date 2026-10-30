@@ -181,6 +181,7 @@ fun MenuScreen(
                             rightIcon = Icons.Default.FitnessCenter,
                             modifier = Modifier.weight(1f),
                             height = buttonHeight,
+                            rightWidth = 52.dp,
                             fontSize = 20.sp,
                             onMainClick = { open() },
                             onRightClick = { scope.launch { WorkoutReminder.markDoneWithUndo(context) } }
