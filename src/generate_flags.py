@@ -1,6 +1,7 @@
 import hashlib
 import io
 import json
+import math
 import urllib.request
 from pathlib import Path
 
@@ -38,7 +39,7 @@ NAME_BOXES = {
     "yt": [((145, 32, 495, 102), "white")],
     "gu": [((283, 159, 314, 178), "#94dbfc"), ((323, 159, 358, 178), "#94dbfc")],
 }
-# Look-alikes whose official proportions would give the answer away, all stretched to 3:2 so only
+# Look-alikes whose official proportions would give the answer away, all brought to 3:2 so only
 # their colors and emblems tell them apart. Indonesia and Monaco keep theirs: it is their only
 # difference.
 SAME_SHAPE = {
@@ -96,8 +97,81 @@ def hide_name(image, code):
     return image
 
 
-def reshape(image, code):
-    return image.resize((640, 427)) if code in SAME_SHAPE else image
+def plain_lines(image, axis):
+    """Indices of the columns (axis 0) or rows (axis 1) identical to the one before: plain stripe."""
+    count = image.width if axis == 0 else image.height
+    span = image.height if axis == 0 else image.width
+
+    def line(i):
+        box = (i, 0, i + 1, span) if axis == 0 else (0, i, span, i + 1)
+        return image.crop(box).tobytes()
+
+    previous = line(0)
+    plain = []
+    for i in range(1, count):
+        current = line(i)
+        if current == previous:
+            plain.append(i)
+        previous = current
+    return plain
+
+
+def lines_to_keep(count, plain, target):
+    """Which of [count] lines to keep so that [target] remain, dropping only [plain] ones.
+
+    Kept so that every line lands as close as possible to where a plain stretch would put it: the
+    stripes keep their proportions, and the room an emblem cannot give up is shared on both sides.
+    Searches the smallest tolerance a valid choice exists for, then walks back through it.
+    """
+    scale = target / count
+
+    def reachable(tolerance):
+        bounds = [(0, 0)]
+        for x in range(count):
+            low, high = bounds[-1]
+            low += 0 if x in plain else 1
+            high += 1
+            ideal = scale * (x + 1)
+            low, high = max(low, math.ceil(ideal - tolerance)), min(high, math.floor(ideal + tolerance))
+            if low > high:
+                return None
+            bounds.append((low, high))
+        return bounds if bounds[-1][0] <= target <= bounds[-1][1] else None
+
+    low, high = 0.0, float(count)
+    while high - low > 0.25:
+        middle = (low + high) / 2
+        low, high = (low, middle) if reachable(middle) else (middle, high)
+    bounds = reachable(high)
+    kept, current = [], target
+    for x in range(count - 1, -1, -1):
+        before_low, before_high = bounds[x]
+        can_drop = x in plain and before_low <= current <= before_high
+        can_keep = before_low <= current - 1 <= before_high
+        if can_drop and (not can_keep or abs(current - scale * x) <= abs(current - 1 - scale * x)):
+            continue
+        kept.append(x)
+        current -= 1
+    return kept[::-1]
+
+
+def reshape(image):
+    """Brings a flag to 3:2 by dropping plain stripe columns or rows, so its emblem keeps its shape.
+
+    When the stripes run out first, the flag stays as close to 3:2 as they allow.
+    """
+    axis = 0 if image.width > image.height * 3 / 2 else 1
+    count = image.width if axis == 0 else image.height
+    plain = set(plain_lines(image, axis))
+    target = round(image.height * 3 / 2) if axis == 0 else round(image.width * 2 / 3)
+    kept = lines_to_keep(count, plain, max(target, count - len(plain)))
+    out = Image.new(image.mode, (len(kept), image.height) if axis == 0 else (image.width, len(kept)))
+    for j, i in enumerate(kept):
+        if axis == 0:
+            out.paste(image.crop((i, 0, i + 1, image.height)), (j, 0))
+        else:
+            out.paste(image.crop((0, i, image.width, i + 1)), (0, j))
+    return out.resize((640, round(640 * out.height / out.width)), Image.LANCZOS)
 
 
 def fetch(url):
@@ -122,7 +196,12 @@ def main():
             print(f"{i}/{len(codes)} {code} skipped, same flag as {seen[digest]}", flush=True)
             continue
         seen[digest] = code
-        reshape(hide_name(image, code), code).save(FLAGS_DIR / f"{code}.webp", "WEBP", quality=88, method=6)
+        if code in SAME_SHAPE:
+            # From the bigger render: dropping stripes then scaling back down keeps the emblem sharp.
+            image = reshape(
+                Image.open(io.BytesIO(fetch(f"https://flagcdn.com/w1280/{code}.png"))).convert("RGBA")
+            )
+        hide_name(image, code).save(FLAGS_DIR / f"{code}.webp", "WEBP", quality=88, method=6)
         cards.append(card(code, name))
         print(f"{i}/{len(codes)} {code} {name}", flush=True)
     for code, (url, name) in EXTRA_FLAGS.items():
