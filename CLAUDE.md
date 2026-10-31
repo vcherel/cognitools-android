@@ -90,7 +90,7 @@ Root package (shared/misc):
 - `DeezerFavoritesHistory.kt`: the favorites count day by day, one JSON sample per day written on each complete fetch, the past seeded once from each track's `DATE_ADD`
 - `DeezerFavoritesHistoryScreen.kt`: the curve of that count, opened by tapping the "N titres" label on the library's Favoris card
 - `DeezerOffline.kt`: DeezerOfflineLibrary, the permanent Best pépites mirror; sync, retry pass, sync log file
-- `DeezerPlaybackService.kt`: MediaSessionService owning the ExoPlayer; media notification, its heart/diamond action buttons (`actionButtons`), error recovery
+- `DeezerPlaybackService.kt`: MediaSessionService owning the ExoPlayer; media notification, its heart/diamond action buttons (`actionButtons`), error recovery, and the look ahead that swaps out a next track Deezer refuses before the crossfade reaches it
 - `DeezerCrossfade.kt`: Crossfader, the 8 s blend into the next queued track (a session-less second player takes over the outgoing tail), started early on an outro or silence detected by LevelMeter, a tee on the main player's PCM
 - `DeezerScreen.kt`: host for the whole Musique tool (music *and* podcasts), nested NavHost + the two persistent mini-players
 - `DeezerNowPlaying.kt`: FullPlayerSheet, plus the share-a-track sheet. The mini-player bar itself is the shared one in `PlayerUi.kt`

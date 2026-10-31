@@ -4,6 +4,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.os.SystemClock
 import android.util.Log
 import android.widget.Toast
 import androidx.media3.common.AudioAttributes
@@ -48,6 +49,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * Background playback for the Deezer tool. A MediaSessionService owns the single ExoPlayer and its
@@ -303,8 +305,9 @@ class DeezerPlaybackService : MediaSessionService() {
      * resolve hiccup, network drop between two tracks) or permanently (an artist who re-released the
      * same song can leave the specific sngId a favorite/playlist pinned unstreamable): retry the same
      * one once, then either swap in a working release of the same song (see [findAndApplyReplacement])
-     * or skip to the next queued item. Without this the player just parks in IDLE at the end of a
-     * track and needs a manual next + play.
+     * or skip to the next queued item, faded in. Without this the player just parks in IDLE at the
+     * end of a track and needs a manual next + play. The refusals it can see coming are handled
+     * ahead of time instead, see [startLookahead].
      */
     private inner class ErrorRecovery(private val player: ExoPlayer) : Player.Listener {
 
@@ -314,6 +317,9 @@ class DeezerPlaybackService : MediaSessionService() {
         private var lastErrorLine = ""
         private var awaitingQueue: Job? = null
         private var awaitingTitle: String? = null
+        private var fadeIn: Job? = null
+        private var lookahead: Job? = null
+        private var checkedNextId: String? = null
 
         override fun onTimelineChanged(timeline: Timeline, reason: Int) {
             if (awaitingQueue == null) return
@@ -416,8 +422,7 @@ class DeezerPlaybackService : MediaSessionService() {
                 else "Échec du chargement de « $title », passage au morceau suivant"
             )
             player.seekToNextMediaItem()
-            player.prepare()
-            player.play()
+            playFadingIn()
         }
 
         /** Deezer refuses [track] and has no other release of it: offers to take it out of [source]. */
@@ -450,23 +455,102 @@ class DeezerPlaybackService : MediaSessionService() {
                     skipToNext(track.title, removable = track.takeIf { replacement == null && repo.refused.contains(it.sngId) }?.let { it to source })
                     return@launch
                 }
-                val index = player.currentMediaItemIndex
-                player.replaceMediaItem(index, repo.player.buildMediaItem(replacement, source = source))
-                player.prepare()
-                player.play()
-                val applied = runCatching { repo.applyReplacement(track, replacement, source) }.isSuccess
-                // If the write failed (offline, stale token), the swapped-in release still isn't in
-                // the real favorites list: without this the heart (and the notification's like button)
-                // would read as "not liked" for a song the user does like, just under another sngId.
-                if (!applied && source is TrackSource.Favorites) repo.markTemporaryFavorite(replacement.sngId)
+                swapIn(player.currentMediaItemIndex, track, replacement, source)
+                playFadingIn()
+            }
+        }
+
+        /**
+         * Puts [replacement] in [track]'s place at [index] of the queue, then makes the swap permanent
+         * at its [source], when there is one.
+         */
+        private fun swapIn(index: Int, track: DeezerTrack, replacement: DeezerTrack, source: TrackSource?) {
+            val queuedNext = with(repo.player) { player.getMediaItemAt(index).isQueuedNext }
+            player.replaceMediaItem(index, repo.player.buildMediaItem(replacement, queuedNext, source))
+            scope.launch {
+                if (source != null) {
+                    val applied = runCatching { repo.applyReplacement(track, replacement, source) }.isSuccess
+                    // If the write failed (offline, stale token), the swapped-in release still isn't in
+                    // the real favorites list: without this the heart (and the notification's like button)
+                    // would read as "not liked" for a song the user does like, just under another sngId.
+                    if (!applied && source is TrackSource.Favorites) repo.markTemporaryFavorite(replacement.sngId)
+                }
                 AppSnackbar.show("« ${track.title} » indisponible, remplacé par une autre version")
                 refreshActionButtons()
             }
         }
 
+        /** Restarts the player after a failure with a short fade in, instead of the music landing at full volume. */
+        private fun playFadingIn() {
+            player.volume = 0f
+            player.prepare()
+            player.play()
+            fadeIn?.cancel()
+            fadeIn = scope.launch {
+                try {
+                    withTimeoutOrNull(FADE_IN_WAIT_MS) { while (!player.isPlaying) delay(FADE_IN_STEP_MS) }
+                    val start = SystemClock.elapsedRealtime()
+                    while (true) {
+                        val t = ((SystemClock.elapsedRealtime() - start).toFloat() / FADE_IN_MS).coerceIn(0f, 1f)
+                        player.volume = t
+                        if (t >= 1f) break
+                        delay(FADE_IN_STEP_MS)
+                    }
+                } finally {
+                    player.volume = 1f
+                }
+            }
+        }
+
+        /**
+         * Near the end of a track, makes sure Deezer still serves the next one. A refusal found only
+         * when the crossfade seeks into it kills the blend and leaves seconds of silence while a
+         * replacement is searched; found here, the other release is swapped in (or the track taken
+         * out of the queue) while the current one still plays, and the blend goes ahead as usual.
+         */
+        private fun startLookahead() {
+            if (lookahead?.isActive == true) return
+            lookahead = scope.launch {
+                while (true) {
+                    checkNextIfDue()
+                    delay(LOOKAHEAD_POLL_MS)
+                }
+            }
+        }
+
+        private suspend fun checkNextIfDue() {
+            val duration = player.duration
+            if (duration == C.TIME_UNSET || duration - player.currentPosition > LOOKAHEAD_MS) return
+            val index = player.nextMediaItemIndex
+            if (index == C.INDEX_UNSET) return
+            val item = player.getMediaItemAt(index)
+            if (item.mediaId == checkedNextId) return
+            val track = repo.player.trackById(item.mediaId)
+            if (track == null || repo.player.isOnDisk(track.sngId) || repo.isStreamable(track.sngId) != false) {
+                checkedNextId = item.mediaId
+                return
+            }
+            val source = repo.player.sourceOf(item)
+            val replacement = runCatching { repo.findReplacement(track) }.getOrNull()
+            checkedNextId = item.mediaId
+            // The queue may have moved while the network answered.
+            if (index >= player.mediaItemCount || player.getMediaItemAt(index).mediaId != item.mediaId) return
+            if (replacement != null) {
+                swapIn(index, track, replacement, source)
+            } else {
+                player.removeMediaItem(index)
+                if (source != null) offerRemoval(track, source)
+                else AppSnackbar.show("« ${track.title} » indisponible sur Deezer, passage au suivant")
+            }
+        }
+
         // Audio actually coming out means the queue is healthy again: forget the failure history.
         override fun onIsPlayingChanged(isPlaying: Boolean) {
-            if (!isPlaying) return
+            if (!isPlaying) {
+                lookahead?.cancel()
+                return
+            }
+            startLookahead()
             awaitingQueue?.cancel()
             awaitingQueue = null
             failedMediaId = null
@@ -501,6 +585,12 @@ class DeezerPlaybackService : MediaSessionService() {
         private const val TAG = "DeezerPlayback"
         private const val MAX_SKIPS = 5
         private const val QUEUE_FILL_WAIT_MS = 3_000L
+        /** Ahead of the crossfader buffering the tail (20 s), so a swap is done before any blend starts. */
+        private const val LOOKAHEAD_MS = 35_000L
+        private const val LOOKAHEAD_POLL_MS = 2_000L
+        private const val FADE_IN_MS = 1_500L
+        private const val FADE_IN_STEP_MS = 30L
+        private const val FADE_IN_WAIT_MS = 10_000L
         private const val CMD_TOGGLE_LIKE = "com.example.myapp.deezer.TOGGLE_LIKE"
         private const val CMD_TOGGLE_PEPITES = "com.example.myapp.deezer.TOGGLE_BEST_PEPITES"
 

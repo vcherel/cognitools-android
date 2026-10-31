@@ -588,6 +588,17 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
         }
     }
 
+    /** False when Deezer refuses to stream [sngId], null when the network gave no answer. */
+    suspend fun isStreamable(sngId: String): Boolean? = try {
+        resolveStream(sngId, DEFAULT_QUALITY)
+        true
+    } catch (e: TrackUnavailableException) {
+        false
+    } catch (e: Exception) {
+        if (e is CancellationException) throw e
+        null
+    }
+
     /** Removes [old] from favorites/[source]'s playlist and adds [new] in its place. */
     suspend fun applyReplacement(old: DeezerTrack, new: DeezerTrack, source: TrackSource) {
         when (source) {

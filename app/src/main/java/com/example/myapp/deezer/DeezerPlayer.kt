@@ -246,7 +246,7 @@ class DeezerPlayer(private val appContext: Context, private val repo: DeezerRepo
         }
     }
 
-    private fun isOnDisk(sngId: String): Boolean {
+    fun isOnDisk(sngId: String): Boolean {
         val key = deezerCacheKey(sngId)
         return isWhole(repo.offline.cache, key) || isWhole(repo.streamCache, key)
     }
@@ -380,7 +380,7 @@ class DeezerPlayer(private val appContext: Context, private val repo: DeezerRepo
         }
     }
 
-    private val MediaItem.isQueuedNext: Boolean
+    val MediaItem.isQueuedNext: Boolean
         get() = mediaMetadata.extras?.getBoolean(QUEUED_NEXT_KEY) == true
 
     fun togglePlay() = controller?.let { if (it.isPlaying) it.pause() else it.play() }
