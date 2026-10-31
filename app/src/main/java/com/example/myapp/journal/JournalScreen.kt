@@ -30,6 +30,7 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.ThumbDown
 import androidx.compose.material.icons.filled.ThumbUp
 import androidx.compose.material.icons.outlined.AddComment
+import androidx.compose.material.icons.outlined.AddTask
 import androidx.compose.material.icons.outlined.Cancel
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.ThumbDown
@@ -49,6 +50,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
@@ -62,17 +64,21 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.example.myapp.AppDialog
+import com.example.myapp.AppSnackbar
 import com.example.myapp.ErrorText
 import com.example.myapp.LightIconButton
 import com.example.myapp.ScreenTopBar
 import com.example.myapp.journalRepository
 import com.example.myapp.news.NewsArticle
 import com.example.myapp.newsRepository
+import com.example.myapp.notes.addToTodoNote
+import com.example.myapp.userMessage
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
 
 private val DAY_FORMAT = DateTimeFormatter.ofPattern("EEEE d MMMM", Locale.FRENCH)
 private const val SCROLL_SAVE_DELAY_MS = 500L
@@ -100,6 +106,7 @@ fun JournalScreen(onBack: () -> Unit, onOpenArticle: (String) -> Unit) {
 
     var date by rememberSaveable { mutableStateOf<String?>(null) }
     var noteTarget by remember { mutableStateOf<NoteTarget?>(null) }
+    val scope = rememberCoroutineScope()
     val shownDate = date?.takeIf { d -> issues.any { it.date == d } } ?: repo.startDate()
     val index = issues.indexOfFirst { it.date == shownDate }
     val issue = issues.getOrNull(index)
@@ -198,6 +205,16 @@ fun JournalScreen(onBack: () -> Unit, onOpenArticle: (String) -> Unit) {
                         note = feedback.notes[item.id],
                         onRate = { repo.rate(issue.date, item.id, it) },
                         onEditNote = { noteTarget = NoteTarget(item.id, item.title, feedback.notes[item.id].orEmpty()) },
+                        onSaveTodo = {
+                            scope.launch {
+                                val text = if (item.meta.isBlank()) item.title else "${item.title} (${item.meta})"
+                                val added = runCatching { addToTodoNote(context, text) }.getOrElse {
+                                    AppSnackbar.show("Erreur: ${userMessage(it)}")
+                                    return@launch
+                                }
+                                AppSnackbar.show(if (added) "Ajouté à la Todo list" else "Déjà dans la Todo list")
+                            }
+                        },
                         onOpenSource = { source ->
                             repo.markOpened(issue.date, item.id)
                             context.newsRepository.registerOutside(
@@ -266,6 +283,7 @@ private fun JournalItemCard(
     note: String?,
     onRate: (Int) -> Unit,
     onEditNote: () -> Unit,
+    onSaveTodo: () -> Unit,
     onOpenSource: (JournalSource) -> Unit
 ) {
     Surface(
@@ -348,6 +366,14 @@ private fun JournalItemCard(
                     if (note.isNullOrBlank()) Icons.Outlined.AddComment else Icons.AutoMirrored.Filled.Comment,
                     contentDescription = "Note",
                     onClick = onEditNote,
+                    size = 44.dp,
+                    iconSize = 22.dp,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                LightIconButton(
+                    Icons.Outlined.AddTask,
+                    contentDescription = "Ajouter à la Todo list",
+                    onClick = onSaveTodo,
                     size = 44.dp,
                     iconSize = 22.dp,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant

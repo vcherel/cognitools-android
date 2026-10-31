@@ -162,7 +162,7 @@ Root package (shared/misc):
 `journal/` (the daily newsletter written on the laptop by `~/Documents/Code/daily-journal`, read and rated here):
 - `JournalModels.kt`: the issue and feedback shapes and their org.json (de)serialization, mirroring that repo's `issue.py`
 - `JournalRepository.kt`: the singleton; issues fetched from the mailbox's Journal folder into `filesDir/journal` only on refresh (14 kept, as on the mailbox), the read marks behind the menu tile's amber unread fill, where each issue was left (scroll, expanded cards) and which issue to reopen, the ratings, notes, idea answers and opened sources per issue, sent back as `feedback_<date>.json` a few seconds after the last change (pending dates survive a killed process)
-- `JournalScreen.kt`: one scroll of the day's issue, collapsed cards (tap for the full text, an item's picture as a thumbnail that grows full width when expanded), thumbs, note dialog, sources opened in the news article screen, the arrows to older issues, the mark as read check
+- `JournalScreen.kt`: one scroll of the day's issue, collapsed cards (tap for the full text, an item's picture as a thumbnail that grows full width when expanded), thumbs, note dialog, the add to Todo list button, sources opened in the news article screen, the arrows to older issues, the mark as read check
 
 `mail/` (the Yahoo inbox, read and delete only, fetched only when the screen opens or on refresh; no background work; plus the backup upload and the journal files):
 - `MailSettings.kt`: DataStore for the Yahoo address and its app password
@@ -208,6 +208,7 @@ Root package (shared/misc):
 - `IngredientDialogs.kt`: the reconcile dialog and the add-an-item name prompt
 - `CarPartsNote.kt`: the "Car Mechanic Simulator" note's model (one stock, a taken and a to buy section per job, repairs or tuning by the header star, `Name +N xQ` lines), the lines the other job hides, the typo tolerant name suggestions. Pure, JVM tested
 - `CarPartsBar.kt`: the bar pinned under that note and CarPartsMemory, the DataStore of entered names and the star mode
+- `TodoNote.kt`: `addToTodoNote`, the unchecked item appended to the active block of the "Todo list" note, written by the journal's per item button
 - `DjNote.kt`: `appendToDjNote`, the "Artiste - Titre" line appended to the DJ note (the tracks to download), written by the music tool, suffixed "(téléchargé)" once the app saved the MP3
 
 `reader/` (epub reader):
