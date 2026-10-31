@@ -16,6 +16,8 @@ This app's UI text (labels, toasts, snackbars, content descriptions, etc.) is Fr
 
 A complaint about the Musique tool's errors starts with `uv run --no-project src/deezer_logs.py`, which pulls every log the tool writes (errors, crossfade, offline sync, discoveries) from `/sdcard/Android/data/com.example.myapp/files/` and groups the error and crossfade lines by kind, with the tracks refused on several days.
 
+A flag complaint starts with `uv run --no-project --with pillow python src/generate_flags.py --sheet <codes>` from the repo root, opened for Valentin: it puts the shipped picture next to a fresh render and writes nothing to the assets, so the same command previews a generator change before the full run.
+
 A layout complaint starts with `adb exec-out screencap -p`, never with the code. A black capture means the phone is locked: ask Valentin to unlock it and open the screen, then capture again.
 
 ## Deploy method

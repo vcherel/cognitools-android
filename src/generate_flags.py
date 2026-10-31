@@ -1,7 +1,9 @@
+import argparse
 import hashlib
 import io
 import json
 import math
+import tempfile
 import urllib.request
 from pathlib import Path
 
@@ -180,7 +182,50 @@ def fetch(url):
         return response.read()
 
 
+def flagcdn(code, width):
+    return Image.open(io.BytesIO(fetch(f"https://flagcdn.com/w{width}/{code}.png"))).convert("RGBA")
+
+
+def render(code, image):
+    """The card picture for [code], from its w640 [image]."""
+    if code in EXTRA_FLAGS:
+        return extra_flag(EXTRA_FLAGS[code][0])
+    if code in SAME_SHAPE:
+        # From the bigger render: dropping stripes then scaling back down keeps the emblem sharp.
+        image = reshape(flagcdn(code, 1280))
+    return hide_name(image, code)
+
+
+def sheet(codes):
+    """Shipped picture on the left, a fresh render on the right; nothing written to the assets."""
+    tile_w, tile_h = 660, 470
+    out = Image.new("RGB", (tile_w * 2, tile_h * len(codes)), "#888888")
+    draw = ImageDraw.Draw(out)
+    for i, code in enumerate(codes):
+        shipped = FLAGS_DIR / f"{code}.webp"
+        fresh = render(code, None if code in EXTRA_FLAGS else flagcdn(code, 640))
+        for column, image in enumerate([Image.open(shipped) if shipped.exists() else None, fresh]):
+            x, y = column * tile_w, i * tile_h
+            label = "shipped" if column == 0 else "regenerated"
+            if image is None:
+                draw.text((x + 12, y + 12), f"{code}: no shipped picture", fill="black")
+                continue
+            out.paste(image.convert("RGB"), (x + 10, y + 10))
+            draw.text((x + 12, y + 450), f"{code} {label} {image.width}x{image.height}", fill="black")
+        print(f"{i + 1}/{len(codes)} {code}", flush=True)
+    path = Path(tempfile.mkdtemp(prefix="flags_sheet_")) / "sheet.png"
+    out.save(path)
+    print(path, flush=True)
+
+
 def main():
+    parser = argparse.ArgumentParser(description="Build the Drapeaux flashcards list from flagcdn.")
+    parser.add_argument("--sheet", nargs="+", metavar="CODE", help="only render these flags side by side")
+    args = parser.parse_args()
+    if args.sheet:
+        sheet(args.sheet)
+        return
+
     names = json.loads(fetch("https://flagcdn.com/fr/codes.json"))
     codes = sorted(c for c in names if "-" not in c and c not in NOT_COUNTRIES | SAME_FLAG_AS_SOVEREIGN)
     codes.sort(key=lambda c: c not in SOVEREIGN_FIRST)
@@ -189,19 +234,14 @@ def main():
     seen = {}
     cards = []
     for i, code in enumerate(codes, 1):
-        image = Image.open(io.BytesIO(fetch(f"https://flagcdn.com/w640/{code}.png"))).convert("RGBA")
+        image = flagcdn(code, 640)
         digest = hashlib.sha1(image.tobytes()).hexdigest()
         name = RENAMES.get(code, names[code])
         if digest in seen:
             print(f"{i}/{len(codes)} {code} skipped, same flag as {seen[digest]}", flush=True)
             continue
         seen[digest] = code
-        if code in SAME_SHAPE:
-            # From the bigger render: dropping stripes then scaling back down keeps the emblem sharp.
-            image = reshape(
-                Image.open(io.BytesIO(fetch(f"https://flagcdn.com/w1280/{code}.png"))).convert("RGBA")
-            )
-        hide_name(image, code).save(FLAGS_DIR / f"{code}.webp", "WEBP", quality=88, method=6)
+        render(code, image).save(FLAGS_DIR / f"{code}.webp", "WEBP", quality=88, method=6)
         cards.append(card(code, name))
         print(f"{i}/{len(codes)} {code} {name}", flush=True)
     for code, (url, name) in EXTRA_FLAGS.items():

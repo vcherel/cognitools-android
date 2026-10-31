@@ -83,6 +83,8 @@ The Drapeaux flashcard list, every ISO country and territory flag from flagcdn w
 uv run python src/generate_flags.py
 ```
 
+`--sheet <codes>` only renders those flags next to the shipped ones, as one image, without writing anything.
+
 ## Development
 
 Lint and format run on commit through pre-commit, tests run on push:
