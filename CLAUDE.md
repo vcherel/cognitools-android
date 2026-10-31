@@ -206,8 +206,6 @@ Root package (shared/misc):
 - `NoteSyncActions.kt`: the flows the editor triggers across the Courses/Ingrédients/model notes (move, add, re-sort, reconcile) and the batch state behind the reconcile dialog
 - `IngredientSync.kt`: the pure text side of that sync, parsing the `Modèle courses` note and rendering Courses and Ingrédients from it
 - `IngredientDialogs.kt`: the reconcile dialog and the add-an-item name prompt
-- `CarPartsNote.kt`: the "Car Mechanic Simulator" note's model (one stock, a taken and a to buy section per job, repairs or tuning by the header star, `Name +N xQ` lines), the lines the other job hides, the typo tolerant name suggestions. Pure, JVM tested
-- `CarPartsBar.kt`: the bar pinned under that note and CarPartsMemory, the DataStore of entered names and the star mode
 - `TodoNote.kt`: `addToTodoNote`, the unchecked item appended to the active block of the "Todo list" note, written by the journal's per item button
 - `DjNote.kt`: `appendToDjNote`, the "Artiste - Titre" line appended to the DJ note (the tracks to download), written by the music tool, suffixed "(téléchargé)" once the app saved the MP3
 

@@ -18,7 +18,6 @@ import androidx.compose.material.icons.filled.CheckBoxOutlineBlank
 import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.FormatBold
-import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.FormatItalic
 import androidx.compose.material.icons.filled.FormatUnderlined
 import androidx.compose.material.icons.filled.Kitchen
@@ -26,10 +25,6 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.ShoppingCartCheckout
-import androidx.compose.material.icons.filled.SortByAlpha
-import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material.icons.filled.Title
 import androidx.compose.material.icons.filled.VerticalAlignCenter
 import androidx.compose.material3.DropdownMenu
@@ -77,10 +72,7 @@ data class NoteEditorBarState(
     val hasContent: Boolean,
     val isCoursesNote: Boolean,
     val isIngredientsNote: Boolean,
-    val isCoursesModelNote: Boolean,
-    val isCarPartsNote: Boolean,
-    val carStarMode: Boolean,
-    val carHasShopping: Boolean
+    val isCoursesModelNote: Boolean
 )
 
 /** What the bar's buttons and menu entries do. All of them act on the note the editor holds. */
@@ -100,11 +92,7 @@ data class NoteEditorBarActions(
     val onRemoveChecked: () -> Unit,
     val onClearContent: () -> Unit,
     val onToggleInlineMarker: (String) -> Unit,
-    val onToggleTitle: () -> Unit,
-    val onToggleCarStarMode: () -> Unit,
-    val onSortCarStock: () -> Unit,
-    val onFinishCarShopping: () -> Unit,
-    val onMemorizeCarStock: () -> Unit
+    val onToggleTitle: () -> Unit
 )
 
 /**
@@ -192,21 +180,6 @@ fun NoteEditorTopBar(
             if (state.isCoursesNote) {
                 IconButton(onClick = actions.onAddCourseItem) {
                     Icon(Icons.Default.Add, contentDescription = "Ajouter un article")
-                }
-            }
-            if (state.isCarPartsNote) {
-                // Filled star: tuning, the whole stock and the best bonus first. Outline: repairs,
-                // unrated parts only. Each has its own shopping lists.
-                IconButton(onClick = actions.onToggleCarStarMode) {
-                    Icon(
-                        if (state.carStarMode) Icons.Default.Star else Icons.Default.StarBorder,
-                        contentDescription = if (state.carStarMode) "Mode amélioration" else "Mode réparations"
-                    )
-                }
-                if (state.carHasShopping) {
-                    IconButton(onClick = actions.onFinishCarShopping) {
-                        Icon(Icons.Default.ShoppingCartCheckout, contentDescription = "Terminer les achats")
-                    }
                 }
             }
             IconButton(onClick = actions.onToggleSearch) {
@@ -316,18 +289,6 @@ fun NoteEditorTopBar(
                         text = { Text("Ranger les Ingrédients selon ce modèle") },
                         leadingIcon = { Icon(Icons.AutoMirrored.Filled.Sort, contentDescription = null) },
                         onClick = { showMoreMenu = false; actions.onResortIngredients() }
-                    )
-                }
-                if (state.isCarPartsNote) {
-                    DropdownMenuItem(
-                        text = { Text("Trier le stock") },
-                        leadingIcon = { Icon(Icons.Default.SortByAlpha, contentDescription = null) },
-                        onClick = { showMoreMenu = false; actions.onSortCarStock() }
-                    )
-                    DropdownMenuItem(
-                        text = { Text("Mémoriser le stock") },
-                        leadingIcon = { Icon(Icons.Default.Inventory2, contentDescription = null) },
-                        onClick = { showMoreMenu = false; actions.onMemorizeCarStock() }
                     )
                 }
             }
