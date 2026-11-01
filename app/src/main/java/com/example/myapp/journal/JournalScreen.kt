@@ -239,11 +239,33 @@ fun JournalScreen(onBack: () -> Unit, onOpenArticle: (String) -> Unit) {
                 }
             }
             item(key = "general-${issue.date}") {
-                TextButton(
-                    onClick = { noteTarget = NoteTarget(null, "Un mot sur ce numéro", feedback.general) },
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp)
+                Surface(
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth().padding(top = 16.dp, bottom = 16.dp)
                 ) {
-                    Text(if (feedback.general.isBlank()) "Un mot sur ce numéro" else "« ${feedback.general} »")
+                    Row(
+                        Modifier
+                            .clickable { noteTarget = NoteTarget(null, "Un mot sur ce numéro", feedback.general) }
+                            .padding(horizontal = 14.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            if (feedback.general.isBlank()) Icons.Outlined.AddComment else Icons.AutoMirrored.Filled.Comment,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(Modifier.width(12.dp))
+                        if (feedback.general.isBlank()) {
+                            Text(
+                                "Un mot sur ce numéro",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        } else {
+                            Text("« ${feedback.general} »", style = MaterialTheme.typography.bodyLarge, fontStyle = FontStyle.Italic)
+                        }
+                    }
                 }
             }
         }
