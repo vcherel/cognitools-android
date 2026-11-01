@@ -7,6 +7,10 @@ import androidx.room.Query
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.Upsert
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
+import com.example.myapp.calendar.CalendarDao
+import com.example.myapp.calendar.CalendarItem
 import com.example.myapp.gallery.PinnedMediaItem
 import com.example.myapp.gallery.PinnedMediaItemDao
 import com.example.myapp.notes.Note
@@ -84,11 +88,12 @@ interface FlashcardDao {
         FlashcardList::class, FlashcardElement::class, Note::class, PinnedMediaItem::class,
         PodcastFavorite::class, PodcastSeenEpisode::class, PodcastEpisodeProgress::class,
         PodcastDownload::class, Book::class, NewsRead::class, NewsSaved::class,
-        NewsProgress::class
+        NewsProgress::class, CalendarItem::class
     ],
-    version = 18
+    version = 19
 )
 abstract class AppDatabase : RoomDatabase() {
+    abstract fun calendarDao(): CalendarDao
     abstract fun flashcardDao(): FlashcardDao
     abstract fun noteDao(): NoteDao
     abstract fun pinnedMediaItemDao(): PinnedMediaItemDao
@@ -105,7 +110,18 @@ abstract class AppDatabase : RoomDatabase() {
                     context.applicationContext,
                     AppDatabase::class.java,
                     "flashcards.db"
-                ).build().also { instance = it }
+                ).addMigrations(MIGRATION_18_19).build().also { instance = it }
             }
+    }
+}
+
+private val MIGRATION_18_19 = object : Migration(18, 19) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `calendar_items` (`id` TEXT NOT NULL, `kind` TEXT NOT NULL, " +
+                "`title` TEXT NOT NULL, `date` TEXT NOT NULL, `time` TEXT, `endTime` TEXT, `place` TEXT, " +
+                "`yearKnown` INTEGER NOT NULL, `reminderMinutes` INTEGER, `done` INTEGER NOT NULL, " +
+                "`wishedYear` INTEGER, PRIMARY KEY(`id`))"
+        )
     }
 }

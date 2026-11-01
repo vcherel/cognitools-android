@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.example.myapp.calendar.calendarToJson
 import com.example.myapp.flashcards.AppDatabase
 import com.example.myapp.notes.notesToJsonString
 import kotlinx.coroutines.CoroutineScope
@@ -54,11 +55,13 @@ private const val DAY_MS = 24 * 60 * 60 * 1000L
 
 enum class BackupKind(val stem: String) {
     NOTES("cognitools_notes"),
-    FLASHCARDS("cognitools_flashcards");
+    FLASHCARDS("cognitools_flashcards"),
+    CALENDAR("cognitools_calendar");
 
     suspend fun createJson(context: Context): String = when (this) {
         NOTES -> notesToJsonString(AppDatabase.get(context).noteDao().getNotes())
         FLASHCARDS -> context.flashcardRepository.createBackupJson()
+        CALENDAR -> calendarToJson(AppDatabase.get(context).calendarDao().getAll())
     }
 }
 

@@ -23,6 +23,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.example.myapp.calendar.CalendarScreen
 import com.example.myapp.deezer.DeezerScreen
 import com.example.myapp.files.FilesScreen
 import com.example.myapp.flashcards.FlashcardDetailScreen
@@ -172,6 +173,12 @@ fun MainScreen(
                         arguments = listOf(navArgument("pickDay") { type = NavType.BoolType; defaultValue = false })
                     ) { backStackEntry ->
                         WorkoutScreen(onBack = back, pickDayInitially = backStackEntry.arguments?.getBoolean("pickDay") ?: false)
+                    }
+                    composable(
+                        "calendar?day={day}",
+                        arguments = listOf(navArgument("day") { type = NavType.StringType; defaultValue = "" })
+                    ) { backStackEntry ->
+                        CalendarScreen(onBack = back, initialDay = backStackEntry.arguments?.getString("day")?.ifEmpty { null })
                     }
                     composable("motsFleches") { MotsFlechesScreen(onBack = back) }
                     composable("translate") { TranslateScreen(onBack = back) }

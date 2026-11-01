@@ -86,7 +86,8 @@ fun MenuScreen(
         MenuTool("news", "Actus"),
         MenuTool("journal", "Journal"),
         MenuTool("mail", "Mail"),
-        MenuTool("workout", "Muscu")
+        MenuTool("workout", "Muscu"),
+        MenuTool("calendar", "Agenda")
     )
     // Most used first, alphabetical between tools opened as often (so a fresh install is A to Z).
     val orderedTools = tools.sortedWith(

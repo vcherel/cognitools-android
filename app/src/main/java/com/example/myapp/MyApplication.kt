@@ -7,6 +7,7 @@ import coil3.PlatformContext
 import coil3.SingletonImageLoader
 import coil3.network.okhttp.OkHttpNetworkFetcherFactory
 import coil3.video.VideoFrameDecoder
+import com.example.myapp.calendar.CalendarReminders
 import com.example.myapp.deezer.DeezerRepository
 import com.example.myapp.flashcards.AppDatabase
 import com.example.myapp.flashcards.FlashcardRepository
@@ -45,6 +46,7 @@ class MyApplication : Application(), SingletonImageLoader.Factory {
             AppDatabase.get(this@MyApplication).noteDao().purgeExpiredTrashedNotes(cutoff)
             WorkoutReminder.reschedule(this@MyApplication)
             TodoReminder.rescheduleAll(this@MyApplication)
+            CalendarReminders.refresh(this@MyApplication)
             flashcardRepository.seedAndPurge()
             flashcardRepository.primeListsWithCounts()
             // Reads the saved discoveries batch off disk right away (no network), so the card on the
