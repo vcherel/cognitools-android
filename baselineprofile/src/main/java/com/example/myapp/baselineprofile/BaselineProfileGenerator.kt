@@ -62,10 +62,11 @@ class BaselineProfileGenerator {
                 device.pressBack()
                 device.waitForIdle()
             }
-            // A list's own cards, then a review round on it, read only: it is left before any answer.
+            // A list's own cards, then a review round on it: one swipe, undone, so the card keeps its progress.
             if (tap(By.textEndsWith("to review"))) {
                 flingScrollable()
                 if (tap(By.text("Play"))) {
+                    swipeCardAndUndo()
                     device.pressBack()
                     device.waitForIdle()
                 }
@@ -113,6 +114,17 @@ class BaselineProfileGenerator {
             else device.pressBack()
         } catch (_: StaleObjectException) {
         }
+    }
+
+    // Only undoes when the swipe answered a card: without one the Undo button stays disabled.
+    private fun MacrobenchmarkScope.swipeCardAndUndo() {
+        if (!device.wait(Until.hasObject(By.textStartsWith("Cards to review")), 5_000)) return
+        val y = device.displayHeight / 2
+        device.swipe(device.displayWidth * 8 / 10, y, device.displayWidth / 10, y, 15)
+        device.waitForIdle()
+        Thread.sleep(500)
+        device.findObject(By.desc("Undo").enabled(true))?.click()
+        device.waitForIdle()
     }
 
     private fun MacrobenchmarkScope.tap(text: String): Boolean = tap(By.text(text))

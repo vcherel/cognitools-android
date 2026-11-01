@@ -6,10 +6,14 @@ import android.graphics.ImageDecoder
 import android.net.Uri
 import android.util.Base64
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import coil3.SingletonImageLoader
 import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
+import coil3.size.Size
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -44,6 +48,27 @@ fun CardImage(
         contentScale = contentScale,
         modifier = modifier
     )
+}
+
+// Decoded at its own size, so the request the review screen draws and the one it prefetches
+// share a memory cache key whatever the card measures.
+private fun Context.fullSizeCardImageRequest(image: String): ImageRequest =
+    ImageRequest.Builder(this).data(cardImageModel(image)).size(Size.ORIGINAL).build()
+
+/** The review screen's picture, already in memory when [prefetchCardImage] ran on it. */
+@Composable
+fun FullSizeCardImage(image: String, modifier: Modifier = Modifier) {
+    val context = LocalContext.current
+    AsyncImage(
+        model = remember(image) { context.fullSizeCardImageRequest(image) },
+        contentDescription = null,
+        contentScale = ContentScale.Fit,
+        modifier = modifier
+    )
+}
+
+fun prefetchCardImage(context: Context, image: String) {
+    SingletonImageLoader.get(context).enqueue(context.fullSizeCardImageRequest(image))
 }
 
 /**

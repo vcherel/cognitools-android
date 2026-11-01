@@ -70,6 +70,13 @@ def fling():
     time.sleep(1)
 
 
+def swipe_left():
+    width, height = map(int, re.search(r"(\d+)x(\d+)", adb("shell", "wm", "size")).groups())
+    y = str(height // 2)
+    adb("shell", "input", "swipe", str(width * 8 // 10), y, str(width // 10), y, "150")
+    time.sleep(1)
+
+
 def is_locked():
     return "mIsShowing=true" in adb("shell", "dumpsys", "window", "policy")
 

@@ -1,6 +1,7 @@
 # Janky frames per navigation step, from the app's gfxinfo counters reset between steps.
-# Runs a fixed journey (Notes, the flashcard lists, "All", a list) so two builds compare;
-# compare them within one session, frame times swing up to 4x between sessions.
+# Runs a fixed journey (Notes, the flashcard lists, "All", a list, swipes on its review, each
+# undone) so two builds compare; compare them within one session, frame times swing up to 4x
+# between sessions.
 import re
 import sys
 
@@ -12,6 +13,7 @@ from phone import (
     desc,
     fling,
     open_app_at_menu,
+    swipe_left,
     tap,
     text,
     wait_until_unlocked,
@@ -20,6 +22,10 @@ from phone import (
 COUNTERS = (r"Total frames rendered: (\d+)", r"Janky frames: (\d+)", r"Number Slow UI thread: (\d+)")
 
 totals = {}
+
+
+def undo_enabled(node):
+    return node.get("content-desc") == "Undo" and node.get("enabled") == "true"
 
 
 def step(name):
@@ -57,8 +63,18 @@ def main():
             if tap(lambda n: n.get("text", "").endswith("to review"), "a list"):
                 step("open a list")
                 fling()
+                step("scroll list")
+                if tap(text("Play"), "Play"):
+                    step("open review")
+                    # Each answer undone, so the real cards keep their progress.
+                    for _ in range(3):
+                        swipe_left()
+                        if not tap(undo_enabled, "Undo"):
+                            break
+                    step("swipe and undo")
+                    back()
                 back()
-                step("scroll list and back")
+                step("back to lists")
             back()
         open_app_at_menu()
         step("back to menu")

@@ -81,6 +81,12 @@ class FlashcardRepository(private val context: Context) {
 
     fun observeElements(listId: String): Flow<List<FlashcardElement>> = dao.observeElements(listId)
 
+    suspend fun getElements(listId: String): List<FlashcardElement> = dao.getElements(listId)
+
+    suspend fun getAllElements(): List<FlashcardElement> = dao.getAllElements()
+
+    suspend fun getListNames(): Map<String, String> = dao.getLists().associate { it.id to it.name }
+
     suspend fun addElement(listId: String, element: FlashcardElement) = addElements(listId, listOf(element))
 
     /** A card entering a fixed-side list is fixed side too, whatever it asked for. */
@@ -172,8 +178,6 @@ class FlashcardRepository(private val context: Context) {
         dao.upsertElement(halved)
         return DailyLottery(halved, card.nextReviewAt - now, halved.nextReviewAt - now)
     }
-
-    suspend fun getListNameById(listId: String): String = dao.getList(listId)?.name ?: ""
 
     /**
      * Brings the card library up to date at app start: seeds the builtin lists this install doesn't

@@ -1,11 +1,13 @@
 package com.example.myapp.flashcards
 
 import android.widget.Toast
+import androidx.compose.animation.core.animate
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -15,7 +17,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -33,7 +34,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -71,6 +71,8 @@ import kotlin.random.Random
 
 private const val MAX_DIFFICULT_CARDS = 5
 
+private const val SWIPE_THRESHOLD_PX = 200f
+
 // One drawn card in this many comes up golden: double the wait on a win, a full wipe on a miss.
 private const val GOLDEN_ODDS = 30
 
@@ -97,24 +99,22 @@ fun FlashcardGameScreen(listId: String, navController: NavController) {
 
     val sessionRandom = remember { Random(System.currentTimeMillis()) }
 
-    val allElements by if (isAllListsMode) {
-        remember { repository.observeAllElements() }.collectAsState(initial = emptyList())
-    } else {
-        remember(listId) { repository.observeElements(listId) }.collectAsState(initial = emptyList())
-    }
+    // Read once: this screen is the only one writing cards while it is open, so its own copy stays
+    // current, and an answer never waits on Room reading the whole table back.
+    var cards by remember { mutableStateOf<List<FlashcardElement>?>(null) }
+    var listNames by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
 
     var currentCard by remember { mutableStateOf<FlashcardElement?>(null) }
-    var isLoading by remember { mutableStateOf(true) }
+    // The card drawn next, picked one answer ahead so its picture is decoded before it shows.
+    var upcomingId by remember { mutableStateOf<String?>(null) }
     var showDefinition by remember { mutableStateOf(false) }
     var cardOffset by remember { mutableFloatStateOf(0f) }
-    var isProcessingSwipe by remember { mutableStateOf(false) }
+    var isSliding by remember { mutableStateOf(false) }
     var showFront by remember { mutableStateOf(true) }
     var isGolden by remember { mutableStateOf(false) }
     // Rolling working set: at most MAX_DIFFICULT_CARDS difficult cards (score < 2) are in
     // play at once; a new one only enters when a slot frees up (see refillWorkingSet).
     var activeDifficultCards by remember { mutableStateOf<Set<String>>(emptySet()) }
-    var localUpdates by remember { mutableStateOf<Map<String, FlashcardElement>>(emptyMap()) }
-    var listName by remember { mutableStateOf("") }
 
     // Undo state: the card as it was before the last answer, and which side was shown
     var lastCard by remember { mutableStateOf<FlashcardElement?>(null) }
@@ -124,22 +124,13 @@ fun FlashcardGameScreen(listId: String, navController: NavController) {
 
     var hasNavigatedBack by remember { mutableStateOf(false) }
 
-    LaunchedEffect(currentCard) {
-        val card = currentCard
-        listName = if (isAllListsMode && card != null) repository.getListNameById(card.listId) else ""
-    }
-
     // Bumped when a waiting card comes due, so the due list (which reads the clock) recomputes
     var dueTick by remember { mutableIntStateOf(0) }
 
     val dueState by remember {
         derivedStateOf {
             dueTick
-            val updated = allElements.map { element ->
-                localUpdates[element.id] ?: element
-            }
-
-            val due = updated.filter { isDue(it) }
+            val due = cards.orEmpty().filter { isDue(it) }
             // Difficult cards only enter play through the working set
             val difficult = due.filter { it.score < 2 && it.id in activeDifficultCards }
             val easy = due.filter { it.score >= 2 }
@@ -147,12 +138,15 @@ fun FlashcardGameScreen(listId: String, navController: NavController) {
         }
     }
 
+    fun store(card: FlashcardElement) {
+        cards = cards?.map { if (it.id == card.id) card else it }
+        scope.launch { repository.updateElement(card) }
+    }
+
     // A member leaves the working set as soon as it graduates or stops being due (a win schedules
     // it minutes away), so a waiting card never holds a slot another due difficult card could use.
     fun refillWorkingSet() {
-        val difficultDue = allElements
-            .map { localUpdates[it.id] ?: it }
-            .filter { it.score < 2 && isDue(it) }
+        val difficultDue = cards.orEmpty().filter { it.score < 2 && isDue(it) }
         val kept = difficultDue.filter { it.id in activeDifficultCards }.map { it.id }
         val added = difficultDue
             .filter { it.id !in activeDifficultCards }
@@ -164,29 +158,32 @@ fun FlashcardGameScreen(listId: String, navController: NavController) {
 
     fun draw(card: FlashcardElement?) {
         currentCard = card
+        upcomingId = null
         if (card == null) return
         showFront = randomFrontSide(card, sessionRandom)
         isGolden = sessionRandom.nextInt(GOLDEN_ODDS) == 0
+        val upcoming = dueState.cards.filter { it.id != card.id }.randomOrNull(sessionRandom) ?: return
+        upcomingId = upcoming.id
+        upcoming.image?.let { prefetchCardImage(context, it) }
     }
 
     fun pickIfIdle() {
         if (currentCard == null && dueState.cards.isNotEmpty()) draw(dueState.cards.random(sessionRandom))
     }
 
-    LaunchedEffect(allElements) {
-        if (allElements.isEmpty()) return@LaunchedEffect
-
-        isLoading = false
+    LaunchedEffect(listId) {
+        if (isAllListsMode) listNames = repository.getListNames()
+        cards = if (isAllListsMode) repository.getAllElements() else repository.getElements(listId)
         refillWorkingSet()
         pickIfIdle()
     }
 
     // One sleep until the next waiting card comes due, restarted whenever a card is answered
-    LaunchedEffect(allElements, localUpdates) {
+    LaunchedEffect(cards) {
+        val loaded = cards ?: return@LaunchedEffect
         while (true) {
             val now = System.currentTimeMillis()
-            val nextDueAt = allElements
-                .map { localUpdates[it.id] ?: it }
+            val nextDueAt = loaded
                 .minOfOrNull { if (it.nextReviewAt > now) it.nextReviewAt else Long.MAX_VALUE }
                 ?.takeIf { it != Long.MAX_VALUE } ?: return@LaunchedEffect
             delay(nextDueAt - now)
@@ -197,9 +194,6 @@ fun FlashcardGameScreen(listId: String, navController: NavController) {
     }
 
     fun handleAnswer(wasCorrect: Boolean) {
-        if (isProcessingSwipe) return
-        isProcessingSwipe = true
-
         currentCard?.let { card ->
             lastCard = card
             lastShowFront = showFront
@@ -217,12 +211,8 @@ fun FlashcardGameScreen(listId: String, navController: NavController) {
                 Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
             }
 
-            localUpdates = localUpdates + (card.id to updatedCard)
+            store(updatedCard)
             canUndo = true
-
-            scope.launch {
-                repository.updateElement(updatedCard)
-            }
 
             refillWorkingSet()
 
@@ -230,18 +220,36 @@ fun FlashcardGameScreen(listId: String, navController: NavController) {
             // The card just answered only comes straight back when it is the last one still due
             val availableCards = dueState.cards.filter { it.id != card.id }.ifEmpty { dueState.cards }
 
-            draw(availableCards.randomOrNull(sessionRandom))
-            isProcessingSwipe = false
+            draw(availableCards.firstOrNull { it.id == upcomingId } ?: availableCards.randomOrNull(sessionRandom))
+        }
+    }
+
+    // Past the threshold the card slides off on its verdict's side before the next one shows,
+    // short of it the card springs back.
+    fun release(width: Float) {
+        val verdict = when {
+            cardOffset < -SWIPE_THRESHOLD_PX -> true
+            cardOffset > SWIPE_THRESHOLD_PX -> false
+            else -> null
+        }
+        isSliding = true
+        scope.launch {
+            val target = when (verdict) {
+                true -> -width * 1.3f
+                false -> width * 1.3f
+                null -> 0f
+            }
+            animate(cardOffset, target, animationSpec = tween(140)) { value, _ -> cardOffset = value }
+            if (verdict != null) handleAnswer(verdict)
+            cardOffset = 0f
+            isSliding = false
         }
     }
 
     fun handleUndo() {
+        if (isSliding) return
         lastCard?.let { card ->
-            localUpdates = localUpdates + (card.id to card)
-
-            scope.launch {
-                repository.updateElement(card)
-            }
+            store(card)
 
             currentCard = card
             showFront = lastShowFront
@@ -310,7 +318,7 @@ fun FlashcardGameScreen(listId: String, navController: NavController) {
             Spacer(Modifier.height(32.dp))
 
             val card = currentCard
-            if (isLoading) {
+            if (cards == null) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
@@ -334,17 +342,12 @@ fun FlashcardGameScreen(listId: String, navController: NavController) {
                                 translationX = cardOffset
                             }
                             .pointerInput(Unit) {
-                                detectDragGestures(
-                                    onDragEnd = {
-                                        when {
-                                            cardOffset < -200 -> handleAnswer(true)
-                                            cardOffset > 200 -> handleAnswer(false)
-                                        }
-                                        cardOffset = 0f
-                                    }
+                                detectHorizontalDragGestures(
+                                    onDragEnd = { if (!isSliding) release(size.width.toFloat()) },
+                                    onDragCancel = { if (!isSliding) release(size.width.toFloat()) }
                                 ) { change, dragAmount ->
                                     change.consume()
-                                    cardOffset += dragAmount.x
+                                    if (!isSliding) cardOffset += dragAmount
                                 }
                             }
                             .clickable(
@@ -354,13 +357,14 @@ fun FlashcardGameScreen(listId: String, navController: NavController) {
                                 if (!showDefinition) showDefinition = true
                             },
                         border = if (isGolden) BorderStroke(4.dp, Gold) else null,
-                        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
+                        // A deep shadow under a card this big is redrawn every frame of the drag.
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                     ) {
                         CardFace(
                             card = card,
                             showFront = showFront,
                             showDefinition = showDefinition,
-                            listName = if (isAllListsMode) listName else null,
+                            listName = if (isAllListsMode) listNames[card.listId].orEmpty() else null,
                             isGolden = isGolden
                         )
                     }
@@ -382,10 +386,6 @@ fun FlashcardGameScreen(listId: String, navController: NavController) {
 }
 
 /**
- * What the card shows: the side being asked, the other one once revealed, its score in the corner,
- * and, when playing across every list ([listName] non-null), which list it came from.
- */
-/**
  * Washes the edge the card is being dragged towards in its verdict's color, deepening with the
  * drag. [offset] is read in the draw phase, not in composition, so dragging only invalidates the
  * draw and never recomposes the card.
@@ -394,7 +394,7 @@ private fun Modifier.swipeVerdictGradient(offset: () -> Float, green: Color, red
     drawBehind {
         val current = offset()
         if (current == 0f) return@drawBehind
-        val progress = (abs(current) / 200f).coerceIn(0f, 1f)
+        val progress = (abs(current) / SWIPE_THRESHOLD_PX).coerceIn(0f, 1f)
         val tint = (if (current < 0) green else red).copy(alpha = progress * 0.6f)
         // Grows with the swipe, up to half the screen.
         val width = min(abs(current) * 2f, size.width / 2f)
@@ -410,6 +410,10 @@ private fun Modifier.swipeVerdictGradient(offset: () -> Float, green: Color, red
         drawRect(brush)
     }
 
+/**
+ * What the card shows: the side being asked, the other one once revealed, its score in the corner,
+ * and, when playing across every list ([listName] non-null), which list it came from.
+ */
 @Composable
 private fun CardFace(
     card: FlashcardElement,
@@ -431,11 +435,12 @@ private fun CardFace(
         ) {
             // The picture belongs to the front, so it shows whenever the front side is visible.
             if (card.image != null && (showFront || showDefinition)) {
-                CardImage(
+                // A fixed height, so the card never lays out again once the picture arrives.
+                FullSizeCardImage(
                     image = card.image,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(max = 200.dp)
+                        .height(200.dp)
                 )
                 Spacer(Modifier.height(24.dp))
             }
