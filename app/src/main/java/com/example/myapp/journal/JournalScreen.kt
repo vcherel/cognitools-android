@@ -71,6 +71,7 @@ import com.example.myapp.ScreenTopBar
 import com.example.myapp.journalRepository
 import com.example.myapp.news.NewsArticle
 import com.example.myapp.newsRepository
+import com.example.myapp.notes.WEEKEND_SECTION
 import com.example.myapp.notes.addToTodoNote
 import com.example.myapp.userMessage
 import java.time.LocalDate
@@ -106,6 +107,7 @@ fun JournalScreen(onBack: () -> Unit, onOpenArticle: (String) -> Unit) {
 
     var date by rememberSaveable { mutableStateOf<String?>(null) }
     var noteTarget by remember { mutableStateOf<NoteTarget?>(null) }
+    var todoText by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
     val shownDate = date?.takeIf { d -> issues.any { it.date == d } } ?: repo.startDate()
     val index = issues.indexOfFirst { it.date == shownDate }
@@ -206,14 +208,7 @@ fun JournalScreen(onBack: () -> Unit, onOpenArticle: (String) -> Unit) {
                         onRate = { repo.rate(issue.date, item.id, it) },
                         onEditNote = { noteTarget = NoteTarget(item.id, item.title, feedback.notes[item.id].orEmpty()) },
                         onSaveTodo = {
-                            scope.launch {
-                                val text = if (item.meta.isBlank()) item.title else "${item.title} (${item.meta})"
-                                val added = runCatching { addToTodoNote(context, text) }.getOrElse {
-                                    AppSnackbar.show("Erreur: ${userMessage(it)}")
-                                    return@launch
-                                }
-                                AppSnackbar.show(if (added) "Ajouté à la Todo list" else "Déjà dans la Todo list")
-                            }
+                            todoText = if (item.meta.isBlank()) item.title else "${item.title} (${item.meta})"
                         },
                         onOpenSource = { source ->
                             repo.markOpened(issue.date, item.id)
@@ -281,6 +276,43 @@ fun JournalScreen(onBack: () -> Unit, onOpenArticle: (String) -> Unit) {
                 noteTarget = null
             }
         )
+    }
+
+    todoText?.let { text ->
+        TodoTargetDialog(
+            text = text,
+            onDismiss = { todoText = null },
+            onPick = { section ->
+                todoText = null
+                scope.launch {
+                    val added = runCatching { addToTodoNote(context, text, section) }.getOrElse {
+                        AppSnackbar.show("Erreur: ${userMessage(it)}")
+                        return@launch
+                    }
+                    val where = section ?: "Todo list"
+                    AppSnackbar.show(if (added) "Ajouté à $where" else "Déjà dans la Todo list")
+                }
+            }
+        )
+    }
+}
+
+// Where a journal item goes in the Todo list: the active block, or the Week-end section.
+@Composable
+private fun TodoTargetDialog(text: String, onDismiss: () -> Unit, onPick: (section: String?) -> Unit) {
+    AppDialog(onDismiss = onDismiss) {
+        Text(text, style = MaterialTheme.typography.titleMedium)
+        Spacer(Modifier.height(8.dp))
+        listOf(null to "Todo list", WEEKEND_SECTION to WEEKEND_SECTION).forEach { (section, label) ->
+            Text(
+                label,
+                style = MaterialTheme.typography.bodyLarge,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onPick(section) }
+                    .padding(vertical = 12.dp)
+            )
+        }
     }
 }
 

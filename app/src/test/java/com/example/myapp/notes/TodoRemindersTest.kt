@@ -19,12 +19,36 @@ class TodoRemindersTest {
             "--- Attente",
             "[ ] Passeport (12/09)",
             "[x] Colis",
+            "--- Week-end",
+            "[ ] Concert Ubu",
             "--- Plus tard",
             "[ ] Ranger cave"
         ).joinToString("\n")
         val items = todoItems(content)
         assertEquals(listOf("Appeler Paul", "Banque"), items.toDo)
         assertEquals(listOf("Passeport (12/09)"), items.waiting)
+        assertEquals(listOf("Concert Ubu"), items.weekend)
+    }
+
+    @Test
+    fun weekendReminderIsTheNextFridayEvening() {
+        val sunday = LocalDateTime.of(2026, 11, 1, 10, 0)
+        assertEquals(LocalDateTime.of(2026, 11, 6, 18, 0), nextWeekendReminder(sunday))
+        val fridayMorning = LocalDateTime.of(2026, 11, 6, 9, 0)
+        assertEquals(LocalDateTime.of(2026, 11, 6, 18, 0), nextWeekendReminder(fridayMorning))
+        val fridayAtSix = LocalDateTime.of(2026, 11, 6, 18, 0)
+        assertEquals(LocalDateTime.of(2026, 11, 13, 18, 0), nextWeekendReminder(fridayAtSix))
+    }
+
+    @Test
+    fun missingSectionsAreAddedInOrder() {
+        assertEquals("[ ] A\n--- Attente\n--- Week-end", withTodoSections("[ ] A"))
+        assertEquals(
+            "[ ] A\n--- Attente\n[ ] B\n--- Week-end\n--- Plus tard\n[ ] C",
+            withTodoSections("[ ] A\n--- Attente\n[ ] B\n--- Plus tard\n[ ] C")
+        )
+        val complete = "[ ] A\n--- Attente\n--- Week-end\n[ ] D"
+        assertEquals(complete, withTodoSections(complete))
     }
 
     @Test

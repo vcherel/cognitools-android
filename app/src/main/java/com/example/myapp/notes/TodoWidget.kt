@@ -8,10 +8,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Checkbox
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -22,6 +20,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
+import com.example.myapp.AddItemRow
 import com.example.myapp.LightIconButton
 
 /** Pinned preview of the "Todo list" note: only the lines before its first separator, checkboxes toggle in place. */
@@ -117,28 +116,6 @@ internal fun TodoWidgetCard(
             }
         }
         AddItemRow(onClick = { addItem(false) })
-    }
-}
-
-@Composable
-private fun AddItemRow(onClick: () -> Unit) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-    ) {
-        Icon(
-            Icons.Default.Add,
-            contentDescription = null,
-            tint = Color.Gray,
-            modifier = Modifier.padding(8.dp)
-        )
-        Text(
-            "Nouvel élément",
-            style = MaterialTheme.typography.bodyMedium,
-            color = Color.Gray
-        )
     }
 }
 

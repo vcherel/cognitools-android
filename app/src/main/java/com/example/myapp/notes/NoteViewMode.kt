@@ -73,6 +73,7 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
+import com.example.myapp.AddItemRow
 import com.example.myapp.LightIconButton
 import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
@@ -96,7 +97,9 @@ data class NoteLineActions(
     val onToggleEnhance: (Int) -> Unit,
     val onCutCategory: (Int) -> Unit,
     val onEnterEditAt: (offset: Int) -> Unit,
-    val onReorder: (newContent: String) -> Unit
+    val onReorder: (newContent: String) -> Unit,
+    /** Inserts a blank item at that line and starts editing it. */
+    val onAddItemAt: (index: Int) -> Unit
 )
 
 // A checkbox is 48.dp tall with its box centered, an action button 36.dp: these
@@ -142,6 +145,24 @@ fun NoteViewMode(
             lines[index].isTitleLine() && lines.categoryAfter(index).any { it.isMarkerLine(ENHANCE_LINE) }
         }
     }
+
+    // The Todo list's add placeholders: one closing each block, keyed by the separator it sits above
+    // (the line count for the last block) and holding where its item goes. A non empty active block
+    // gets a second one on top, so the item that belongs first needs no scrolling.
+    val todoAddAt = remember(fullText, isTodoListNote) {
+        if (!isTodoListNote) emptyMap()
+        else buildMap {
+            var start = 0
+            lines.forEachIndexed { i, line ->
+                if (line.isSeparatorLine()) {
+                    put(i, blockAppendIndex(lines, start))
+                    start = i + 1
+                }
+            }
+            put(lines.size, blockAppendIndex(lines, start))
+        }
+    }
+    val todoAddOnTop = isTodoListNote && (0 until blockEnd(lines, 0)).any { lines[it].isNotBlank() }
 
     // Character offset of the start of each line, for double tap to edit
     val lineStarts = remember(fullText) {
@@ -266,6 +287,7 @@ fun NoteViewMode(
                 )
             }
     ) {
+        if (todoAddOnTop) AddItemRow(onClick = { actions.onAddItemAt(0) })
         (displayOrder ?: lines.indices.toList()).forEach { lineIndex ->
             key(lineIndex) {
                 NoteLine(
@@ -299,10 +321,12 @@ fun NoteViewMode(
                     onDragEnd = { endDrag(commit = true) },
                     onDragCancel = { endDrag(commit = false) },
                     onToggleSelected = { selectedLine = if (lineIndex == selectedLine) -1 else lineIndex },
-                    onDeselect = { selectedLine = -1 }
+                    onDeselect = { selectedLine = -1 },
+                    addItemAt = if (lines[lineIndex].isSeparatorLine()) todoAddAt[lineIndex] else null
                 )
             }
         }
+        todoAddAt[lines.size]?.let { at -> AddItemRow(onClick = { actions.onAddItemAt(at) }) }
     }
 }
 
@@ -333,7 +357,10 @@ private fun NoteLine(
     onDragEnd: () -> Unit,
     onDragCancel: () -> Unit,
     onToggleSelected: () -> Unit,
-    onDeselect: () -> Unit
+    onDeselect: () -> Unit,
+    // A separator closing a Todo list block draws that block's add placeholder above itself, inside
+    // its own measured height so a reorder drag still steps over the right distance.
+    addItemAt: Int? = null
 ) {
     // Text layout of the line, to map a double tap to a cursor position
     var textLayout by remember { mutableStateOf<TextLayoutResult?>(null) }
@@ -367,28 +394,31 @@ private fun NoteLine(
     ) {
         if (line.isSeparatorLine()) {
             val name = line.separatorName()
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 4.dp)
-                    .pointerInput(lineStart, line) {
-                        detectTapGestures(onDoubleTap = {
-                            actions.onEnterEditAt(lineStart + line.length)
-                        })
-                    }
-            ) {
-                HorizontalDivider(modifier = Modifier.weight(1f))
-                if (name.isNotEmpty()) {
-                    Text(
-                        withSearchHighlight(AnnotatedString(name.uppercase()), searchTerms),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = Color.Gray,
-                        modifier = Modifier.padding(horizontal = 12.dp)
-                    )
+            Column(Modifier.fillMaxWidth()) {
+                if (addItemAt != null) AddItemRow(onClick = { actions.onAddItemAt(addItemAt) })
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp)
+                        .pointerInput(lineStart, line) {
+                            detectTapGestures(onDoubleTap = {
+                                actions.onEnterEditAt(lineStart + line.length)
+                            })
+                        }
+                ) {
                     HorizontalDivider(modifier = Modifier.weight(1f))
+                    if (name.isNotEmpty()) {
+                        Text(
+                            withSearchHighlight(AnnotatedString(name.uppercase()), searchTerms),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = Color.Gray,
+                            modifier = Modifier.padding(horizontal = 12.dp)
+                        )
+                        HorizontalDivider(modifier = Modifier.weight(1f))
+                    }
+                    LineIconButton(Icons.Default.Delete, "Supprimer la ligne") { actions.onDeleteLine(lineIndex) }
                 }
-                LineIconButton(Icons.Default.Delete, "Supprimer la ligne") { actions.onDeleteLine(lineIndex) }
             }
         } else if (line.isCheckboxLine()) {
             val checked = line.isCheckedLine()

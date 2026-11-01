@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material3.AlertDialog
@@ -457,4 +458,22 @@ fun LightIconButton(
             )
             .padding((size - iconSize) / 2)
     )
+}
+
+/** The gray "+ Nouvel élément" placeholder sitting where a new entry would go in a list. */
+@Composable
+fun AddItemRow(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    label: String = "Nouvel élément"
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+    ) {
+        Icon(Icons.Filled.Add, contentDescription = null, tint = Color.Gray, modifier = Modifier.padding(8.dp))
+        Text(label, style = MaterialTheme.typography.bodyMedium, color = Color.Gray)
+    }
 }

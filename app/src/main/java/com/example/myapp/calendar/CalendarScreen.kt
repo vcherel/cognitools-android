@@ -20,7 +20,6 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Cake
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
@@ -51,9 +50,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import com.example.myapp.AddItemRow
 import com.example.myapp.AppSnackbar
-import com.example.myapp.MyButton
 import com.example.myapp.ScreenTopBar
 import com.example.myapp.plural
 import com.example.myapp.flashcards.AppDatabase
@@ -369,14 +367,6 @@ private fun DayList(
             listOfNotNull(publicHoliday?.let { "Férié : $it" }, schoolHoliday?.name).forEach {
                 Text(it, style = MaterialTheme.typography.bodySmall, color = muted)
             }
-            MyButton(
-                text = "Ajouter",
-                icon = Icons.Default.Add,
-                height = 48.dp,
-                fontSize = 16.sp,
-                modifier = Modifier.padding(top = 12.dp),
-                onClick = onAdd
-            )
         }
         if (overdue.isNotEmpty()) {
             item { SectionLabel("En retard") }
@@ -386,9 +376,7 @@ private fun DayList(
             if (dayItems.isNotEmpty()) item { SectionLabel("Aujourd'hui") }
         }
         items(dayItems, key = { it.id }) { item -> ItemRow(item, day, onToggleDone, onOpen) }
-        if (dayItems.isEmpty() && overdue.isEmpty()) {
-            item { Text("Rien de prévu", color = muted, modifier = Modifier.padding(top = 12.dp)) }
-        }
+        item { AddItemRow(onClick = onAdd, modifier = Modifier.padding(top = 4.dp)) }
     }
 }
 

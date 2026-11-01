@@ -283,7 +283,13 @@ fun NoteEditorScreen(
                             onToggleEnhance = lineEdits::toggleEnhanceAtEnd,
                             onCutCategory = lineEdits::cutCategory,
                             onEnterEditAt = { state.enterEditAt(it) },
-                            onReorder = { state.saveContent(it) }
+                            onReorder = { state.saveContent(it) },
+                            onAddItemAt = { index ->
+                                val lines = textFieldState.text.toString().split("\n").toMutableList()
+                                lines.add(index, UNCHECKED_PREFIX)
+                                state.saveContent(lines.joinToString("\n"))
+                                state.enterEditAt(lines.take(index).sumOf { it.length + 1 } + UNCHECKED_PREFIX.length)
+                            }
                         )
                     )
                 }
