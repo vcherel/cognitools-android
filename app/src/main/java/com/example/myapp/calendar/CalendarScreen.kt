@@ -438,7 +438,6 @@ private fun ItemRow(
                 item.kind == CalendarKind.BIRTHDAY -> null
                 else -> listOfNotNull(
                     timeOn(item, day),
-                    item.place?.takeIf { it.isNotBlank() },
                     if (item.weekly) "chaque semaine" else null
                 ).joinToString(", ").ifEmpty { null }?.replaceFirstChar { it.uppercase() }
             }

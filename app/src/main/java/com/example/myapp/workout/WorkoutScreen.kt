@@ -22,7 +22,7 @@ import androidx.compose.material3.SelectableDates
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimePicker
-import androidx.compose.material3.rememberDatePickerState
+import androidx.compose.material3.DatePickerState
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -207,12 +207,16 @@ private fun TimeRow(label: String, time: LocalTime, onClick: () -> Unit) {
 @Composable
 private fun ReminderDayDialog(times: ReminderTimes, onDismiss: () -> Unit, onConfirm: (LocalDate) -> Unit) {
     val now = remember { LocalDateTime.now() }
-    val pickerState = rememberDatePickerState(
-        selectableDates = object : SelectableDates {
-            override fun isSelectableDate(utcTimeMillis: Long) = canRemindOn(utcTimeMillis.toUtcDate(), now, times)
-            override fun isSelectableYear(year: Int) = year >= now.year
-        }
-    )
+    // A French locale starts the weeks on Monday whatever the phone's language.
+    val pickerState = remember {
+        DatePickerState(
+            locale = Locale.FRANCE,
+            selectableDates = object : SelectableDates {
+                override fun isSelectableDate(utcTimeMillis: Long) = canRemindOn(utcTimeMillis.toUtcDate(), now, times)
+                override fun isSelectableYear(year: Int) = year >= now.year
+            }
+        )
+    }
     DatePickerDialog(
         onDismissRequest = onDismiss,
         confirmButton = {

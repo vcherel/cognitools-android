@@ -6,7 +6,7 @@ import java.time.LocalTime
 import java.time.MonthDay
 import java.time.temporal.ChronoUnit
 
-/** When a task or an event without a time is reminded, and when birthdays are. */
+/** When a task or an event without a time is reminded (an event the day before), and when birthdays are. */
 val MORNING: LocalTime = LocalTime.of(9, 0)
 private val EVE: LocalTime = LocalTime.of(23, 59)
 
@@ -61,10 +61,8 @@ fun remindersBetween(item: CalendarItem, from: LocalDateTime, to: LocalDateTime)
         CalendarKind.TASK ->
             if (item.done) emptyList()
             else taskReminders(item, to).filter { it.isAfter(from) }.map { Reminder(item, ReminderSlot.AT_TIME, it) }.toList()
-        CalendarKind.EVENT -> item.reminderMinutes?.let { minutes ->
-            val start = item.localDate().atTime(item.localTime() ?: MORNING)
-            listOf(Reminder(item, ReminderSlot.AT_TIME, start.minusMinutes(minutes.toLong())))
-        }.orEmpty()
+        CalendarKind.EVENT ->
+            listOf(Reminder(item, ReminderSlot.AT_TIME, item.localDate().minusDays(1).atTime(item.localTime() ?: MORNING)))
         CalendarKind.BIRTHDAY -> (from.year..to.year + 1).flatMap { year ->
             val day = item.birthdayIn(year)
             listOfNotNull(

@@ -90,7 +90,7 @@ interface FlashcardDao {
         PodcastDownload::class, Book::class, NewsRead::class, NewsSaved::class,
         NewsProgress::class, CalendarItem::class
     ],
-    version = 21
+    version = 22
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun calendarDao(): CalendarDao
@@ -110,7 +110,7 @@ abstract class AppDatabase : RoomDatabase() {
                     context.applicationContext,
                     AppDatabase::class.java,
                     "flashcards.db"
-                ).addMigrations(MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21).build().also { instance = it }
+                ).addMigrations(MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22).build().also { instance = it }
             }
     }
 }
@@ -136,5 +136,22 @@ private val MIGRATION_19_20 = object : Migration(19, 20) {
 private val MIGRATION_20_21 = object : Migration(20, 21) {
     override fun migrate(db: SupportSQLiteDatabase) {
         db.execSQL("ALTER TABLE `calendar_items` ADD COLUMN `endDate` TEXT")
+    }
+}
+
+// Drops the event place and reminder choice: every event now reminds the day before.
+private val MIGRATION_21_22 = object : Migration(21, 22) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        val columns = "`id`, `kind`, `title`, `date`, `time`, `endTime`, `yearKnown`, `done`, " +
+            "`wishedYear`, `weekly`, `snoozedUntil`, `endDate`"
+        db.execSQL(
+            "CREATE TABLE `calendar_items_new` (`id` TEXT NOT NULL, `kind` TEXT NOT NULL, " +
+                "`title` TEXT NOT NULL, `date` TEXT NOT NULL, `time` TEXT, `endTime` TEXT, " +
+                "`yearKnown` INTEGER NOT NULL, `done` INTEGER NOT NULL, `wishedYear` INTEGER, " +
+                "`weekly` INTEGER NOT NULL DEFAULT 0, `snoozedUntil` TEXT, `endDate` TEXT, PRIMARY KEY(`id`))"
+        )
+        db.execSQL("INSERT INTO `calendar_items_new` ($columns) SELECT $columns FROM `calendar_items`")
+        db.execSQL("DROP TABLE `calendar_items`")
+        db.execSQL("ALTER TABLE `calendar_items_new` RENAME TO `calendar_items`")
     }
 }

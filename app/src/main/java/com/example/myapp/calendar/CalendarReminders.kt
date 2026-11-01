@@ -170,8 +170,8 @@ object CalendarReminders {
 private val timeFormat = DateTimeFormatter.ofPattern("HH:mm", Locale.FRENCH)
 
 /**
- * "Demain de 20:30 à 22:00, Rennes" or "Demain à 20:00 jusqu'au dimanche 9 novembre, Dour": when and
- * where, the first day said relative to [today].
+ * "Demain de 20:30 à 22:00" or "Demain à 20:00 jusqu'au dimanche 9 novembre": when, the first day
+ * said relative to [today].
  */
 fun itemSummary(item: CalendarItem, today: LocalDate): String {
     val day = when (item.localDate()) {
@@ -188,8 +188,7 @@ fun itemSummary(item: CalendarItem, today: LocalDate): String {
         start != null -> "à $start"
         else -> null
     }
-    return listOfNotNull(listOfNotNull(day, time).joinToString(" "), item.place?.takeIf { it.isNotBlank() })
-        .joinToString(", ")
+    return listOfNotNull(day, time).joinToString(" ")
 }
 
 private fun Long.toLocalDateTime(): LocalDateTime =

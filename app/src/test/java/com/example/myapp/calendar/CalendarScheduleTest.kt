@@ -50,13 +50,13 @@ class CalendarScheduleTest {
     }
 
     @Test
-    fun doneTaskAndEventWithoutReminderStayQuiet() {
+    fun doneTaskStaysQuietAndEventRemindsTheDayBefore() {
         val now = LocalDateTime.of(2026, 11, 1, 8, 0)
         val task = CalendarItem(kind = CalendarKind.TASK, title = "Garage", date = "2026-11-01", done = true)
+        assertEquals(null, nextReminder(listOf(task), now))
         val event = CalendarItem(kind = CalendarKind.EVENT, title = "Concert", date = "2026-11-05", time = "20:30")
-        assertEquals(null, nextReminder(listOf(task, event), now))
-        val reminded = event.copy(reminderMinutes = 60)
-        assertEquals(LocalDateTime.of(2026, 11, 5, 19, 30), nextReminder(listOf(reminded), now)!!.at)
+        assertEquals(LocalDateTime.of(2026, 11, 4, 20, 30), nextReminder(listOf(event), now)!!.at)
+        assertEquals(LocalDateTime.of(2026, 11, 4, 9, 0), nextReminder(listOf(event.copy(time = null)), now)!!.at)
     }
 
     @Test

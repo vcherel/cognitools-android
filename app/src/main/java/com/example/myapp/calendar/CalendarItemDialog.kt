@@ -4,8 +4,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -26,7 +24,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimePicker
-import androidx.compose.material3.rememberDatePickerState
+import androidx.compose.material3.DatePickerState
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -57,7 +55,7 @@ private val timeFormat = DateTimeFormatter.ofPattern("HH:mm", Locale.FRENCH)
 
 private val KIND_LABELS = listOf(
     CalendarKind.TASK to "Tâche",
-    CalendarKind.BIRTHDAY to "Anniversaire",
+    CalendarKind.BIRTHDAY to "Anniv.",
     CalendarKind.EVENT to "Événement"
 )
 
@@ -69,7 +67,6 @@ private fun shortDate(day: LocalDate): String =
     (if (day.year == LocalDate.now().year) shortDateFormat else shortDateYearFormat).format(day)
 
 /** Adds or edits one item; the kind can only be changed while adding. */
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun CalendarItemDialog(
     initial: CalendarItem,
@@ -84,9 +81,7 @@ fun CalendarItemDialog(
     var endDate by remember { mutableStateOf(initial.endDate?.let(LocalDate::parse)) }
     var time by remember { mutableStateOf(initial.localTime()) }
     var endTime by remember { mutableStateOf(initial.localEndTime()) }
-    var place by remember { mutableStateOf(initial.place.orEmpty()) }
     var yearKnown by remember { mutableStateOf(initial.yearKnown) }
-    var reminderMinutes by remember { mutableStateOf(initial.reminderMinutes) }
     var weekly by remember { mutableStateOf(initial.weekly) }
     var picking by remember { mutableStateOf<Picking?>(null) }
     val isEvent = kind == CalendarKind.EVENT
@@ -98,9 +93,14 @@ fun CalendarItemDialog(
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             if (isNew) {
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     KIND_LABELS.forEach { (option, label) ->
-                        FilterChip(selected = kind == option, onClick = { kind = option }, label = { Text(label) })
+                        FilterChip(
+                            selected = kind == option,
+                            onClick = { kind = option },
+                            label = { Text(label, maxLines = 1) },
+                            modifier = Modifier.weight(1f)
+                        )
                     }
                 }
             }
@@ -142,23 +142,6 @@ fun CalendarItemDialog(
                 ChoiceRow("Répéter", REPEAT_OPTIONS, weekly) { weekly = it }
             }
 
-            if (isEvent) {
-                OutlinedTextField(
-                    value = place,
-                    onValueChange = { place = it },
-                    label = { Text("Lieu") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
-                    modifier = Modifier.fillMaxWidth()
-                )
-                val options = if (time == null) {
-                    listOf(null to "Aucun", 0 to "Le jour même à 9:00", 1440 to "La veille à 9:00")
-                } else {
-                    listOf(null to "Aucun", 0 to "À l'heure", 60 to "1 h avant", 1440 to "La veille")
-                }
-                ChoiceRow("Rappel", options, reminderMinutes) { reminderMinutes = it }
-            }
-
             Row(modifier = Modifier.fillMaxWidth().padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                 if (!isNew) {
                     TextButton(onClick = onDelete) { Text("Supprimer", color = MaterialTheme.colorScheme.error) }
@@ -177,14 +160,10 @@ fun CalendarItemDialog(
                                 endDate = if (isEvent) endDate?.takeIf { it.isAfter(date) }?.toString() else null,
                                 time = start?.let(timeFormat::format),
                                 endTime = if (isEvent && start != null) endTime?.let(timeFormat::format) else null,
-                                place = if (isEvent) place.trim().ifEmpty { null } else null,
                                 yearKnown = !isBirthday || yearKnown,
                                 weekly = kind == CalendarKind.TASK && weekly,
                                 done = initial.done && !(kind == CalendarKind.TASK && weekly),
-                                snoozedUntil = null,
-                                // "1 h avant" means nothing without a time, it falls back to the morning one.
-                                reminderMinutes = if (!isEvent) null
-                                else if (start == null && reminderMinutes == 60) 0 else reminderMinutes
+                                snoozedUntil = null
                             )
                         )
                     }
@@ -226,7 +205,6 @@ fun CalendarItemDialog(
                     if (isStart) {
                         time = null
                         endTime = null
-                        if (reminderMinutes == 60) reminderMinutes = 0
                     } else {
                         endTime = null
                     }
@@ -309,9 +287,13 @@ private fun DatePickDialog(
     onConfirm: (LocalDate) -> Unit,
     onClear: (() -> Unit)? = null
 ) {
-    val pickerState = rememberDatePickerState(
-        initialSelectedDateMillis = initial.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
-    )
+    // A French locale starts the weeks on Monday whatever the phone's language.
+    val pickerState = remember {
+        DatePickerState(
+            locale = Locale.FRANCE,
+            initialSelectedDateMillis = initial.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
+        )
+    }
     DatePickerDialog(
         onDismissRequest = onDismiss,
         confirmButton = {
