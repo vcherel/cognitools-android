@@ -4,6 +4,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+from gradle import gradle
 from phone import PACKAGE, adb
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -24,7 +25,7 @@ def main():
     if not devices:
         sys.exit("no phone connected")
     if "--no-build" not in sys.argv:
-        run("building 1/4", "./gradlew", "assembleRelease", "-q")
+        gradle("building 1/4", "assembleRelease")
     run("installing 2/4", "adb", "install", "-r", str(APK))
     # Without the broadcast first, the compile below compiles an empty profile.
     run(

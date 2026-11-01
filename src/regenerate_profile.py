@@ -7,6 +7,7 @@ import threading
 import time
 from pathlib import Path
 
+from gradle import gradle
 from phone import adb, box, nodes, open_app_at_menu, tap, tap_node, text, wait_until_unlocked
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -26,10 +27,6 @@ SCREENS = [
 ]
 
 
-def gradle(*tasks):
-    subprocess.run([str(ROOT / "gradlew"), "-p", str(ROOT), *tasks, "--console=plain"], check=True)
-
-
 def turbo(state):
     if shutil.which("turbo-toggle"):
         subprocess.run(["turbo-toggle", state])
@@ -44,14 +41,18 @@ def keep_awake(stop):
 def record():
     turbo("off")
     try:
-        print("building the APKs", flush=True)
-        gradle(":app:assembleNonMinifiedRelease", ":baselineprofile:assembleNonMinifiedRelease")
+        gradle(
+            "building the APKs",
+            ":app:assembleNonMinifiedRelease",
+            ":baselineprofile:assembleNonMinifiedRelease",
+        )
         wait_until_unlocked()
         print("recording on the phone, leave it alone for about 5 minutes", flush=True)
         stop = threading.Event()
         threading.Thread(target=keep_awake, args=(stop,), daemon=True).start()
         try:
             gradle(
+                "recording",
                 ":app:generateReleaseBaselineProfile",
                 "-Pandroid.injected.androidTest.leaveApksInstalledAfterRun=true",
             )
