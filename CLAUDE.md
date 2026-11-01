@@ -12,9 +12,9 @@ Any flashcard whose content is edited (text, answer or picture) gets its progres
 For UI/layout changes with more than one reasonable arrangement (where to put a control, how a view is structured, an interaction model), sketch 2-3 concrete options up front with AskUserQuestion and let Valentin pick before writing any code. Don't implement your first interpretation and iterate from corrections.
 
 ## Language exception
-This app's UI text (labels, toasts, snackbars, content descriptions, etc.) is French, deliberately, confirmed with Valentin: the app is French-only, sole user, not a shortcut or an oversight. This overrides the global English-only writing instruction, but only for in-app UI text; replies, code, comments, and commit messages to Valentin stay English as usual.
+The UI is English, except the Undercover tool, which stays French on purpose: its screens and dialogs pass their own French labels to the shared composables. Content French by nature stays French too: the mots fléchés FR grids and clues, the flashcard seed decks, the Random tool's word list, the French Wikipedia and news text and the parsers that match it, and the names the code matches against the phone's data (the Courses, Ingrédients, Modèle courses and Todo list notes with their `--- Attente` and `--- Week-end` sections, the Best pépites playlist, the Anglais flashcard list, the mail subjects the laptop reads). Dates are formatted with a French locale (French day and month names, weeks starting on Monday in the pickers), the rest of the text around them in English. `src/phone.py`, `frame_stats.py`, `regenerate_profile.py` and the baseline profile journey find screens by their English labels, so renaming a label means updating them.
 
-A complaint about the Musique tool's errors starts with `uv run --no-project src/deezer_logs.py`, which pulls every log the tool writes (errors, crossfade, offline sync, discoveries) from `/sdcard/Android/data/com.example.myapp/files/` and groups the error and crossfade lines by kind, with the tracks refused on several days.
+A complaint about the Music tool's errors starts with `uv run --no-project src/deezer_logs.py`, which pulls every log the tool writes (errors, crossfade, offline sync, discoveries) from `/sdcard/Android/data/com.example.myapp/files/` and groups the error and crossfade lines by kind, with the tracks refused on several days.
 
 A flag complaint starts with `uv run --no-project --with pillow python src/generate_flags.py --sheet <codes>` from the repo root, opened for Valentin: it puts the shipped picture next to a fresh render and writes nothing to the assets, so the same command previews a generator change before the full run.
 
@@ -46,18 +46,18 @@ Outside that package: `src/` holds the Python asset generators (see the README):
 Root package (shared/misc):
 - `MainActivity.kt`: app entry point; the window, the intents it is launched with, and the locked-over-the-keyguard quick view
 - `AppNavHost.kt`: MainScreen, the whole app's nav graph plus the composition locals and the snackbar host every screen reads
-- `MenuScreen.kt`: the main menu; the big tools on top with their own callbacks, the rest a scrolling grid of MenuTool ranked by use and opened through one `onOpenTool(route)` (Muscu's tile is split, its right half logs a session)
+- `MenuScreen.kt`: the main menu; the big tools on top with their own callbacks, the rest a scrolling grid of MenuTool ranked by use and opened through one `onOpenTool(route)` (Workout's tile is split, its right half logs a session)
 - `MenuUsage.kt`: MenuUsageStore, the per-tool tap counters that order the menu grid
 - `Theme.kt`: ThemeManager (dark mode DataStore), AppTheme, LocalIsDarkMode
 - `MyApplication.kt`: Application class, holds the FlashcardRepository / DeezerRepository / PodcastRepository singletons plus their `Context.<name>Repository` extensions, and the app start housekeeping
-- `Buttons.kt`: shared composables, MyButton, SplitMyButton, MySwitch, ShowAlertDialog, ErrorText, AppDialog, LightIconButton (the one-node icon button for anything repeated per card or line), AddItemRow (the gray "Nouvel élément" placeholder where a new entry goes: the Todo widget, the Todo list note, the Agenda day). The buttons are all built on RaisedSurface, the custom dialogs all on AppDialog
+- `Buttons.kt`: shared composables, MyButton, SplitMyButton, MySwitch, ShowAlertDialog, ErrorText, AppDialog, LightIconButton (the one-node icon button for anything repeated per card or line), AddItemRow (the gray "New item" placeholder where a new entry goes: the Todo widget, the Todo list note, the Calendar day). The buttons are all built on RaisedSurface, the custom dialogs all on AppDialog
 - `ScreenTopBar.kt`: shared back-arrow + title header used by the tool screens
 - `Home.kt`: BackIconButton (tap = back, long press = main menu), the LocalGoHome hook, and the idle-return-to-menu lifecycle watcher with its IdleResetGuard
 - `PlayerUi.kt`: the surfaces `deezer/` and `podcasts/` both draw; MediaArt, MediaListRow, MiniPlayerBar (swipe to change track when given the callbacks), PlayPauseButton, PlayerSeekBar (which owns the position polling), formatPlaybackTime
 - `PauseOnOutputLost.kt`: `pauseOnOutputLost`, the device callback both playback services use to pause when a Bluetooth or wired output disappears (MIUI skips the noisy broadcast for some disconnects)
 - `MediaControllerHolder.kt`: the MediaController connect-once/stop-the-service plumbing both playback repositories use
 - `DaysLeft.kt`: `daysLeftUntil`, the rounded up days a trash row shows (notes and gallery)
-- `Plural.kt`: `plural(count)`, the one place the French count-to-plural rule lives
+- `Plural.kt`: `plural(count)`, the one place the count-to-plural rule lives
 - `Normalize.kt`: `deaccented` / `matchNormalized` / `slugified`, plus `normalizeForSearch` (one char out per char in, so the notes search can highlight by index); the one place text is folded for comparison
 - `Http.kt`: shared httpGet helper and User-Agent (Weather + Wikipedia + podcast feeds + news)
 - `Errors.kt`: `userMessage(throwable)`, what a failed job says on screen; rethrows cancellation so a screen left mid-request never shows an error
@@ -65,7 +65,7 @@ Root package (shared/misc):
 - `Clipboard.kt`: `copyToClipboard`, the one clipboard write (ErrorText's copy button, the Deezer error log, the playback failure snackbars, the note card copy, the translation copy)
 - `Share.kt`: `shareUrisIntent` (files, for the gallery and the file explorer) and `shareTextIntent` (a link, for the Deezer track and playlist shares), the one place an ACTION_SEND is built
 - `Browser.kt`: `openInBrowser`, the one ACTION_VIEW for a link (news articles, Wiktionary from the mots fléchés, links in a mail), with a snackbar when nothing can open it
-- `Duration.kt`: `formatDuration`, the French "3j" / "2h 5min" wait formatting the flashcards and the notes list share
+- `Duration.kt`: `formatDuration`, the "3d" / "2h 5min" wait formatting the flashcards and the notes list share
 - `BottomFadeOverlay.kt`: shared fade out gradient overlay composable
 - `Snackbar.kt`: AppSnackbar, the app wide snackbar screens post undo actions through
 - `SearchHistory.kt`: recent search terms per surface (notes, cities, Deezer, news) and the RecentSearchChips row
@@ -77,13 +77,13 @@ Root package (shared/misc):
 - `WeatherFormat.kt`: what that screen prints; the day labels, the emoji per condition code, the rain amounts, the day summary and the error message
 - `WeatherApi.kt`: the Open-Meteo forecast/geocoding calls, the saved city, and the device position
 
-`calendar/` (the "Agenda" tool: tasks, birthdays and events with their notifications, plus the jours fériés and the Rennes school holidays):
+`calendar/` (the "Calendar" tool: tasks, birthdays and events with their notifications, plus the jours fériés and the Rennes school holidays):
 - `CalendarModels.kt`: CalendarItem (one table for the three kinds), CalendarDao, the backup JSON
 - `CalendarSchedule.kt`: when each item reminds (a task at its time or 9:00 then daily until checked, an event the day before at its time or 9:00, a birthday a week before, at 23:59 the eve and at 9:00 unless wished), the 20:00 digest of the next day's tasks and events, where a repeating task goes once checked (a week or a month after the check, or its next time on its own day, or the last day of the month), the French public holidays from Easter. Pure, covered by a JVM unit test
 - `SchoolHolidays.kt`: the zone B holidays from the ministry's open data API, cached in filesDir and refetched monthly
-- `CalendarReminders.kt`: every write goes through it so the one exact alarm points at the next reminder; the notifications with their Fait / Dans 1 h / Demain / Souhaité buttons, and CalendarReceiver (alarm, buttons, reboot)
+- `CalendarReminders.kt`: every write goes through it so the one exact alarm points at the next reminder; the notifications with their Done / In 1 h / Tomorrow / Wished buttons, and CalendarReceiver (alarm, buttons, reboot)
 - `CalendarScreen.kt`: month grid pager (a dot color per kind, repeating tasks their own, school holidays as a faint band, fériés muted) and the selected day's list, overdue tasks moved onto today
-- `CalendarItemDialog.kt`: the add/edit dialog with its date and time pickers; an event's date and time rows are "start → end" ranges, Répéter is one row opening a menu, the pickers start weeks on Monday through a French locale
+- `CalendarItemDialog.kt`: the add/edit dialog with its date and time pickers; an event's date and time rows are "start → end" ranges, Repeat is one row opening a menu, the pickers start weeks on Monday through a French locale
 
 `deezer/` (Deezer streaming client: library, playback, offline mirror):
 - `DeezerModels.kt`: DeezerTrack/DeezerPlaylist/DeezerQuality data classes
@@ -98,11 +98,11 @@ Root package (shared/misc):
 - `DeezerDataSource.kt`: resolves `dzr://<sngId>` to a fresh CDN URL at open() time and decrypts on the fly
 - `DeezerLibraryCache.kt`: JSON snapshot of favorites + playlists so a cold launch renders instantly
 - `DeezerFavoritesHistory.kt`: the favorites count day by day, one JSON sample per day written on each complete fetch, the past seeded once from each track's `DATE_ADD`
-- `DeezerFavoritesHistoryScreen.kt`: the curve of that count, opened by tapping the "N titres" label on the library's Favoris card
+- `DeezerFavoritesHistoryScreen.kt`: the curve of that count, opened by tapping the "N tracks" label on the library's Favorites card
 - `DeezerOffline.kt`: DeezerOfflineLibrary, the permanent Best pépites mirror; sync, retry pass, sync log file
 - `DeezerPlaybackService.kt`: MediaSessionService owning the ExoPlayer; media notification, its heart/diamond action buttons (`actionButtons`), error recovery, and the look ahead that swaps out a next track Deezer refuses before the crossfade reaches it
 - `DeezerCrossfade.kt`: Crossfader, the 8 s blend into the next queued track (a session-less second player takes over the outgoing tail), started early on an outro or silence detected by LevelMeter, a tee on the main player's PCM
-- `DeezerScreen.kt`: host for the whole Musique tool (music *and* podcasts), nested NavHost + the two persistent mini-players
+- `DeezerScreen.kt`: host for the whole Music tool (music *and* podcasts), nested NavHost + the two persistent mini-players
 - `DeezerNowPlaying.kt`: FullPlayerSheet, plus the share-a-track sheet. The mini-player bar itself is the shared one in `PlayerUi.kt`
 - `DeezerTrackInfoSheet.kt`: TrackInfoSheet, opened by tapping the title in the full player; release date, credits, album, label, BPM from the public track and album calls
 - `DeezerTrackSaver.kt`: `repo.saver`, the full player's download button; saves the track as an ID3 tagged MP3 320 in Download, "already saved" being the file there under its name
@@ -112,13 +112,13 @@ Root package (shared/misc):
 - `DeezerPlaylistScreen.kt`: reusable ordered track list (play, remove, like, add to pépites)
 - `DeezerSearchScreen.kt`: search screen, tracks and podcast shows
 - `DeezerArtistScreen.kt`: one artist: header, top tracks, discography grouped by release type
-- `DeezerDiscoveries.kt`: the daily "Découvertes du jour" batch; Flow/track-mix discoveries, the scan scheduling and its results folded into the backlog, the persisted batch/backlog/proposed state
+- `DeezerDiscoveries.kt`: the daily "Today's discoveries" batch; Flow/track-mix discoveries, the scan scheduling and its results folded into the backlog, the persisted batch/backlog/proposed state
 - `DeezerReleaseScan.kt`: `scanNewReleases`, the network half of the new release scan over the profile and library artists; reads copies of the state, writes none
 - `RollingLog.kt`: the capped text log the offline sync, the discoveries batch, the crossfade diagnostics and the error log write, in the external files dir so a release build's log reads with plain adb
-- `DeezerErrorsScreen.kt`: the "Journal d'erreurs" (`repo.errorLog`), every failure with its cause chain, copyable in one tap
+- `DeezerErrorsScreen.kt`: the "Error log" (`repo.errorLog`), every failure with its cause chain, copyable in one tap
 - `DeezerDiscoveriesScreen.kt`: the batch's list screen (add, ignore, add all, ignore all, regenerate)
 
-`podcasts/` (podcast subscriptions and playback, surfaced inside the Musique tool):
+`podcasts/` (podcast subscriptions and playback, surfaced inside the Music tool):
 - `Models.kt`: PodcastFavorite/PodcastEpisode/PodcastCatalogItem/PodcastEpisodeProgress/PodcastDownload and PodcastDao
 - `PodcastApi.kt`: the iTunes directory search and the RSS feed parsing
 - `PodcastRepository.kt`: the singleton; followed shows, the merged live episode list, heard state, progress, the MediaController; `repo.downloads` and `repo.sleepTimer` below
@@ -133,7 +133,7 @@ Root package (shared/misc):
 
 `files/` (file explorer, one folder at a time):
 - `FileOps.kt`: the java.io.File side; listing/sorting a folder, the breadcrumb chain, size/date formatting, rename/create/delete/copy/move, and the FileProvider intents that open or share a file
-- `FileDefaults.kt`: the app chosen for each extension, captured from the system "Ouvrir avec" sheet by its receiver and stored in DataStore
+- `FileDefaults.kt`: the app chosen for each extension, captured from the system "Open with" sheet by its receiver and stored in DataStore
 - `FilesScreen.kt`: the screen; breadcrumb, pictures and videos opened in the gallery viewer (found in MediaStore by path), long press selection with its action bar, the cut/copy clipboard bar, the rename and new-folder dialogs
 
 `flashcards/` (spaced repetition flashcards tool):
@@ -234,10 +234,10 @@ Root package (shared/misc):
 - `TranslateUi.kt`: the pieces both entry points share, TranslationCard, AddToFlashcardsButton, the TextToSpeech reader, and WordLookupSheet (what the reader opens)
 - `TranslateScreen.kt`: the tool screen, debounced live translation and the history
 
-`workout/` (muscu reminder, the "Muscu" grid tool):
+`workout/` (workout reminder, the "Workout" grid tool):
 - `WorkoutSchedule.kt`: ReminderTimes (19:30 weekdays, 15:00 weekends by default), when the reminder goes off after a session (two days off) or a snooze, the days since the last session and the month/year counts. Pure, covered by a JVM unit test
 - `WorkoutReminder.kt`: the DataStore state (next reminder, every session, due, the times), the one exact alarm, the notification with its done / in 1 h / tomorrow buttons (a tap on its body opens the screen on the day picker), `markDoneWithUndo` (the screen and the menu tile's right half), and WorkoutReceiver (alarm, buttons, reboot)
-- `WorkoutScreen.kt`: next reminder (tap it to pick the day it comes back) and last session, "Séance faite", the snooze buttons while a reminder is due, the two reminder times with their time picker, the history; `lastSessionText` is shared with the notification
+- `WorkoutScreen.kt`: next reminder (tap it to pick the day it comes back) and last session, "Session done", the snooze buttons while a reminder is due, the two reminder times with their time picker, the history; `lastSessionText` is shared with the notification
 
 `undercover/` (party game tool):
 - `GameModels.kt`: Player, GameSettings, GameState, MrWhiteScenario, ScoreValues data model

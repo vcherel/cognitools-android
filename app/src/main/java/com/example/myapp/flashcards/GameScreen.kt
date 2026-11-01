@@ -210,9 +210,9 @@ fun FlashcardGameScreen(listId: String, navController: NavController) {
 
             if (isGolden) {
                 val message = if (wasCorrect) {
-                    "Carte dorée gagnée : attente ×2, revient dans ${formatDuration(updatedCard.interval * 60_000L)}"
+                    "Golden card won: wait ×2, back in ${formatDuration(updatedCard.interval * 60_000L)}"
                 } else {
-                    "Carte dorée perdue : progression remise à zéro"
+                    "Golden card lost: progress reset"
                 }
                 Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
             }
@@ -288,7 +288,7 @@ fun FlashcardGameScreen(listId: String, navController: NavController) {
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Cartes à réviser: ${dueState.totalCount}",
+                        text = "Cards to review: ${dueState.totalCount}",
                         style = MaterialTheme.typography.titleMedium
                     )
 
@@ -299,7 +299,7 @@ fun FlashcardGameScreen(listId: String, navController: NavController) {
                     ) {
                         Icon(
                             Icons.AutoMirrored.Filled.Undo,
-                            contentDescription = "Annuler",
+                            contentDescription = "Undo",
                             tint = if (canUndo) MaterialTheme.colorScheme.primary
                             else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
                         )
@@ -481,7 +481,7 @@ private fun CardFace(
 
         if (isGolden) {
             Text(
-                text = "Carte dorée",
+                text = "Golden card",
                 style = MaterialTheme.typography.titleMedium,
                 color = Gold,
                 fontWeight = FontWeight.Bold,
@@ -545,21 +545,21 @@ private fun AllReviewedScreen(
 
         Spacer(Modifier.height(16.dp))
         Text(
-            text = "Félicitations !",
+            text = "Well done!",
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold
         )
 
         Spacer(Modifier.height(8.dp))
         Text(
-            text = "Vous avez révisé toutes les cartes disponibles",
+            text = "You reviewed every card available",
             style = MaterialTheme.typography.bodyLarge,
             textAlign = TextAlign.Center
         )
 
         Spacer(Modifier.height(16.dp))
         MyButton(
-            text = "Retour aux listes",
+            text = "Back to the lists",
             onClick = onBackToLists,
             modifier = Modifier.fillMaxWidth().height(56.dp)
         )
@@ -567,7 +567,7 @@ private fun AllReviewedScreen(
         if (showPlainBack) {
             Spacer(Modifier.height(32.dp))
             MyButton(
-                text = "Retour",
+                text = "Back",
                 onClick = onBack,
                 modifier = Modifier.fillMaxWidth().height(56.dp)
             )

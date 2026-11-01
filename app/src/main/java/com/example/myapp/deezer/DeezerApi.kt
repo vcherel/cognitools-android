@@ -66,7 +66,7 @@ class DeezerApi {
         val user = results["USER"]?.jsonObject
         val userId = user?.get("USER_ID")?.jsonPrimitive?.content ?: "0"
         if (apiToken.isBlank() || apiToken == "0" || userId == "0") {
-            throw DeezerApiException("ARL expiré (session invité), colle un nouveau token via l'engrenage", tokenError = true)
+            throw DeezerApiException("ARL expired (guest session), paste a new token through the gear", tokenError = true)
         }
         val options = user?.get("OPTIONS")?.jsonObject
         val licenseToken = options?.get("license_token")?.jsonPrimitive?.content.orEmpty()

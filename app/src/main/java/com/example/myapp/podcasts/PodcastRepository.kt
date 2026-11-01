@@ -479,21 +479,21 @@ class PodcastRepository(private val appContext: Context) {
             // and the same position is tried again on the stream.
             if (downloads.isDownloaded(episodeId)) {
                 downloads.remove(episodeId)
-                AppSnackbar.show("Téléchargement incomplet, lecture en ligne")
+                AppSnackbar.show("Incomplete download, streaming instead")
                 runCatching { playEpisode(episode) }
                 return@launch
             }
             val savedMs = dao().getProgress(episodeId)?.positionMs ?: 0L
             when {
                 // Nothing was resumed, so the position isn't what ended it: the source itself is bad.
-                savedMs <= 0L -> AppSnackbar.show("Lecture impossible pour cet épisode")
+                savedMs <= 0L -> AppSnackbar.show("Can't play this episode")
                 attempt == 1 -> {
                     val retryFromMs = (savedMs - SHORT_SOURCE_BACK_MS).coerceAtLeast(0L)
                     runCatching { playEpisode(episode, startPositionMsOverride = retryFromMs) }
                 }
                 else -> {
                     dao().deleteProgress(episodeId)
-                    AppSnackbar.show("Reprise impossible, l'épisode redémarre au début")
+                    AppSnackbar.show("Can't resume, the episode restarts from the beginning")
                     runCatching { playEpisode(episode, startPositionMsOverride = 0L) }
                 }
             }

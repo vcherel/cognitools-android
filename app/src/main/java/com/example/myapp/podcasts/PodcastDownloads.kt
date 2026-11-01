@@ -226,7 +226,7 @@ class PodcastDownloads(private val appContext: Context, private val dao: () -> P
     fun enqueue(episode: PodcastEpisode) {
         if (isDownloaded(episode.id) || jobs.containsKey(episode.id)) return
         if (episode.audioUrl.isBlank()) {
-            AppSnackbar.show("Pas de flux audio pour cet épisode")
+            AppSnackbar.show("No audio stream for this episode")
             return
         }
         _active.update { it + episode }
@@ -239,10 +239,10 @@ class PodcastDownloads(private val appContext: Context, private val dao: () -> P
                 throw e
             } catch (e: Exception) {
                 Log.w(TAG, "Download failed for ${episode.title}", e)
-                // Logged where the music tool's errors go: the snackbar alone said "Problème de
-                // réseau" for any IOException, which hid whether the CDN refused or the fetch was cut.
-                appContext.deezerRepository.logError("Téléchargement podcast ${episode.title} (${episode.audioUrl})", e)
-                AppSnackbar.show(userMessage(e, "Échec du téléchargement"))
+                // Logged where the music tool's errors go: the snackbar alone said "Network
+                // problem" for any IOException, which hid whether the CDN refused or the fetch was cut.
+                appContext.deezerRepository.logError("Podcast download ${episode.title} (${episode.audioUrl})", e)
+                AppSnackbar.show(userMessage(e, "Download failed"))
             } finally {
                 // Only this job's own entry: a cancel followed by a fresh enqueue of the same episode
                 // has already replaced it, and that newer download must stay tracked.
@@ -280,7 +280,7 @@ class PodcastDownloads(private val appContext: Context, private val dao: () -> P
      */
     private suspend fun download(episode: PodcastEpisode) {
         if (isDownloaded(episode.id)) return
-        if (episode.audioUrl.isBlank()) throw IllegalStateException("Pas de flux audio pour cet épisode")
+        if (episode.audioUrl.isBlank()) throw IllegalStateException("No audio stream for this episode")
         // Protected up front: the fetch itself must not be evicted by what playback caches meanwhile.
         PodcastStreamCache.setProtected(appContext, episode.audioUrl, true)
         try {
@@ -314,7 +314,7 @@ class PodcastDownloads(private val appContext: Context, private val dao: () -> P
                 // and a truncated episode kept as a download is worse than none: it plays up to where
                 // it stops, the player calls that the end, and the episode gets marked heard.
                 if (!PodcastStreamCache.holdsWholeResource(appContext, episode.audioUrl)) {
-                    throw IllegalStateException("Téléchargement incomplet")
+                    throw IllegalStateException("Incomplete download")
                 }
             }
             dao().upsertDownload(episode.toDownload())
@@ -355,7 +355,7 @@ class PodcastDownloads(private val appContext: Context, private val dao: () -> P
             if (code in 300..399) {
                 val location = conn.getHeaderField("Location")
                 conn.disconnect()
-                if (location.isNullOrBlank()) throw IOException("Redirection sans destination")
+                if (location.isNullOrBlank()) throw IOException("Redirect without a destination")
                 current = URL(URL(current), location).toString()
                 return@repeat
             }
@@ -365,6 +365,6 @@ class PodcastDownloads(private val appContext: Context, private val dao: () -> P
             }
             return conn
         }
-        throw IOException("Trop de redirections")
+        throw IOException("Too many redirects")
     }
 }

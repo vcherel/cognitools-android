@@ -71,7 +71,7 @@ suspend fun importEpub(context: Context, uri: Uri): Result<Book> = withContext(D
     runCatching {
         context.contentResolver.openInputStream(uri)?.use { input ->
             target.outputStream().use { input.copyTo(it) }
-        } ?: error("Fichier illisible")
+        } ?: error("Unreadable file")
 
         val metadata = Epub.metadata(target)
         val coverName = metadata.coverHref?.let { href ->

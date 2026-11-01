@@ -141,7 +141,7 @@ fun FilesScreen(onBack: () -> Unit, onOpenMedia: (Long) -> Unit) {
             } else null
             when {
                 mediaId != null -> onOpenMedia(mediaId)
-                !openFile(context, file, defaultFor(file)) -> AppSnackbar.show("Aucune application pour ce fichier")
+                !openFile(context, file, defaultFor(file)) -> AppSnackbar.show("No app for this file")
             }
         }
     }
@@ -170,10 +170,10 @@ fun FilesScreen(onBack: () -> Unit, onOpenMedia: (Long) -> Unit) {
     BackHandler(enabled = selected.isNotEmpty() || parentOf(currentDir) != null) { handleBack() }
 
     Column(Modifier.fillMaxSize()) {
-        ScreenTopBar(title = "Fichiers", onBack = handleBack) {
+        ScreenTopBar(title = "Files", onBack = handleBack) {
             Box(Modifier.weight(1f))
             IconButton(onClick = { showNewFolder = true }, enabled = hasAccess) {
-                Icon(Icons.Filled.CreateNewFolder, contentDescription = "Nouveau dossier")
+                Icon(Icons.Filled.CreateNewFolder, contentDescription = "New folder")
             }
             Box {
                 IconButton(onClick = { showMenu = true }) {
@@ -182,19 +182,19 @@ fun FilesScreen(onBack: () -> Unit, onOpenMedia: (Long) -> Unit) {
                 val singleFile = selectedEntries.singleOrNull()?.takeIf { !it.isDirectory }
                 DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
                     DropdownMenuItem(
-                        text = { Text("Ouvrir avec…") },
+                        text = { Text("Open with…") },
                         enabled = singleFile != null,
                         onClick = {
                             showMenu = false
                             val file = singleFile ?: return@DropdownMenuItem
                             selected = emptySet()
                             if (!openFile(context, file.file, forceChooser = true)) {
-                                AppSnackbar.show("Aucune application pour ce fichier")
+                                AppSnackbar.show("No app for this file")
                             }
                         }
                     )
                     DropdownMenuItem(
-                        text = { Text("Applications par défaut") },
+                        text = { Text("Default apps") },
                         onClick = {
                             showMenu = false
                             showDefaults = true
@@ -218,8 +218,8 @@ fun FilesScreen(onBack: () -> Unit, onOpenMedia: (Long) -> Unit) {
                 onSelectAll = { selected = entries.orEmpty().map { it.path }.toSet() },
                 onShare = {
                     val files = selectedEntries.filter { !it.isDirectory }.map { it.file }
-                    if (files.isEmpty()) AppSnackbar.show("Rien à partager dans la sélection")
-                    else if (!shareFiles(context, files)) AppSnackbar.show("Partage impossible")
+                    if (files.isEmpty()) AppSnackbar.show("Nothing to share in the selection")
+                    else if (!shareFiles(context, files)) AppSnackbar.show("Sharing failed")
                 },
                 onRename = { toRename = selectedEntries.singleOrNull() },
                 onCut = {
@@ -247,7 +247,7 @@ fun FilesScreen(onBack: () -> Unit, onOpenMedia: (Long) -> Unit) {
                             else copyEntries(pending.files, destination)
                         }
                         clipboard = null
-                        countMessage(done, pending.files.size, if (pending.move) "déplacé" else "copié")
+                        countMessage(done, pending.files.size, if (pending.move) "moved" else "copied")
                     }
                 }
             )
@@ -267,7 +267,7 @@ fun FilesScreen(onBack: () -> Unit, onOpenMedia: (Long) -> Unit) {
 
             list.isEmpty() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text(
-                    text = "Dossier vide",
+                    text = "Empty folder",
                     style = MaterialTheme.typography.bodyLarge,
                     fontStyle = FontStyle.Italic,
                     textAlign = TextAlign.Center,
@@ -303,15 +303,15 @@ fun FilesScreen(onBack: () -> Unit, onOpenMedia: (Long) -> Unit) {
 
     toRename?.let { entry ->
         NameDialog(
-            title = "Renommer",
+            title = "Rename",
             initialName = entry.name,
-            confirmText = "Renommer",
+            confirmText = "Rename",
             onDismiss = { toRename = null },
             onConfirm = { newName ->
                 toRename = null
                 runOnFiles {
                     val ok = withContext(Dispatchers.IO) { renameEntry(entry.file, newName) }
-                    if (ok) "" else "Renommage impossible"
+                    if (ok) "" else "Rename failed"
                 }
             }
         )
@@ -327,16 +327,16 @@ fun FilesScreen(onBack: () -> Unit, onOpenMedia: (Long) -> Unit) {
 
     if (showNewFolder) {
         NameDialog(
-            title = "Nouveau dossier",
+            title = "New folder",
             initialName = "",
-            confirmText = "Créer",
+            confirmText = "Create",
             onDismiss = { showNewFolder = false },
             onConfirm = { name ->
                 showNewFolder = false
                 val parent = currentDir
                 runOnFiles {
                     val ok = withContext(Dispatchers.IO) { createFolder(parent, name) }
-                    if (ok) "" else "Création impossible"
+                    if (ok) "" else "Couldn't create"
                 }
             }
         )
@@ -346,19 +346,19 @@ fun FilesScreen(onBack: () -> Unit, onOpenMedia: (Long) -> Unit) {
         val count = selected.size
         ShowAlertDialog(
             onDismiss = { confirmDelete = false },
-            title = if (count == 1) "Supprimer « ${selectedEntries.firstOrNull()?.name.orEmpty()} » ?"
-            else "Supprimer $count éléments ?",
+            title = if (count == 1) "Delete “${selectedEntries.firstOrNull()?.name.orEmpty()}”?"
+            else "Delete $count items?",
             textContent = {
-                Text("La suppression est définitive, les dossiers sont supprimés avec leur contenu.")
+                Text("Deleting is permanent, folders go with their content.")
             },
-            confirmText = "Supprimer",
+            confirmText = "Delete",
             onCancel = { confirmDelete = false },
             onConfirm = {
                 confirmDelete = false
                 val files = selectedEntries.map { it.file }
                 runOnFiles {
                     val done = withContext(Dispatchers.IO) { deleteEntries(files) }
-                    countMessage(done, files.size, "supprimé")
+                    countMessage(done, files.size, "deleted")
                 }
             }
         )
@@ -373,12 +373,12 @@ private fun MissingAccess(onRequest: () -> Unit) {
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
-            text = "L'explorateur a besoin de l'accès à tous les fichiers pour lire le stockage.",
+            text = "The explorer needs all files access to read the storage.",
             style = MaterialTheme.typography.bodyLarge,
             textAlign = TextAlign.Center
         )
         Spacer(Modifier.height(24.dp))
-        MyButton(text = "Autoriser", height = 72.dp, onClick = onRequest)
+        MyButton(text = "Allow", height = 72.dp, onClick = onRequest)
     }
 }
 
@@ -438,27 +438,27 @@ private fun SelectionBar(
         verticalAlignment = Alignment.CenterVertically
     ) {
         IconButton(onClick = onClear) {
-            Icon(Icons.Filled.Close, contentDescription = "Annuler la sélection")
+            Icon(Icons.Filled.Close, contentDescription = "Clear selection")
         }
         Text("$count", style = MaterialTheme.typography.titleMedium)
         Box(Modifier.weight(1f))
         IconButton(onClick = onSelectAll) {
-            Icon(Icons.Filled.SelectAll, contentDescription = "Tout sélectionner")
+            Icon(Icons.Filled.SelectAll, contentDescription = "Select all")
         }
         IconButton(onClick = onShare) {
-            Icon(Icons.Filled.Share, contentDescription = "Partager")
+            Icon(Icons.Filled.Share, contentDescription = "Share")
         }
         IconButton(onClick = onRename, enabled = renameEnabled) {
-            Icon(Icons.Filled.DriveFileRenameOutline, contentDescription = "Renommer")
+            Icon(Icons.Filled.DriveFileRenameOutline, contentDescription = "Rename")
         }
         IconButton(onClick = onCut) {
-            Icon(Icons.Filled.ContentCut, contentDescription = "Déplacer")
+            Icon(Icons.Filled.ContentCut, contentDescription = "Move")
         }
         IconButton(onClick = onCopy) {
-            Icon(Icons.Filled.ContentCopy, contentDescription = "Copier")
+            Icon(Icons.Filled.ContentCopy, contentDescription = "Copy")
         }
         IconButton(onClick = onDelete) {
-            Icon(Icons.Filled.Delete, contentDescription = "Supprimer", tint = MaterialTheme.colorScheme.error)
+            Icon(Icons.Filled.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error)
         }
     }
 }
@@ -472,16 +472,16 @@ private fun ClipboardBar(clipboard: Clipboard, onPaste: () -> Unit, onCancel: ()
             .padding(start = 16.dp, end = 8.dp, top = 4.dp, bottom = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        val verb = if (clipboard.move) "à déplacer" else "à copier"
+        val verb = if (clipboard.move) "to move" else "to copy"
         Text(
             text = "${clipboard.files.size} $verb",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSecondaryContainer
         )
         Box(Modifier.weight(1f))
-        TextButton(onClick = onPaste) { Text("Coller ici") }
+        TextButton(onClick = onPaste) { Text("Paste here") }
         IconButton(onClick = onCancel) {
-            Icon(Icons.Filled.Close, contentDescription = "Abandonner")
+            Icon(Icons.Filled.Close, contentDescription = "Drop")
         }
     }
 }
@@ -540,17 +540,17 @@ private fun FileRow(
     }
 }
 
-/** "3 éléments supprimés", or "2 / 3 éléments supprimés" when some of them failed. */
+/** "3 items deleted", or "2 / 3 items deleted" when some of them failed. */
 private fun countMessage(done: Int, total: Int, verb: String): String {
     val counted = if (done == total) "$done" else "$done / $total"
-    return "$counted élément${plural(done)} $verb${plural(done)}"
+    return "$counted item${plural(done)} $verb"
 }
 
 private fun subtitleFor(entry: FileEntry): String {
     val date = formatFileDate(entry.lastModified)
     if (entry.isDirectory) {
         val count = entry.childCount
-        val label = "$count élément${plural(count)}"
+        val label = "$count item${plural(count)}"
         return if (date.isEmpty()) label else "$label · $date"
     }
     val size = formatFileSize(entry.size)
@@ -579,11 +579,11 @@ private fun DefaultAppsDialog(
 ) {
     val context = LocalContext.current
     AppDialog(onDismiss = onDismiss) {
-        Text("Applications par défaut", style = MaterialTheme.typography.titleMedium)
+        Text("Default apps", style = MaterialTheme.typography.titleMedium)
         Spacer(Modifier.height(12.dp))
         if (defaults.isEmpty()) {
             Text(
-                "Aucune pour l'instant : l'application choisie à la première ouverture d'un type de fichier est retenue ici.",
+                "None yet.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -604,7 +604,7 @@ private fun DefaultAppsDialog(
                             modifier = Modifier.weight(1f)
                         )
                         IconButton(onClick = { onForget(extension) }) {
-                            Icon(Icons.Filled.Close, contentDescription = "Oublier ce choix")
+                            Icon(Icons.Filled.Close, contentDescription = "Forget this choice")
                         }
                     }
                 }
@@ -612,7 +612,7 @@ private fun DefaultAppsDialog(
         }
         Spacer(Modifier.height(16.dp))
         MyButton(
-            text = "Fermer",
+            text = "Close",
             modifier = Modifier.fillMaxWidth().height(50.dp),
             fontSize = 14.sp,
             onClick = onDismiss
@@ -641,7 +641,7 @@ private fun NameDialog(
         Spacer(Modifier.height(16.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             MyButton(
-                text = "Annuler",
+                text = "Cancel",
                 modifier = Modifier.weight(1f).height(50.dp),
                 fontSize = 14.sp,
                 onClick = onDismiss

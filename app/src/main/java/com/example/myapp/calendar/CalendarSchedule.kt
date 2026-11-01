@@ -138,16 +138,16 @@ fun easterSunday(year: Int): LocalDate {
 fun publicHolidays(year: Int): Map<LocalDate, String> {
     val easter = easterSunday(year)
     return mapOf(
-        LocalDate.of(year, 1, 1) to "Jour de l'an",
-        easter.plusDays(1) to "Lundi de Pâques",
-        LocalDate.of(year, 5, 1) to "Fête du Travail",
-        LocalDate.of(year, 5, 8) to "Victoire 1945",
-        easter.plusDays(39) to "Ascension",
-        easter.plusDays(50) to "Lundi de Pentecôte",
-        LocalDate.of(year, 7, 14) to "Fête nationale",
-        LocalDate.of(year, 8, 15) to "Assomption",
-        LocalDate.of(year, 11, 1) to "Toussaint",
-        LocalDate.of(year, 11, 11) to "Armistice 1918",
-        LocalDate.of(year, 12, 25) to "Noël"
+        LocalDate.of(year, 1, 1) to "New Year's Day",
+        easter.plusDays(1) to "Easter Monday",
+        LocalDate.of(year, 5, 1) to "Labour Day",
+        LocalDate.of(year, 5, 8) to "Victory in Europe Day",
+        easter.plusDays(39) to "Ascension Day",
+        easter.plusDays(50) to "Whit Monday",
+        LocalDate.of(year, 7, 14) to "Bastille Day",
+        LocalDate.of(year, 8, 15) to "Assumption Day",
+        LocalDate.of(year, 11, 1) to "All Saints' Day",
+        LocalDate.of(year, 11, 11) to "Armistice Day",
+        LocalDate.of(year, 12, 25) to "Christmas"
     )
 }

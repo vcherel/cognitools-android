@@ -42,14 +42,14 @@ object Epub {
     private val ITALIC_TAGS = setOf("i", "em", "cite", "dfn")
 
     fun metadata(file: File): EpubMetadata = ZipFile(file).use { zip ->
-        val container = zip.text("META-INF/container.xml") ?: error("Ce fichier n'est pas un epub")
+        val container = zip.text("META-INF/container.xml") ?: error("This file is not an epub")
         val opfPath = Jsoup.parse(container, "", Parser.xmlParser())
             .getElementsByTag("rootfile").firstOrNull()?.attr("full-path")
-            ?.takeIf { it.isNotBlank() } ?: error("Ce fichier n'est pas un epub")
+            ?.takeIf { it.isNotBlank() } ?: error("This file is not an epub")
 
         val opfDir = opfPath.substringBeforeLast('/', "")
-        val opf = parseOpf(zip.text(opfPath) ?: error("Ce fichier n'est pas un epub"), opfDir)
-        if (opf.spine.isEmpty()) error("Cet epub ne contient aucun chapitre")
+        val opf = parseOpf(zip.text(opfPath) ?: error("This file is not an epub"), opfDir)
+        if (opf.spine.isEmpty()) error("This epub has no chapters")
 
         val titles = opf.tocHref
             ?.let { toc -> zip.text(toc)?.let { parseToc(it, toc.substringBeforeLast('/', "")) } }
@@ -59,7 +59,7 @@ object Epub {
             title = opf.title.ifBlank { file.nameWithoutExtension },
             author = opf.author,
             chapters = opf.spine.mapIndexed { index, href ->
-                EpubChapter(href = href, title = titles[href]?.trim().orEmpty().ifBlank { "Chapitre ${index + 1}" })
+                EpubChapter(href = href, title = titles[href]?.trim().orEmpty().ifBlank { "Chapter ${index + 1}" })
             },
             coverHref = opf.coverHref
         )

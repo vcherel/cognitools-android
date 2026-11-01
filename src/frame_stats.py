@@ -1,5 +1,5 @@
 # Janky frames per navigation step, from the app's gfxinfo counters reset between steps.
-# Runs a fixed journey (Notes, the flashcard lists, "Tout", a list) so two builds compare;
+# Runs a fixed journey (Notes, the flashcard lists, "All", a list) so two builds compare;
 # compare them within one session, frame times swing up to 4x between sessions.
 import re
 import sys
@@ -49,12 +49,12 @@ def main():
         step("notes")
         if tap(text("Flashcards"), "Flashcards"):
             step("open lists")
-            if tap(desc("Rechercher dans tout"), "Tout"):
-                step("open Tout")
+            if tap(desc("Search everything"), "All"):
+                step("open All")
                 fling()
                 back()
-                step("scroll Tout and back")
-            if tap(lambda n: n.get("text", "").endswith("à réviser"), "a list"):
+                step("scroll All and back")
+            if tap(lambda n: n.get("text", "").endswith("to review"), "a list"):
                 step("open a list")
                 fling()
                 back()

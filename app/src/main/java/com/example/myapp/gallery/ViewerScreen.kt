@@ -376,7 +376,7 @@ fun GalleryViewerScreen(
                                 }
                             }
                         )
-                        if (!trashed) errorMessage = "Suppression impossible"
+                        if (!trashed) errorMessage = "Delete failed"
                     }
                 },
                 modifier = Modifier
@@ -459,13 +459,13 @@ private fun ViewerActionBar(
         modifier = modifier.fillMaxWidth().padding(top = 4.dp),
         horizontalArrangement = Arrangement.SpaceEvenly
     ) {
-        ActionIcon(Icons.Default.Edit, "Renommer", onRename)
-        ActionIcon(Icons.AutoMirrored.Filled.DriveFileMove, "Déplacer", onMove)
+        ActionIcon(Icons.Default.Edit, "Rename", onRename)
+        ActionIcon(Icons.AutoMirrored.Filled.DriveFileMove, "Move", onMove)
         Box {
-            ActionIcon(Icons.Default.MoreVert, "Plus") { showMoreMenu = true }
+            ActionIcon(Icons.Default.MoreVert, "More") { showMoreMenu = true }
             DropdownMenu(expanded = showMoreMenu, onDismissRequest = { showMoreMenu = false }) {
                 DropdownMenuItem(
-                    text = { Text("Partager") },
+                    text = { Text("Share") },
                     leadingIcon = { Icon(Icons.Default.Share, contentDescription = null) },
                     onClick = { showMoreMenu = false; onShare() }
                 )
@@ -475,7 +475,7 @@ private fun ViewerActionBar(
                     onClick = { showMoreMenu = false; onShowInfo() }
                 )
                 DropdownMenuItem(
-                    text = { Text(if (isPinned) "Désépingler" else "Épingler") },
+                    text = { Text(if (isPinned) "Unpin" else "Pin") },
                     leadingIcon = {
                         Icon(if (isPinned) Icons.Default.PushPin else Icons.Outlined.PushPin, contentDescription = null)
                     },
@@ -483,21 +483,21 @@ private fun ViewerActionBar(
                 )
                 if (item.type == MediaType.IMAGE) {
                     DropdownMenuItem(
-                        text = { Text("Modifier") },
+                        text = { Text("Edit") },
                         leadingIcon = { Icon(Icons.Default.Crop, contentDescription = null) },
                         onClick = { showMoreMenu = false; onCrop() }
                     )
                 }
                 if (item.type == MediaType.VIDEO) {
                     DropdownMenuItem(
-                        text = { Text("Durée") },
+                        text = { Text("Length") },
                         leadingIcon = { Icon(Icons.Default.ContentCut, contentDescription = null) },
                         onClick = { showMoreMenu = false; onTrim() }
                     )
                 }
             }
         }
-        ActionIcon(Icons.Default.Delete, "Supprimer", onDelete)
+        ActionIcon(Icons.Default.Delete, "Delete", onDelete)
     }
 }
 
@@ -507,14 +507,14 @@ private fun OrderControls(index: Int, count: Int, onMove: (Int) -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         LightIconButton(
             icon = Icons.Default.ChevronLeft,
-            contentDescription = "Placer avant",
+            contentDescription = "Move before",
             onClick = { if (index > 0) onMove(-1) },
             modifier = Modifier.alpha(if (index > 0) 1f else 0f)
         )
         Text("${index + 1} / $count", style = MaterialTheme.typography.labelLarge)
         LightIconButton(
             icon = Icons.Default.ChevronRight,
-            contentDescription = "Placer après",
+            contentDescription = "Move after",
             onClick = { if (index < count - 1) onMove(1) },
             modifier = Modifier.alpha(if (index < count - 1) 1f else 0f)
         )

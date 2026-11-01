@@ -117,10 +117,10 @@ fun DeezerLibraryScreen(
     }
 
     Column(Modifier.fillMaxSize()) {
-        ScreenTopBar(title = "Musique", onBack = onBack) {
+        ScreenTopBar(title = "Music", onBack = onBack) {
             Spacer(Modifier.weight(1f))
             IconButton(onClick = { repo.player.stopAll(); podcastRepo.stopAll(); goHome() }) {
-                Icon(Icons.Filled.Stop, contentDescription = "Tout arrêter")
+                Icon(Icons.Filled.Stop, contentDescription = "Stop all")
             }
             // The booster belongs to whatever is playing, so it is reachable from here rather than
             // only from the menu.
@@ -128,10 +128,10 @@ fun DeezerLibraryScreen(
                 Icon(Icons.AutoMirrored.Filled.VolumeUp, contentDescription = "Volume booster")
             }
             IconButton(onClick = onOpenErrors) {
-                Icon(Icons.Filled.BugReport, contentDescription = "Journal d'erreurs")
+                Icon(Icons.Filled.BugReport, contentDescription = "Error log")
             }
             IconButton(onClick = { showSettings = true }) {
-                Icon(Icons.Filled.Settings, contentDescription = "Réglages")
+                Icon(Icons.Filled.Settings, contentDescription = "Settings")
             }
         }
 
@@ -154,12 +154,12 @@ fun DeezerLibraryScreen(
             ) {
                 Icon(Icons.Filled.Search, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(Modifier.width(10.dp))
-                Text("Rechercher…", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Search…", color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
 
             error?.let {
                 ErrorText(
-                    message = "Erreur: $it",
+                    message = "Error: $it",
                     onDismiss = { error = null },
                     modifier = Modifier.padding(vertical = 8.dp)
                 )
@@ -178,10 +178,10 @@ fun DeezerLibraryScreen(
                 )
             }
 
-            SectionHeader(title = "Favoris")
+            SectionHeader(title = "Favorites")
             ShuffleActionCard(
                 icon = Icons.Filled.Favorite,
-                label = favorites?.size?.let { "$it titres" } ?: "…",
+                label = favorites?.size?.let { "$it tracks" } ?: "…",
                 onShuffle = { scope.launch { runCatching { repo.player.shuffleFavorites() }.onFailure { error = userMessage(it) } } },
                 onOpen = onOpenFavorites,
                 onLabelClick = onOpenFavoritesHistory
@@ -243,7 +243,7 @@ fun DeezerLibraryScreen(
                 Spacer(Modifier.height(24.dp))
                 ShuffleActionCard(
                     icon = Icons.Filled.OfflinePin,
-                    label = "$downloadedCount titres · disponible hors ligne",
+                    label = "$downloadedCount tracks · available offline",
                     onShuffle = { scope.launch { runCatching { repo.player.shuffleDownloaded() }.onFailure { error = userMessage(it) } } },
                     onOpen = onOpenDownloaded
                 )
@@ -314,17 +314,17 @@ private fun ShuffleActionCard(
                 ) {
                     Text(label, style = MaterialTheme.typography.bodyLarge)
                     Spacer(Modifier.width(6.dp))
-                    Icon(Icons.AutoMirrored.Filled.ShowChart, contentDescription = "Évolution", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                    Icon(Icons.AutoMirrored.Filled.ShowChart, contentDescription = "History", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
                 }
             }
         }
         if (onOpen == null) {
-            Icon(Icons.Filled.Shuffle, contentDescription = "Lecture aléatoire", tint = MaterialTheme.colorScheme.primary)
+            Icon(Icons.Filled.Shuffle, contentDescription = "Shuffle play", tint = MaterialTheme.colorScheme.primary)
             Spacer(Modifier.width(6.dp))
-            Text("Aléatoire", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
+            Text("Shuffle", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
         } else {
             IconButton(onClick = onShuffle) {
-                Icon(Icons.Filled.Shuffle, contentDescription = "Lecture aléatoire", tint = MaterialTheme.colorScheme.primary)
+                Icon(Icons.Filled.Shuffle, contentDescription = "Shuffle play", tint = MaterialTheme.colorScheme.primary)
             }
         }
     }
@@ -337,11 +337,11 @@ private fun ShuffleActionCard(
 @Composable
 private fun DiscoveriesCard(state: DiscoveryState, onOpen: () -> Unit) {
     val subtitle = when {
-        state.generating && state.tracks.isEmpty() -> "Recherche en cours… ${state.progress} %"
-        state.generating -> "Renouvellement… ${state.progress} %"
+        state.generating && state.tracks.isEmpty() -> "Searching… ${state.progress} %"
+        state.generating -> "Renewing… ${state.progress} %"
         state.newReleaseCount > 0 ->
-            "${state.tracks.size} titres · ${state.newReleaseCount} nouveauté${plural(state.newReleaseCount)}"
-        else -> "${state.tracks.size} titres à découvrir"
+            "${state.tracks.size} tracks · ${state.newReleaseCount} new release${plural(state.newReleaseCount)}"
+        else -> "${state.tracks.size} tracks to discover"
     }
     Row(
         Modifier
@@ -356,7 +356,7 @@ private fun DiscoveriesCard(state: DiscoveryState, onOpen: () -> Unit) {
         Icon(Icons.Filled.AutoAwesome, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
-            Text("Découvertes du jour", style = MaterialTheme.typography.bodyLarge)
+            Text("Today's discoveries", style = MaterialTheme.typography.bodyLarge)
             Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         if (state.generating) {
@@ -391,14 +391,14 @@ private fun DiscoveriesRefreshRow(onClick: () -> Unit) {
         )
         Spacer(Modifier.width(8.dp))
         Text(
-            "Découvertes · nouvelle sélection",
+            "Discoveries · new selection",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.weight(1f)
         )
         Icon(
             Icons.Filled.Refresh,
-            contentDescription = "Nouvelle sélection",
+            contentDescription = "New selection",
             tint = MaterialTheme.colorScheme.primary,
             modifier = Modifier.size(18.dp)
         )
@@ -425,13 +425,13 @@ private fun PodcastRow(
         contentPadding = 8.dp,
         below = {
             if (unseenCount > 0) {
-                MediaRowSubtitle("$unseenCount épisode${plural(unseenCount)} non écouté${plural(unseenCount)}")
+                MediaRowSubtitle("$unseenCount unheard episode${plural(unseenCount)}")
             }
         },
         trailing = {
             if (onPlayLatest != null) {
                 IconButton(onClick = onPlayLatest) {
-                    Icon(Icons.Filled.PlayArrow, contentDescription = "Lire le dernier épisode", tint = MaterialTheme.colorScheme.primary)
+                    Icon(Icons.Filled.PlayArrow, contentDescription = "Play the latest episode", tint = MaterialTheme.colorScheme.primary)
                 }
             }
         }
@@ -452,7 +452,7 @@ private fun PodcastDownloadsRow(count: Int, onOpen: () -> Unit) {
     ) {
         Icon(Icons.Filled.DownloadDone, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
         Spacer(Modifier.width(12.dp))
-        Text("Téléchargés · $count épisode${plural(count)}", style = MaterialTheme.typography.bodyLarge)
+        Text("Downloaded · $count episode${plural(count)}", style = MaterialTheme.typography.bodyLarge)
     }
 }
 
@@ -507,10 +507,10 @@ private fun PlaylistRow(playlist: DeezerPlaylist, isPlaying: Boolean, onOpen: ()
         artworkSize = 56.dp,
         cornerSize = 8.dp,
         contentPadding = 8.dp,
-        below = { MediaRowSubtitle("${playlist.trackCount} titres") },
+        below = { MediaRowSubtitle("${playlist.trackCount} tracks") },
         trailing = {
             IconButton(onClick = onShuffle) {
-                Icon(Icons.Filled.Shuffle, contentDescription = "Lecture aléatoire", tint = MaterialTheme.colorScheme.primary)
+                Icon(Icons.Filled.Shuffle, contentDescription = "Shuffle play", tint = MaterialTheme.colorScheme.primary)
             }
         }
     )

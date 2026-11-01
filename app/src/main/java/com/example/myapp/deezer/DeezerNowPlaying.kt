@@ -84,8 +84,8 @@ private fun currentTrack(repo: DeezerRepository, state: PlayerUiState): DeezerTr
  */
 private fun shareTrack(context: Context, track: DeezerTrack) {
     val link = "https://song.link/d/${track.sngId}"
-    val text = if (track.artist.isBlank()) "${track.title}\n$link" else "${track.title} par ${track.artist}\n$link"
-    context.startActivity(shareTextIntent(text, track.title, "Partager le titre"))
+    val text = if (track.artist.isBlank()) "${track.title}\n$link" else "${track.title} by ${track.artist}\n$link"
+    context.startActivity(shareTextIntent(text, track.title, "Share the track"))
 }
 
 /** Full player overlay: big cover, seek bar, transport. */
@@ -146,13 +146,13 @@ fun FullPlayerSheet(
             .padding(20.dp)
     ) {
         IconButton(onClick = onCollapse, modifier = Modifier.align(Alignment.TopStart)) {
-            Icon(Icons.Filled.KeyboardArrowDown, contentDescription = "Réduire")
+            Icon(Icons.Filled.KeyboardArrowDown, contentDescription = "Collapse")
         }
         IconButton(
             onClick = { repo.player.stopAll(); goHome() },
             modifier = Modifier.align(Alignment.TopEnd)
         ) {
-            Icon(Icons.Filled.Stop, contentDescription = "Tout arrêter")
+            Icon(Icons.Filled.Stop, contentDescription = "Stop all")
         }
 
         Column(
@@ -179,7 +179,7 @@ fun FullPlayerSheet(
             )
             if (sourceLabel != null) {
                 Text(
-                    "Lecture depuis : $sourceLabel",
+                    "Playing from: $sourceLabel",
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.primary
                 )
@@ -193,7 +193,7 @@ fun FullPlayerSheet(
                 }) {
                     Icon(
                         if (isFav) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
-                        contentDescription = if (isFav) "Retirer des favoris" else "Ajouter aux favoris",
+                        contentDescription = if (isFav) "Remove from favorites" else "Add to favorites",
                         tint = if (isFav) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -206,7 +206,7 @@ fun FullPlayerSheet(
                 }) {
                     Icon(
                         Icons.Filled.Diamond,
-                        contentDescription = if (removesFromPepites) "Retirer de Best pépites" else "Ajouter à Best pépites",
+                        contentDescription = if (removesFromPepites) "Remove from Best pépites" else "Add to Best pépites",
                         tint = if (inPepites) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -218,22 +218,22 @@ fun FullPlayerSheet(
                         isSaving -> Unit
                         isSaved -> {
                             scope.launch { runCatching { appendToDjNote(context, track.artist, track.title, downloaded = true) } }
-                            Toast.makeText(context, "Déjà téléchargé", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, "Already downloaded", Toast.LENGTH_SHORT).show()
                         }
                         else -> repo.saver.save(track)
                     }
                 }) {
                     when {
                         isSaving -> CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
-                        isSaved -> Icon(Icons.Filled.DownloadDone, contentDescription = "Déjà téléchargé", tint = MaterialTheme.colorScheme.primary)
-                        else -> Icon(Icons.Filled.Download, contentDescription = "Télécharger", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        isSaved -> Icon(Icons.Filled.DownloadDone, contentDescription = "Already downloaded", tint = MaterialTheme.colorScheme.primary)
+                        else -> Icon(Icons.Filled.Download, contentDescription = "Download", tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
                 IconButton(onClick = {
                     val track = currentTrack(repo, state) ?: return@IconButton
                     shareTrack(context, track)
                 }) {
-                    Icon(Icons.Filled.Share, contentDescription = "Partager", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Icon(Icons.Filled.Share, contentDescription = "Share", tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
 
@@ -255,12 +255,12 @@ fun FullPlayerSheet(
                 IconButton(onClick = { scope.launch { repo.player.setShuffle(!shuffle) } }) {
                     Icon(
                         if (shuffle) Icons.Filled.Shuffle else Icons.Filled.FormatListNumbered,
-                        contentDescription = if (shuffle) "Lecture aléatoire activée" else "Lecture dans l'ordre",
+                        contentDescription = if (shuffle) "Shuffle on" else "Play in order",
                         tint = if (shuffle) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
                 IconButton(onClick = { repo.player.previous() }) {
-                    Icon(Icons.Filled.SkipPrevious, contentDescription = "Précédent", modifier = Modifier.size(40.dp))
+                    Icon(Icons.Filled.SkipPrevious, contentDescription = "Previous", modifier = Modifier.size(40.dp))
                 }
                 PlayPauseButton(
                     isPlaying = state.isPlaying,
@@ -269,12 +269,12 @@ fun FullPlayerSheet(
                     iconSize = 56.dp
                 )
                 IconButton(onClick = { repo.player.next() }) {
-                    Icon(Icons.Filled.SkipNext, contentDescription = "Suivant", modifier = Modifier.size(40.dp))
+                    Icon(Icons.Filled.SkipNext, contentDescription = "Next", modifier = Modifier.size(40.dp))
                 }
                 IconButton(onClick = { showQueue = true }) {
                     Icon(
                         Icons.Filled.QueueMusic,
-                        contentDescription = "File d'attente",
+                        contentDescription = "Queue",
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }

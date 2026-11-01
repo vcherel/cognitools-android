@@ -141,7 +141,7 @@ fun noteTitleAndPreview(note: Note): Pair<String, String> {
     return if (note.title.isNotBlank()) {
         note.title to lines.getOrElse(0) { "" }
     } else {
-        lines.getOrElse(0) { "Note vide" } to lines.getOrElse(1) { "" }
+        lines.getOrElse(0) { "Empty note" } to lines.getOrElse(1) { "" }
     }
 }
 

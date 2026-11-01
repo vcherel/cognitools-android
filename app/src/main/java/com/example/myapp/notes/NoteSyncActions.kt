@@ -500,9 +500,9 @@ class NoteSyncActions(
         if (finished.movedCount == 0) return
         scope.launch {
             val count = finished.movedCount
-            val noun = if (finished.kind == SyncKind.COURSE) "article" else "ingrédient"
-            val verb = if (finished.reorder) "réordonné" else "ajouté"
-            if (snackbar.showUndoSnackbar("$count $noun${plural(count)} $verb${plural(count)}")) {
+            val noun = if (finished.kind == SyncKind.COURSE) "item" else "ingredient"
+            val verb = if (finished.reorder) "reordered" else "added"
+            if (snackbar.showUndoSnackbar("$count $noun${plural(count)} $verb")) {
                 if (finished.sourceId != null && finished.sourceSnapshot != null) {
                     updateNoteContent(finished.sourceId, finished.sourceSnapshot)
                 }
@@ -535,7 +535,7 @@ class NoteSyncActions(
         firstOrNull { it.title.trim().equals(title, ignoreCase = true) }?.let { return it }
         snackbar.currentSnackbarData?.dismiss()
         snackbar.showSnackbar(
-            message = "Note \"$title\" introuvable",
+            message = "Note \"$title\" not found",
             withDismissAction = true,
             duration = SnackbarDuration.Short
         )

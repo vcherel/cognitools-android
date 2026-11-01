@@ -111,9 +111,9 @@ fun GalleryCropScreen(itemId: Long, onBack: () -> Unit) {
         item = found
         if (found != null) {
             val decoded = withContext(Dispatchers.IO) { decodeSampledBitmap(context, found.uri, maxDimension = 1440) }
-            if (decoded != null) displayBitmap = decoded else errorMessage = "Image illisible"
+            if (decoded != null) displayBitmap = decoded else errorMessage = "Unreadable picture"
         } else {
-            errorMessage = "Image introuvable"
+            errorMessage = "Picture not found"
         }
     }
 
@@ -124,15 +124,15 @@ fun GalleryCropScreen(itemId: Long, onBack: () -> Unit) {
     val bitmap = displayBitmap
 
     Column(modifier = Modifier.fillMaxSize()) {
-        ScreenTopBar(title = "Modifier", onBack = onBack, modifier = Modifier.padding(16.dp), titleWeight = true) {
+        ScreenTopBar(title = "Edit", onBack = onBack, modifier = Modifier.padding(16.dp), titleWeight = true) {
             if (bitmap != null && !saving) {
                 if (strokes.isNotEmpty()) {
                     IconButton(onClick = { strokes.removeAt(strokes.lastIndex) }) {
-                        Icon(Icons.AutoMirrored.Filled.Undo, contentDescription = "Annuler le trait")
+                        Icon(Icons.AutoMirrored.Filled.Undo, contentDescription = "Undo the stroke")
                     }
                 }
                 FilledIconToggleButton(checked = drawing, onCheckedChange = { drawing = it }) {
-                    Icon(Icons.Default.Brush, contentDescription = if (drawing) "Recadrer" else "Dessiner")
+                    Icon(Icons.Default.Brush, contentDescription = if (drawing) "Crop" else "Draw")
                 }
                 IconButton(enabled = !rotating, onClick = {
                     rotating = true
@@ -146,7 +146,7 @@ fun GalleryCropScreen(itemId: Long, onBack: () -> Unit) {
                         rotating = false
                     }
                 }) {
-                    Icon(Icons.Default.Rotate90DegreesCw, contentDescription = "Pivoter")
+                    Icon(Icons.Default.Rotate90DegreesCw, contentDescription = "Rotate")
                 }
             }
         }
@@ -211,7 +211,7 @@ fun GalleryCropScreen(itemId: Long, onBack: () -> Unit) {
             }
 
             MyButton(
-                text = if (saving) "Enregistrement..." else "Enregistrer",
+                text = if (saving) "Saving..." else "Save",
                 enabled = !saving && !rotating,
                 modifier = Modifier.fillMaxWidth().padding(16.dp).height(64.dp)
             ) {
@@ -227,7 +227,7 @@ fun GalleryCropScreen(itemId: Long, onBack: () -> Unit) {
                     }
                     if (edited == null) {
                         saving = false
-                        errorMessage = "Modification impossible"
+                        errorMessage = "Edit failed"
                         return@launch
                     }
                     val ok = performOverwrite(context, currentItem, requestConsent) { out ->
@@ -240,7 +240,7 @@ fun GalleryCropScreen(itemId: Long, onBack: () -> Unit) {
                     }
                     edited.recycle()
                     saving = false
-                    if (ok) onBack() else errorMessage = "Enregistrement impossible"
+                    if (ok) onBack() else errorMessage = "Save failed"
                 }
             }
         }

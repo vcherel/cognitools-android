@@ -120,15 +120,15 @@ fun MotsFlechesScreen(onBack: () -> Unit) {
         val puzzleState = state ?: return
         val filled = puzzleState.filledIn(cells)
         if (filled.isEmpty()) {
-            AppSnackbar.show("Rien à vérifier ici pour l'instant")
+            AppSnackbar.show("Nothing to check here yet")
             return
         }
         val bad = puzzleState.wrongIn(cells).toSet()
         if (bad.isNotEmpty() && flagged != cells) {
             flagged = cells
             AppSnackbar.show(
-                if (whole) "Il y a une faute dans la grille. Revérifie pour la situer."
-                else "Il y a une faute dans ce mot. Revérifie pour la situer."
+                if (whole) "There is a mistake in the grid. Check again to find it."
+                else "There is a mistake in this word. Check again to find it."
             )
             return
         }
@@ -137,9 +137,9 @@ fun MotsFlechesScreen(onBack: () -> Unit) {
         apply(puzzleState.confirming(cells))
         AppSnackbar.show(
             when {
-                bad.isNotEmpty() -> "${bad.size} lettre${plural(bad.size)} fausse${plural(bad.size)}"
-                filled.size == cells.size -> if (whole) "Toute la grille est juste !" else "Ce mot est bon"
-                else -> "Bon jusqu'ici : ${filled.size} lettre${plural(filled.size)} juste${plural(filled.size)}"
+                bad.isNotEmpty() -> "${bad.size} wrong letter${plural(bad.size)}"
+                filled.size == cells.size -> if (whole) "The whole grid is right!" else "This word is right"
+                else -> "Good so far: ${filled.size} right letter${plural(filled.size)}"
             }
         )
     }
@@ -176,7 +176,7 @@ fun MotsFlechesScreen(onBack: () -> Unit) {
 
     Column(modifier = Modifier.fillMaxSize()) {
         ScreenTopBar(
-            title = "Mots fléchés",
+            title = "Crosswords",
             onBack = onBack,
             titleSuffix = {
                 Spacer(Modifier.weight(1f))
@@ -202,7 +202,7 @@ fun MotsFlechesScreen(onBack: () -> Unit) {
                         // The two rarer actions live here so the clue bar keeps three clear
                         // buttons: checking everything at once, and giving up on a word.
                         DropdownMenuItem(
-                            text = { Text("Vérifier toute la grille") },
+                            text = { Text("Check the whole grid") },
                             enabled = current != null,
                             onClick = {
                                 menuOpen = false
@@ -210,7 +210,7 @@ fun MotsFlechesScreen(onBack: () -> Unit) {
                             }
                         )
                         DropdownMenuItem(
-                            text = { Text("Voir la réponse") },
+                            text = { Text("Show the answer") },
                             enabled = slot != null,
                             onClick = {
                                 menuOpen = false
@@ -218,14 +218,14 @@ fun MotsFlechesScreen(onBack: () -> Unit) {
                             }
                         )
                         DropdownMenuItem(
-                            text = { Text("Nouvelle grille") },
+                            text = { Text("New grid") },
                             onClick = {
                                 menuOpen = false
                                 confirmNewGrid = true
                             }
                         )
                         DropdownMenuItem(
-                            text = { Text("Effacer la grille") },
+                            text = { Text("Clear the grid") },
                             onClick = {
                                 menuOpen = false
                                 current?.let {
@@ -247,7 +247,7 @@ fun MotsFlechesScreen(onBack: () -> Unit) {
                     CircularProgressIndicator()
                     Spacer(Modifier.height(16.dp))
                     Text(
-                        "Génération de la grille…",
+                        "Generating the grid…",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -338,22 +338,22 @@ fun MotsFlechesScreen(onBack: () -> Unit) {
 @Composable
 private fun AbandonGridDialog(onDismiss: () -> Unit, onNewGrid: () -> Unit) {
     AppDialog(onDismiss = onDismiss) {
-        Text("Abandonner cette grille ?", style = MaterialTheme.typography.titleMedium)
+        Text("Give up this grid?", style = MaterialTheme.typography.titleMedium)
         Spacer(Modifier.height(8.dp))
         Text(
-            "La grille en cours sera remplacée par une nouvelle.",
+            "The current grid will be replaced by a new one.",
             style = MaterialTheme.typography.bodyMedium
         )
         Spacer(Modifier.height(16.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             MyButton(
-                text = "Annuler",
+                text = "Cancel",
                 modifier = Modifier.weight(1f).height(50.dp),
                 fontSize = 14.sp,
                 onClick = onDismiss
             )
             MyButton(
-                text = "Nouvelle grille",
+                text = "New grid",
                 modifier = Modifier.weight(1f).height(50.dp),
                 fontSize = 14.sp,
                 onClick = onNewGrid
@@ -365,12 +365,12 @@ private fun AbandonGridDialog(onDismiss: () -> Unit, onNewGrid: () -> Unit) {
 @Composable
 private fun GridSolvedDialog(onDismiss: () -> Unit, onNewGrid: () -> Unit) {
     AppDialog(onDismiss = onDismiss) {
-        Text("Grille terminée !", style = MaterialTheme.typography.headlineSmall)
+        Text("Grid complete!", style = MaterialTheme.typography.headlineSmall)
         Spacer(Modifier.height(8.dp))
-        Text("Bien joué. Une nouvelle grille t'attend.", style = MaterialTheme.typography.bodyMedium)
+        Text("Well played. A new grid is waiting.", style = MaterialTheme.typography.bodyMedium)
         Spacer(Modifier.height(16.dp))
         MyButton(
-            text = "Nouvelle grille",
+            text = "New grid",
             modifier = Modifier.fillMaxWidth().height(50.dp),
             fontSize = 16.sp,
             onClick = onNewGrid
@@ -409,14 +409,14 @@ private fun ClueBar(
         ) {
             Text(
                 // The definition in full, not the one cut down to fit the cell.
-                text = slot?.explanation ?: "Touche une case pour commencer",
+                text = slot?.explanation ?: "Tap a cell to start",
                 style = MaterialTheme.typography.bodyMedium,
                 fontStyle = if (slot == null) FontStyle.Italic else FontStyle.Normal
             )
             if (slot != null) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = "${slot.length} lettres" + if (slot.across) ", horizontal" else ", vertical",
+                        text = "${slot.length} letters" + if (slot.across) ", horizontal" else ", vertical",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -425,7 +425,7 @@ private fun ClueBar(
                         Spacer(Modifier.weight(1f))
                         LinkAction(Icons.Default.School, "Flashcard") { filing = true }
                         if (lang != null) {
-                            LinkAction(Icons.AutoMirrored.Filled.OpenInNew, "En savoir plus") {
+                            LinkAction(Icons.AutoMirrored.Filled.OpenInNew, "Learn more") {
                                 openWiktionary(context, lang, foundSlot.answer)
                             }
                         }
@@ -438,9 +438,9 @@ private fun ClueBar(
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            ClueAction(Icons.Default.Check, "Vérifier", enabled = slot != null, onClick = onCheckWord)
-            ClueAction(Icons.Default.Lightbulb, "Indice", enabled = slot != null, onClick = onRevealLetter)
-            ClueAction(Icons.Default.DeleteOutline, "Effacer", enabled = slot != null, onClick = onClearWord)
+            ClueAction(Icons.Default.Check, "Check", enabled = slot != null, onClick = onCheckWord)
+            ClueAction(Icons.Default.Lightbulb, "Hint", enabled = slot != null, onClick = onRevealLetter)
+            ClueAction(Icons.Default.DeleteOutline, "Clear", enabled = slot != null, onClick = onClearWord)
         }
     }
 
@@ -522,7 +522,7 @@ private fun LetterKeyboard(onLetter: (Char) -> Unit, onBackspace: () -> Unit) {
             Key(modifier = Modifier.weight(2f), onClick = onBackspace) {
                 Icon(
                     Icons.AutoMirrored.Filled.Backspace,
-                    contentDescription = "Effacer",
+                    contentDescription = "Clear",
                     modifier = Modifier.size(20.dp)
                 )
             }

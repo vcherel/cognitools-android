@@ -68,20 +68,20 @@ fun StatsSheet(
                     horizontalArrangement = Arrangement.SpaceEvenly
                 ) {
                     StatSummaryItem("Total", s.totalCards.toString())
-                    StatSummaryItem("À réviser", s.dueCards.toString())
+                    StatSummaryItem("To review", s.dueCards.toString())
                     StatSummaryItem(
-                        "Taux",
+                        "Rate",
                         if (s.winRate < 0) "-" else "${(s.winRate * 100).toInt()}%"
                     )
                     StatSummaryItem(
-                        "Délai moyen",
+                        "Average wait",
                         if (s.meanTimeUntilNextReviewMs < 0) "-"
                         else formatDuration(s.meanTimeUntilNextReviewMs)
                     )
                 }
 
                 Spacer(Modifier.height(24.dp))
-                Text("Répartition des scores", style = MaterialTheme.typography.titleSmall)
+                Text("Score distribution", style = MaterialTheme.typography.titleSmall)
                 Spacer(Modifier.height(8.dp))
 
                 val maxCount = s.scoreBuckets.maxOf { it.second }.coerceAtLeast(1)
@@ -123,7 +123,7 @@ fun StatsSheet(
 
                 if (s.waitTimeBuckets.isNotEmpty()) {
                     Spacer(Modifier.height(24.dp))
-                    Text("Répartition des délais", style = MaterialTheme.typography.titleSmall)
+                    Text("Wait distribution", style = MaterialTheme.typography.titleSmall)
                     Spacer(Modifier.height(8.dp))
 
                     val maxWaitCount = s.waitTimeBuckets.maxOf { it.count }.coerceAtLeast(1)

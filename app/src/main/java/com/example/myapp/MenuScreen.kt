@@ -76,20 +76,20 @@ fun MenuScreen(
     val usage by usageStore.counts.collectAsState(initial = emptyMap())
 
     val tools = listOf(
-        MenuTool("weather", "Météo"),
-        MenuTool("motsFleches", "Mots fléchés"),
-        MenuTool("translate", "Traduction"),
-        MenuTool("reader", "Lecture"),
+        MenuTool("weather", "Weather"),
+        MenuTool("motsFleches", "Crosswords"),
+        MenuTool("translate", "Translate"),
+        MenuTool("reader", "Reader"),
         MenuTool("volume", "Volume", route = "volumeBooster"),
         MenuTool("undercover", "Undercover"),
         MenuTool("wikipedia", "Wiki"),
         MenuTool("random", "Random", route = "randomGenerator"),
-        MenuTool("files", "Fichiers"),
-        MenuTool("news", "Actus"),
+        MenuTool("files", "Files"),
+        MenuTool("news", "News"),
         MenuTool("journal", "Journal"),
         MenuTool("mail", "Mail"),
-        MenuTool("workout", "Muscu"),
-        MenuTool("calendar", "Agenda")
+        MenuTool("workout", "Workout"),
+        MenuTool("calendar", "Calendar")
     )
     // Most used first, alphabetical between tools opened as often (so a fresh install is A to Z).
     val orderedTools = tools.sortedWith(
@@ -108,7 +108,7 @@ fun MenuScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "Bienvenue !",
+                text = "Welcome!",
                 style = MaterialTheme.typography.headlineLarge,
                 modifier = Modifier.weight(1f)
             )
@@ -116,13 +116,13 @@ fun MenuScreen(
             IconButton(onClick = onToggleDarkMode) {
                 Icon(
                     imageVector = if (isDarkMode) Icons.Default.LightMode else Icons.Default.DarkMode,
-                    contentDescription = if (isDarkMode) "Mode clair" else "Mode sombre"
+                    contentDescription = if (isDarkMode) "Light mode" else "Dark mode"
                 )
             }
         }
         Spacer(modifier = Modifier.height(25.dp))
         Text(
-            text = "Choisis une option pour commencer :",
+            text = "Pick a tool to start:",
             style = MaterialTheme.typography.titleMedium,
             fontStyle = FontStyle.Italic,
             textAlign = TextAlign.Center
@@ -166,7 +166,7 @@ fun MenuScreen(
         val pinnedRows by remember { pinDao.observePinned() }.collectAsState(initial = emptyList())
         val somethingPinned = pinnedRows.isNotEmpty()
         SplitMyButton(
-            text = "Galerie",
+            text = "Gallery",
             rightIcon = if (somethingPinned) Icons.Default.PushPin else Icons.Default.AccountBalanceWallet,
             height = buttonHeight,
             onMainClick = onOpenGallery,
@@ -236,7 +236,7 @@ private fun DeezerMenuButton(height: Dp, onOpenDeezer: () -> Unit) {
     }
 
     SplitMyButton(
-        text = "Musique",
+        text = "Music",
         rightIcon = when {
             !loaded -> Icons.Default.Shuffle
             isPlaying -> Icons.Default.Pause
@@ -259,7 +259,7 @@ private fun DeezerMenuButton(height: Dp, onOpenDeezer: () -> Unit) {
                             repo.player.playerState.first { it.isPlaying && it.sngId != previousSngId }
                         }
                     }.onFailure {
-                        Toast.makeText(context, userMessage(it, "Erreur"), Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, userMessage(it, "Error"), Toast.LENGTH_SHORT).show()
                     }
                     isShuffleLoading = false
                 }

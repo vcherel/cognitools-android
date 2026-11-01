@@ -64,7 +64,7 @@ class DeezerTrackSaver(private val appContext: Context, private val repo: Deezer
                     ?: listOf(track.artist)
                 writeToDownloads(fileName(artists, track.title), tag, audio)
                 runCatching { appendToDjNote(appContext, track.artist, track.title, downloaded = true) }
-                "Téléchargé dans Download"
+                "Saved to Download"
             } catch (e: Exception) {
                 repo.logError("save ${track.sngId}", e)
                 userMessage(e)
@@ -102,12 +102,12 @@ class DeezerTrackSaver(private val appContext: Context, private val repo: Deezer
             put(MediaStore.Downloads.IS_PENDING, 1)
         }
         val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
-            ?: error("Fichier inaccessible")
+            ?: error("File unreadable")
         try {
             resolver.openOutputStream(uri)?.use {
                 it.write(tag)
                 it.write(audio)
-            } ?: error("Fichier inaccessible")
+            } ?: error("File unreadable")
             resolver.update(uri, ContentValues().apply { put(MediaStore.Downloads.IS_PENDING, 0) }, null, null)
         } catch (e: Exception) {
             resolver.delete(uri, null, null)

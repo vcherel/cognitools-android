@@ -137,8 +137,8 @@ internal class SlashCommand(val label: String, val keywords: List<String>, val p
 
 internal val SLASH_COMMANDS = listOf(
     SlashCommand("Check", listOf("case", "checkbox", "todo"), UNCHECKED_PREFIX),
-    SlashCommand("Séparateur", listOf("separateur", "séparateur", "ligne"), SEPARATOR_PREFIX),
-    SlashCommand("Titre", listOf("titre", "title"), "**__", "__**")
+    SlashCommand("Separator", listOf("separator", "separateur", "séparateur", "line", "ligne"), SEPARATOR_PREFIX),
+    SlashCommand("Title", listOf("title", "titre"), "**__", "__**")
 )
 
 /**

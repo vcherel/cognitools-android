@@ -146,21 +146,21 @@ fun NewsArticleScreen(link: String, onBack: () -> Unit) {
                 scope.launch {
                     if (savedRow != null) {
                         repo.unsave(link)
-                        AppSnackbar.show("Retiré des sauvegardés")
+                        AppSnackbar.show("Removed from saved")
                     } else {
                         repo.save(article, content?.text)
-                        AppSnackbar.show("Article sauvegardé")
+                        AppSnackbar.show("Article saved")
                     }
                 }
             }) {
                 Icon(
                     if (savedRow != null) Icons.Filled.Bookmark else Icons.Filled.BookmarkBorder,
-                    contentDescription = if (savedRow != null) "Retirer des sauvegardés" else "Sauvegarder",
+                    contentDescription = if (savedRow != null) "Remove from saved" else "Save",
                     tint = if (savedRow != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
             IconButton(onClick = { openInBrowser(context, link) }) {
-                Icon(Icons.Filled.OpenInBrowser, contentDescription = "Ouvrir dans le navigateur")
+                Icon(Icons.Filled.OpenInBrowser, contentDescription = "Open in the browser")
             }
         }
 
@@ -218,7 +218,7 @@ fun NewsArticleScreen(link: String, onBack: () -> Unit) {
                 }
             }
             error?.let {
-                ErrorText(message = "Erreur: $it", onDismiss = { error = null }, modifier = Modifier.padding(vertical = 8.dp))
+                ErrorText(message = "Error: $it", onDismiss = { error = null }, modifier = Modifier.padding(vertical = 8.dp))
             }
 
             if (!loading && (content == null || content?.truncated == true)) {
@@ -233,12 +233,12 @@ fun NewsArticleScreen(link: String, onBack: () -> Unit) {
                 ) {
                     Column(Modifier.padding(12.dp)) {
                         Text(
-                            "Article incomplet (accès réservé ou page illisible).",
+                            "Incomplete article (subscriber only or unreadable page).",
                             style = MaterialTheme.typography.bodyMedium
                         )
                         Spacer(Modifier.height(10.dp))
                         MyButton(
-                            text = "Ouvrir dans le navigateur",
+                            text = "Open in the browser",
                             onClick = { openInBrowser(context, link) },
                             modifier = Modifier.fillMaxWidth(),
                             fontSize = 18.sp,

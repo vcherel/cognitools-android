@@ -124,7 +124,7 @@ internal fun TodoWidgetCard(
 private fun DeleteLineButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
     LightIconButton(
         Icons.Default.Close,
-        "Supprimer la ligne",
+        "Delete the line",
         onClick = onClick,
         modifier = modifier,
         size = 32.dp,

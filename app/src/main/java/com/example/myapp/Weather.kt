@@ -78,7 +78,7 @@ fun WeatherScreen(onBack: () -> Unit) {
     var error by remember { mutableStateOf<String?>(null) }
     var selectedCity by remember { mutableStateOf(loadSavedCity(context)) }
     var showCityDialog by remember { mutableStateOf(false) }
-    // Bumped by the error's "Réessayer" button, the one way to re-run the fetch for a position
+    // Bumped by the error's "Retry" button, the one way to re-run the fetch for a position
     // already selected.
     var reloadKey by remember { mutableIntStateOf(0) }
 
@@ -101,7 +101,7 @@ fun WeatherScreen(onBack: () -> Unit) {
                 getCurrentLocation(context)?.let { it.latitude to it.longitude }
             }
             forecast = if (coords == null) {
-                error = "Position indisponible, réessaie plus tard."
+                error = "Location unavailable, try again later."
                 null
             } else {
                 fetchWeatherForecast(coords.first, coords.second)
@@ -110,7 +110,7 @@ fun WeatherScreen(onBack: () -> Unit) {
             // Drop what was on screen: a stale forecast shown as if it were current is worse
             // than the error, and it would hide the message below.
             forecast = null
-            error = weatherErrorMessage(e, "Erreur de chargement")
+            error = weatherErrorMessage(e, "Loading failed")
         } finally {
             isLoading = false
         }
@@ -129,10 +129,10 @@ fun WeatherScreen(onBack: () -> Unit) {
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        ScreenTopBar(title = "Météo", onBack = onBack)
+        ScreenTopBar(title = "Weather", onBack = onBack)
 
         LocationChip(
-            label = selectedCity?.name ?: "Position actuelle",
+            label = selectedCity?.name ?: "Current location",
             onClick = { showCityDialog = true },
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
         )
@@ -157,15 +157,15 @@ fun WeatherScreen(onBack: () -> Unit) {
                     isLoading -> CircularProgressIndicator(modifier = Modifier.padding(32.dp))
                     !hasPermission -> {
                         Text(
-                            "L'accès à la position est nécessaire pour afficher la météo locale, " +
-                                "ou choisis une ville ci-dessus.",
+                            "Location access is needed to show the local weather, " +
+                                "or pick a city above.",
                             modifier = Modifier.padding(16.dp)
                         )
                         TextButton(
                             onClick = { permissionLauncher.launch(Manifest.permission.ACCESS_COARSE_LOCATION) },
                             modifier = Modifier.padding(horizontal = 16.dp)
                         ) {
-                            Text("Réessayer")
+                            Text("Retry")
                         }
                     }
                     currentError != null -> {
@@ -178,7 +178,7 @@ fun WeatherScreen(onBack: () -> Unit) {
                             onClick = { error = null; reloadKey++ },
                             modifier = Modifier.padding(horizontal = 16.dp)
                         ) {
-                            Text("Réessayer")
+                            Text("Retry")
                         }
                     }
                 }
@@ -386,7 +386,7 @@ private fun CitySearchDialog(onCitySelected: (CityLocation?) -> Unit, onDismiss:
         try {
             results = searchCities(query.trim())
         } catch (e: Exception) {
-            searchError = weatherErrorMessage(e, "Recherche impossible")
+            searchError = weatherErrorMessage(e, "Search failed")
         } finally {
             isSearching = false
         }
@@ -394,12 +394,12 @@ private fun CitySearchDialog(onCitySelected: (CityLocation?) -> Unit, onDismiss:
     }
 
     AppDialog(onDismiss = onDismiss) {
-        Text("Choisir une ville", style = MaterialTheme.typography.titleMedium)
+        Text("Pick a city", style = MaterialTheme.typography.titleMedium)
         Spacer(Modifier.height(12.dp))
         OutlinedTextField(
             value = query,
             onValueChange = { query = it },
-            placeholder = { Text("Nom de la ville") },
+            placeholder = { Text("City name") },
             singleLine = true,
             modifier = Modifier.fillMaxWidth()
         )
@@ -423,7 +423,7 @@ private fun CitySearchDialog(onCitySelected: (CityLocation?) -> Unit, onDismiss:
             horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Icon(Icons.Default.MyLocation, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text("Utiliser ma position actuelle", style = MaterialTheme.typography.bodyLarge)
+            Text("Use my current location", style = MaterialTheme.typography.bodyLarge)
         }
         HorizontalDivider()
         val currentError = searchError
@@ -464,7 +464,7 @@ private fun CitySearchDialog(onCitySelected: (CityLocation?) -> Unit, onDismiss:
         }
         Spacer(Modifier.height(8.dp))
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-            TextButton(onClick = onDismiss) { Text("Fermer") }
+            TextButton(onClick = onDismiss) { Text("Close") }
         }
     }
 }
@@ -500,7 +500,7 @@ private fun HistoryButton(onClick: () -> Unit) {
             contentDescription = null,
             tint = MaterialTheme.colorScheme.primary
         )
-        Text("7 derniers jours", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Medium)
+        Text("Last 7 days", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Medium)
     }
 }
 

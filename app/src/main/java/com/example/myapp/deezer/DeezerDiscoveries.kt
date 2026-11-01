@@ -38,11 +38,11 @@ data class DiscoveryTrack(
     val isNewRelease: Boolean,
     val releaseDate: String? = null
 ) {
-    /** "Nouveauté · 12/07" for a release, null for a plain discovery. */
+    /** "New release · 12/07" for a release, null for a plain discovery. */
     fun note(): String? {
         if (!isNewRelease) return null
-        val d = releaseDate?.let { runCatching { LocalDate.parse(it) }.getOrNull() } ?: return "Nouveauté"
-        return "Nouveauté · %02d/%02d".format(d.dayOfMonth, d.monthValue)
+        val d = releaseDate?.let { runCatching { LocalDate.parse(it) }.getOrNull() } ?: return "New release"
+        return "New release · %02d/%02d".format(d.dayOfMonth, d.monthValue)
     }
 }
 

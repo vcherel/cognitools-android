@@ -66,17 +66,17 @@ fun BookLibraryScreen(onBack: () -> Unit, onOpenBook: (String) -> Unit) {
         importing = true
         scope.launch {
             importEpub(context, uri)
-                .onSuccess { AppSnackbar.show("« ${it.title} » ajouté") }
-                .onFailure { AppSnackbar.show(userMessage(it, "Import impossible")) }
+                .onSuccess { AppSnackbar.show("“${it.title}” added") }
+                .onFailure { AppSnackbar.show(userMessage(it, "Import failed")) }
             importing = false
         }
     }
 
     Column(Modifier.fillMaxSize()) {
-        ScreenTopBar(title = "Lecture", onBack = onBack) {
+        ScreenTopBar(title = "Reader", onBack = onBack) {
             Box(Modifier.weight(1f))
             IconButton(onClick = { picker.launch(arrayOf("*/*")) }) {
-                Icon(Icons.Filled.Add, contentDescription = "Ajouter un livre")
+                Icon(Icons.Filled.Add, contentDescription = "Add a book")
             }
         }
 
@@ -88,7 +88,7 @@ fun BookLibraryScreen(onBack: () -> Unit, onOpenBook: (String) -> Unit) {
         if (books.isEmpty() && !importing) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text(
-                    text = "Aucun livre pour l'instant.\nAjoutez un fichier epub avec le +.",
+                    text = "No books yet.",
                     style = MaterialTheme.typography.bodyLarge,
                     textAlign = TextAlign.Center,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -131,7 +131,7 @@ fun BookLibraryScreen(onBack: () -> Unit, onOpenBook: (String) -> Unit) {
                         )
                     }
                     Text(
-                        text = "Chapitre ${book.chapterIndex + 1} / ${book.chapterCount}",
+                        text = "Chapter ${book.chapterIndex + 1} / ${book.chapterCount}",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.primary
                     )
@@ -144,9 +144,9 @@ fun BookLibraryScreen(onBack: () -> Unit, onOpenBook: (String) -> Unit) {
     toDelete?.let { book ->
         ShowAlertDialog(
             onDismiss = { toDelete = null },
-            title = "Supprimer « ${book.title} » ?",
-            textContent = { Text("Le fichier et la progression sont perdus.") },
-            confirmText = "Supprimer",
+            title = "Delete “${book.title}”?",
+            textContent = { Text("The file and the progress are lost.") },
+            confirmText = "Delete",
             onConfirm = {
                 toDelete = null
                 scope.launch { deleteBook(context, book) }

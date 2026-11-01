@@ -98,13 +98,13 @@ fun TranslationCard(
                 modifier = Modifier.weight(1f)
             )
             IconButton(onClick = { speak(result.translation, result.to) }) {
-                Icon(Icons.AutoMirrored.Filled.VolumeUp, contentDescription = "Écouter")
+                Icon(Icons.AutoMirrored.Filled.VolumeUp, contentDescription = "Listen")
             }
             IconButton(onClick = {
                 copyToClipboard(context, result.translation)
-                AppSnackbar.show("Copié")
+                AppSnackbar.show("Copied")
             }) {
-                Icon(Icons.Filled.ContentCopy, contentDescription = "Copier")
+                Icon(Icons.Filled.ContentCopy, contentDescription = "Copy")
             }
         }
 
@@ -112,7 +112,7 @@ fun TranslationCard(
             Spacer(Modifier.height(8.dp))
             HorizontalDivider()
             Spacer(Modifier.height(8.dp))
-            result.detailWord?.let { DetailCaption("« $it »") }
+            result.detailWord?.let { DetailCaption("“$it”") }
             result.entries.forEach { entry ->
                 PartOfSpeechRow(entry.partOfSpeech, entry.terms.joinToString(", ") { it.word })
             }
@@ -133,7 +133,7 @@ fun TranslationCard(
                     tint = MaterialTheme.colorScheme.primary
                 )
                 Text(
-                    text = if (expanded) "Moins de détails" else "Plus de détails",
+                    text = if (expanded) "Fewer details" else "More details",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.primary
                 )
@@ -153,7 +153,7 @@ private fun TranslationDetails(result: TranslationResult) {
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
     Column(modifier = Modifier.fillMaxWidth()) {
         if (result.alternatives.isNotEmpty()) {
-            DetailCaption("Autres traductions")
+            DetailCaption("Other translations")
             Text(result.alternatives.joinToString(", "), style = MaterialTheme.typography.bodyMedium)
             Spacer(Modifier.height(12.dp))
         }
@@ -179,7 +179,7 @@ private fun TranslationDetails(result: TranslationResult) {
         }
 
         if (result.definitions.isNotEmpty()) {
-            DetailCaption("Définitions")
+            DetailCaption("Definitions")
             result.definitions.groupBy { it.partOfSpeech }.forEach { (partOfSpeech, definitions) ->
                 Text(
                     text = partOfSpeech,
@@ -196,7 +196,7 @@ private fun TranslationDetails(result: TranslationResult) {
                     )
                     definition.example?.let {
                         Text(
-                            text = "« $it »",
+                            text = "“$it”",
                             style = MaterialTheme.typography.bodyMedium,
                             fontStyle = FontStyle.Italic,
                             color = muted,
@@ -209,10 +209,10 @@ private fun TranslationDetails(result: TranslationResult) {
         }
 
         if (result.examples.isNotEmpty()) {
-            DetailCaption("Exemples")
+            DetailCaption("Examples")
             result.examples.forEach {
                 Text(
-                    text = "« $it »",
+                    text = "“$it”",
                     style = MaterialTheme.typography.bodyMedium,
                     fontStyle = FontStyle.Italic,
                     color = muted,
@@ -267,7 +267,7 @@ fun AddToFlashcardsButton(source: String, translation: String, modifier: Modifie
 
     Row(modifier = modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         MyButton(
-            text = if (target != null) "Ajouter à ${target.name}" else "Ajouter aux flashcards",
+            text = if (target != null) "Add to ${target.name}" else "Add to flashcards",
             modifier = Modifier.weight(1f),
             height = 56.dp,
             fontSize = 16.sp,
@@ -281,7 +281,7 @@ fun AddToFlashcardsButton(source: String, translation: String, modifier: Modifie
             modifier = Modifier.width(64.dp),
             height = 56.dp,
             icon = Icons.AutoMirrored.Filled.List,
-            text = "Choisir la liste",
+            text = "Pick the list",
             enabled = lists.isNotEmpty(),
             onClick = {
                 startWithPicker = true
@@ -295,7 +295,7 @@ fun AddToFlashcardsButton(source: String, translation: String, modifier: Modifie
             word = source,
             definition = translation,
             defaultListName = DEFAULT_LIST_NAME,
-            definitionLabel = "Traduction",
+            definitionLabel = "Translation",
             startWithPicker = startWithPicker,
             onDismiss = { filing = false }
         )
@@ -322,7 +322,7 @@ fun WordLookupSheet(word: String, target: TranslateLang, onDismiss: () -> Unit) 
                 result = it
                 TranslateStore.remember(context, LookupEntry(word, it.translation, it.to))
             }
-            .onFailure { error = userMessage(it, "Traduction impossible") }
+            .onFailure { error = userMessage(it, "Translation failed") }
     }
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState()) {
@@ -342,7 +342,7 @@ fun WordLookupSheet(word: String, target: TranslateLang, onDismiss: () -> Unit) 
                 )
                 val spoken = result?.from ?: target.other
                 IconButton(onClick = { speak(word, spoken) }) {
-                    Icon(Icons.AutoMirrored.Filled.VolumeUp, contentDescription = "Écouter le mot")
+                    Icon(Icons.AutoMirrored.Filled.VolumeUp, contentDescription = "Listen to the word")
                 }
             }
             Spacer(Modifier.height(12.dp))

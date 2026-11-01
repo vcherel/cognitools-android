@@ -9,14 +9,14 @@ import kotlin.math.roundToInt
 // summary and the message an error turns into. Kept apart from Weather.kt, which is all layout.
 
 internal fun formatRainAmount(amount: Double): String =
-    if (amount >= 10) amount.roundToInt().toString() else String.format(Locale.FRANCE, "%.1f", amount)
+    if (amount >= 10) amount.roundToInt().toString() else String.format(Locale.US, "%.1f", amount)
 
 internal fun shortDayLabel(date: LocalDate): String {
     val today = LocalDate.now()
     return when (date) {
-        today.minusDays(1) -> "Hier"
-        today -> "Auj."
-        today.plusDays(1) -> "Dem."
+        today.minusDays(1) -> "Yest."
+        today -> "Today"
+        today.plusDays(1) -> "Tmrw"
         else -> {
             val dayName = date.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.FRANCE)
                 .replaceFirstChar { it.uppercase() }
@@ -43,21 +43,21 @@ internal fun weatherCodeToEmoji(code: Int): String = when (code) {
 // rather than just the current condition (which is easy enough to check by looking outside).
 // A past day reports the rain that actually fell instead.
 internal fun daySummary(hours: List<HourlyPoint>, date: LocalDate): String {
-    if (hours.isEmpty()) return "Prévisions indisponibles"
+    if (hours.isEmpty()) return "Forecast unavailable"
     if (date < LocalDate.now()) {
         val total = hours.sumOf { it.rainAmount }
-        return if (total < 0.1) "☀️ Pas de pluie ce jour-là" else "🌧️ ${formatRainAmount(total)}mm de pluie ce jour-là"
+        return if (total < 0.1) "☀️ No rain that day" else "🌧️ ${formatRainAmount(total)}mm of rain that day"
     }
 
     val isToday = date == LocalDate.now()
     val rainThreshold = 50
     val rainHour = hours.firstOrNull { it.rainProb >= rainThreshold }
-        ?: return if (isToday) "☀️ Pas de pluie prévue aujourd'hui" else "☀️ Pas de pluie prévue ce jour-là"
+        ?: return if (isToday) "☀️ No rain expected today" else "☀️ No rain expected that day"
 
     return if (rainHour === hours.first()) {
-        if (isToday) "🌧️ Pluie en cours ou imminente" else "🌧️ Pluie dès le matin"
+        if (isToday) "🌧️ Raining now or about to" else "🌧️ Rain from the morning"
     } else {
-        "🌧️ Pluie prévue vers ${rainHour.time.hour}h"
+        "🌧️ Rain expected around ${rainHour.time.hour}:00"
     }
 }
 
@@ -65,5 +65,5 @@ internal fun daySummary(hours: List<HourlyPoint>, date: LocalDate): String {
 // isn't even ours. The request is already retried a couple of times before this shows, so what's
 // left to say is "wait a moment", not an HTTP status.
 internal fun weatherErrorMessage(e: Exception, fallbackPrefix: String): String =
-    if (e is HttpStatusException && e.code == 429) "Service météo saturé, réessaie dans un instant."
+    if (e is HttpStatusException && e.code == 429) "Weather service busy, try again in a moment."
     else "$fallbackPrefix: ${e.message}"

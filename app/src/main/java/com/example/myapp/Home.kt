@@ -51,7 +51,7 @@ fun NavController.popBackStackOnce() {
 fun BackIconButton(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
-    contentDescription: String = "Retour"
+    contentDescription: String = "Back"
 ) {
     val goHome = LocalGoHome.current
     val haptics = LocalHapticFeedback.current

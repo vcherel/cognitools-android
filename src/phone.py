@@ -5,7 +5,7 @@ import time
 import xml.etree.ElementTree as ET
 
 PACKAGE = "com.example.myapp"
-MENU_TITLE = "Bienvenue !"
+MENU_TITLE = "Welcome!"
 
 
 def adb(*args):

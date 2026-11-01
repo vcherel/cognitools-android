@@ -83,16 +83,16 @@ fun TranslateScreen(onBack: () -> Unit) {
             }
             .onFailure {
                 result = null
-                error = userMessage(it, "Traduction impossible")
+                error = userMessage(it, "Translation failed")
             }
         loading = false
     }
 
     Column(Modifier.fillMaxSize()) {
-        ScreenTopBar(title = "Traduction", onBack = onBack) {
+        ScreenTopBar(title = "Translate", onBack = onBack) {
             Spacer(Modifier.weight(1f))
             IconButton(onClick = { scope.launch { TranslateStore.setTarget(context, target.other) } }) {
-                Icon(Icons.Filled.SwapHoriz, contentDescription = "Inverser le sens")
+                Icon(Icons.Filled.SwapHoriz, contentDescription = "Swap languages")
             }
         }
 
@@ -116,7 +116,7 @@ fun TranslateScreen(onBack: () -> Unit) {
                     // The source is whatever was detected, so the direction reads as detected to chosen.
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            text = result?.from?.label ?: "Détection",
+                            text = result?.from?.label ?: "Detecting",
                             style = MaterialTheme.typography.titleMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -138,11 +138,11 @@ fun TranslateScreen(onBack: () -> Unit) {
                         value = input,
                         onValueChange = { input = it },
                         modifier = Modifier.fillMaxWidth().heightIn(min = 220.dp),
-                        placeholder = { Text("Mot ou texte à traduire") },
+                        placeholder = { Text("Word or text to translate") },
                         trailingIcon = {
                             if (input.isNotEmpty()) {
                                 IconButton(onClick = { input = "" }) {
-                                    Icon(Icons.Filled.Clear, contentDescription = "Effacer")
+                                    Icon(Icons.Filled.Clear, contentDescription = "Clear")
                                 }
                             }
                         }
@@ -173,13 +173,13 @@ fun TranslateScreen(onBack: () -> Unit) {
                     Spacer(Modifier.height(24.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            text = "Récent",
+                            text = "Recent",
                             style = MaterialTheme.typography.titleSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.weight(1f)
                         )
                         IconButton(onClick = { scope.launch { TranslateStore.clearHistory(context) } }) {
-                            Icon(Icons.Filled.DeleteSweep, contentDescription = "Vider l'historique")
+                            Icon(Icons.Filled.DeleteSweep, contentDescription = "Clear the history")
                         }
                     }
                     HorizontalDivider()

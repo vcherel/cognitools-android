@@ -126,24 +126,24 @@ fun PodcastEpisodesScreen(repo: PodcastRepository, favoriteId: String, onBack: (
             IconButton(onClick = { searchActive = !searchActive }) {
                 Icon(
                     if (searchActive) Icons.Filled.SearchOff else Icons.Filled.Search,
-                    contentDescription = if (searchActive) "Fermer la recherche" else "Rechercher un épisode"
+                    contentDescription = if (searchActive) "Close the search" else "Search an episode"
                 )
             }
             IconButton(onClick = { downloadedOnly = !downloadedOnly }) {
                 Icon(
                     if (downloadedOnly) Icons.Filled.DownloadDone else Icons.Filled.Download,
-                    contentDescription = if (downloadedOnly) "Afficher tous les épisodes" else "Afficher seulement les téléchargés",
+                    contentDescription = if (downloadedOnly) "Show all episodes" else "Show only downloaded",
                     tint = if (downloadedOnly) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
             IconButton(onClick = { showAll = !showAll }) {
                 Icon(
                     if (showAll) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
-                    contentDescription = if (showAll) "Masquer les épisodes écoutés" else "Afficher les épisodes écoutés"
+                    contentDescription = if (showAll) "Hide heard episodes" else "Show heard episodes"
                 )
             }
             IconButton(onClick = { confirmUnfollow = true }) {
-                Icon(Icons.Filled.Close, contentDescription = "Ne plus suivre ce podcast")
+                Icon(Icons.Filled.Close, contentDescription = "Unfollow this podcast")
             }
         }
 
@@ -151,7 +151,7 @@ fun PodcastEpisodesScreen(repo: PodcastRepository, favoriteId: String, onBack: (
             val fav = favorite
             ShowAlertDialog(
                 onDismiss = { confirmUnfollow = false },
-                title = "Ne plus suivre « ${fav?.title ?: "ce podcast"} » ?",
+                title = "Unfollow “${fav?.title ?: "this podcast"}”?",
                 onCancel = { confirmUnfollow = false },
                 onConfirm = {
                     confirmUnfollow = false
@@ -160,8 +160,8 @@ fun PodcastEpisodesScreen(repo: PodcastRepository, favoriteId: String, onBack: (
                         repo.removeFavorite(fav.id)
                         onBack()
                         AppSnackbar.show(
-                            message = "« ${fav.title} » retiré",
-                            actionLabel = "Annuler",
+                            message = "“${fav.title}” removed",
+                            actionLabel = "Undo",
                             onAction = {
                                 scope.launch {
                                     repo.addFavorite(PodcastCatalogItem(fav.id, PodcastSource.RSS, fav.title, fav.author, fav.artworkUrl))
@@ -170,22 +170,22 @@ fun PodcastEpisodesScreen(repo: PodcastRepository, favoriteId: String, onBack: (
                         )
                     }
                 },
-                cancelText = "Annuler",
-                confirmText = "Ne plus suivre"
+                cancelText = "Cancel",
+                confirmText = "Unfollow"
             )
         }
 
         confirmRemoveDownload?.let { episode ->
             ShowAlertDialog(
                 onDismiss = { confirmRemoveDownload = null },
-                title = "Supprimer le téléchargement de « ${episode.title} » ?",
+                title = "Delete the download of “${episode.title}”?",
                 onCancel = { confirmRemoveDownload = null },
                 onConfirm = {
                     confirmRemoveDownload = null
                     scope.launch { repo.downloads.remove(episode.id) }
                 },
-                cancelText = "Annuler",
-                confirmText = "Supprimer"
+                cancelText = "Cancel",
+                confirmText = "Delete"
             )
         }
 
@@ -194,7 +194,7 @@ fun PodcastEpisodesScreen(repo: PodcastRepository, favoriteId: String, onBack: (
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp).focusRequester(searchFocus),
-                placeholder = { Text("Rechercher un épisode…") },
+                placeholder = { Text("Search an episode…") },
                 singleLine = true,
                 leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) }
             )
@@ -204,7 +204,7 @@ fun PodcastEpisodesScreen(repo: PodcastRepository, favoriteId: String, onBack: (
             LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
         }
         error?.let {
-            ErrorText(message = "Erreur: $it", onDismiss = { error = null }, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
+            ErrorText(message = "Error: $it", onDismiss = { error = null }, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
         }
 
         if (showEpisodes.isEmpty() && !loading) {
@@ -212,10 +212,10 @@ fun PodcastEpisodesScreen(repo: PodcastRepository, favoriteId: String, onBack: (
             Box(Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
                 Text(
                     when {
-                        searchKey.isNotEmpty() -> "Aucun épisode ne correspond."
-                        downloadedOnly -> "Aucun épisode téléchargé."
-                        allHeard -> "Tout est écouté !"
-                        else -> "Aucun épisode."
+                        searchKey.isNotEmpty() -> "No matching episode."
+                        downloadedOnly -> "No downloaded episodes."
+                        allHeard -> "All heard!"
+                        else -> "No episodes."
                     },
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -234,7 +234,7 @@ fun PodcastEpisodesScreen(repo: PodcastRepository, favoriteId: String, onBack: (
                         onClick = {
                             scope.launch {
                                 runCatching { repo.playEpisode(episode, showEpisodes) }
-                                    .onFailure { AppSnackbar.show(userMessage(it, "Erreur de lecture")) }
+                                    .onFailure { AppSnackbar.show(userMessage(it, "Playback error")) }
                             }
                         },
                         onToggleDownload = {
@@ -251,8 +251,8 @@ fun PodcastEpisodesScreen(repo: PodcastRepository, favoriteId: String, onBack: (
                                 } else {
                                     repo.markSeen(episode.id)
                                     AppSnackbar.show(
-                                        message = "Marqué comme écouté",
-                                        actionLabel = "Annuler",
+                                        message = "Marked as heard",
+                                        actionLabel = "Undo",
                                         onAction = {
                                             repo.markUnseen(episode.id)
                                             scrollBackTo = episode.id
@@ -329,12 +329,12 @@ fun PodcastEpisodeRow(
                     isDownloading -> CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
                     isDownloaded -> Icon(
                         Icons.Filled.DownloadDone,
-                        contentDescription = "Téléchargé, appuyer pour supprimer",
+                        contentDescription = "Downloaded, tap to delete",
                         tint = MaterialTheme.colorScheme.primary
                     )
                     else -> Icon(
                         Icons.Filled.Download,
-                        contentDescription = "Télécharger l'épisode",
+                        contentDescription = "Download the episode",
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -350,7 +350,7 @@ fun PodcastEpisodeRow(
             ) {
                 Icon(
                     if (episode.seen) Icons.Filled.Check else Icons.Filled.CheckCircleOutline,
-                    contentDescription = if (episode.seen) "Marquer comme non écouté" else "Marquer comme écouté",
+                    contentDescription = if (episode.seen) "Mark as unheard" else "Mark as heard",
                     tint = if (episode.seen) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(20.dp)
                 )
@@ -370,7 +370,7 @@ private fun episodeSubtitle(
     val remaining = progress?.let {
         val totalMs = episodeDurationMs(episode, it)
         if (totalMs <= 0) null
-        else "reste ${formatEpisodeLength(((totalMs - it.positionMs) / 1000L).toInt().coerceAtLeast(60))}"
+        else "${formatEpisodeLength(((totalMs - it.positionMs) / 1000L).toInt().coerceAtLeast(60))} left"
     }
     return listOfNotNull(show, date, duration, remaining).joinToString(" · ")
 }

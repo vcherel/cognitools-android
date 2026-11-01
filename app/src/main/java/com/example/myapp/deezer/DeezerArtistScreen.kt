@@ -127,20 +127,20 @@ fun DeezerArtistScreen(
                 item {
                     Row(Modifier.fillMaxWidth().padding(bottom = 8.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         HeaderAction(
-                            text = "Lire",
+                            text = "Play",
                             icon = Icons.Filled.PlayArrow,
                             modifier = Modifier.weight(1f),
                             onClick = { scope.launch { repo.player.playTracks(tracks, 0, shuffle = false) } }
                         )
                         HeaderAction(
-                            text = "Aléatoire",
+                            text = "Shuffle",
                             icon = Icons.Filled.Shuffle,
                             modifier = Modifier.weight(1f),
                             onClick = { scope.launch { repo.player.shuffleTracks(tracks) } }
                         )
                     }
                 }
-                item { SectionHeader("Titres populaires") }
+                item { SectionHeader("Top tracks") }
                 itemsIndexed(tracks, key = { _, t -> "top-${t.sngId}" }) { index, track ->
                     TrackRow(
                         track = track,
@@ -162,7 +162,7 @@ fun DeezerArtistScreen(
 
             val grouped = releaseGroups(releases.orEmpty())
             if (grouped.isNotEmpty()) {
-                item { Spacer(Modifier.height(8.dp)); SectionHeader("Discographie") }
+                item { Spacer(Modifier.height(8.dp)); SectionHeader("Discography") }
                 grouped.forEach { (label, group) ->
                     item(key = "grp-$label") {
                         Text(
@@ -185,7 +185,7 @@ fun DeezerArtistScreen(
             } else if (releases != null && tracks.isEmpty()) {
                 item {
                     Text(
-                        "Rien trouvé pour cet artiste.",
+                        "Nothing found for this artist.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(vertical = 24.dp)
@@ -242,5 +242,5 @@ private fun releaseGroups(releases: List<DeezerRelease>): List<Pair<String, List
     val byType = releases.groupBy { it.recordType.lowercase() }
     val known = order.mapNotNull { (type, label) -> byType[type]?.let { label to it } }
     val other = byType.filterKeys { key -> order.none { it.first == key } }.values.flatten()
-    return if (other.isEmpty()) known else known + ("Autres" to other)
+    return if (other.isEmpty()) known else known + ("Other" to other)
 }

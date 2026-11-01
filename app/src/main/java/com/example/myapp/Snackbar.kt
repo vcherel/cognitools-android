@@ -12,7 +12,7 @@ import kotlinx.coroutines.flow.SharedFlow
 /**
  * App wide snackbar, hosted once by the nav host in MainActivity. Screens post through it instead
  * of hosting their own, so an undo action outlives the screen that triggered it: deleting from the
- * gallery viewer closes the viewer, and the "Annuler" action still works from the album grid.
+ * gallery viewer closes the viewer, and the "Undo" action still works from the album grid.
  */
 object AppSnackbar {
     data class Request(
@@ -36,7 +36,7 @@ suspend fun SnackbarHostState.showUndoSnackbar(message: String): Boolean {
     currentSnackbarData?.dismiss()
     return showSnackbar(
         message = message,
-        actionLabel = "Annuler",
+        actionLabel = "Undo",
         withDismissAction = true,
         duration = SnackbarDuration.Short
     ) == SnackbarResult.ActionPerformed

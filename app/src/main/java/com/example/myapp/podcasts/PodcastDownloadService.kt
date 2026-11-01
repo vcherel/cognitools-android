@@ -76,8 +76,8 @@ class PodcastDownloadService : Service() {
         val current = queue.firstOrNull()
         val remaining = (queue.size - 1).coerceAtLeast(0)
         val text = when {
-            current == null -> "Préparation…"
-            remaining > 0 -> "${current.podcastTitle} · $remaining en attente"
+            current == null -> "Preparing…"
+            remaining > 0 -> "${current.podcastTitle} · $remaining queued"
             else -> current.podcastTitle
         }
         val cancelIntent = PendingIntent.getService(
@@ -92,7 +92,7 @@ class PodcastDownloadService : Service() {
         )
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.stat_sys_download)
-            .setContentTitle(current?.title ?: "Téléchargement d'épisode")
+            .setContentTitle(current?.title ?: "Downloading episode")
             .setContentText(text)
             .setOngoing(true)
             .setSilent(true)
@@ -101,7 +101,7 @@ class PodcastDownloadService : Service() {
             .setProgress(100, ((progress ?: 0f) * 100).toInt(), progress == null)
             .addAction(
                 android.R.drawable.ic_menu_close_clear_cancel,
-                if (queue.size > 1) "Tout annuler" else "Annuler",
+                if (queue.size > 1) "Cancel all" else "Cancel",
                 cancelIntent
             )
             .build()

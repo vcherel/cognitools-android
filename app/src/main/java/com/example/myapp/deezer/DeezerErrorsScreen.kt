@@ -48,16 +48,16 @@ fun DeezerErrorsScreen(repo: DeezerRepository, onBack: () -> Unit) {
     }
 
     Column(Modifier.fillMaxSize()) {
-        ScreenTopBar(title = "Journal d'erreurs", onBack = onBack) {
+        ScreenTopBar(title = "Error log", onBack = onBack) {
             Spacer(Modifier.weight(1f))
             IconButton(
                 enabled = lines.isNotEmpty(),
                 onClick = {
-                    copyToClipboard(context, lines.joinToString("\n"), "Erreurs Deezer")
-                    AppSnackbar.show("${lines.size} erreur${plural(lines.size)} copiée${plural(lines.size)}")
+                    copyToClipboard(context, lines.joinToString("\n"), "Deezer errors")
+                    AppSnackbar.show("${lines.size} error${plural(lines.size)} copied")
                 }
             ) {
-                Icon(Icons.Filled.ContentCopy, contentDescription = "Tout copier")
+                Icon(Icons.Filled.ContentCopy, contentDescription = "Copy all")
             }
             IconButton(
                 enabled = lines.isNotEmpty(),
@@ -66,13 +66,13 @@ fun DeezerErrorsScreen(repo: DeezerRepository, onBack: () -> Unit) {
                     lines = emptyList()
                 }
             ) {
-                Icon(Icons.Filled.DeleteSweep, contentDescription = "Vider")
+                Icon(Icons.Filled.DeleteSweep, contentDescription = "Clear")
             }
         }
 
         if (lines.isEmpty()) {
             Text(
-                "Aucune erreur enregistrée",
+                "No errors logged",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(16.dp)
             )

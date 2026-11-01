@@ -48,8 +48,8 @@ fun AddToFlashcardsDialog(
     word: String,
     definition: String,
     defaultListName: String? = null,
-    wordLabel: String = "Mot",
-    definitionLabel: String = "Définition",
+    wordLabel: String = "Word",
+    definitionLabel: String = "Definition",
     startWithPicker: Boolean = false,
     onDismiss: () -> Unit
 ) {
@@ -66,7 +66,7 @@ fun AddToFlashcardsDialog(
 
     if (target == null) {
         AppDialog(onDismiss = onDismiss) {
-            Text("Ajouter à quelle liste ?", style = MaterialTheme.typography.titleMedium)
+            Text("Add to which list?", style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.height(12.dp))
             Column(Modifier.heightIn(max = 400.dp).verticalScroll(rememberScrollState())) {
                 lists.forEach { list ->
@@ -90,7 +90,7 @@ fun AddToFlashcardsDialog(
     AppDialog(onDismiss = onDismiss) {
         Row(Modifier.fillMaxWidth()) {
             Text(
-                "Ajouter à ${target.name}",
+                "Add to ${target.name}",
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.weight(1f)
             )
@@ -99,7 +99,7 @@ fun AddToFlashcardsDialog(
                     chosen = null
                     picked = true
                 }) {
-                    Text("Changer", style = MaterialTheme.typography.labelLarge)
+                    Text("Change", style = MaterialTheme.typography.labelLarge)
                 }
             }
         }
@@ -123,14 +123,14 @@ fun AddToFlashcardsDialog(
         Spacer(Modifier.height(16.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             MyButton(
-                text = "Annuler",
+                text = "Cancel",
                 modifier = Modifier.weight(1f),
                 height = 48.dp,
                 fontSize = 16.sp,
                 onClick = onDismiss
             )
             MyButton(
-                text = "Ajouter",
+                text = "Add",
                 modifier = Modifier.weight(1f),
                 height = 48.dp,
                 fontSize = 16.sp,
@@ -143,7 +143,7 @@ fun AddToFlashcardsDialog(
                     )
                     scope.launch {
                         repo.addElement(target.id, element)
-                        AppSnackbar.show("Ajouté à ${target.name}")
+                        AppSnackbar.show("Added to ${target.name}")
                     }
                     onDismiss()
                 }

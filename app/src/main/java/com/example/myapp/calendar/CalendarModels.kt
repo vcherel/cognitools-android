@@ -19,12 +19,12 @@ enum class CalendarKind { TASK, BIRTHDAY, EVENT }
  * the day it was set for, MONTH_END is the last day of every month. [label] is the dialog's menu entry.
  */
 enum class Recurrence(val label: String) {
-    NONE("Jamais"),
-    WEEKLY_ON_DAY("Chaque semaine"),
-    WEEKLY("Chaque semaine après fait"),
-    MONTHLY_ON_DAY("Chaque mois"),
-    MONTHLY("Chaque mois après fait"),
-    MONTH_END("Dernier jour du mois")
+    NONE("Never"),
+    WEEKLY_ON_DAY("Every week"),
+    WEEKLY("1 week after checking it"),
+    MONTHLY_ON_DAY("Every month"),
+    MONTHLY("1 month after checking it"),
+    MONTH_END("Last day of the month")
 }
 
 /**

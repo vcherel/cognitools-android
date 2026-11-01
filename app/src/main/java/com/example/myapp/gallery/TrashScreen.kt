@@ -91,10 +91,10 @@ fun GalleryTrashScreen(onBack: () -> Unit) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(onClick = { selectedIds = emptySet() }) {
-                    Icon(Icons.Default.Close, contentDescription = "Annuler la sélection")
+                    Icon(Icons.Default.Close, contentDescription = "Clear selection")
                 }
                 Text(
-                    "${selectedIds.size} sélectionné${plural(selectedIds.size)}",
+                    "${selectedIds.size} selected",
                     style = MaterialTheme.typography.titleMedium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -108,19 +108,19 @@ fun GalleryTrashScreen(onBack: () -> Unit) {
                             GalleryRefresh.bump()
                             AppSnackbar.show(restoredMessage(toRestore.size))
                         } else {
-                            errorMessage = "Restauration impossible"
+                            errorMessage = "Restore failed"
                         }
                     }
                 }) {
-                    Icon(Icons.Default.Restore, contentDescription = "Restaurer")
+                    Icon(Icons.Default.Restore, contentDescription = "Restore")
                 }
                 IconButton(onClick = { showPurgeDialog = true }) {
-                    Icon(Icons.Default.DeleteForever, contentDescription = "Supprimer définitivement")
+                    Icon(Icons.Default.DeleteForever, contentDescription = "Delete for good")
                 }
             }
         } else {
             ScreenTopBar(
-                title = "Corbeille",
+                title = "Trash",
                 onBack = onBack,
                 modifier = Modifier.padding(16.dp),
                 titleSuffix = {
@@ -130,7 +130,7 @@ fun GalleryTrashScreen(onBack: () -> Unit) {
                             selectedIds = currentItems.map { it.id }.toSet()
                             showPurgeDialog = true
                         }) {
-                            Icon(Icons.Default.DeleteForever, contentDescription = "Vider la corbeille")
+                            Icon(Icons.Default.DeleteForever, contentDescription = "Empty the trash")
                         }
                     }
                 }
@@ -139,7 +139,7 @@ fun GalleryTrashScreen(onBack: () -> Unit) {
 
         if (!currentItems.isNullOrEmpty()) {
             Text(
-                "Supprimés définitivement après $TRASH_RETENTION_DAYS jours.",
+                "Deleted for good after $TRASH_RETENTION_DAYS days.",
                 style = MaterialTheme.typography.bodySmall,
                 color = Color.Gray,
                 modifier = Modifier.padding(horizontal = 16.dp).padding(bottom = 8.dp)
@@ -151,7 +151,7 @@ fun GalleryTrashScreen(onBack: () -> Unit) {
                 CircularProgressIndicator()
             }
             currentItems.isEmpty() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("Corbeille vide")
+                Text("Trash is empty")
             }
             else -> LazyVerticalGrid(
                 state = gridState,
@@ -208,9 +208,9 @@ fun GalleryTrashScreen(onBack: () -> Unit) {
     if (showPurgeDialog) ShowAlertDialog(
         onDismiss = { showPurgeDialog = false },
         title = if (selectedIds.size > 1) {
-            "Supprimer définitivement ${selectedIds.size} fichiers ?"
+            "Delete ${selectedIds.size} files for good?"
         } else {
-            "Supprimer définitivement ce fichier ?"
+            "Delete this file for good?"
         },
         onCancel = { showPurgeDialog = false },
         onConfirm = {
@@ -221,7 +221,7 @@ fun GalleryTrashScreen(onBack: () -> Unit) {
                     selectedIds = emptySet()
                     GalleryRefresh.bump()
                 } else {
-                    errorMessage = "Suppression impossible"
+                    errorMessage = "Delete failed"
                 }
             }
         }
@@ -267,8 +267,8 @@ private fun showTrashedSnackbar(
     if (items.isEmpty()) return
     val plural = items.size > 1
     AppSnackbar.show(
-        message = if (plural) "${items.size} fichiers dans la corbeille" else "Fichier dans la corbeille",
-        actionLabel = "Annuler",
+        message = if (plural) "${items.size} files in the trash" else "File in the trash",
+        actionLabel = "Undo",
         onAction = {
             if (performRestoreBatch(context, items, requestConsent)) {
                 GalleryRefresh.bump()
@@ -283,4 +283,4 @@ private fun remainingDays(dateExpires: Long): Int? =
     if (dateExpires <= 0) null else daysLeftUntil(dateExpires * 1000)
 
 private fun restoredMessage(count: Int): String =
-    if (count > 1) "$count fichiers restaurés" else "Fichier restauré"
+    if (count > 1) "$count files restored" else "File restored"

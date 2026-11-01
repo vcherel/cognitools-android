@@ -71,7 +71,7 @@ private const val GRID_DAYS = 42
 private val monthFormat = DateTimeFormatter.ofPattern("LLLL yyyy", Locale.FRENCH)
 private val dayFormat = DateTimeFormatter.ofPattern("EEEE d MMMM", Locale.FRENCH)
 private val dayYearFormat = DateTimeFormatter.ofPattern("EEEE d MMMM yyyy", Locale.FRENCH)
-private val WEEKDAYS = listOf("L", "M", "M", "J", "V", "S", "D")
+private val WEEKDAYS = listOf("M", "T", "W", "T", "F", "S", "S")
 
 /** What an item is colored by, in the order its dots are drawn. */
 enum class ItemTone(val color: Color) {
@@ -124,11 +124,11 @@ fun CalendarScreen(onBack: () -> Unit, initialDay: String?) {
     var editingIsNew by remember { mutableStateOf(false) }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        ScreenTopBar(title = "Agenda", onBack = onBack, titleWeight = true) {
+        ScreenTopBar(title = "Calendar", onBack = onBack, titleWeight = true) {
             IconButton(onClick = {
                 selected = today
                 scope.launch { pagerState.animateScrollToPage(START_PAGE) }
-            }) { Icon(Icons.Default.Today, contentDescription = "Aujourd'hui") }
+            }) { Icon(Icons.Default.Today, contentDescription = "Today") }
         }
 
         Row(
@@ -136,7 +136,7 @@ fun CalendarScreen(onBack: () -> Unit, initialDay: String?) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = { scope.launch { pagerState.animateScrollToPage(pagerState.currentPage - 1) } }) {
-                Icon(Icons.Default.ChevronLeft, contentDescription = "Mois précédent")
+                Icon(Icons.Default.ChevronLeft, contentDescription = "Previous month")
             }
             Text(
                 monthFormat.format(monthOf(pagerState.currentPage)).capitalized(),
@@ -145,7 +145,7 @@ fun CalendarScreen(onBack: () -> Unit, initialDay: String?) {
                 modifier = Modifier.weight(1f)
             )
             IconButton(onClick = { scope.launch { pagerState.animateScrollToPage(pagerState.currentPage + 1) } }) {
-                Icon(Icons.Default.ChevronRight, contentDescription = "Mois suivant")
+                Icon(Icons.Default.ChevronRight, contentDescription = "Next month")
             }
         }
         Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
@@ -189,7 +189,7 @@ fun CalendarScreen(onBack: () -> Unit, initialDay: String?) {
                         item.repeats -> {
                             val next = item.completed(LocalDate.now())
                             CalendarReminders.save(context, next)
-                            AppSnackbar.show("Revient ${dayFormat.format(next.localDate())}", "Annuler") {
+                            AppSnackbar.show("Back on ${dayFormat.format(next.localDate())}", "Undo") {
                                 CalendarReminders.save(context, item)
                             }
                         }
@@ -371,16 +371,16 @@ private fun DayList(
                 (if (day.year == today.year) dayFormat else dayYearFormat).format(day).capitalized(),
                 style = MaterialTheme.typography.titleMedium
             )
-            listOfNotNull(publicHoliday?.let { "Férié : $it" }, schoolHoliday?.name).forEach {
+            listOfNotNull(publicHoliday?.let { "Public holiday: $it" }, schoolHoliday?.name).forEach {
                 Text(it, style = MaterialTheme.typography.bodySmall, color = muted)
             }
         }
         if (overdue.isNotEmpty()) {
-            item { SectionLabel("En retard") }
+            item { SectionLabel("Overdue") }
             items(overdue, key = { "late_${it.id}" }) { item ->
                 ItemRow(item, day, onToggleDone, onOpen, daysLate = item.daysLate(today).toInt())
             }
-            if (dayItems.isNotEmpty()) item { SectionLabel("Aujourd'hui") }
+            if (dayItems.isNotEmpty()) item { SectionLabel("Today") }
         }
         items(dayItems, key = { it.id }) { item -> ItemRow(item, day, onToggleDone, onOpen) }
         item { AddItemRow(onClick = onAdd, modifier = Modifier.padding(top = 4.dp)) }
@@ -424,7 +424,7 @@ private fun ItemRow(
         }
         Column(modifier = Modifier.weight(1f).padding(start = 8.dp)) {
             val title = when (item.kind) {
-                CalendarKind.BIRTHDAY -> birthdayTitle(item) + (item.ageIn(day.year)?.let { " ($it ans)" } ?: "")
+                CalendarKind.BIRTHDAY -> birthdayTitle(item) + (item.ageIn(day.year)?.let { " (turns $it)" } ?: "")
                 else -> item.title
             }
             Text(
@@ -434,7 +434,7 @@ private fun ItemRow(
                 color = if (item.done) muted else MaterialTheme.colorScheme.onSurface
             )
             val details = when {
-                daysLate != null -> "En retard de $daysLate jour${plural(daysLate)}"
+                daysLate != null -> "$daysLate day${plural(daysLate)} late"
                 item.kind == CalendarKind.BIRTHDAY -> null
                 else -> listOfNotNull(
                     timeOn(item, day),
@@ -464,16 +464,16 @@ private fun timeOn(item: CalendarItem, day: LocalDate): String? {
     if (first == last) {
         return when {
             start == null -> null
-            end != null -> "$start à $end"
+            end != null -> "$start to $end"
             else -> start
         }
     }
     val total = ChronoUnit.DAYS.between(first, last) + 1
     val index = ChronoUnit.DAYS.between(first, day) + 1
     val time = when (day) {
-        first -> start?.let { "dès $it" }
-        last -> end?.let { "jusqu'à $it" }
+        first -> start?.let { "from $it" }
+        last -> end?.let { "until $it" }
         else -> null
     }
-    return listOfNotNull("jour $index sur $total", time).joinToString(", ")
+    return listOfNotNull("day $index of $total", time).joinToString(", ")
 }

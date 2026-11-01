@@ -6,8 +6,8 @@ import java.net.URLEncoder
 
 /** The only two languages the tool juggles, which is what makes the automatic flip below well defined. */
 enum class TranslateLang(val code: String, val label: String) {
-    FR("fr", "Français"),
-    EN("en", "Anglais");
+    FR("fr", "French"),
+    EN("en", "English");
 
     val other: TranslateLang get() = if (this == FR) EN else FR
 

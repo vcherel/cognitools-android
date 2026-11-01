@@ -127,26 +127,26 @@ fun GalleryAlbumsScreen(
     pendingConfirm?.let { (album, action) ->
         val several = album.itemCount > 1
         val body = when (action) {
-            LockAction.Lock -> "Le dossier ne s'ouvrira plus qu'avec le code des notes."
+            LockAction.Lock -> "The folder will only open with the notes PIN."
             LockAction.DeleteContent ->
-                "${album.itemCount} élément${plural(album.itemCount)} " +
-                    "${if (several) "partiront" else "partira"} à la corbeille."
+                "${album.itemCount} item${plural(album.itemCount)} " +
+                    "${if (several) "go" else "goes"} to the trash."
             else -> null
         }
         ShowAlertDialog(
             onDismiss = { pendingConfirm = null },
             title = when (action) {
-                LockAction.Lock -> "Verrouiller « ${album.name} » ?"
-                LockAction.Unlock -> "Déverrouiller « ${album.name} » ?"
-                else -> "Supprimer le contenu de « ${album.name} » ?"
+                LockAction.Lock -> "Lock “${album.name}”?"
+                LockAction.Unlock -> "Unlock “${album.name}”?"
+                else -> "Delete the content of “${album.name}”?"
             },
             textContent = if (body == null) null else {
                 { Text(body) }
             },
             confirmText = when (action) {
-                LockAction.Lock -> "Verrouiller"
-                LockAction.Unlock -> "Déverrouiller"
-                else -> "Supprimer"
+                LockAction.Lock -> "Lock"
+                LockAction.Unlock -> "Unlock"
+                else -> "Delete"
             },
             onCancel = { pendingConfirm = null },
             onConfirm = {
@@ -162,7 +162,7 @@ fun GalleryAlbumsScreen(
                             queryMediaItems(context, bucketId = album.bucketId)
                         }
                         if (!trashAndAnnounce(context, toTrash, requestConsent)) {
-                            AppSnackbar.show("Suppression impossible")
+                            AppSnackbar.show("Delete failed")
                         }
                     }
                 }
@@ -190,7 +190,7 @@ fun GalleryAlbumsScreen(
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        ScreenTopBar(title = "Galerie", onBack = onBack, modifier = Modifier.padding(16.dp))
+        ScreenTopBar(title = "Gallery", onBack = onBack, modifier = Modifier.padding(16.dp))
 
         if (hasPermission && !hasAllFiles) {
             AllFilesAccessBanner(onGrant = requestAllFiles)
@@ -213,7 +213,7 @@ fun GalleryAlbumsScreen(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    "L'accès aux photos et vidéos est nécessaire pour afficher la galerie.",
+                    "Photo and video access is needed to show the gallery.",
                     textAlign = TextAlign.Center
                 )
             }
@@ -224,7 +224,7 @@ fun GalleryAlbumsScreen(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center
             ) {
-                Text("Aucune photo ou vidéo trouvée")
+                Text("No photos or videos found")
             }
             else -> {
                 // Tapping a locked album asks for the code before opening it, a long press opens the
@@ -279,12 +279,12 @@ private fun AllFilesAccessBanner(onGrant: () -> Unit) {
             .padding(bottom = 8.dp)
     ) {
         Text(
-            "Autorise l'accès complet aux fichiers pour supprimer et déplacer tes photos sans " +
-                "la confirmation Android à chaque fois.",
+            "Allow all files access to delete and move your photos without " +
+                "the Android confirmation every time.",
             style = MaterialTheme.typography.bodyMedium
         )
         MyButton(
-            text = "Autoriser",
+            text = "Allow",
             onClick = onGrant,
             height = 56.dp,
             fontSize = 18.sp,
@@ -313,14 +313,14 @@ private fun TrashCard(itemCount: Int, onClick: () -> Unit) {
             )
         }
         Text(
-            "Corbeille",
+            "Trash",
             style = MaterialTheme.typography.titleSmall,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.padding(top = 6.dp)
         )
         Text(
-            "$itemCount élément${plural(itemCount)}",
+            "$itemCount item${plural(itemCount)}",
             style = MaterialTheme.typography.bodySmall,
             color = Color.Gray
         )
@@ -371,7 +371,7 @@ private fun PinnedHeroCard(
                 .clickable(onClick = onOpenGrid)
                 .padding(8.dp)
         ) {
-            Icon(Icons.Default.GridView, contentDescription = "Voir les épinglées en grille", tint = Color.White)
+            Icon(Icons.Default.GridView, contentDescription = "Show pinned as a grid", tint = Color.White)
         }
     }
 }
@@ -393,14 +393,14 @@ private fun AlbumCard(
     ) {
         DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
             DropdownMenuItem(
-                text = { Text(if (locked) "Déverrouiller" else "Verrouiller") },
+                text = { Text(if (locked) "Unlock" else "Lock") },
                 leadingIcon = {
                     Icon(if (locked) Icons.Default.LockOpen else Icons.Default.Lock, contentDescription = null)
                 },
                 onClick = { menuOpen = false; onToggleLock() }
             )
             DropdownMenuItem(
-                text = { Text("Supprimer le contenu") },
+                text = { Text("Delete the content") },
                 leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null) },
                 onClick = { menuOpen = false; onDeleteContent() }
             )
@@ -442,7 +442,7 @@ private fun AlbumCard(
             modifier = Modifier.padding(top = 6.dp)
         )
         Text(
-            if (locked) "Verrouillé" else "${album.itemCount} élément${plural(album.itemCount)}",
+            if (locked) "Locked" else "${album.itemCount} item${plural(album.itemCount)}",
             style = MaterialTheme.typography.bodySmall,
             color = Color.Gray
         )

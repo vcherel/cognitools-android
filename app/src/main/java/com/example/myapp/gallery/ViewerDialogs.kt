@@ -82,7 +82,7 @@ fun ViewerDialogs(
                 onDismiss()
                 scope.launch {
                     if (performRename(context, item, newName, requestConsent)) GalleryRefresh.bump()
-                    else onError("Renommage impossible")
+                    else onError("Rename failed")
                 }
             }
         )
@@ -101,7 +101,7 @@ fun ViewerDialogs(
                         GalleryRefresh.bump()
                         onMoved()
                     } else {
-                        onError("Déplacement impossible")
+                        onError("Move failed")
                     }
                 }
             }
@@ -137,7 +137,7 @@ private val shareTargets = listOf(
     ShareTarget("com.facebook.orca", "Messenger"),
     ShareTarget(INSTAGRAM_PACKAGE, "Story", InstagramDestination.Story),
     ShareTarget(INSTAGRAM_PACKAGE, "Message", InstagramDestination.Direct),
-    ShareTarget(INSTAGRAM_PACKAGE, "Publication", InstagramDestination.Feed)
+    ShareTarget(INSTAGRAM_PACKAGE, "Post", InstagramDestination.Feed)
 )
 
 @Composable
@@ -158,12 +158,12 @@ fun ShareDialog(items: List<MediaItem>, onDismiss: () -> Unit, onError: (String)
 
     AppDialog(onDismiss = onDismiss) {
         Text(
-            if (items.size > 1) "Partager ${items.size} fichiers" else "Partager",
+            if (items.size > 1) "Share ${items.size} files" else "Share",
             style = MaterialTheme.typography.titleMedium
         )
         Spacer(Modifier.height(16.dp))
         if (installedTargets.isEmpty()) {
-            Text("Aucune application compatible installée")
+            Text("No compatible app installed")
         } else {
             // Three per line: six icons on one row would be too narrow to hit.
             installedTargets.chunked(3).forEach { row ->
@@ -186,7 +186,7 @@ fun ShareDialog(items: List<MediaItem>, onDismiss: () -> Unit, onError: (String)
                                     // Not just ActivityNotFoundException: naming Instagram's own
                                     // handler activity throws a SecurityException the day it stops
                                     // being exported, and that must not take the app down.
-                                    onError("Partage impossible")
+                                    onError("Sharing failed")
                                 }
                             }
                         )
@@ -196,7 +196,7 @@ fun ShareDialog(items: List<MediaItem>, onDismiss: () -> Unit, onError: (String)
         }
         Spacer(Modifier.height(8.dp))
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-            TextButton(onClick = onDismiss) { Text("Annuler") }
+            TextButton(onClick = onDismiss) { Text("Cancel") }
         }
     }
 }
@@ -279,16 +279,16 @@ fun InfoDialog(item: MediaItem, onDismiss: () -> Unit) {
     // file carries no capture metadata (e.g. a screenshot or a download), so fall back to when it
     // landed on the device instead of showing nothing.
     val takenAtMillis = if (item.dateTaken > 0) item.dateTaken else item.dateAdded * 1000
-    val formatter = remember { SimpleDateFormat("d MMMM yyyy 'à' HH:mm", Locale.FRENCH) }
+    val formatter = remember { SimpleDateFormat("d MMMM yyyy 'at' HH:mm", Locale.FRENCH) }
     val formatted = remember(takenAtMillis) { formatter.format(Date(takenAtMillis)) }
 
     AppDialog(onDismiss = onDismiss) {
         Text("Infos", style = MaterialTheme.typography.titleMedium)
         Spacer(Modifier.height(16.dp))
-        Text("Prise le $formatted")
+        Text("Taken on $formatted")
         Spacer(Modifier.height(16.dp))
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-            TextButton(onClick = onDismiss) { Text("Fermer") }
+            TextButton(onClick = onDismiss) { Text("Close") }
         }
     }
 }
@@ -305,7 +305,7 @@ fun RenameDialog(item: MediaItem, onDismiss: () -> Unit, onConfirm: (String) -> 
 
     ShowAlertDialog(
         onDismiss = onDismiss,
-        title = "Renommer",
+        title = "Rename",
         textContent = {
             OutlinedTextField(
                 value = textFieldValue,
@@ -337,12 +337,12 @@ fun MoveDialog(currentBucketId: Long, onDismiss: () -> Unit, onConfirm: (String)
     }
 
     AppDialog(onDismiss = onDismiss) {
-        Text("Déplacer vers", style = MaterialTheme.typography.titleMedium)
+        Text("Move to", style = MaterialTheme.typography.titleMedium)
         Spacer(Modifier.height(12.dp))
         OutlinedTextField(
             value = newFolderName,
             onValueChange = { newFolderName = it },
-            placeholder = { Text("Nouveau dossier") },
+            placeholder = { Text("New folder") },
             singleLine = true,
             modifier = Modifier.fillMaxWidth()
         )
@@ -354,7 +354,7 @@ fun MoveDialog(currentBucketId: Long, onDismiss: () -> Unit, onConfirm: (String)
                     .clickable { onConfirm("Pictures/${newFolderName.trim()}/") }
                     .padding(vertical = 10.dp)
             ) {
-                Text("Créer et déplacer dans « ${newFolderName.trim()} »")
+                Text("Create and move to “${newFolderName.trim()}”")
             }
         }
         HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
@@ -364,7 +364,7 @@ fun MoveDialog(currentBucketId: Long, onDismiss: () -> Unit, onConfirm: (String)
                 modifier = Modifier.fillMaxWidth().padding(16.dp),
                 contentAlignment = Alignment.Center
             ) { CircularProgressIndicator() }
-            currentAlbums.isEmpty() -> Text("Aucun autre album", modifier = Modifier.padding(vertical = 12.dp))
+            currentAlbums.isEmpty() -> Text("No other album", modifier = Modifier.padding(vertical = 12.dp))
             else -> LazyColumn(modifier = Modifier.heightIn(max = 320.dp)) {
                 items(currentAlbums, key = { it.bucketId }) { album ->
                     Row(
@@ -381,7 +381,7 @@ fun MoveDialog(currentBucketId: Long, onDismiss: () -> Unit, onConfirm: (String)
         }
         Spacer(Modifier.height(8.dp))
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-            TextButton(onClick = onDismiss) { Text("Annuler") }
+            TextButton(onClick = onDismiss) { Text("Cancel") }
         }
     }
 }

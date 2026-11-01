@@ -26,7 +26,7 @@ data class NewsCategory(
 
 val NEWS_CATEGORIES = listOf(
     NewsCategory(
-        "une", "À la une",
+        "une", "Headlines",
         listOf(
             NewsFeed("Le Monde", "https://www.lemonde.fr/rss/une.xml"),
             NewsFeed("franceinfo", "https://www.franceinfo.fr/titres.rss"),
@@ -44,7 +44,7 @@ val NEWS_CATEGORIES = listOf(
         listOf("france", "politique")
     ),
     NewsCategory(
-        "monde", "Monde",
+        "monde", "World",
         listOf(
             NewsFeed("Le Monde", "https://www.lemonde.fr/international/rss_full.xml"),
             NewsFeed("franceinfo", "https://www.franceinfo.fr/monde.rss"),
@@ -53,7 +53,7 @@ val NEWS_CATEGORIES = listOf(
         listOf("monde")
     ),
     NewsCategory(
-        "eco", "Éco",
+        "eco", "Economy",
         listOf(
             NewsFeed("Le Monde", "https://www.lemonde.fr/economie/rss_full.xml"),
             NewsFeed("franceinfo", "https://www.franceinfo.fr/economie.rss"),
@@ -71,7 +71,7 @@ val NEWS_CATEGORIES = listOf(
         listOf("internet")
     ),
     NewsCategory(
-        "sciences", "Sciences",
+        "sciences", "Science",
         listOf(
             NewsFeed("Le Monde", "https://www.lemonde.fr/sciences/rss_full.xml"),
             NewsFeed("franceinfo", "https://www.franceinfo.fr/sciences.rss"),

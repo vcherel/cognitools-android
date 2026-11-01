@@ -64,7 +64,7 @@ fun formatDay(date: LocalDateTime): String = dayFormat.format(date)
 /** The line under the reminder, on screen and in the notification: the last session, or how long ago. */
 fun lastSessionText(lastDone: LocalDateTime?, today: LocalDate): String? {
     val days = daysSinceSession(lastDone, today) ?: return null
-    return if (days >= LONG_BREAK_DAYS) "$days jours sans séance" else "Dernière séance : ${formatDay(lastDone!!)}"
+    return if (days >= LONG_BREAK_DAYS) "$days days without a session" else "Last session: ${formatDay(lastDone!!)}"
 }
 
 @Composable
@@ -76,7 +76,7 @@ fun WorkoutScreen(onBack: () -> Unit, pickDayInitially: Boolean = false) {
     var editingWeekend by remember { mutableStateOf<Boolean?>(null) }
     var pickingDay by rememberSaveable { mutableStateOf(pickDayInitially) }
 
-    ScreenTopBar(title = "Muscu", onBack = onBack)
+    ScreenTopBar(title = "Workout", onBack = onBack)
 
     val current = state ?: return
     val today = LocalDate.now()
@@ -93,51 +93,51 @@ fun WorkoutScreen(onBack: () -> Unit, pickDayInitially: Boolean = false) {
         Card(onClick = { pickingDay = true }) {
             val remindAt = current.remindAt?.toLocalDateTime()
             Text(
-                if (current.due) "C'est l'heure !" else "Prochain rappel",
+                if (current.due) "It's time!" else "Next reminder",
                 style = MaterialTheme.typography.titleMedium
             )
             if (!current.due && remindAt != null) {
                 Text(
-                    "${formatDay(remindAt).replaceFirstChar { it.uppercase() }} à ${timeFormat.format(remindAt)}",
+                    "${formatDay(remindAt).replaceFirstChar { it.uppercase() }} at ${timeFormat.format(remindAt)}",
                     fontSize = 26.sp,
                     fontWeight = FontWeight.Bold,
                     textAlign = TextAlign.Center
                 )
             }
             Text(
-                lastSessionText(sessions.firstOrNull(), today) ?: "Aucune séance enregistrée",
+                lastSessionText(sessions.firstOrNull(), today) ?: "No sessions logged",
                 style = MaterialTheme.typography.bodyLarge,
                 modifier = Modifier.padding(top = 8.dp)
             )
         }
 
-        MyButton(text = "Séance faite", icon = Icons.Default.FitnessCenter) {
+        MyButton(text = "Session done", icon = Icons.Default.FitnessCenter) {
             scope.launch { WorkoutReminder.markDoneWithUndo(context) }
         }
 
         if (current.due) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                MyButton(text = "Dans 1 h", modifier = Modifier.weight(1f), fontSize = 20.sp) {
+                MyButton(text = "In 1 h", modifier = Modifier.weight(1f), fontSize = 20.sp) {
                     scope.launch { WorkoutReminder.snoozeLater(context) }
                 }
-                MyButton(text = "Demain", modifier = Modifier.weight(1f), fontSize = 20.sp) {
+                MyButton(text = "Tomorrow", modifier = Modifier.weight(1f), fontSize = 20.sp) {
                     scope.launch { WorkoutReminder.snoozeDay(context) }
                 }
             }
         }
 
         Card {
-            Text("Rappels", style = MaterialTheme.typography.titleMedium)
-            TimeRow("En semaine", current.times.weekday) { editingWeekend = false }
-            TimeRow("Le week-end", current.times.weekend) { editingWeekend = true }
+            Text("Reminders", style = MaterialTheme.typography.titleMedium)
+            TimeRow("Weekdays", current.times.weekday) { editingWeekend = false }
+            TimeRow("Weekends", current.times.weekend) { editingWeekend = true }
         }
 
         Card {
-            Text("Historique", style = MaterialTheme.typography.titleMedium)
+            Text("History", style = MaterialTheme.typography.titleMedium)
             val month = sessionsInMonth(sessions, today)
             val year = sessionsInYear(sessions, today)
-            Text("Ce mois-ci : $month séance${plural(month)}", style = MaterialTheme.typography.bodyLarge)
-            Text("Cette année : $year séance${plural(year)}", style = MaterialTheme.typography.bodyLarge)
+            Text("This month: $month session${plural(month)}", style = MaterialTheme.typography.bodyLarge)
+            Text("This year: $year session${plural(year)}", style = MaterialTheme.typography.bodyLarge)
             if (sessions.isNotEmpty()) Spacer(Modifier.padding(top = 4.dp))
             sessions.take(HISTORY_SHOWN).forEach {
                 Text(formatDay(it), style = MaterialTheme.typography.bodyMedium)
@@ -148,7 +148,7 @@ fun WorkoutScreen(onBack: () -> Unit, pickDayInitially: Boolean = false) {
 
     editingWeekend?.let { weekend ->
         TimePickerDialog(
-            title = if (weekend) "Rappel du week-end" else "Rappel en semaine",
+            title = if (weekend) "Weekend reminder" else "Weekday reminder",
             initial = if (weekend) current.times.weekend else current.times.weekday,
             onDismiss = { editingWeekend = null },
             onConfirm = { time ->
@@ -225,12 +225,12 @@ private fun ReminderDayDialog(times: ReminderTimes, onDismiss: () -> Unit, onCon
                 enabled = pickerState.selectedDateMillis != null
             ) { Text("Ok") }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Annuler") } }
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
     ) {
         DatePicker(
             state = pickerState,
             showModeToggle = false,
-            title = { Text("Prochain rappel le", modifier = Modifier.padding(start = 24.dp, top = 16.dp)) }
+            title = { Text("Next reminder on", modifier = Modifier.padding(start = 24.dp, top = 16.dp)) }
         )
     }
 }
@@ -245,7 +245,7 @@ private fun TimePickerDialog(title: String, initial: LocalTime, onDismiss: () ->
         Text(title, style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(bottom = 16.dp))
         TimePicker(state = pickerState, modifier = Modifier.align(Alignment.CenterHorizontally))
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-            TextButton(onClick = onDismiss) { Text("Annuler") }
+            TextButton(onClick = onDismiss) { Text("Cancel") }
             TextButton(onClick = { onConfirm(LocalTime.of(pickerState.hour, pickerState.minute)) }) { Text("Ok") }
         }
     }

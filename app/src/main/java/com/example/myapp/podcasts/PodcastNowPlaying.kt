@@ -96,7 +96,7 @@ fun PodcastFullPlayerSheet(
             .padding(20.dp)
     ) {
         IconButton(onClick = onCollapse, modifier = Modifier.align(Alignment.TopStart)) {
-            Icon(Icons.Filled.KeyboardArrowDown, contentDescription = "Réduire")
+            Icon(Icons.Filled.KeyboardArrowDown, contentDescription = "Collapse")
         }
         Row(modifier = Modifier.align(Alignment.TopEnd), verticalAlignment = Alignment.CenterVertically) {
             sleepTimerRemainingMs?.let { remainingMs ->
@@ -105,12 +105,12 @@ fun PodcastFullPlayerSheet(
             IconButton(onClick = { showSleepTimerDialog = true }) {
                 Icon(
                     Icons.Filled.Bedtime,
-                    contentDescription = "Minuterie de veille",
+                    contentDescription = "Sleep timer",
                     tint = if (sleepTimerRemainingMs != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
             IconButton(onClick = { repo.stopAll(); goHome() }) {
-                Icon(Icons.Filled.Stop, contentDescription = "Tout arrêter")
+                Icon(Icons.Filled.Stop, contentDescription = "Stop all")
             }
         }
 
@@ -147,8 +147,8 @@ fun PodcastFullPlayerSheet(
                             } else {
                                 repo.markSeen(id)
                                 AppSnackbar.show(
-                                    message = "Marqué comme écouté",
-                                    actionLabel = "Annuler",
+                                    message = "Marked as heard",
+                                    actionLabel = "Undo",
                                     onAction = { repo.markUnseen(id) }
                                 )
                             }
@@ -184,7 +184,7 @@ fun PodcastFullPlayerSheet(
             Spacer(Modifier.height(16.dp))
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(24.dp)) {
                 IconButton(onClick = { repo.seekBy(-10_000L) }) {
-                    Icon(Icons.Filled.Replay10, contentDescription = "Reculer de 10 s", modifier = Modifier.size(36.dp))
+                    Icon(Icons.Filled.Replay10, contentDescription = "Back 10 s", modifier = Modifier.size(36.dp))
                 }
                 PlayPauseButton(
                     isPlaying = state.isPlaying,
@@ -193,7 +193,7 @@ fun PodcastFullPlayerSheet(
                     iconSize = 56.dp
                 )
                 IconButton(onClick = { repo.seekBy(30_000L) }) {
-                    Icon(Icons.Filled.Forward30, contentDescription = "Avancer de 30 s", modifier = Modifier.size(36.dp))
+                    Icon(Icons.Filled.Forward30, contentDescription = "Forward 30 s", modifier = Modifier.size(36.dp))
                 }
             }
         }
@@ -202,14 +202,14 @@ fun PodcastFullPlayerSheet(
     if (confirmRemoveDownload && episode != null) {
         ShowAlertDialog(
             onDismiss = { confirmRemoveDownload = false },
-            title = "Supprimer le téléchargement de « ${episode.title} » ?",
+            title = "Delete the download of “${episode.title}”?",
             onCancel = { confirmRemoveDownload = false },
             onConfirm = {
                 confirmRemoveDownload = false
                 scope.launch { repo.downloads.remove(episode.id) }
             },
-            cancelText = "Annuler",
-            confirmText = "Supprimer"
+            cancelText = "Cancel",
+            confirmText = "Delete"
         )
     }
 
@@ -233,7 +233,7 @@ private fun SleepCoverageBadge(covered: Float, remainingMs: Long) {
     if (covered >= 1f) {
         Icon(
             Icons.Filled.DownloadDone,
-            contentDescription = "Téléchargé jusqu'à la fin de la minuterie, mode avion possible",
+            contentDescription = "Downloaded up to the timer's end, airplane mode is fine",
             tint = MaterialTheme.colorScheme.primary,
             modifier = Modifier.size(18.dp)
         )
@@ -280,7 +280,7 @@ private fun MarkHeardToggle(isSeen: Boolean, onToggle: () -> Unit) {
             )
         }
         Text(
-            if (isSeen) "Écouté" else "Marquer comme écouté",
+            if (isSeen) "Heard" else "Mark as heard",
             style = MaterialTheme.typography.labelSmall,
             color = if (isSeen) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -317,9 +317,9 @@ private fun DownloadToggle(isDownloaded: Boolean, isDownloading: Boolean, progre
         }
         Text(
             when {
-                isDownloading -> "Téléchargement…"
-                isDownloaded -> "Téléchargé"
-                else -> "Télécharger"
+                isDownloading -> "Downloading…"
+                isDownloaded -> "Downloaded"
+                else -> "Download"
             },
             style = MaterialTheme.typography.labelSmall,
             color = if (isDownloaded) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
@@ -330,7 +330,7 @@ private fun DownloadToggle(isDownloaded: Boolean, isDownloading: Boolean, progre
 /** Four presets, few enough to fit one row without scrolling: anything else goes in the custom field. */
 private val SLEEP_TIMER_PRESETS_MIN = listOf(10, 20, 30, 45)
 
-/** Minute presets (20 selected by default) plus a custom field; "Arrêter la minuterie" only shows while one is running. */
+/** Minute presets (20 selected by default) plus a custom field; "Stop the timer" only shows while one is running. */
 @Composable
 private fun SleepTimerDialog(isRunning: Boolean, onDismiss: () -> Unit, onStart: (Int) -> Unit, onCancel: () -> Unit) {
     var minutes by remember { mutableStateOf(20) }
@@ -338,7 +338,7 @@ private fun SleepTimerDialog(isRunning: Boolean, onDismiss: () -> Unit, onStart:
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Minuterie de veille") },
+        title = { Text("Sleep timer") },
         text = {
             Column {
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -366,7 +366,7 @@ private fun SleepTimerDialog(isRunning: Boolean, onDismiss: () -> Unit, onStart:
                 OutlinedTextField(
                     value = customText,
                     onValueChange = { customText = it.filter(Char::isDigit).take(3) },
-                    label = { Text("Durée personnalisée (min)") },
+                    label = { Text("Custom length (min)") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -374,15 +374,15 @@ private fun SleepTimerDialog(isRunning: Boolean, onDismiss: () -> Unit, onStart:
         },
         confirmButton = {
             TextButton(onClick = { onStart(customText.toIntOrNull()?.takeIf { it > 0 } ?: minutes) }) {
-                Text("Démarrer")
+                Text("Start")
             }
         },
         dismissButton = {
             Row {
                 if (isRunning) {
-                    TextButton(onClick = onCancel) { Text("Arrêter") }
+                    TextButton(onClick = onCancel) { Text("Stop") }
                 }
-                TextButton(onClick = onDismiss) { Text("Annuler") }
+                TextButton(onClick = onDismiss) { Text("Cancel") }
             }
         }
     )

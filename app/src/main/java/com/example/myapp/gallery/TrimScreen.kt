@@ -74,7 +74,7 @@ fun GalleryTrimScreen(itemId: Long, onBack: () -> Unit) {
     val currentItem = item
 
     Column(modifier = Modifier.fillMaxSize()) {
-        ScreenTopBar(title = "Durée de la vidéo", onBack = onBack, modifier = Modifier.padding(16.dp))
+        ScreenTopBar(title = "Video length", onBack = onBack, modifier = Modifier.padding(16.dp))
 
         if (currentItem == null || durationMs <= 0L) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
@@ -94,13 +94,13 @@ fun GalleryTrimScreen(itemId: Long, onBack: () -> Unit) {
                     valueRange = 0f..durationMs.toFloat()
                 )
                 Text(
-                    "Durée sélectionnée : ${formatPlaybackTime((range.endInclusive - range.start).toLong())}",
+                    "Selected length: ${formatPlaybackTime((range.endInclusive - range.start).toLong())}",
                     style = MaterialTheme.typography.bodySmall
                 )
             }
 
             MyButton(
-                text = if (exporting) "Traitement en cours..." else "Rogner",
+                text = if (exporting) "Processing..." else "Trim",
                 enabled = !exporting && range.endInclusive - range.start >= 200f,
                 modifier = Modifier.fillMaxWidth().padding(16.dp).height(64.dp)
             ) {
@@ -111,7 +111,7 @@ fun GalleryTrimScreen(itemId: Long, onBack: () -> Unit) {
                     if (!exportOk) {
                         outputFile.delete()
                         exporting = false
-                        errorMessage = "Le rognage a échoué"
+                        errorMessage = "Trim failed"
                         return@launch
                     }
                     val ok = performOverwrite(context, currentItem, requestConsent) { out ->
@@ -119,7 +119,7 @@ fun GalleryTrimScreen(itemId: Long, onBack: () -> Unit) {
                     }
                     outputFile.delete()
                     exporting = false
-                    if (ok) onBack() else errorMessage = "Enregistrement impossible"
+                    if (ok) onBack() else errorMessage = "Save failed"
                 }
             }
         }

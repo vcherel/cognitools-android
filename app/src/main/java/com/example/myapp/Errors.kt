@@ -14,18 +14,18 @@ import kotlin.coroutines.cancellation.CancellationException
  * scope left the composition" came from), so it is rethrown; and a network failure gets a sentence
  * instead of the exception's own wording.
  */
-fun userMessage(e: Throwable, fallback: String = "Une erreur est survenue"): String {
+fun userMessage(e: Throwable, fallback: String = "Something went wrong"): String {
     if (e is CancellationException) throw e
     // Media3 wraps the socket failure of a stream or a download in its own IOException.
     val cause = if (e is HttpDataSource.HttpDataSourceException && e.cause != null) e.cause!! else e
     return when {
-        e is HttpDataSource.InvalidResponseCodeException -> "Erreur serveur (${e.responseCode})"
-        cause is UnknownHostException || cause is ConnectException -> "Pas de connexion"
-        cause is SocketTimeoutException -> "Le serveur ne répond pas"
-        e is HttpStatusException && e.code == 429 -> "Trop de requêtes, réessaie dans un instant"
-        e is HttpStatusException && e.code in 500..599 -> "Le serveur est en panne"
-        e is HttpStatusException -> "Erreur serveur (${e.code})"
-        e is IOException -> "Problème de réseau"
+        e is HttpDataSource.InvalidResponseCodeException -> "Server error (${e.responseCode})"
+        cause is UnknownHostException || cause is ConnectException -> "No connection"
+        cause is SocketTimeoutException -> "The server is not responding"
+        e is HttpStatusException && e.code == 429 -> "Too many requests, try again in a moment"
+        e is HttpStatusException && e.code in 500..599 -> "The server is down"
+        e is HttpStatusException -> "Server error (${e.code})"
+        e is IOException -> "Network problem"
         else -> e.message?.takeIf { it.isNotBlank() } ?: fallback
     }
 }

@@ -70,13 +70,13 @@ fun breadcrumb(dir: File): List<Pair<String, File>> {
         current = parentOf(current)
     }
     return chain.map { folder ->
-        val label = if (folder.absolutePath == storageRoot.absolutePath) "Stockage" else folder.name
+        val label = if (folder.absolutePath == storageRoot.absolutePath) "Storage" else folder.name
         label to folder
     }
 }
 
 fun formatFileSize(bytes: Long): String {
-    val units = listOf("o", "Ko", "Mo", "Go", "To")
+    val units = listOf("B", "KB", "MB", "GB", "TB")
     var value = bytes.toDouble()
     var unit = 0
     while (value >= 1024 && unit < units.lastIndex) {
@@ -84,7 +84,7 @@ fun formatFileSize(bytes: Long): String {
         unit++
     }
     val pattern = if (unit == 0 || value >= 100) "%.0f" else "%.1f"
-    return String.format(Locale.FRANCE, pattern, value) + " " + units[unit]
+    return String.format(Locale.US, pattern, value) + " " + units[unit]
 }
 
 private val timeFormat = SimpleDateFormat("HH:mm", Locale.FRANCE)
@@ -99,7 +99,7 @@ fun formatFileDate(timestamp: Long): String {
     val dayDiff = now.get(Calendar.DAY_OF_YEAR) - then.get(Calendar.DAY_OF_YEAR)
     return when {
         sameYear && dayDiff == 0 -> timeFormat.format(then.time)
-        sameYear && dayDiff == 1 -> "hier"
+        sameYear && dayDiff == 1 -> "yesterday"
         sameYear -> dayFormat.format(then.time)
         else -> fullFormat.format(then.time)
     }
@@ -142,8 +142,8 @@ fun openFile(
             }
         }
     }
-    val chooser = if (extension.isEmpty()) Intent.createChooser(intent, "Ouvrir avec")
-    else Intent.createChooser(intent, "Ouvrir avec", chosenAppCallback(context, extension).intentSender)
+    val chooser = if (extension.isEmpty()) Intent.createChooser(intent, "Open with")
+    else Intent.createChooser(intent, "Open with", chosenAppCallback(context, extension).intentSender)
     return try {
         context.startActivity(chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         true
@@ -165,7 +165,7 @@ fun shareFiles(context: Context, files: List<File>): Boolean {
     val type = files.map { mimeTypeOf(it) }.distinct().singleOrNull() ?: "*/*"
     val intent = shareUrisIntent(files.map { uriFor(context, it) }, type)
     return try {
-        context.startActivity(Intent.createChooser(intent, "Partager").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        context.startActivity(Intent.createChooser(intent, "Share").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         true
     } catch (e: ActivityNotFoundException) {
         false

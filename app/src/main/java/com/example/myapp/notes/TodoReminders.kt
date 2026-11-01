@@ -95,9 +95,9 @@ enum class TodoReminder(val notificationId: Int, val action: String) {
     }
 
     private fun title(count: Int) = when (this) {
-        TO_DO -> "$count tâche${plural(count)} à faire"
-        WAITING -> "$count tâche${plural(count)} en attente"
-        WEEKEND -> "$count idée${plural(count)} pour le week-end"
+        TO_DO -> "$count task${plural(count)} to do"
+        WAITING -> "$count task${plural(count)} waiting"
+        WEEKEND -> "$count idea${plural(count)} for the weekend"
     }
 
     private fun nextAt(now: LocalDateTime): LocalDateTime = when (this) {

@@ -133,7 +133,7 @@ object MotsFlechesStore {
                 PuzzleGenerator.generate(pool.random(rng), dictionary, rng, maxRank)?.let { return it }
             }
         }
-        error("Aucune grille n'a pu être générée")
+        error("No grid could be generated")
     }
 
     private fun dictionary(context: Context, lang: MotsFlechesLang): ClueDictionary = synchronized(this) {
@@ -195,7 +195,7 @@ object MotsFlechesStore {
         val entries = root.getValue("e").jsonPrimitive.content
         val revealed = root["r"]?.jsonArray.orEmpty().map { it.jsonPrimitive.content.toInt() }.toSet()
         val confirmed = root["k"]?.jsonArray.orEmpty().map { it.jsonPrimitive.content.toInt() }.toSet()
-        require(entries.length == puzzle.cellCount) { "grille sauvegardée incohérente" }
+        require(entries.length == puzzle.cellCount) { "saved grid is inconsistent" }
         return PuzzleState(puzzle, entries, revealed, confirmed)
     }
 }

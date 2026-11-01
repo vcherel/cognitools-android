@@ -77,13 +77,13 @@ fun DeezerSearchScreen(
     var query by remember { mutableStateOf("") }
 
     Column(Modifier.fillMaxSize()) {
-        ScreenTopBar(title = "Recherche", onBack = onBack)
+        ScreenTopBar(title = "Search", onBack = onBack)
         ModeToggle(mode = mode, onSelect = { mode = it; query = "" })
         OutlinedTextField(
             value = query,
             onValueChange = { query = it },
             singleLine = true,
-            placeholder = { Text(if (mode == SearchMode.MUSIQUE) "Titre, artiste…" else "Nom du podcast…") },
+            placeholder = { Text(if (mode == SearchMode.MUSIQUE) "Title, artist…" else "Podcast name…") },
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
         )
         if (query.isBlank()) {
@@ -116,7 +116,7 @@ private fun ModeToggle(mode: SearchMode, onSelect: (SearchMode) -> Unit) {
             .background(MaterialTheme.colorScheme.surfaceVariant)
     ) {
         ModeToggleSegment(
-            text = "Musique",
+            text = "Music",
             icon = Icons.Filled.LibraryMusic,
             selected = mode == SearchMode.MUSIQUE,
             onClick = { onSelect(SearchMode.MUSIQUE) },
@@ -201,7 +201,7 @@ private fun MusicSearch(
     }
 
     if (searching && results.isEmpty()) {
-        Text("Recherche…", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(horizontal = 16.dp))
+        Text("Searching…", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(horizontal = 16.dp))
     }
     LazyColumn(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
         artist?.let { a ->
@@ -212,7 +212,7 @@ private fun MusicSearch(
                     onShuffle = {
                         scope.launch {
                             runCatching { repo.shuffleArtist(a) }
-                                .onFailure { Toast.makeText(context, "Échec de la lecture", Toast.LENGTH_SHORT).show() }
+                                .onFailure { Toast.makeText(context, "Playback failed", Toast.LENGTH_SHORT).show() }
                         }
                     }
                 )
@@ -283,10 +283,10 @@ private fun PodcastSearch(podcastRepo: PodcastRepository, query: String, scope: 
     }
 
     val shown = query.trim().let { if (it.isBlank()) recommendations else results }
-    val title = if (query.trim().isBlank()) "Recommandations" else null
+    val title = if (query.trim().isBlank()) "Recommendations" else null
 
     if (loading && results.isEmpty() && query.isNotBlank()) {
-        Text("Recherche…", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(horizontal = 16.dp))
+        Text("Searching…", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(horizontal = 16.dp))
     }
     LazyColumn(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
         title?.let { t ->
@@ -304,9 +304,9 @@ private fun PodcastSearch(podcastRepo: PodcastRepository, query: String, scope: 
                     } else {
                         scope.launch {
                             if (podcastRepo.addFavorite(item)) {
-                                AppSnackbar.show("« ${item.title} » ajouté")
+                                AppSnackbar.show("“${item.title}” added")
                             } else {
-                                AppSnackbar.show("Impossible d'ajouter ce podcast")
+                                AppSnackbar.show("Can't add this podcast")
                             }
                         }
                     }
@@ -319,14 +319,14 @@ private fun PodcastSearch(podcastRepo: PodcastRepository, query: String, scope: 
     pendingUnfollow?.let { item ->
         ShowAlertDialog(
             onDismiss = { pendingUnfollow = null },
-            title = "Ne plus suivre « ${item.title} » ?",
+            title = "Unfollow “${item.title}”?",
             onCancel = { pendingUnfollow = null },
             onConfirm = {
                 pendingUnfollow = null
                 scope.launch { podcastRepo.removeFavorite(item.id) }
             },
-            cancelText = "Annuler",
-            confirmText = "Ne plus suivre"
+            cancelText = "Cancel",
+            confirmText = "Unfollow"
         )
     }
 }
@@ -354,7 +354,7 @@ private fun PodcastCatalogRow(item: PodcastCatalogItem, isFollowing: Boolean, on
         IconButton(onClick = onToggleFollow) {
             Icon(
                 if (isFollowing) Icons.Filled.Check else Icons.Filled.Add,
-                contentDescription = if (isFollowing) "Déjà suivi" else "Suivre ce podcast",
+                contentDescription = if (isFollowing) "Already followed" else "Follow this podcast",
                 tint = if (isFollowing) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
@@ -397,7 +397,7 @@ private fun ArtistCard(artist: DeezerArtist, onOpen: () -> Unit, onShuffle: () -
             modifier = Modifier.weight(1f)
         )
         IconButton(onClick = onShuffle) {
-            Icon(Icons.Filled.Shuffle, contentDescription = "Lecture aléatoire", tint = MaterialTheme.colorScheme.primary)
+            Icon(Icons.Filled.Shuffle, contentDescription = "Shuffle play", tint = MaterialTheme.colorScheme.primary)
         }
     }
 }

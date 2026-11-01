@@ -109,7 +109,7 @@ class NoteLineEdits(
         cut.clear()
         saveContent(lines.joinToString("\n"))
         scope.launch {
-            if (snackbar.showUndoSnackbar("Lignes coupées")) saveContent(before)
+            if (snackbar.showUndoSnackbar("Lines cut")) saveContent(before)
         }
     }
 
@@ -121,7 +121,7 @@ class NoteLineEdits(
         val updated = lines.joinToString("\n")
         saveContent(if (isCoursesNote()) dropEmptyCourseSections(updated) else updated)
         scope.launch {
-            if (snackbar.showUndoSnackbar("Élément supprimé")) saveContent(before)
+            if (snackbar.showUndoSnackbar("Item deleted")) saveContent(before)
         }
     }
 }

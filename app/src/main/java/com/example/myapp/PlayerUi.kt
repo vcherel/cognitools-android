@@ -120,7 +120,7 @@ fun MediaListRow(
                 if (isPlaying) {
                     Icon(
                         Icons.Filled.PlayArrow,
-                        contentDescription = "En cours de lecture",
+                        contentDescription = "Now playing",
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(16.dp)
                     )
@@ -247,7 +247,7 @@ fun PlayPauseButton(isPlaying: Boolean, isBuffering: Boolean, onClick: () -> Uni
         } else {
             Icon(
                 if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                contentDescription = if (isPlaying) "Pause" else "Lecture",
+                contentDescription = if (isPlaying) "Pause" else "Play",
                 modifier = if (iconSize > 0.dp) Modifier.size(iconSize) else Modifier
             )
         }

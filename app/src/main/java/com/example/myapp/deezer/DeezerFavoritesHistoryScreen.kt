@@ -60,14 +60,14 @@ fun DeezerFavoritesHistoryScreen(repo: DeezerRepository, onBack: () -> Unit) {
     }
 
     Column(Modifier.fillMaxSize()) {
-        ScreenTopBar(title = "Favoris", onBack = onBack)
+        ScreenTopBar(title = "Favorites", onBack = onBack)
         Column(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
             Text("$count", style = MaterialTheme.typography.displayMedium)
-            Text("titre${plural(count)} aimé${plural(count)}", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("liked track${plural(count)}", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(4.dp))
             history.firstOrNull()?.let { first ->
                 Text(
-                    "Depuis le ${first.day.format(FULL_DATE)}",
+                    "Since ${first.day.format(FULL_DATE)}",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -76,7 +76,7 @@ fun DeezerFavoritesHistoryScreen(repo: DeezerRepository, onBack: () -> Unit) {
             when {
                 history.isNotEmpty() -> FavoritesCurve(history, today, Modifier.fillMaxWidth().height(300.dp))
                 loading -> CircularProgressIndicator(Modifier.align(Alignment.CenterHorizontally))
-                else -> Text("Pas encore de relevé, reviens ici une fois en ligne.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                else -> Text("No data yet, come back once online.", color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }

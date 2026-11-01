@@ -82,7 +82,7 @@ fun RandomGeneratorScreen(onBack: () -> Unit, context: Context = LocalContext.cu
         isLoading = false
     }
 
-    ScreenTopBar(title = "Générateur aléatoire", onBack = onBack)
+    ScreenTopBar(title = "Random generator", onBack = onBack)
 
     Column(
         modifier = Modifier
@@ -92,14 +92,14 @@ fun RandomGeneratorScreen(onBack: () -> Unit, context: Context = LocalContext.cu
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text("Nombre entier aléatoire", fontSize = 22.sp, fontWeight = FontWeight.Bold)
+            Text("Random integer", fontSize = 22.sp, fontWeight = FontWeight.Bold)
 
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(value = min, onValueChange = { min = it }, label = { Text("Min") }, modifier = Modifier.weight(1f))
                 OutlinedTextField(value = max, onValueChange = { max = it }, label = { Text("Max") }, modifier = Modifier.weight(1f))
             }
 
-            MyButton("Générer") {
+            MyButton("Generate") {
                 val minInt = min.toIntOrNull() ?: 1
                 val maxInt = max.toIntOrNull() ?: 100
                 if (minInt <= maxInt) {
@@ -118,7 +118,7 @@ fun RandomGeneratorScreen(onBack: () -> Unit, context: Context = LocalContext.cu
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = intResult?.let { NumberFormat.getNumberInstance(Locale.FRANCE).format(it) } ?: "",
+                    text = intResult?.let { NumberFormat.getNumberInstance(Locale.US).format(it) } ?: "",
                     fontSize = 32.sp
                 )
             }
@@ -127,9 +127,9 @@ fun RandomGeneratorScreen(onBack: () -> Unit, context: Context = LocalContext.cu
         Spacer(Modifier.height(32.dp))
 
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text("Mot aléatoire", fontSize = 22.sp, fontWeight = FontWeight.Bold)
+            Text("Random word", fontSize = 22.sp, fontWeight = FontWeight.Bold)
 
-            MyButton(text = if (isLoading) "Chargement..." else "Générer", enabled = !isLoading) {
+            MyButton(text = if (isLoading) "Loading..." else "Generate", enabled = !isLoading) {
                 if (words.isNotEmpty()) wordResult = words.random()
             }
 

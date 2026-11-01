@@ -73,7 +73,7 @@ private fun saveBackup(context: Context): Job = backupScope.launch {
         backupJson(context)
     } catch (e: Exception) {
         withContext(Dispatchers.Main) {
-            Toast.makeText(context, "Erreur de sauvegarde : ${userMessage(e)}", Toast.LENGTH_LONG).show()
+            Toast.makeText(context, "Backup failed: ${userMessage(e)}", Toast.LENGTH_LONG).show()
         }
         return@launch
     }
@@ -86,10 +86,10 @@ private fun saveBackup(context: Context): Job = backupScope.launch {
         context.backupDataStore.edit { it[cloudKey] = System.currentTimeMillis() }
     }.exceptionOrNull()
     val message = when {
-        localOk && cloudError == null -> "Sauvegardé sur le téléphone et sur Yahoo"
-        localOk -> "Sauvegardé sur le téléphone, pas sur Yahoo : ${userMessage(cloudError!!)}"
-        cloudError == null -> "Sauvegardé sur Yahoo, pas sur le téléphone"
-        else -> "Erreur de sauvegarde : ${userMessage(cloudError)}"
+        localOk && cloudError == null -> "Saved on the phone and on Yahoo"
+        localOk -> "Saved on the phone, not on Yahoo: ${userMessage(cloudError!!)}"
+        cloudError == null -> "Saved on Yahoo, not on the phone"
+        else -> "Backup failed: ${userMessage(cloudError)}"
     }
     withContext(Dispatchers.Main) {
         Toast.makeText(context, message, if (localOk && cloudError == null) Toast.LENGTH_SHORT else Toast.LENGTH_LONG).show()
@@ -122,10 +122,10 @@ fun BackupMenuButton(modifier: Modifier = Modifier) {
         when {
             saving -> CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
             age == null -> Unit
-            age < 3 * DAY_MS -> Icon(Icons.Default.CloudDone, contentDescription = "Sauvegarder")
+            age < 3 * DAY_MS -> Icon(Icons.Default.CloudDone, contentDescription = "Back up")
             else -> Icon(
                 Icons.Default.CloudUpload,
-                contentDescription = "Sauvegarder",
+                contentDescription = "Back up",
                 tint = if (age < 7 * DAY_MS) Color(0xFFFF9800) else Color(0xFFE53935)
             )
         }
@@ -142,9 +142,9 @@ private fun writeToDownloads(context: Context, fileName: String, json: String) {
         put(MediaStore.Downloads.IS_PENDING, 1)
     }
     val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
-        ?: error("Fichier inaccessible")
+        ?: error("File unreadable")
     try {
-        resolver.openOutputStream(uri)?.use { it.write(json.toByteArray()) } ?: error("Fichier inaccessible")
+        resolver.openOutputStream(uri)?.use { it.write(json.toByteArray()) } ?: error("File unreadable")
         resolver.update(uri, ContentValues().apply { put(MediaStore.Downloads.IS_PENDING, 0) }, null, null)
     } catch (e: Exception) {
         resolver.delete(uri, null, null)

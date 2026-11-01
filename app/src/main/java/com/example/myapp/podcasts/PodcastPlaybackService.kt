@@ -77,12 +77,12 @@ class PodcastPlaybackService : MediaSessionService() {
     private fun seekButtons(): List<CommandButton> = listOf(
         CommandButton.Builder(CommandButton.ICON_SKIP_BACK_30)
             .setPlayerCommand(Player.COMMAND_SEEK_BACK)
-            .setDisplayName("Reculer de 30 s")
+            .setDisplayName("Back 30 s")
             .setSlots(CommandButton.SLOT_BACK)
             .build(),
         CommandButton.Builder(CommandButton.ICON_SKIP_FORWARD_30)
             .setPlayerCommand(Player.COMMAND_SEEK_FORWARD)
-            .setDisplayName("Avancer de 30 s")
+            .setDisplayName("Forward 30 s")
             .setSlots(CommandButton.SLOT_FORWARD)
             .build()
     )

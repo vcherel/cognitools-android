@@ -167,7 +167,7 @@ class DeezerPlaybackService : MediaSessionService() {
     private fun actionButtons(liked: Boolean, inPepites: Boolean, removesFromPepites: Boolean = false): List<CommandButton> = listOf(
         CommandButton.Builder(if (liked) CommandButton.ICON_HEART_FILLED else CommandButton.ICON_HEART_UNFILLED)
             .setSessionCommand(SessionCommand(CMD_TOGGLE_LIKE, Bundle.EMPTY))
-            .setDisplayName(if (liked) "Retirer des favoris" else "Ajouter aux favoris")
+            .setDisplayName(if (liked) "Remove from favorites" else "Add to favorites")
             .setSlots(CommandButton.SLOT_BACK_SECONDARY, CommandButton.SLOT_OVERFLOW)
             .build(),
         // Media3 has no diamond among its icon constants, so the notification draws our own vector
@@ -176,7 +176,7 @@ class DeezerPlaybackService : MediaSessionService() {
         CommandButton.Builder(if (inPepites) CommandButton.ICON_CHECK_CIRCLE_FILLED else CommandButton.ICON_PLAYLIST_ADD)
             .setCustomIconResId(if (inPepites) R.drawable.ic_diamond_filled else R.drawable.ic_diamond)
             .setSessionCommand(SessionCommand(CMD_TOGGLE_PEPITES, Bundle.EMPTY))
-            .setDisplayName(if (removesFromPepites) "Retirer de Best pépites" else "Ajouter à Best pépites")
+            .setDisplayName(if (removesFromPepites) "Remove from Best pépites" else "Add to Best pépites")
             .setSlots(CommandButton.SLOT_FORWARD_SECONDARY, CommandButton.SLOT_OVERFLOW)
             .build()
     )
@@ -287,7 +287,7 @@ class DeezerPlaybackService : MediaSessionService() {
             when (customCommand.customAction) {
                 CMD_TOGGLE_LIKE -> scope.launch {
                     runCatching { repo.toggleFavorite(track) }
-                        .onFailure { toast("Échec, réessaie") }
+                        .onFailure { toast("Failed, try again") }
                     refreshActionButtons()
                 }
                 CMD_TOGGLE_PEPITES -> scope.launch {
@@ -389,16 +389,16 @@ class DeezerPlaybackService : MediaSessionService() {
         private fun giveUp(title: String?) {
             Log.w(TAG, "Giving up after $consecutiveSkips skipped tracks")
             showError(
-                if (title.isNullOrBlank()) "Lecture interrompue, impossible de reprendre"
-                else "Lecture de « $title » interrompue, impossible de reprendre"
+                if (title.isNullOrBlank()) "Playback stopped, can't resume"
+                else "Playback of “$title” stopped, can't resume"
             )
         }
 
         /** The failure snackbar, with the logged cause one tap away on the clipboard. */
         private fun showError(message: String) {
             val line = lastErrorLine
-            AppSnackbar.show(message, actionLabel = "Copier") {
-                copyToClipboard(this@DeezerPlaybackService, line, "Erreur Deezer")
+            AppSnackbar.show(message, actionLabel = "Copy") {
+                copyToClipboard(this@DeezerPlaybackService, line, "Deezer error")
             }
         }
 
@@ -418,8 +418,8 @@ class DeezerPlaybackService : MediaSessionService() {
             }
             if (removable != null) offerRemoval(removable.first, removable.second)
             else showError(
-                if (title.isNullOrBlank()) "Échec du chargement, passage au morceau suivant"
-                else "Échec du chargement de « $title », passage au morceau suivant"
+                if (title.isNullOrBlank()) "Loading failed, skipping to the next track"
+                else "Loading “$title” failed, skipping to the next track"
             )
             player.seekToNextMediaItem()
             playFadingIn()
@@ -427,8 +427,8 @@ class DeezerPlaybackService : MediaSessionService() {
 
         /** Deezer refuses [track] and has no other release of it: offers to take it out of [source]. */
         private fun offerRemoval(track: DeezerTrack, source: TrackSource) {
-            val where = if (source is TrackSource.Favorites) "des favoris" else "de la playlist"
-            AppSnackbar.show("« ${track.title} » indisponible sur Deezer, passage au suivant", "Retirer $where") {
+            val where = if (source is TrackSource.Favorites) "from favorites" else "from the playlist"
+            AppSnackbar.show("“${track.title}” unavailable on Deezer, skipping to the next", "Remove $where") {
                 try {
                     when (source) {
                         is TrackSource.Favorites -> if (repo.isFavorite(track.sngId)) repo.toggleFavorite(track)
@@ -475,7 +475,7 @@ class DeezerPlaybackService : MediaSessionService() {
                     // would read as "not liked" for a song the user does like, just under another sngId.
                     if (!applied && source is TrackSource.Favorites) repo.markTemporaryFavorite(replacement.sngId)
                 }
-                AppSnackbar.show("« ${track.title} » indisponible, remplacé par une autre version")
+                AppSnackbar.show("“${track.title}” unavailable, replaced by another version")
                 refreshActionButtons()
             }
         }
@@ -540,7 +540,7 @@ class DeezerPlaybackService : MediaSessionService() {
             } else {
                 player.removeMediaItem(index)
                 if (source != null) offerRemoval(track, source)
-                else AppSnackbar.show("« ${track.title} » indisponible sur Deezer, passage au suivant")
+                else AppSnackbar.show("“${track.title}” unavailable on Deezer, skipping to the next")
             }
         }
 

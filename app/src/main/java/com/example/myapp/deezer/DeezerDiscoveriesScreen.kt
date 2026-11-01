@@ -50,12 +50,12 @@ fun DeezerDiscoveriesScreen(repo: DeezerRepository, onBack: () -> Unit) {
     val tracks = state.tracks
 
     Column(Modifier.fillMaxSize()) {
-        ScreenTopBar(title = "Découvertes du jour", onBack = onBack) {
+        ScreenTopBar(title = "Today's discoveries", onBack = onBack) {
             Spacer(Modifier.weight(1f))
             IconButton(onClick = { discoveries.regenerate() }, enabled = !state.generating) {
                 Icon(
                     Icons.Filled.Refresh,
-                    contentDescription = "Renouveler les découvertes",
+                    contentDescription = "Renew the discoveries",
                     tint = MaterialTheme.colorScheme.primary
                 )
             }
@@ -63,7 +63,7 @@ fun DeezerDiscoveriesScreen(repo: DeezerRepository, onBack: () -> Unit) {
 
         state.error?.let {
             ErrorText(
-                message = "Erreur: $it",
+                message = "Error: $it",
                 onDismiss = { discoveries.clearError() },
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
             )
@@ -72,7 +72,7 @@ fun DeezerDiscoveriesScreen(repo: DeezerRepository, onBack: () -> Unit) {
         when {
             tracks.isEmpty() && !state.generating -> Box(Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
                 Text(
-                    "Tout est traité. La prochaine sélection arrive demain, ou tout de suite avec le bouton renouveler.",
+                    "All done. The next selection comes tomorrow, or right away with the renew button.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center
@@ -85,8 +85,8 @@ fun DeezerDiscoveriesScreen(repo: DeezerRepository, onBack: () -> Unit) {
                     item {
                         Column(Modifier.fillMaxWidth().padding(top = 8.dp)) {
                             Text(
-                                if (tracks.isEmpty()) "Recherche de nouveautés… ${state.progress} %"
-                                else "Renouvellement… ${state.progress} %",
+                                if (tracks.isEmpty()) "Looking for new releases… ${state.progress} %"
+                                else "Renewing… ${state.progress} %",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -103,7 +103,7 @@ fun DeezerDiscoveriesScreen(repo: DeezerRepository, onBack: () -> Unit) {
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         MyButton(
-                            text = "Tout ajouter",
+                            text = "Add all",
                             modifier = Modifier.weight(1f),
                             height = 56.dp,
                             fontSize = 16.sp,
@@ -112,11 +112,11 @@ fun DeezerDiscoveriesScreen(repo: DeezerRepository, onBack: () -> Unit) {
                             // Closes right away and lets the likes land behind: ten rows animating
                             // out one by one is just the network being watched.
                             val added = discoveries.addAll()
-                            Toast.makeText(context, "$added titres ajoutés aux favoris", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, "$added tracks added to favorites", Toast.LENGTH_SHORT).show()
                             onBack()
                         }
                         MyButton(
-                            text = "Tout ignorer",
+                            text = "Ignore all",
                             modifier = Modifier.weight(1f),
                             height = 56.dp,
                             fontSize = 16.sp,

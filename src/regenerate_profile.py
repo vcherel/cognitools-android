@@ -67,7 +67,7 @@ def missing_screens():
 
 
 def test_note_bin(ns):
-    bins = [n for n in ns if n.get("content-desc") == "Supprimer" and box(n)[3] < 1500]
+    bins = [n for n in ns if n.get("content-desc") == "Delete" and box(n)[3] < 1500]
     for n in ns:
         if n.get("text") != TYPED_LINE:
             continue
@@ -99,7 +99,7 @@ def trash_test_notes():
             continue
         tap_node(bin_node, settle=1)
         dialog = nodes()
-        names_test_note = any(f"« {TYPED_LINE} »" in (n.get("text") or "") for n in dialog)
+        names_test_note = any(f"“{TYPED_LINE}”" in (n.get("text") or "") for n in dialog)
         ok = next((n for n in dialog if n.get("text") == "Ok"), None)
         if not names_test_note or ok is None:
             adb("shell", "input", "keyevent", "KEYCODE_BACK")

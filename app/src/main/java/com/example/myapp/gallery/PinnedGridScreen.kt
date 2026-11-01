@@ -78,15 +78,15 @@ fun GalleryPinnedGridScreen(onBack: () -> Unit, onOpenItem: (Long) -> Unit) {
                 onMove = { showMoveDialog = true },
                 onShare = { showShareDialog = true },
                 pinIcon = Icons.Default.PushPin,
-                pinLabel = "Détacher",
+                pinLabel = "Unpin",
                 onPin = {
                     val toUnpin = selectedIds.toList()
                     scope.launch {
                         toUnpin.forEach { unpinItem(context, it) }
                         selectedIds = emptySet()
                         AppSnackbar.show(
-                            message = if (toUnpin.size > 1) "${toUnpin.size} photos détachées" else "Photo détachée",
-                            actionLabel = "Annuler",
+                            message = if (toUnpin.size > 1) "${toUnpin.size} photos unpinned" else "Photo unpinned",
+                            actionLabel = "Undo",
                             onAction = { pinItems(context, toUnpin) }
                         )
                     }
@@ -98,12 +98,12 @@ fun GalleryPinnedGridScreen(onBack: () -> Unit, onOpenItem: (Long) -> Unit) {
                             context, toTrash, requestConsent,
                             onTrashed = { selectedIds = emptySet() }
                         )
-                        if (!trashed) errorMessage = "Suppression impossible"
+                        if (!trashed) errorMessage = "Delete failed"
                     }
                 }
             )
         } else {
-            ScreenTopBar(title = "Épinglées", onBack = onBack, modifier = Modifier.padding(16.dp))
+            ScreenTopBar(title = "Pinned", onBack = onBack, modifier = Modifier.padding(16.dp))
         }
 
         val currentItems = items
@@ -112,7 +112,7 @@ fun GalleryPinnedGridScreen(onBack: () -> Unit, onOpenItem: (Long) -> Unit) {
                 CircularProgressIndicator()
             }
             currentItems.isEmpty() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("Aucune photo épinglée", style = MaterialTheme.typography.bodyMedium)
+                Text("No pinned photos", style = MaterialTheme.typography.bodyMedium)
             }
             else -> LazyVerticalGrid(
                 state = gridState,
@@ -174,7 +174,7 @@ fun GalleryPinnedGridScreen(onBack: () -> Unit, onOpenItem: (Long) -> Unit) {
                         selectedIds = emptySet()
                         GalleryRefresh.bump()
                     } else {
-                        errorMessage = "Déplacement impossible"
+                        errorMessage = "Move failed"
                     }
                 }
             }

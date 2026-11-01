@@ -122,14 +122,14 @@ class DeezerOfflineLibrary(private val appContext: Context, private val repo: De
                 known?.let { publishCounts(it.tracks) }
 
                 val fresh = runCatching {
-                    val pid = repo.bestPepitesPlaylistId() ?: error("Playlist Best pépites introuvable")
+                    val pid = repo.bestPepitesPlaylistId() ?: error("Best pépites playlist not found")
                     OfflineSnapshot(pid, repo.playlistTracks(pid))
                 }.onFailure { Log.w(TAG, "Playlist refresh failed, keeping the last known list", it) }.getOrNull()
 
                 if (fresh != null && fresh.tracks.isNotEmpty()) writeSnapshot(fresh)
                 val tracks = (fresh ?: known)?.tracks
                 if (tracks.isNullOrEmpty()) {
-                    _state.update { it.copy(error = "Liste Best pépites indisponible") }
+                    _state.update { it.copy(error = "Best pépites list unavailable") }
                     syncLog.log("sync aborted: no track list (playlist fetch failed and no snapshot on disk)")
                     return@withLock
                 }
@@ -145,12 +145,12 @@ class DeezerOfflineLibrary(private val appContext: Context, private val repo: De
                 val cachedAfter = tracks.count { isDownloaded(cacheKey(it)) }
                 syncLog.log("sync end: ${cachedAfter - cachedBefore} newly downloaded, $cachedAfter/${tracks.size} on disk, ${failed.size} failed")
                 _state.update {
-                    it.copy(error = if (failed.isEmpty()) null else "${failed.size} titre(s) non téléchargé(s)")
+                    it.copy(error = if (failed.isEmpty()) null else "${failed.size} track(s) not downloaded")
                 }
             } catch (e: Exception) {
                 Log.w(TAG, "Offline sync failed", e)
                 syncLog.log("sync crashed: ${syncLog.describe(e)}")
-                _state.update { it.copy(error = userMessage(e, "Échec de la synchro")) }
+                _state.update { it.copy(error = userMessage(e, "Sync failed")) }
             } finally {
                 _state.update { it.copy(syncing = false) }
             }

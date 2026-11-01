@@ -90,11 +90,11 @@ fun MailScreen(onBack: () -> Unit, onOpenMessage: (Long) -> Unit) {
                 if (state.loading) {
                     CircularProgressIndicator(Modifier.size(22.dp), strokeWidth = 2.dp)
                 } else {
-                    Icon(Icons.Filled.Refresh, contentDescription = "Actualiser")
+                    Icon(Icons.Filled.Refresh, contentDescription = "Refresh")
                 }
             }
             IconButton(onClick = { showSettings = true }) {
-                Icon(Icons.Filled.Settings, contentDescription = "Compte Yahoo")
+                Icon(Icons.Filled.Settings, contentDescription = "Yahoo account")
             }
         }
         if (state.loading) {
@@ -109,12 +109,12 @@ fun MailScreen(onBack: () -> Unit, onOpenMessage: (Long) -> Unit) {
 
         when {
             state.needsLogin -> Box(Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
-                MyButton(text = "Connecter Yahoo", height = 64.dp, onClick = { showSettings = true })
+                MyButton(text = "Connect Yahoo", height = 64.dp, onClick = { showSettings = true })
             }
             state.messages.isEmpty() && !state.loading && state.error == null ->
                 Box(Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
                     Text(
-                        "Boîte de réception vide.",
+                        "Inbox empty.",
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -172,7 +172,7 @@ private fun MailRow(message: MailMessage, onClick: () -> Unit, onDelete: () -> U
                 )
             }
             Text(
-                message.subject.ifBlank { "(Sans objet)" },
+                message.subject.ifBlank { "(No subject)" },
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = if (message.seen) FontWeight.Normal else FontWeight.SemiBold,
                 maxLines = 2,
@@ -193,7 +193,7 @@ private fun MailRow(message: MailMessage, onClick: () -> Unit, onDelete: () -> U
             CodeChip(code)
         }
         IconButton(onClick = onDelete) {
-            Icon(Icons.Outlined.Delete, contentDescription = "Supprimer", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            Icon(Icons.Outlined.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
@@ -208,7 +208,7 @@ fun CodeChip(code: String) {
         shape = RoundedCornerShape(10.dp),
         modifier = Modifier.clickable {
             copyToClipboard(context, code, "Code")
-            AppSnackbar.show("Code $code copié")
+            AppSnackbar.show("Code $code copied")
         }
     ) {
         Row(
@@ -217,7 +217,7 @@ fun CodeChip(code: String) {
             horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             Text(code, style = MaterialTheme.typography.titleMedium, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
-            Icon(Icons.Filled.ContentCopy, contentDescription = "Copier le code", modifier = Modifier.size(16.dp))
+            Icon(Icons.Filled.ContentCopy, contentDescription = "Copy the code", modifier = Modifier.size(16.dp))
         }
     }
 }
@@ -235,26 +235,26 @@ private fun MailSettingsDialog(settings: MailSettings, onDismiss: () -> Unit, on
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Compte Yahoo") },
+        title = { Text("Yahoo account") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(
                     value = address,
                     onValueChange = { address = it },
-                    label = { Text("Adresse") },
+                    label = { Text("Address") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
                 OutlinedTextField(
                     value = password,
                     onValueChange = { password = it },
-                    label = { Text("Mot de passe d'application") },
+                    label = { Text("App password") },
                     singleLine = true,
                     visualTransformation = PasswordVisualTransformation(),
                     modifier = Modifier.fillMaxWidth()
                 )
                 Text(
-                    "Pas ton mot de passe Yahoo : un mot de passe d'application, à générer dans Yahoo, Sécurité du compte, Mots de passe d'application.",
+                    "Not your Yahoo password: an app password, generated in Yahoo, Account security, App passwords.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -269,8 +269,8 @@ private fun MailSettingsDialog(settings: MailSettings, onDismiss: () -> Unit, on
                         onSaved()
                     }
                 }
-            ) { Text("Enregistrer") }
+            ) { Text("Save") }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Fermer") } }
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Close") } }
     )
 }

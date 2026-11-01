@@ -233,7 +233,7 @@ fun NoteEditorScreen(
                     val itemCount = content.totalItemCount()
                     if (itemCount > 0) {
                         Text(
-                            "${content.checkedItemCount()} / $itemCount article${plural(itemCount)}",
+                            "${content.checkedItemCount()} / $itemCount item${plural(itemCount)}",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
                             modifier = Modifier.padding(start = 8.dp, top = 4.dp)
@@ -331,12 +331,12 @@ private fun NoteSearchBar(
             value = query,
             onValueChange = onQueryChange,
             modifier = Modifier.weight(1f).focusRequester(focusRequester),
-            placeholder = { Text("Rechercher dans la note") },
+            placeholder = { Text("Search the note") },
             singleLine = true,
             trailingIcon = {
                 if (query.isNotEmpty()) {
                     IconButton(onClick = { onQueryChange("") }) {
-                        Icon(Icons.Default.Close, contentDescription = "Effacer")
+                        Icon(Icons.Default.Close, contentDescription = "Clear")
                     }
                 }
             }
@@ -348,10 +348,10 @@ private fun NoteSearchBar(
                 modifier = Modifier.padding(horizontal = 8.dp)
             )
             IconButton(onClick = { onStep(-1) }, enabled = matchCount > 0) {
-                Icon(Icons.Default.KeyboardArrowUp, contentDescription = "Résultat précédent")
+                Icon(Icons.Default.KeyboardArrowUp, contentDescription = "Previous match")
             }
             IconButton(onClick = { onStep(1) }, enabled = matchCount > 0) {
-                Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Résultat suivant")
+                Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Next match")
             }
         }
     }
@@ -396,7 +396,7 @@ private fun NoteEditorDialogs(
                 onAddNew = { sync.reconcileAddNew(it) },
                 onMapExisting = { sync.reconcileMapExisting(it) },
                 onSkip = { sync.reconcileSkip() },
-                skipLabel = if (current.sourceLine != null) "Supprimer" else "Ignorer",
+                skipLabel = if (current.sourceLine != null) "Delete" else "Ignore",
                 onDismiss = { sync.dismissBatch() }
             )
         }
@@ -404,7 +404,7 @@ private fun NoteEditorDialogs(
 
     addItemTarget?.let { target ->
         AddIngredientNameDialog(
-            title = if (target == AddItemTarget.COURSE) "Ajouter un article" else "Ajouter un ingrédient",
+            title = if (target == AddItemTarget.COURSE) "Add an item" else "Add an ingredient",
             onConfirm = {
                 onDismissAddItem()
                 if (target == AddItemTarget.COURSE) sync.addCourseItem(it) else sync.addIngredientDirectly(it)
@@ -430,7 +430,7 @@ private fun LockedNotePlaceholder(title: String, onBack: () -> Unit) {
                 Icon(Icons.Default.Lock, contentDescription = null, modifier = Modifier.size(48.dp))
                 Spacer(Modifier.height(12.dp))
                 Text(
-                    title.ifBlank { "Note verrouillée" },
+                    title.ifBlank { "Locked note" },
                     style = MaterialTheme.typography.titleMedium
                 )
             }

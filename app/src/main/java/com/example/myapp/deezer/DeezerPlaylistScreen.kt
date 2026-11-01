@@ -84,7 +84,7 @@ fun DeezerTrackListScreen(
             null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 val currentError = error
                 when {
-                    currentError != null -> ErrorText(message = "Erreur: $currentError", onDismiss = { error = null })
+                    currentError != null -> ErrorText(message = "Error: $currentError", onDismiss = { error = null })
                     isLoading -> CircularProgressIndicator()
                 }
             }
@@ -104,7 +104,7 @@ fun DeezerTrackListScreen(
                             value = query,
                             onValueChange = { query = it },
                             singleLine = true,
-                            placeholder = { Text("Filtrer: titre, artiste…") },
+                            placeholder = { Text("Filter: title, artist…") },
                             modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
                         )
                     }
@@ -113,14 +113,14 @@ fun DeezerTrackListScreen(
                             Modifier.fillMaxWidth().padding(vertical = 8.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text("${shown.size} titres", style = MaterialTheme.typography.bodyMedium, maxLines = 1, modifier = Modifier.weight(1f))
+                            Text("${shown.size} tracks", style = MaterialTheme.typography.bodyMedium, maxLines = 1, modifier = Modifier.weight(1f))
                             if (playlistId != null) {
                                 IconButton(onClick = { sharePlaylist(context, playlistId, title) }) {
-                                    Icon(Icons.Filled.Share, contentDescription = "Partager la playlist", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Icon(Icons.Filled.Share, contentDescription = "Share the playlist", tint = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
                             }
                             IconButton(onClick = { scope.launch { repo.player.shuffleTracks(shown, source) } }) {
-                                Icon(Icons.Filled.Shuffle, contentDescription = "Lecture aléatoire", tint = MaterialTheme.colorScheme.primary)
+                                Icon(Icons.Filled.Shuffle, contentDescription = "Shuffle play", tint = MaterialTheme.colorScheme.primary)
                             }
                         }
                     }
@@ -183,5 +183,5 @@ fun DeezerTrackListScreen(
  */
 private fun sharePlaylist(context: Context, playlistId: String, title: String) {
     val link = "https://www.deezer.com/playlist/$playlistId"
-    context.startActivity(shareTextIntent("$title\n$link", title, "Partager la playlist"))
+    context.startActivity(shareTextIntent("$title\n$link", title, "Share the playlist"))
 }

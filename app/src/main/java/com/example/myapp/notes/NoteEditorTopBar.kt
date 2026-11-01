@@ -164,64 +164,64 @@ fun NoteEditorTopBar(
         if (!state.isEditing) {
             if (state.hasBlankEdgeLines) {
                 IconButton(onClick = actions.onTrimBlankEdgeLines) {
-                    Icon(Icons.Default.VerticalAlignCenter, contentDescription = "Supprimer les lignes vides en haut/bas")
+                    Icon(Icons.Default.VerticalAlignCenter, contentDescription = "Remove blank lines at top/bottom")
                 }
             }
             if (state.isCoursesNote && state.hasCheckedLine) {
                 IconButton(onClick = actions.onSendCheckedToIngredients) {
-                    Icon(Icons.Default.Kitchen, contentDescription = "Ranger les articles cochés dans les Ingrédients")
+                    Icon(Icons.Default.Kitchen, contentDescription = "File the checked items into Ingrédients")
                 }
             }
             if (state.isIngredientsNote) {
                 IconButton(onClick = actions.onAddIngredient) {
-                    Icon(Icons.Default.Add, contentDescription = "Ajouter un ingrédient")
+                    Icon(Icons.Default.Add, contentDescription = "Add an ingredient")
                 }
             }
             if (state.isCoursesNote) {
                 IconButton(onClick = actions.onAddCourseItem) {
-                    Icon(Icons.Default.Add, contentDescription = "Ajouter un article")
+                    Icon(Icons.Default.Add, contentDescription = "Add an item")
                 }
             }
             IconButton(onClick = actions.onToggleSearch) {
                 Icon(
                     Icons.Default.Search,
-                    contentDescription = "Rechercher dans la note",
+                    contentDescription = "Search the note",
                     tint = if (state.searchOpen) MaterialTheme.colorScheme.primary
                     else LocalContentColor.current
                 )
             }
         }
         IconButton(onClick = actions.onUndo, enabled = state.canUndo) {
-            Icon(Icons.AutoMirrored.Filled.Undo, contentDescription = "Annuler")
+            Icon(Icons.AutoMirrored.Filled.Undo, contentDescription = "Undo")
         }
         if (state.canRedo) {
             IconButton(onClick = actions.onRedo) {
-                Icon(Icons.AutoMirrored.Filled.Redo, contentDescription = "Rétablir")
+                Icon(Icons.AutoMirrored.Filled.Redo, contentDescription = "Redo")
             }
         }
         if (state.isEditing) {
             Box {
                 IconButton(onClick = { showFormatMenu = true }) {
-                    Icon(Icons.Default.FormatBold, contentDescription = "Mise en forme")
+                    Icon(Icons.Default.FormatBold, contentDescription = "Formatting")
                 }
                 DropdownMenu(expanded = showFormatMenu, onDismissRequest = { showFormatMenu = false }) {
                     DropdownMenuItem(
-                        text = { Text("Gras") },
+                        text = { Text("Bold") },
                         leadingIcon = { Icon(Icons.Default.FormatBold, contentDescription = null) },
                         onClick = { actions.onToggleInlineMarker("**") }
                     )
                     DropdownMenuItem(
-                        text = { Text("Italique") },
+                        text = { Text("Italic") },
                         leadingIcon = { Icon(Icons.Default.FormatItalic, contentDescription = null) },
                         onClick = { actions.onToggleInlineMarker("*") }
                     )
                     DropdownMenuItem(
-                        text = { Text("Souligné") },
+                        text = { Text("Underline") },
                         leadingIcon = { Icon(Icons.Default.FormatUnderlined, contentDescription = null) },
                         onClick = { actions.onToggleInlineMarker("__") }
                     )
                     DropdownMenuItem(
-                        text = { Text("Titre") },
+                        text = { Text("Title") },
                         leadingIcon = { Icon(Icons.Default.Title, contentDescription = null) },
                         onClick = { actions.onToggleTitle() }
                     )
@@ -230,11 +230,11 @@ fun NoteEditorTopBar(
         }
         Box {
             IconButton(onClick = { showMoreMenu = true }) {
-                Icon(Icons.Default.MoreVert, contentDescription = "Plus d'options")
+                Icon(Icons.Default.MoreVert, contentDescription = "More options")
             }
             DropdownMenu(expanded = showMoreMenu, onDismissRequest = { showMoreMenu = false }) {
                 DropdownMenuItem(
-                    text = { Text(if (state.locked) "Déverrouiller" else "Verrouiller") },
+                    text = { Text(if (state.locked) "Unlock" else "Lock") },
                     leadingIcon = {
                         Icon(
                             if (state.locked) Icons.Default.Lock else Icons.Default.LockOpen,
@@ -245,7 +245,7 @@ fun NoteEditorTopBar(
                 )
                 if (state.hasContent) {
                     DropdownMenuItem(
-                        text = { Text("Vider la note") },
+                        text = { Text("Clear the note") },
                         leadingIcon = { Icon(Icons.Default.DeleteOutline, contentDescription = null) },
                         onClick = { showMoreMenu = false; actions.onClearContent() }
                     )
@@ -253,18 +253,18 @@ fun NoteEditorTopBar(
                 if (state.isEditing) return@DropdownMenu
                 if (state.hasCheckboxLine) {
                     DropdownMenuItem(
-                        text = { Text("Tout cocher") },
+                        text = { Text("Check all") },
                         leadingIcon = { Icon(Icons.Default.CheckBox, contentDescription = null) },
                         onClick = { showMoreMenu = false; actions.onSetAllCheckboxes(true) }
                     )
                     DropdownMenuItem(
-                        text = { Text("Tout décocher") },
+                        text = { Text("Uncheck all") },
                         leadingIcon = { Icon(Icons.Default.CheckBoxOutlineBlank, contentDescription = null) },
                         onClick = { showMoreMenu = false; actions.onSetAllCheckboxes(false) }
                     )
                     if (state.hasCheckedLine) {
                         DropdownMenuItem(
-                            text = { Text("Supprimer les cochés") },
+                            text = { Text("Delete the checked") },
                             leadingIcon = { Icon(Icons.Default.DeleteSweep, contentDescription = null) },
                             onClick = { showMoreMenu = false; actions.onRemoveChecked() }
                         )
@@ -272,21 +272,21 @@ fun NoteEditorTopBar(
                 }
                 if (state.isCoursesNote) {
                     DropdownMenuItem(
-                        text = { Text("Mettre à jour selon le modèle") },
+                        text = { Text("Update from the template") },
                         leadingIcon = { Icon(Icons.AutoMirrored.Filled.Sort, contentDescription = null) },
                         onClick = { showMoreMenu = false; actions.onResortCourses() }
                     )
                 }
                 if (state.isIngredientsNote) {
                     DropdownMenuItem(
-                        text = { Text("Mettre à jour selon le modèle") },
+                        text = { Text("Update from the template") },
                         leadingIcon = { Icon(Icons.AutoMirrored.Filled.Sort, contentDescription = null) },
                         onClick = { showMoreMenu = false; actions.onResortIngredients() }
                     )
                 }
                 if (state.isCoursesModelNote) {
                     DropdownMenuItem(
-                        text = { Text("Ranger les Ingrédients selon ce modèle") },
+                        text = { Text("Sort Ingrédients by this template") },
                         leadingIcon = { Icon(Icons.AutoMirrored.Filled.Sort, contentDescription = null) },
                         onClick = { showMoreMenu = false; actions.onResortIngredients() }
                     )

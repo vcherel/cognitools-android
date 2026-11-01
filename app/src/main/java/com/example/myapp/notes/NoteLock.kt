@@ -133,9 +133,9 @@ fun PinDialog(
     LaunchedEffect(confirming) { focusRequester.requestFocus() }
 
     val title = when {
-        purpose == PinPurpose.Enter -> "Code de déverrouillage"
-        confirming -> "Confirme le code"
-        else -> "Choisis un code"
+        purpose == PinPurpose.Enter -> "Unlock PIN"
+        confirming -> "Confirm the PIN"
+        else -> "Choose a PIN"
     }
 
     fun submit() {
@@ -144,19 +144,19 @@ fun PinDialog(
             PinPurpose.Enter -> scope.launch {
                 if (NoteLock.verifyPin(context, pin)) onSuccess()
                 else {
-                    error = "Code incorrect"
+                    error = "Wrong PIN"
                     pin = ""
                 }
             }
             PinPurpose.Create -> if (!confirming) {
-                if (pin.length < 4) error = "4 chiffres minimum" else confirming = true
+                if (pin.length < 4) error = "4 digits minimum" else confirming = true
             } else if (confirm == pin) {
                 scope.launch {
                     NoteLock.setPin(context, pin)
                     onSuccess()
                 }
             } else {
-                error = "Les codes ne correspondent pas"
+                error = "The PINs don't match"
                 pin = ""
                 confirm = ""
                 confirming = false
@@ -196,6 +196,6 @@ fun PinDialog(
             }
         },
         confirmButton = { TextButton(onClick = { submit() }) { Text("OK") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Annuler") } }
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
     )
 }

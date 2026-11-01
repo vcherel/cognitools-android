@@ -357,7 +357,7 @@ fun ShowAlertDialog(
     title: String,
     textContent: (@Composable () -> Unit)? = null,
     confirmText: String = "Ok",
-    cancelText: String? = "Annuler",
+    cancelText: String? = "Cancel",
     onConfirm: () -> Unit,
     onCancel: (() -> Unit)? = null
 ) {
@@ -402,11 +402,11 @@ fun ErrorText(message: String, onDismiss: () -> Unit, modifier: Modifier = Modif
         )
         // The exact wording is what a bug report needs, and a release build's message can be
         // long and unreadable on screen.
-        IconButton(onClick = { copyToClipboard(context, message, "Erreur") }, modifier = Modifier.size(32.dp)) {
-            Icon(Icons.Filled.ContentCopy, contentDescription = "Copier", tint = MaterialTheme.colorScheme.error)
+        IconButton(onClick = { copyToClipboard(context, message, "Error") }, modifier = Modifier.size(32.dp)) {
+            Icon(Icons.Filled.ContentCopy, contentDescription = "Copy", tint = MaterialTheme.colorScheme.error)
         }
         IconButton(onClick = onDismiss, modifier = Modifier.size(32.dp)) {
-            Icon(Icons.Filled.Close, contentDescription = "Fermer", tint = MaterialTheme.colorScheme.error)
+            Icon(Icons.Filled.Close, contentDescription = "Close", tint = MaterialTheme.colorScheme.error)
         }
     }
 }
@@ -460,12 +460,12 @@ fun LightIconButton(
     )
 }
 
-/** The gray "+ Nouvel élément" placeholder sitting where a new entry would go in a list. */
+/** The gray "+ New item" placeholder sitting where a new entry would go in a list. */
 @Composable
 fun AddItemRow(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    label: String = "Nouvel élément"
+    label: String = "New item"
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,

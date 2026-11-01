@@ -10,6 +10,6 @@ fun openInBrowser(context: Context, url: String) {
     try {
         context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
     } catch (_: ActivityNotFoundException) {
-        AppSnackbar.show("Aucune application pour ouvrir le lien")
+        AppSnackbar.show("No app can open this link")
     }
 }

@@ -66,7 +66,7 @@ fun NotesTrashScreen(onBack: () -> Unit) {
 
     Column(modifier = Modifier.fillMaxSize()) {
         ScreenTopBar(
-            title = "Corbeille",
+            title = "Trash",
             onBack = onBack,
             modifier = Modifier.padding(16.dp),
             titleStyle = MaterialTheme.typography.headlineSmall,
@@ -74,7 +74,7 @@ fun NotesTrashScreen(onBack: () -> Unit) {
                 if (notes.isNotEmpty()) {
                     Box(modifier = Modifier.weight(1f))
                     IconButton(onClick = { confirmEmpty = true }) {
-                        Icon(Icons.Default.DeleteForever, contentDescription = "Vider la corbeille")
+                        Icon(Icons.Default.DeleteForever, contentDescription = "Empty the trash")
                     }
                 }
             }
@@ -82,13 +82,13 @@ fun NotesTrashScreen(onBack: () -> Unit) {
 
         if (notes.isEmpty()) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("Corbeille vide", style = MaterialTheme.typography.bodyMedium)
+                Text("Trash is empty", style = MaterialTheme.typography.bodyMedium)
             }
             return@Column
         }
 
         Text(
-            "Supprimées définitivement après $NOTES_TRASH_RETENTION_DAYS jours.",
+            "Deleted for good after $NOTES_TRASH_RETENTION_DAYS days.",
             style = MaterialTheme.typography.bodySmall,
             color = Color.Gray,
             modifier = Modifier.padding(horizontal = 16.dp)
@@ -105,7 +105,7 @@ fun NotesTrashScreen(onBack: () -> Unit) {
                     onRestore = {
                         scope.launch {
                             dao.restoreNote(note.id)
-                            AppSnackbar.show("Note restaurée")
+                            AppSnackbar.show("Note restored")
                         }
                     },
                     onDeleteForever = { confirmDelete = note }
@@ -117,7 +117,7 @@ fun NotesTrashScreen(onBack: () -> Unit) {
     confirmDelete?.let { note ->
         ShowAlertDialog(
             onDismiss = { confirmDelete = null },
-            title = "Supprimer définitivement cette note ?",
+            title = "Delete this note for good?",
             onCancel = { confirmDelete = null },
             onConfirm = {
                 confirmDelete = null
@@ -128,7 +128,7 @@ fun NotesTrashScreen(onBack: () -> Unit) {
 
     if (confirmEmpty) ShowAlertDialog(
         onDismiss = { confirmEmpty = false },
-        title = "Vider la corbeille ?",
+        title = "Empty the trash?",
         onCancel = { confirmEmpty = false },
         onConfirm = {
             confirmEmpty = false
@@ -158,7 +158,7 @@ internal fun TrashedNoteCard(
                     Icon(Icons.Default.Lock, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.size(8.dp))
                     Text(
-                        note.title.ifBlank { "Note verrouillée" },
+                        note.title.ifBlank { "Locked note" },
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         maxLines = 1,
@@ -187,14 +187,14 @@ internal fun TrashedNoteCard(
             Spacer(Modifier.height(4.dp))
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    "Expire dans ${remainingDays(note.deletedAt)} j",
+                    "Expires in ${remainingDays(note.deletedAt)} d",
                     style = MaterialTheme.typography.bodySmall,
                     color = Color.Gray,
                     modifier = Modifier.weight(1f)
                 )
-                LightIconButton(Icons.Default.Restore, "Restaurer", onClick = onRestore)
+                LightIconButton(Icons.Default.Restore, "Restore", onClick = onRestore)
                 Spacer(Modifier.size(4.dp))
-                LightIconButton(Icons.Default.Delete, "Supprimer définitivement", onClick = onDeleteForever)
+                LightIconButton(Icons.Default.Delete, "Delete for good", onClick = onDeleteForever)
             }
         }
     }

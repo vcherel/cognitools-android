@@ -106,7 +106,7 @@ class MailRepository(context: Context) {
                     }
                 }
             } catch (e: AuthenticationFailedException) {
-                update { it.copy(error = "Identifiants refusés par Yahoo, vérifie le mot de passe d'application") }
+                update { it.copy(error = "Yahoo refused the credentials, check the app password") }
             } catch (e: Exception) {
                 val message = userMessage(e)
                 update { it.copy(error = message) }
@@ -133,14 +133,14 @@ class MailRepository(context: Context) {
                     inbox.moveUIDMessages(arrayOf(message), trash).firstOrNull()?.uid
                 }
                 if (trashUid == null) {
-                    AppSnackbar.show("Mail supprimé")
+                    AppSnackbar.show("Mail deleted")
                 } else {
-                    AppSnackbar.show("Mail supprimé", actionLabel = "Annuler") { restore(removed, trashUid) }
+                    AppSnackbar.show("Mail deleted", actionLabel = "Undo") { restore(removed, trashUid) }
                 }
             } catch (e: Exception) {
                 val message = userMessage(e)
                 putBack(removed)
-                AppSnackbar.show("Suppression impossible : $message")
+                AppSnackbar.show("Delete failed: $message")
             }
         }
     }
@@ -156,7 +156,7 @@ class MailRepository(context: Context) {
             // Back in the inbox it has a new UID; without one (no UIDPLUS answer) a refetch finds it.
             if (inboxUid != null) putBack(removed.copy(uid = inboxUid)) else refresh()
         } catch (e: Exception) {
-            AppSnackbar.show("Restauration impossible : ${userMessage(e)}")
+            AppSnackbar.show("Restore failed: ${userMessage(e)}")
         }
     }
 
@@ -243,7 +243,7 @@ class MailRepository(context: Context) {
     private suspend inline fun <T> withAccount(block: (Store, String) -> T): T {
         val address = settings.address.first()
         val password = settings.password.first()
-        if (address.isBlank() || password.isBlank()) error("Compte Yahoo non configuré")
+        if (address.isBlank() || password.isBlank()) error("Yahoo account not set up")
         return withStore(address, password) { block(it, address) }
     }
 
@@ -304,7 +304,7 @@ class MailRepository(context: Context) {
     private fun withBody(header: MailMessage, message: Message): MailMessage {
         val body = runCatching { readBody(message) }.getOrNull()
         val html = when {
-            body == null -> plainToHtml("(Contenu illisible)")
+            body == null -> plainToHtml("(Unreadable content)")
             body.isHtml -> inlineImages(body.text, body.images)
             else -> plainToHtml(body.text)
         }

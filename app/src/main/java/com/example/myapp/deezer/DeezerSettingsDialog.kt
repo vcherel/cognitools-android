@@ -37,7 +37,7 @@ fun DeezerSettingsDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Réglages Deezer") },
+        title = { Text("Deezer settings") },
         text = {
             Column {
                 OutlinedTextField(
@@ -66,12 +66,12 @@ fun DeezerSettingsDialog(
                             "OK (user ${s.userId})"
                         } catch (e: Exception) {
                             busy = false
-                            "Échec: ${e.message}"
+                            "Failed: ${e.message}"
                         }
                     }
                 }
-            ) { Text("Enregistrer") }
+            ) { Text("Save") }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Fermer") } }
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Close") } }
     )
 }

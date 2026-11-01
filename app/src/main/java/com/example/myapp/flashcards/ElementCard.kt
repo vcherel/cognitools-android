@@ -125,7 +125,7 @@ fun FlashcardElementCard(
                         IconButton(onClick = onEdit, modifier = Modifier.size(24.dp)) {
                             Icon(
                                 Icons.Default.Edit,
-                                contentDescription = "Éditer",
+                                contentDescription = "Edit",
                                 modifier = Modifier.size(20.dp)
                             )
                         }
@@ -133,7 +133,7 @@ fun FlashcardElementCard(
                         IconButton(onClick = onDelete, modifier = Modifier.size(24.dp)) {
                             Icon(
                                 Icons.Default.Delete,
-                                contentDescription = "Supprimer",
+                                contentDescription = "Delete",
                                 modifier = Modifier.size(20.dp)
                             )
                         }
@@ -141,7 +141,7 @@ fun FlashcardElementCard(
                         IconButton(onClick = onReset, modifier = Modifier.size(24.dp)) {
                             Icon(
                                 Icons.Default.Refresh,
-                                contentDescription = "Réinitialiser",
+                                contentDescription = "Reset",
                                 modifier = Modifier.size(20.dp)
                             )
                         }

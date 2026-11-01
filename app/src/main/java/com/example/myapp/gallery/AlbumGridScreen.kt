@@ -97,7 +97,7 @@ fun GalleryAlbumGridScreen(bucketId: Long, onBack: () -> Unit, onOpenItem: (Long
                         pinItems(context, toPin)
                         selectedIds = emptySet()
                         AppSnackbar.show(
-                            if (toPin.size > 1) "${toPin.size} photos épinglées" else "Photo épinglée"
+                            if (toPin.size > 1) "${toPin.size} photos pinned" else "Photo pinned"
                         )
                     }
                 },
@@ -110,7 +110,7 @@ fun GalleryAlbumGridScreen(bucketId: Long, onBack: () -> Unit, onOpenItem: (Long
                             context, toTrash, requestConsent,
                             onTrashed = { selectedIds = emptySet() }
                         )
-                        if (!trashed) errorMessage = "Suppression impossible"
+                        if (!trashed) errorMessage = "Delete failed"
                     }
                 }
             )
@@ -124,7 +124,7 @@ fun GalleryAlbumGridScreen(bucketId: Long, onBack: () -> Unit, onOpenItem: (Long
                 CircularProgressIndicator()
             }
             currentItems.isEmpty() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("Album vide")
+                Text("Empty album")
             }
             else -> LazyVerticalGrid(
                 state = gridState,
@@ -186,7 +186,7 @@ fun GalleryAlbumGridScreen(bucketId: Long, onBack: () -> Unit, onOpenItem: (Long
                         selectedIds = emptySet()
                         GalleryRefresh.bump()
                     } else {
-                        errorMessage = "Déplacement impossible"
+                        errorMessage = "Move failed"
                     }
                 }
             }
@@ -211,33 +211,33 @@ internal fun SelectionTopBar(
     onPin: () -> Unit,
     onDelete: () -> Unit,
     pinIcon: ImageVector = Icons.Default.PushPin,
-    pinLabel: String = "Épingler"
+    pinLabel: String = "Pin"
 ) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         IconButton(onClick = onClose) {
-            Icon(Icons.Default.Close, contentDescription = "Annuler la sélection")
+            Icon(Icons.Default.Close, contentDescription = "Clear selection")
         }
         Text(
-            "$count sélectionné${plural(count)}",
+            "$count selected",
             style = MaterialTheme.typography.titleMedium,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.padding(start = 4.dp).weight(1f)
         )
         IconButton(onClick = onShare) {
-            Icon(Icons.Default.Share, contentDescription = "Partager")
+            Icon(Icons.Default.Share, contentDescription = "Share")
         }
         IconButton(onClick = onMove) {
-            Icon(Icons.AutoMirrored.Filled.DriveFileMove, contentDescription = "Déplacer")
+            Icon(Icons.AutoMirrored.Filled.DriveFileMove, contentDescription = "Move")
         }
         IconButton(onClick = onPin) {
             Icon(pinIcon, contentDescription = pinLabel)
         }
         IconButton(onClick = onDelete) {
-            Icon(Icons.Default.Delete, contentDescription = "Supprimer")
+            Icon(Icons.Default.Delete, contentDescription = "Delete")
         }
     }
 }

@@ -55,8 +55,8 @@ private val dayMonthFormat = DateTimeFormatter.ofPattern("d MMMM", Locale.FRENCH
 private val timeFormat = DateTimeFormatter.ofPattern("HH:mm", Locale.FRENCH)
 
 private val KIND_LABELS = listOf(
-    CalendarKind.TASK to "Tâche",
-    CalendarKind.BIRTHDAY to "Anniv.",
+    CalendarKind.TASK to "Task",
+    CalendarKind.BIRTHDAY to "Bday",
     CalendarKind.EVENT to "Event"
 )
 
@@ -109,7 +109,7 @@ fun CalendarItemDialog(
             OutlinedTextField(
                 value = title,
                 onValueChange = { title = it },
-                label = { Text(if (isBirthday) "Prénom" else "Titre") },
+                label = { Text(if (isBirthday) "Name" else "Title") },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
                 modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp)
@@ -117,12 +117,12 @@ fun CalendarItemDialog(
 
             if (isBirthday) {
                 RangeRow(
-                    "Né le", if (yearKnown) birthDateFormat.format(date) else dayMonthFormat.format(date),
+                    "Born", if (yearKnown) birthDateFormat.format(date) else dayMonthFormat.format(date),
                     onFirst = { picking = Picking.DATE }
                 )
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.clickable { yearKnown = !yearKnown }) {
                     Checkbox(checked = yearKnown, onCheckedChange = { yearKnown = it })
-                    Text("Année")
+                    Text("Year")
                 }
             } else {
                 if (isEvent) {
@@ -134,22 +134,22 @@ fun CalendarItemDialog(
                     RangeRow("Date", fullDateFormat.format(date), onFirst = { picking = Picking.DATE })
                 }
                 RangeRow(
-                    "Heure", time?.let(timeFormat::format) ?: "Aucune", { picking = Picking.START },
+                    "Time", time?.let(timeFormat::format) ?: "None", { picking = Picking.START },
                     second = endTime?.let(timeFormat::format),
                     onSecond = if (isEvent && time != null) ({ picking = Picking.END }) else null
                 )
             }
 
             if (kind == CalendarKind.TASK) {
-                ChoiceRow("Répéter", REPEAT_OPTIONS, recurrence) { recurrence = it }
+                ChoiceRow("Repeat", REPEAT_OPTIONS, recurrence) { recurrence = it }
             }
 
             Row(modifier = Modifier.fillMaxWidth().padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                 if (!isNew) {
-                    TextButton(onClick = onDelete) { Text("Supprimer", color = MaterialTheme.colorScheme.error) }
+                    TextButton(onClick = onDelete) { Text("Delete", color = MaterialTheme.colorScheme.error) }
                 }
                 Spacer(Modifier.weight(1f))
-                TextButton(onClick = onDismiss) { Text("Annuler") }
+                TextButton(onClick = onDismiss) { Text("Cancel") }
                 TextButton(
                     enabled = title.isNotBlank(),
                     onClick = {
@@ -173,7 +173,7 @@ fun CalendarItemDialog(
                             )
                         )
                     }
-                ) { Text("Enregistrer") }
+                ) { Text("Save") }
             }
         }
     }
@@ -205,7 +205,7 @@ fun CalendarItemDialog(
         Picking.START, Picking.END -> {
             val isStart = picking == Picking.START
             TimePickDialog(
-                title = if (isStart) "Heure" else "Fin",
+                title = if (isStart) "Time" else "End",
                 initial = (if (isStart) time else endTime) ?: time ?: LocalTime.of(12, 0),
                 onDismiss = { picking = null },
                 onClear = {
@@ -325,8 +325,8 @@ private fun DatePickDialog(
         },
         dismissButton = {
             Row {
-                onClear?.let { TextButton(onClick = it) { Text("Aucune") } }
-                TextButton(onClick = onDismiss) { Text("Annuler") }
+                onClear?.let { TextButton(onClick = it) { Text("None") } }
+                TextButton(onClick = onDismiss) { Text("Cancel") }
             }
         }
     ) {
@@ -348,9 +348,9 @@ private fun TimePickDialog(
         Text(title, style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(bottom = 16.dp))
         TimePicker(state = pickerState, modifier = Modifier.align(Alignment.CenterHorizontally))
         Row(modifier = Modifier.fillMaxWidth()) {
-            TextButton(onClick = onClear) { Text("Aucune") }
+            TextButton(onClick = onClear) { Text("None") }
             Spacer(Modifier.weight(1f))
-            TextButton(onClick = onDismiss) { Text("Annuler") }
+            TextButton(onClick = onDismiss) { Text("Cancel") }
             TextButton(onClick = { onConfirm(LocalTime.of(pickerState.hour, pickerState.minute)) }) { Text("Ok") }
         }
     }

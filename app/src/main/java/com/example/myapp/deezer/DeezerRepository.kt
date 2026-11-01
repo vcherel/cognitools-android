@@ -122,7 +122,7 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
     /** The permanent Best pépites mirror: its own uncapped cache, read before [streamCache] on playback. */
     val offline: DeezerOfflineLibrary by lazy { DeezerOfflineLibrary(appContext, this) }
 
-    /** The daily "Découvertes du jour" batch of tracks to like or ignore. */
+    /** The daily "Today's discoveries" batch of tracks to like or ignore. */
     val discoveries: DeezerDiscoveries by lazy { DeezerDiscoveries(appContext, this) }
 
     /** The favorites count day by day, behind the curve on the library screen. */

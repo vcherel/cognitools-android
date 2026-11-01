@@ -121,7 +121,7 @@ fun NewsScreen(onBack: () -> Unit, onOpenArticle: (String) -> Unit, onOpenSaved:
 
     Column(Modifier.fillMaxSize()) {
         ScreenTopBar(
-            title = "Actus",
+            title = "News",
             onBack = { if (searching) { searching = false; query = "" } else onBack() },
             titleStyle = MaterialTheme.typography.titleLarge,
             titleWeight = true
@@ -129,14 +129,14 @@ fun NewsScreen(onBack: () -> Unit, onOpenArticle: (String) -> Unit, onOpenSaved:
             IconButton(onClick = { searching = !searching; if (!searching) query = "" }) {
                 Icon(
                     if (searching) Icons.Filled.Close else Icons.Filled.Search,
-                    contentDescription = if (searching) "Fermer la recherche" else "Rechercher"
+                    contentDescription = if (searching) "Close the search" else "Search"
                 )
             }
             IconButton(onClick = onOpenSaved) {
-                Icon(Icons.Filled.Bookmarks, contentDescription = "Articles sauvegardés")
+                Icon(Icons.Filled.Bookmarks, contentDescription = "Saved articles")
             }
             IconButton(onClick = { load(force = true) }) {
-                Icon(Icons.Filled.Refresh, contentDescription = "Rafraîchir")
+                Icon(Icons.Filled.Refresh, contentDescription = "Refresh")
             }
             Box {
                 IconButton(onClick = { menuOpen = true }) {
@@ -166,7 +166,7 @@ fun NewsScreen(onBack: () -> Unit, onOpenArticle: (String) -> Unit, onOpenSaved:
                 value = query,
                 onValueChange = { query = it },
                 singleLine = true,
-                placeholder = { Text("Rechercher dans les articles") },
+                placeholder = { Text("Search the articles") },
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                 modifier = Modifier
                     .fillMaxWidth()
@@ -200,7 +200,7 @@ fun NewsScreen(onBack: () -> Unit, onOpenArticle: (String) -> Unit, onOpenSaved:
         }
         error?.let {
             ErrorText(
-                message = "Erreur: $it",
+                message = "Error: $it",
                 onDismiss = { error = null },
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
             )
@@ -209,7 +209,7 @@ fun NewsScreen(onBack: () -> Unit, onOpenArticle: (String) -> Unit, onOpenSaved:
         if (shown.isEmpty()) {
             Box(Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
                 Text(
-                    if (searching && query.isNotBlank()) "Aucun article trouvé." else "Aucun article.",
+                    if (searching && query.isNotBlank()) "No articles found." else "No articles.",
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -237,10 +237,10 @@ fun NewsScreen(onBack: () -> Unit, onOpenArticle: (String) -> Unit, onOpenSaved:
                             scope.launch {
                                 if (article.link in readLinks) {
                                     repo.markUnread(article.link)
-                                    AppSnackbar.show("Marqué comme non lu")
+                                    AppSnackbar.show("Marked as unread")
                                 } else {
                                     repo.markRead(article.link)
-                                    AppSnackbar.show("Marqué comme lu")
+                                    AppSnackbar.show("Marked as read")
                                 }
                             }
                         }
@@ -257,7 +257,7 @@ fun NewsScreen(onBack: () -> Unit, onOpenArticle: (String) -> Unit, onOpenSaved:
                             enabled = !busy,
                             modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
                         ) {
-                            Text(if (busy) "Chargement..." else "Charger plus d'articles")
+                            Text(if (busy) "Loading..." else "Load more articles")
                         }
                     }
                 }

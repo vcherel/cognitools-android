@@ -36,7 +36,7 @@ fun NewsSavedScreen(onBack: () -> Unit, onOpenArticle: (String) -> Unit) {
 
     Column(Modifier.fillMaxSize()) {
         ScreenTopBar(
-            title = "Sauvegardés",
+            title = "Saved",
             onBack = onBack,
             titleStyle = MaterialTheme.typography.titleLarge,
             titleWeight = true
@@ -45,7 +45,7 @@ fun NewsSavedScreen(onBack: () -> Unit, onOpenArticle: (String) -> Unit) {
         if (saved.isEmpty()) {
             Box(Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
                 Text(
-                    "Aucun article sauvegardé.",
+                    "No saved articles.",
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -62,8 +62,8 @@ fun NewsSavedScreen(onBack: () -> Unit, onOpenArticle: (String) -> Unit) {
                             scope.launch {
                                 repo.unsave(row.link)
                                 AppSnackbar.show(
-                                    message = "Retiré des sauvegardés",
-                                    actionLabel = "Annuler",
+                                    message = "Removed from saved",
+                                    actionLabel = "Undo",
                                     onAction = { repo.save(row.toArticle(), row.text) }
                                 )
                             }

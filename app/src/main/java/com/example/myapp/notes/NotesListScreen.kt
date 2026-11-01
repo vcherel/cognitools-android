@@ -72,7 +72,7 @@ import kotlinx.coroutines.launch
 
 private fun formatNoteDate(updatedAt: Long): String {
     val diff = System.currentTimeMillis() - updatedAt
-    return if (diff < 60_000L) "à l'instant" else "il y a ${formatDuration(diff)}"
+    return if (diff < 60_000L) "just now" else "${formatDuration(diff)} ago"
 }
 
 // Note card colors, one light and one dark variant per palette index (Note.color).
@@ -173,17 +173,17 @@ fun NotesListScreen(navController: NavController) {
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .focusRequester(searchFocusRequester),
-                            placeholder = { Text("Rechercher dans les notes") },
+                            placeholder = { Text("Search the notes") },
                             singleLine = true,
                             leadingIcon = {
                                 IconButton(onClick = { closeSearch() }) {
-                                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Fermer la recherche")
+                                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Close the search")
                                 }
                             },
                             trailingIcon = {
                                 if (searchQuery.isNotEmpty()) {
                                     IconButton(onClick = { searchQuery = "" }) {
-                                        Icon(Icons.Default.Close, contentDescription = "Effacer")
+                                        Icon(Icons.Default.Close, contentDescription = "Clear")
                                     }
                                 }
                             }
@@ -200,7 +200,7 @@ fun NotesListScreen(navController: NavController) {
 
                 if (!searchActive) {
                     IconButton(onClick = { searchActive = true }) {
-                        Icon(Icons.Default.Search, contentDescription = "Rechercher")
+                        Icon(Icons.Default.Search, contentDescription = "Search")
                     }
                 }
             }
@@ -252,11 +252,11 @@ fun NotesListScreen(navController: NavController) {
                 when {
                     currentNotes == null -> CircularProgressIndicator()
                     currentNotes.isEmpty() && trashedCount == 0 -> Text(
-                        "Aucune note",
+                        "No notes",
                         style = MaterialTheme.typography.bodyMedium
                     )
                     gridNotes.isEmpty() && pinnedTodo == null && trashedMatches.isEmpty() && searchQuery.isNotBlank() -> Text(
-                        "Aucun résultat",
+                        "No results",
                         style = MaterialTheme.typography.bodyMedium
                     )
                     else -> Box(modifier = Modifier.fillMaxSize()) {
@@ -309,7 +309,7 @@ fun NotesListScreen(navController: NavController) {
                             if (trashedMatches.isNotEmpty()) {
                                 item(key = "trash-heading", span = StaggeredGridItemSpan.FullLine) {
                                     Text(
-                                        "Dans la corbeille",
+                                        "In the trash",
                                         style = MaterialTheme.typography.titleSmall,
                                         color = Color.Gray,
                                         modifier = Modifier.padding(top = 8.dp)
@@ -327,7 +327,7 @@ fun NotesListScreen(navController: NavController) {
                                             recordSearch()
                                             scope.launch {
                                                 dao.restoreNote(note.id)
-                                                AppSnackbar.show("Note restaurée")
+                                                AppSnackbar.show("Note restored")
                                             }
                                         },
                                         onDeleteForever = { confirmDelete = note }
@@ -359,7 +359,7 @@ fun NotesListScreen(navController: NavController) {
             verticalArrangement = Arrangement.Bottom
         ) {
             MyButton(
-                text = "Nouvelle note",
+                text = "New note",
                 modifier = Modifier.fillMaxWidth().height(100.dp),
                 onClick = { navController.navigate("note/new") }
             )
@@ -370,15 +370,15 @@ fun NotesListScreen(navController: NavController) {
         val (title, _) = noteTitleAndPreview(note)
         ShowAlertDialog(
             onDismiss = { confirmTrash = null },
-            title = "Mettre « $title » à la corbeille ?",
+            title = "Move “$title” to the trash?",
             onCancel = { confirmTrash = null },
             onConfirm = {
                 confirmTrash = null
                 scope.launch {
                     dao.trashNote(note.id)
                     AppSnackbar.show(
-                        message = "Note dans la corbeille",
-                        actionLabel = "Annuler",
+                        message = "Note in the trash",
+                        actionLabel = "Undo",
                         onAction = { dao.restoreNote(note.id) }
                     )
                 }
@@ -389,7 +389,7 @@ fun NotesListScreen(navController: NavController) {
     confirmDelete?.let { note ->
         ShowAlertDialog(
             onDismiss = { confirmDelete = null },
-            title = "Supprimer définitivement cette note ?",
+            title = "Delete this note for good?",
             onCancel = { confirmDelete = null },
             onConfirm = {
                 confirmDelete = null
@@ -416,7 +416,7 @@ private fun TrashEntryRow(count: Int, onClick: () -> Unit) {
             tint = Color.Gray
         )
         Text(
-            "Corbeille ($count)",
+            "Trash ($count)",
             style = MaterialTheme.typography.bodyMedium,
             color = Color.Gray,
             modifier = Modifier.padding(start = 8.dp)
@@ -462,7 +462,7 @@ internal fun LockedNoteTitle(note: Note) {
         )
         Spacer(Modifier.size(8.dp))
         Text(
-            note.title.ifBlank { "Note verrouillée" },
+            note.title.ifBlank { "Locked note" },
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
             maxLines = 1,
@@ -519,16 +519,16 @@ private fun NoteItem(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.End
         ) {
-            LightIconButton(Icons.Default.Palette, "Couleur suivante", onClick = onRecolor)
+            LightIconButton(Icons.Default.Palette, "Next color", onClick = onRecolor)
             if (!note.locked) {
                 Spacer(Modifier.size(4.dp))
                 val context = LocalContext.current
-                LightIconButton(Icons.Default.ContentCopy, "Copier le contenu", onClick = {
+                LightIconButton(Icons.Default.ContentCopy, "Copy the content", onClick = {
                     copyToClipboard(context, note.content)
                 })
             }
             Spacer(Modifier.size(4.dp))
-            LightIconButton(Icons.Default.Delete, "Supprimer", onClick = onDelete)
+            LightIconButton(Icons.Default.Delete, "Delete", onClick = onDelete)
         }
     }
 }

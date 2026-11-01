@@ -16,8 +16,8 @@ class CalendarScheduleTest {
         assertEquals(LocalDate.of(2027, 3, 28), easterSunday(2027))
         val holidays = publicHolidays(2026)
         assertEquals(11, holidays.size)
-        assertEquals("Ascension", holidays[LocalDate.of(2026, 5, 14)])
-        assertEquals("Lundi de Pentecôte", holidays[LocalDate.of(2026, 5, 25)])
+        assertEquals("Ascension Day", holidays[LocalDate.of(2026, 5, 14)])
+        assertEquals("Whit Monday", holidays[LocalDate.of(2026, 5, 25)])
     }
 
     @Test

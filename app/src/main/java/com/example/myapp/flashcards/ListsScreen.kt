@@ -99,7 +99,7 @@ fun FlashcardListsScreen(navController: NavController) {
         val draw = repository.dailyLottery() ?: return@LaunchedEffect
         Toast.makeText(
             context,
-            "🎲 ${draw.card.label} : ${formatDuration(draw.waitBeforeMs)} → ${formatDuration(draw.waitAfterMs)}",
+            "Lucky draw, ${draw.card.label}: ${formatDuration(draw.waitBeforeMs)} → ${formatDuration(draw.waitAfterMs)}",
             Toast.LENGTH_LONG
         ).show()
     }
@@ -147,7 +147,7 @@ fun FlashcardListsScreen(navController: NavController) {
                 ) {
                     BackIconButton(onBack = { backToMenu() })
                     Text(
-                        "Listes",
+                        "Lists",
                         style = MaterialTheme.typography.headlineSmall,
                         modifier = Modifier
                             .padding(start = 8.dp, end = 12.dp)
@@ -159,13 +159,13 @@ fun FlashcardListsScreen(navController: NavController) {
                     IconButton(onClick = {
                         navController.navigate("elements/all")
                     }) {
-                        Icon(Icons.Default.Search, contentDescription = "Rechercher dans tout")
+                        Icon(Icons.Default.Search, contentDescription = "Search everything")
                     }
 
                     IconButton(onClick = {
                         navController.navigate("game/all")
                     }) {
-                        Icon(Icons.Default.PlayArrow, contentDescription = "Jouer tout")
+                        Icon(Icons.Default.PlayArrow, contentDescription = "Play all")
                     }
                 }
             }
@@ -183,7 +183,7 @@ fun FlashcardListsScreen(navController: NavController) {
                         CircularProgressIndicator()
                     }
                     lists.isEmpty() -> {
-                        Text("Aucune liste disponible", style = MaterialTheme.typography.bodyMedium)
+                        Text("No lists yet", style = MaterialTheme.typography.bodyMedium)
                     }
                     else -> {
                         Box(modifier = Modifier.fillMaxSize()) {
@@ -209,7 +209,7 @@ fun FlashcardListsScreen(navController: NavController) {
                                             },
                                             onRename = {
                                                 namePrompt = NamePrompt(
-                                                    title = "Renommer la liste",
+                                                    title = "Rename the list",
                                                     initialValue = flashcardList.name
                                                 ) { newName ->
                                                     scope.launch { repository.updateList(flashcardList.id, newName) }
@@ -242,10 +242,10 @@ fun FlashcardListsScreen(navController: NavController) {
             verticalArrangement = Arrangement.Bottom
         ) {
             MyButton(
-                text = "Créer une nouvelle liste",
+                text = "Create a new list",
                 modifier = Modifier.fillMaxWidth().height(100.dp),
                 onClick = {
-                    namePrompt = NamePrompt(title = "Nouvelle liste", initialValue = "") { newName ->
+                    namePrompt = NamePrompt(title = "New list", initialValue = "") { newName ->
                         scope.launch { repository.addList(FlashcardList(name = newName)) }
                     }
                 }
@@ -267,7 +267,7 @@ fun FlashcardListsScreen(navController: NavController) {
                             repository.addElements(selectedListId, newElements)
                             Toast.makeText(
                                 context,
-                                "${newElements.size} carte(s) ajoutée(s)",
+                                "${newElements.size} card(s) added",
                                 Toast.LENGTH_SHORT
                             ).show()
                         }
@@ -290,7 +290,7 @@ fun FlashcardListsScreen(navController: NavController) {
                 TextField(
                     value = promptText,
                     onValueChange = { promptText = it },
-                    label = { Text("Nom de la liste") },
+                    label = { Text("List name") },
                     modifier = Modifier.focusRequester(focusRequester)
                 )
                 LaunchedEffect(Unit) { focusRequester.requestFocus() }
@@ -307,7 +307,7 @@ fun FlashcardListsScreen(navController: NavController) {
 
     if (showGlobalStats) {
         StatsSheet(
-            title = "Toutes les listes",
+            title = "All lists",
             onDismiss = { showGlobalStats = false },
             loadStats = { repository.getStats() }
         )
@@ -386,7 +386,7 @@ private fun FlashcardListItem(
                     )
                     Spacer(Modifier.height(4.dp))
                     Text(
-                        "$dueCount / $totalCount à réviser",
+                        "$dueCount / $totalCount to review",
                         style = MaterialTheme.typography.bodyLarge,
                         color = Color.Gray
                     )
@@ -405,13 +405,13 @@ private fun FlashcardListItem(
                             onClick = onRename,
                             modifier = Modifier.size(36.dp)
                         ) {
-                            Icon(Icons.Default.Edit, contentDescription = "Éditer")
+                            Icon(Icons.Default.Edit, contentDescription = "Edit")
                         }
                         IconButton(
                             onClick = { showDeleteDialog = true },
                             modifier = Modifier.size(36.dp)
                         ) {
-                            Icon(Icons.Default.Delete, contentDescription = "Supprimer")
+                            Icon(Icons.Default.Delete, contentDescription = "Delete")
                         }
                     }
                     Row(
@@ -422,13 +422,13 @@ private fun FlashcardListItem(
                             onClick = onPlay,
                             modifier = Modifier.size(36.dp)
                         ) {
-                            Icon(Icons.Default.PlayArrow, contentDescription = "Jouer")
+                            Icon(Icons.Default.PlayArrow, contentDescription = "Play")
                         }
                         IconButton(
                             onClick = onBulkImport,
                             modifier = Modifier.size(36.dp)
                         ) {
-                            Icon(Icons.Default.Add, contentDescription = "Ajouter")
+                            Icon(Icons.Default.Add, contentDescription = "Add")
                         }
                     }
                 }
@@ -438,14 +438,14 @@ private fun FlashcardListItem(
 
     if (showDeleteDialog) ShowAlertDialog(
         onDismiss = { showDeleteDialog = false },
-        title = "T'es sûr ??",
+        title = "You sure??",
         onCancel = { showDeleteDialog = false },
         onConfirm = {
             onDelete()
             showDeleteDialog = false
         },
-        cancelText = "Oula non merci",
-        confirmText = "Oui t'inquiète"
+        cancelText = "Whoa, no thanks",
+        confirmText = "Yes, don't worry"
     )
 }
 
@@ -459,11 +459,11 @@ private fun BulkImportDialog(
     val context = LocalContext.current
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Importer des cartes") },
+        title = { Text("Import cards") },
         text = {
             Column {
                 Text(
-                    "Collez vos cartes au format :\nNom - Définition",
+                    "Paste your cards as:\nName - Definition",
                     style = MaterialTheme.typography.bodySmall,
                     color = Color.Gray,
                     modifier = Modifier.padding(bottom = 8.dp)
@@ -474,7 +474,7 @@ private fun BulkImportDialog(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(200.dp),
-                    placeholder = { Text("Exemple:\nMot 1 - Définition 1\nMot 2 - Définition 2") },
+                    placeholder = { Text("Example:\nWord 1 - Definition 1\nWord 2 - Definition 2") },
                     maxLines = 10
                 )
             }
@@ -491,11 +491,11 @@ private fun BulkImportDialog(
                         onTextChange(clipData.getItemAt(0).text?.toString() ?: "")
                     }
                 }) {
-                    Icon(Icons.Default.ContentPaste, contentDescription = "Coller")
+                    Icon(Icons.Default.ContentPaste, contentDescription = "Paste")
                 }
 
                 MyButton(
-                    text = "Annuler",
+                    text = "Cancel",
                     onClick = onDismiss,
                     modifier = Modifier
                         .weight(1f)

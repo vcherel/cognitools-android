@@ -73,9 +73,9 @@ fun QueueSheet(repo: DeezerRepository, onDismiss: () -> Unit) {
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState()) {
         Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 24.dp)) {
             val remaining = (queue.entries.size - queue.currentIndex - 1).coerceAtLeast(0)
-            Text("File d'attente", style = MaterialTheme.typography.titleLarge)
+            Text("Queue", style = MaterialTheme.typography.titleLarge)
             Text(
-                "$remaining titre${plural(remaining)} à suivre",
+                "$remaining track${plural(remaining)} up next",
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -118,7 +118,7 @@ fun QueueSheet(repo: DeezerRepository, onDismiss: () -> Unit) {
                                 IconButton(onClick = { repo.player.removeQueueItem(index) }) {
                                     Icon(
                                         Icons.Filled.Close,
-                                        contentDescription = "Retirer de la file",
+                                        contentDescription = "Remove from the queue",
                                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
@@ -126,7 +126,7 @@ fun QueueSheet(repo: DeezerRepository, onDismiss: () -> Unit) {
                         )
                         Icon(
                             Icons.Filled.DragHandle,
-                            contentDescription = "Déplacer",
+                            contentDescription = "Move",
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier
                                 .padding(start = 4.dp)

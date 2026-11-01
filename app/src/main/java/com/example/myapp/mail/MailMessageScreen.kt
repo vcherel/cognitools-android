@@ -57,7 +57,7 @@ fun MailMessageScreen(uid: Long, onBack: () -> Unit) {
                     repo.delete(uid)
                     onBack()
                 }) {
-                    Icon(Icons.Outlined.Delete, contentDescription = "Supprimer")
+                    Icon(Icons.Outlined.Delete, contentDescription = "Delete")
                 }
             }
         }
@@ -66,7 +66,7 @@ fun MailMessageScreen(uid: Long, onBack: () -> Unit) {
         Row(Modifier.padding(horizontal = 16.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
             SelectionContainer(Modifier.weight(1f)) {
                 Column {
-                    Text(message.subject.ifBlank { "(Sans objet)" }, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Text(message.subject.ifBlank { "(No subject)" }, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                     Text(
                         listOf(message.fromAddress, newsFullDate(message.date)).filter { it.isNotBlank() }.joinToString(" · "),
                         style = MaterialTheme.typography.labelMedium,
@@ -83,7 +83,7 @@ fun MailMessageScreen(uid: Long, onBack: () -> Unit) {
         val html = message.html
         if (html == null) {
             Box(Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
-                if (state.loading) CircularProgressIndicator() else Text("Contenu non chargé.")
+                if (state.loading) CircularProgressIndicator() else Text("Content not loaded.")
             }
         } else {
             MailWebView(html, Modifier.fillMaxSize().padding(top = 8.dp))

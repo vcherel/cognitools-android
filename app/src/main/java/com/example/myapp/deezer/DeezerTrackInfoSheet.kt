@@ -68,14 +68,14 @@ private fun TrackInfo(d: DeezerTrackDetails, addedAtSec: Long) {
     )
     Column(modifier = Modifier.padding(top = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         InfoRow("Album", d.album.ifBlank { null })
-        InfoRow("Sortie", d.releaseDate?.let { runCatching { LocalDate.parse(it).format(dateFormat) }.getOrDefault(it) })
-        InfoRow("Durée", d.durationSec.takeIf { it > 0 }?.let { formatPlaybackTime(it * 1000L) })
+        InfoRow("Released", d.releaseDate?.let { runCatching { LocalDate.parse(it).format(dateFormat) }.getOrDefault(it) })
+        InfoRow("Length", d.durationSec.takeIf { it > 0 }?.let { formatPlaybackTime(it * 1000L) })
         InfoRow("BPM", d.bpm?.let { "%.0f".format(it) })
         InfoRow("Genre", d.genres.joinToString(", ").ifBlank { null })
         InfoRow("Label", d.label)
-        InfoRow("Explicite", if (d.explicit) "Oui" else null)
+        InfoRow("Explicit", if (d.explicit) "Yes" else null)
         InfoRow(
-            "Aimé le",
+            "Liked on",
             addedAtSec.takeIf { it > 0 }?.let { Instant.ofEpochSecond(it).atZone(ZoneId.systemDefault()).format(dateFormat) }
         )
     }

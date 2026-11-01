@@ -198,9 +198,9 @@ private fun viewMediaUriFrom(intent: Intent): Uri? {
 private fun resolveInitialGalleryRoute(context: Context, viewMediaUri: Uri?): Pair<String, String?>? {
     if (viewMediaUri == null) return null
     if (!hasReadMediaPermission(context)) {
-        return "gallery" to "Autorisez l'accès aux photos et vidéos pour l'ouvrir directement"
+        return "gallery" to "Allow access to photos and videos to open it directly"
     }
-    val target = resolveMediaTarget(context, viewMediaUri) ?: return "gallery" to "Impossible d'ouvrir ce fichier"
+    val target = resolveMediaTarget(context, viewMediaUri) ?: return "gallery" to "Can't open this file"
     val (itemId, bucketId) = target
     return "gallery/viewer/$bucketId/$itemId" to null
 }

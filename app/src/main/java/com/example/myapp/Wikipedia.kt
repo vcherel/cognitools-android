@@ -74,7 +74,7 @@ fun WikipediaScreen(onBack: () -> Unit) {
                 }
                 wikiContent = newContent
             } catch (e: Exception) {
-                error = userMessage(e, "Erreur de chargement")
+                error = userMessage(e, "Loading failed")
             } finally {
                 isLoading = false
             }
@@ -118,7 +118,7 @@ fun WikipediaScreen(onBack: () -> Unit) {
 
             Row(verticalAlignment = Alignment.CenterVertically) {
                 MyButton(
-                    text = "Je veux me perdre",
+                    text = "Get me lost",
                     onClick = {
                         load(addToHistory = false) { fetchCompleteWikipedia(selectedLanguage) }
                     },
@@ -198,7 +198,7 @@ fun WikipediaScreen(onBack: () -> Unit) {
 
                         if (displayedParagraphs < paragraphs.size) {
                             Text(
-                                text = "Lire plus",
+                                text = "Read more",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.clickable {
@@ -282,7 +282,7 @@ private suspend fun fetchCompleteWikipedia(language: String): WikipediaContent =
 
     // Pick the most viewed article; if every fetch failed, surface the error to the user.
     val bestTitle = viewCounts.maxByOrNull { it.value }?.key
-        ?: throw Exception("Aucun article n'a pu être chargé")
+        ?: throw Exception("No article could be loaded")
 
     fetchWikipediaByTitle(bestTitle, language)
 }

@@ -134,7 +134,7 @@ class NewsRepository(context: Context) {
             }
             val merged = mergeArticles(results.flatten())
             if (merged.isEmpty()) {
-                if (_articles.value[categoryId].isNullOrEmpty()) throw IOException("Aucun article reçu")
+                if (_articles.value[categoryId].isNullOrEmpty()) throw IOException("No articles received")
                 return
             }
             _articles.value = _articles.value + (categoryId to merged.filter { it.isComplete() })
@@ -248,7 +248,7 @@ class NewsRepository(context: Context) {
         when {
             offline != null -> NewsArticleContent(null, fetched?.imageUrl, offline.split("\n\n"))
             fetched != null -> fetched
-            else -> throw IOException("Article illisible")
+            else -> throw IOException("Unreadable article")
         }
     }
 }

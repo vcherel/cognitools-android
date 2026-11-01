@@ -128,17 +128,17 @@ fun JournalScreen(onBack: () -> Unit, onOpenArticle: (String) -> Unit) {
             titleWeight = true
         ) {
             IconButton(onClick = { date = issues[index + 1].date }, enabled = index in 0 until issues.lastIndex) {
-                Icon(Icons.Filled.ChevronLeft, contentDescription = "Numéro précédent")
+                Icon(Icons.Filled.ChevronLeft, contentDescription = "Previous issue")
             }
             IconButton(onClick = { date = issues[index - 1].date }, enabled = index > 0) {
-                Icon(Icons.Filled.ChevronRight, contentDescription = "Numéro suivant")
+                Icon(Icons.Filled.ChevronRight, contentDescription = "Next issue")
             }
             if (issue != null) {
                 val isRead = issue.date in read
                 IconButton(onClick = { repo.toggleRead(issue.date) }) {
                     Icon(
                         if (isRead) Icons.Filled.CheckCircle else Icons.Outlined.CheckCircle,
-                        contentDescription = if (isRead) "Marquer comme non lu" else "Marquer comme lu"
+                        contentDescription = if (isRead) "Mark as unread" else "Mark as read"
                     )
                 }
             }
@@ -148,19 +148,19 @@ fun JournalScreen(onBack: () -> Unit, onOpenArticle: (String) -> Unit) {
                 }
             } else {
                 IconButton(onClick = repo::refresh) {
-                    Icon(Icons.Filled.Refresh, contentDescription = "Actualiser")
+                    Icon(Icons.Filled.Refresh, contentDescription = "Refresh")
                 }
             }
         }
 
         error?.let {
-            ErrorText(message = "Erreur: $it", onDismiss = repo::clearError, modifier = Modifier.padding(horizontal = 16.dp))
+            ErrorText(message = "Error: $it", onDismiss = repo::clearError, modifier = Modifier.padding(horizontal = 16.dp))
         }
 
         if (issue == null) {
             Box(Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
                 Text(
-                    if (loading) "Chargement du journal…" else "Aucun journal pour l'instant. Actualise pour le récupérer.",
+                    if (loading) "Loading the journal…" else "No journal yet. Refresh to fetch it.",
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -223,7 +223,7 @@ fun JournalScreen(onBack: () -> Unit, onOpenArticle: (String) -> Unit) {
             if (issue.ideas.isNotEmpty()) {
                 item(key = "ideas-${issue.date}") {
                     Text(
-                        "Idées pour le journal",
+                        "Ideas for the journal",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.padding(start = 4.dp, top = 20.dp, bottom = 8.dp)
@@ -241,7 +241,7 @@ fun JournalScreen(onBack: () -> Unit, onOpenArticle: (String) -> Unit) {
                 ) {
                     Row(
                         Modifier
-                            .clickable { noteTarget = NoteTarget(null, "Un mot sur ce numéro", feedback.general) }
+                            .clickable { noteTarget = NoteTarget(null, "A word on this issue", feedback.general) }
                             .padding(horizontal = 14.dp, vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -253,12 +253,12 @@ fun JournalScreen(onBack: () -> Unit, onOpenArticle: (String) -> Unit) {
                         Spacer(Modifier.width(12.dp))
                         if (feedback.general.isBlank()) {
                             Text(
-                                "Un mot sur ce numéro",
+                                "A word on this issue",
                                 style = MaterialTheme.typography.bodyLarge,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         } else {
-                            Text("« ${feedback.general} »", style = MaterialTheme.typography.bodyLarge, fontStyle = FontStyle.Italic)
+                            Text("“${feedback.general}”", style = MaterialTheme.typography.bodyLarge, fontStyle = FontStyle.Italic)
                         }
                     }
                 }
@@ -286,11 +286,11 @@ fun JournalScreen(onBack: () -> Unit, onOpenArticle: (String) -> Unit) {
                 todoText = null
                 scope.launch {
                     val added = runCatching { addToTodoNote(context, text, section) }.getOrElse {
-                        AppSnackbar.show("Erreur: ${userMessage(it)}")
+                        AppSnackbar.show("Error: ${userMessage(it)}")
                         return@launch
                     }
                     val where = section ?: "Todo list"
-                    AppSnackbar.show(if (added) "Ajouté à $where" else "Déjà dans la Todo list")
+                    AppSnackbar.show(if (added) "Added to $where" else "Already in the Todo list")
                 }
             }
         )
@@ -348,7 +348,7 @@ private fun JournalItemCard(
         Column(Modifier.clickable(onClick = onToggle).padding(start = 14.dp, end = 6.dp, top = 12.dp, bottom = 4.dp)) {
             if (explore && item.subject.isNotBlank()) {
                 Text(
-                    "Essai · ${item.subject}",
+                    "Experiment · ${item.subject}",
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.primary
                 )
@@ -393,7 +393,7 @@ private fun JournalItemCard(
             if (!note.isNullOrBlank()) {
                 Spacer(Modifier.height(6.dp))
                 Text(
-                    "« $note »",
+                    "“$note”",
                     style = MaterialTheme.typography.bodySmall,
                     fontStyle = FontStyle.Italic,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -410,7 +410,7 @@ private fun JournalItemCard(
                 )
                 LightIconButton(
                     if (rating == -1) Icons.Filled.ThumbDown else Icons.Outlined.ThumbDown,
-                    contentDescription = "Je n'aime pas",
+                    contentDescription = "Dislike",
                     onClick = { onRate(-1) },
                     size = 44.dp,
                     iconSize = 22.dp,
@@ -426,7 +426,7 @@ private fun JournalItemCard(
                 )
                 LightIconButton(
                     Icons.Outlined.AddTask,
-                    contentDescription = "Ajouter à la Todo list",
+                    contentDescription = "Add to the Todo list",
                     onClick = onSaveTodo,
                     size = 44.dp,
                     iconSize = 22.dp,
@@ -436,7 +436,7 @@ private fun JournalItemCard(
                 if (item.body.isNotBlank()) {
                     Icon(
                         if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
-                        contentDescription = if (expanded) "Réduire" else "Lire la suite",
+                        contentDescription = if (expanded) "Show less" else "Read more",
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(end = 8.dp)
                     )
@@ -477,14 +477,14 @@ private fun IdeaCard(idea: JournalIdea, answer: IdeaAnswer?, onAnswer: (IdeaAnsw
             Spacer(Modifier.width(4.dp))
             LightIconButton(
                 if (answer == IdeaAnswer.ACCEPTED) Icons.Filled.CheckCircle else Icons.Outlined.CheckCircle,
-                contentDescription = "Accepter",
+                contentDescription = "Accept",
                 onClick = { onAnswer(IdeaAnswer.ACCEPTED) },
                 size = 44.dp,
                 tint = if (answer == IdeaAnswer.ACCEPTED) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
             )
             LightIconButton(
                 if (answer == IdeaAnswer.DECLINED) Icons.Filled.Cancel else Icons.Outlined.Cancel,
-                contentDescription = "Refuser",
+                contentDescription = "Decline",
                 onClick = { onAnswer(IdeaAnswer.DECLINED) },
                 size = 44.dp,
                 tint = if (answer == IdeaAnswer.DECLINED) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
@@ -502,14 +502,14 @@ private fun NoteDialog(target: NoteTarget, onDismiss: () -> Unit, onSave: (Strin
         OutlinedTextField(
             value = text,
             onValueChange = { text = it },
-            placeholder = { Text("Trop long, déjà vu, plus de détails…") },
+            placeholder = { Text("Too long, seen it, more detail…") },
             minLines = 3,
             modifier = Modifier.fillMaxWidth()
         )
         Spacer(Modifier.height(12.dp))
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-            TextButton(onClick = onDismiss) { Text("Annuler") }
-            TextButton(onClick = { onSave(text) }) { Text("Enregistrer") }
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+            TextButton(onClick = { onSave(text) }) { Text("Save") }
         }
     }
 }

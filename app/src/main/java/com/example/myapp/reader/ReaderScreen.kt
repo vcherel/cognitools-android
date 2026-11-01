@@ -104,7 +104,7 @@ fun ReaderScreen(bookId: String, onBack: () -> Unit) {
     LaunchedEffect(bookId) {
         val loaded = dao.getBook(bookId)
         if (loaded == null) {
-            error = "Livre introuvable"
+            error = "Book not found"
             return@LaunchedEffect
         }
         book = loaded
@@ -113,7 +113,7 @@ fun ReaderScreen(bookId: String, onBack: () -> Unit) {
                 chapters = it.chapters
                 chapterIndex = loaded.chapterIndex.coerceIn(0, it.chapters.lastIndex)
             }
-            .onFailure { error = userMessage(it, "Livre illisible") }
+            .onFailure { error = userMessage(it, "Unreadable book") }
     }
 
     LaunchedEffect(chapterIndex, chapters) {
@@ -124,7 +124,7 @@ fun ReaderScreen(bookId: String, onBack: () -> Unit) {
         val parsed = runCatching {
             withContext(Dispatchers.IO) { Epub.chapter(bookFile(context, loaded), chapters[chapterIndex].href) }
         }.getOrElse {
-            error = userMessage(it, "Chapitre illisible")
+            error = userMessage(it, "Unreadable chapter")
             emptyList()
         }
         blocks = parsed
@@ -205,16 +205,16 @@ fun ReaderScreen(bookId: String, onBack: () -> Unit) {
                         onClick = { scope.launch { ReaderPrefs.setFontSize(context, fontSize - 1) } },
                         enabled = fontSize > ReaderPrefs.MIN_FONT_SIZE
                     ) {
-                        Icon(Icons.Filled.TextDecrease, contentDescription = "Réduire le texte")
+                        Icon(Icons.Filled.TextDecrease, contentDescription = "Smaller text")
                     }
                     IconButton(
                         onClick = { scope.launch { ReaderPrefs.setFontSize(context, fontSize + 1) } },
                         enabled = fontSize < ReaderPrefs.MAX_FONT_SIZE
                     ) {
-                        Icon(Icons.Filled.TextIncrease, contentDescription = "Agrandir le texte")
+                        Icon(Icons.Filled.TextIncrease, contentDescription = "Larger text")
                     }
                     IconButton(onClick = { showToc = true }) {
-                        Icon(Icons.AutoMirrored.Filled.MenuBook, contentDescription = "Chapitres")
+                        Icon(Icons.AutoMirrored.Filled.MenuBook, contentDescription = "Chapters")
                     }
                 }
             }
@@ -282,7 +282,7 @@ private fun ChapterNavigation(chapterIndex: Int, chapterCount: Int, onGo: (Int) 
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         MyButton(
-            text = "Précédent",
+            text = "Previous",
             modifier = Modifier.weight(1f),
             height = 56.dp,
             fontSize = 16.sp,
@@ -290,7 +290,7 @@ private fun ChapterNavigation(chapterIndex: Int, chapterCount: Int, onGo: (Int) 
             onClick = { onGo(chapterIndex - 1) }
         )
         MyButton(
-            text = "Suivant",
+            text = "Next",
             modifier = Modifier.weight(1f),
             height = 56.dp,
             fontSize = 16.sp,

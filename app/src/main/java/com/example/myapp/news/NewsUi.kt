@@ -74,7 +74,7 @@ fun NewsArticleRow(
                     Spacer(Modifier.width(6.dp))
                     Icon(
                         Icons.Filled.Bookmark,
-                        contentDescription = "Sauvegardé",
+                        contentDescription = "Saved",
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(14.dp)
                     )
@@ -125,7 +125,7 @@ fun NewsResumeCard(progress: NewsProgress, onClick: () -> Unit) {
     ) {
         Column(Modifier.padding(12.dp)) {
             Text(
-                "Reprendre la lecture",
+                "Resume reading",
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.primary
             )
@@ -156,17 +156,17 @@ fun NewsResumeCard(progress: NewsProgress, onClick: () -> Unit) {
 }
 
 private val newsDateFormat = SimpleDateFormat("d MMM", Locale.FRENCH)
-private val newsFullDateFormat = SimpleDateFormat("d MMMM yyyy 'à' HH:mm", Locale.FRENCH)
+private val newsFullDateFormat = SimpleDateFormat("d MMMM yyyy 'at' HH:mm", Locale.FRENCH)
 
-/** "il y a 20 min", "il y a 3 h", "hier", then the date. An unknown date says nothing. */
+/** "20 min ago", "3 h ago", "yesterday", then the date. An unknown date says nothing. */
 fun newsRelativeTime(publishedAt: Long): String {
     if (publishedAt <= 0) return ""
     val minutes = (System.currentTimeMillis() - publishedAt) / 60_000
     return when {
-        minutes < 1 -> "à l'instant"
-        minutes < 60 -> "il y a $minutes min"
-        minutes < 24 * 60 -> "il y a ${minutes / 60} h"
-        minutes < 48 * 60 -> "hier"
+        minutes < 1 -> "just now"
+        minutes < 60 -> "$minutes min ago"
+        minutes < 24 * 60 -> "${minutes / 60} h ago"
+        minutes < 48 * 60 -> "yesterday"
         else -> newsDateFormat.format(publishedAt)
     }
 }

@@ -54,13 +54,13 @@ fun DeezerScreen(
     fun openArtistByName(name: String) {
         scope.launch {
             val artist = runIgnoringErrors { repo.searchArtist(name) }.getOrNull()
-            if (artist != null) openArtist(artist) else AppSnackbar.show("Artiste introuvable")
+            if (artist != null) openArtist(artist) else AppSnackbar.show("Artist not found")
         }
     }
     val podcastPlayerState by podcastRepo.playerState.collectAsState()
     val playlists by repo.playlists.collectAsState()
     val sourceLabel = when (val source = playerState.source) {
-        is TrackSource.Favorites -> "Favoris"
+        is TrackSource.Favorites -> "Favorites"
         is TrackSource.Playlist -> playlists?.firstOrNull { it.id == source.id }?.title
         null -> null
     }
@@ -98,7 +98,7 @@ fun DeezerScreen(
                 composable("favorites") {
                     DeezerTrackListScreen(
                         repo = repo,
-                        title = "Favoris",
+                        title = "Favorites",
                         source = TrackSource.Favorites,
                         loader = { repo.ensureFavorites() },
                         onBack = { nav.popBackStackOnce() },
@@ -108,7 +108,7 @@ fun DeezerScreen(
                 composable("downloaded") {
                     DeezerTrackListScreen(
                         repo = repo,
-                        title = "Hors ligne",
+                        title = "Offline",
                         loader = { repo.player.downloadedTracks() },
                         onBack = { nav.popBackStackOnce() },
                         onOpenArtist = { track -> openArtistByName(track.artist) }
@@ -184,7 +184,7 @@ fun DeezerScreen(
                     artworkUrl = playerState.coverUrl,
                     title = playerState.title,
                     subtitle = playerState.artist,
-                    note = sourceLabel?.let { "Lecture depuis : $it" },
+                    note = sourceLabel?.let { "Playing from: $it" },
                     isPlaying = playerState.isPlaying,
                     isBuffering = playerState.isBuffering,
                     onExpand = { showFullPlayer = true },

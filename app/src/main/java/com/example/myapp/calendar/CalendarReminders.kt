@@ -62,7 +62,7 @@ object CalendarReminders {
     suspend fun deleteWithUndo(context: Context, item: CalendarItem) {
         dao(context).delete(item.id)
         refresh(context, notifyDue = false)
-        AppSnackbar.show("Supprimé", "Annuler") { save(context, item) }
+        AppSnackbar.show("Deleted", "Undo") { save(context, item) }
     }
 
     /** At app start and on boot: posts what an alarm lost to a reboot missed, then arms the next one. */
@@ -93,7 +93,7 @@ object CalendarReminders {
             NotificationChannel(CHANNEL_ID, context.getString(R.string.calendar_channel), NotificationManager.IMPORTANCE_HIGH)
         )
 
-    /** "Demain" with "10:00 Dentiste" on one line per item. */
+    /** "Tomorrow" with "10:00 Dentiste" on one line per item. */
     private fun notifyDigest(context: Context, day: LocalDate, items: List<CalendarItem>) {
         if (items.isEmpty()) return
         createChannel(context)
@@ -107,7 +107,7 @@ object CalendarReminders {
         lines.forEach { style.addLine(it) }
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_calendar)
-            .setContentTitle("Demain")
+            .setContentTitle("Tomorrow")
             .setContentText(lines.joinToString(", "))
             .setStyle(style)
             .setContentIntent(open)
@@ -157,11 +157,11 @@ object CalendarReminders {
         text?.let { builder.setContentText(it) }
         when {
             item.kind == CalendarKind.TASK -> builder
-                .addAction(0, "Fait", receiverIntent(context, ACTION_DONE, item.id, id))
-                .addAction(0, "Dans 1 h", receiverIntent(context, ACTION_LATER, item.id, id))
-                .addAction(0, "Demain", receiverIntent(context, ACTION_TOMORROW, item.id, id))
+                .addAction(0, "Done", receiverIntent(context, ACTION_DONE, item.id, id))
+                .addAction(0, "In 1 h", receiverIntent(context, ACTION_LATER, item.id, id))
+                .addAction(0, "Tomorrow", receiverIntent(context, ACTION_TOMORROW, item.id, id))
             reminder.slot == ReminderSlot.EVE ->
-                builder.addAction(0, "Souhaité", receiverIntent(context, ACTION_WISHED, item.id, id))
+                builder.addAction(0, "Wished", receiverIntent(context, ACTION_WISHED, item.id, id))
         }
         manager.notify(id, builder.build())
     }
@@ -171,11 +171,11 @@ object CalendarReminders {
         val age = if (item.kind == CalendarKind.BIRTHDAY) item.ageIn(day.year) else null
         return when (reminder.slot) {
             ReminderSlot.WEEK_BEFORE ->
-                "${birthdayTitle(item)} dans une semaine" to
-                    listOfNotNull(dayFormat.format(day).replaceFirstChar { it.uppercase() }, age?.let { "$it ans" })
-                        .joinToString(", ") + ". Pense au cadeau."
-            ReminderSlot.EVE -> "${birthdayTitle(item)} à minuit" to age?.let { "$it ans demain" }
-            ReminderSlot.MORNING -> "C'est l'anniversaire ${birthdayOf(item.title)}" to age?.let { "$it ans aujourd'hui" }
+                "${birthdayTitle(item)} in a week" to
+                    listOfNotNull(dayFormat.format(day).replaceFirstChar { it.uppercase() }, age?.let { "turns $it" })
+                        .joinToString(", ") + ". Think of a present."
+            ReminderSlot.EVE -> "${birthdayTitle(item)} at midnight" to age?.let { "Turns $it tomorrow" }
+            ReminderSlot.MORNING -> "${birthdayTitle(item)} today" to age?.let { "Turns $it today" }
             ReminderSlot.AT_TIME -> item.title to itemSummary(item, LocalDate.now()).ifEmpty { null }
         }
     }
@@ -199,22 +199,22 @@ object CalendarReminders {
 private val timeFormat = DateTimeFormatter.ofPattern("HH:mm", Locale.FRENCH)
 
 /**
- * "Demain de 20:30 à 22:00" or "Demain à 20:00 jusqu'au dimanche 9 novembre": when, the first day
+ * "Tomorrow 20:30 to 22:00" or "Tomorrow at 20:00 until dimanche 9 novembre": when, the first day
  * said relative to [today].
  */
 fun itemSummary(item: CalendarItem, today: LocalDate): String {
     val day = when (item.localDate()) {
-        today -> "Aujourd'hui"
-        today.plusDays(1) -> "Demain"
+        today -> "Today"
+        today.plusDays(1) -> "Tomorrow"
         else -> dayFormat.format(item.localDate()).replaceFirstChar { it.uppercase() }
     }
     val start = item.localTime()?.let(timeFormat::format)
     val end = item.localEndTime()?.let(timeFormat::format)
     val lastDay = item.endDate?.let { dayFormat.format(item.lastDate()) }
     val time = when {
-        lastDay != null -> listOfNotNull(start?.let { "à $it" }, "jusqu'au $lastDay", end?.let { "à $it" }).joinToString(" ")
-        start != null && end != null -> "de $start à $end"
-        start != null -> "à $start"
+        lastDay != null -> listOfNotNull(start?.let { "at $it" }, "until $lastDay", end?.let { "at $it" }).joinToString(" ")
+        start != null && end != null -> "$start to $end"
+        start != null -> "at $start"
         else -> null
     }
     return listOfNotNull(day, time).joinToString(" ")

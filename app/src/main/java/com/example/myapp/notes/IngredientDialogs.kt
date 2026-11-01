@@ -56,7 +56,7 @@ fun IngredientReconcileDialog(
     onAddNew: (groupIndex: Int) -> Unit,
     onMapExisting: (String) -> Unit,
     onSkip: () -> Unit,
-    skipLabel: String = "Ignorer",
+    skipLabel: String = "Ignore",
     onDismiss: () -> Unit
 ) {
     var step by remember(itemName) { mutableStateOf(ReconcileStep.Choose) }
@@ -65,18 +65,18 @@ fun IngredientReconcileDialog(
     AppDialog(onDismiss = onDismiss) {
         when (step) {
             ReconcileStep.Choose -> {
-                Text("« $itemName »", style = MaterialTheme.typography.titleMedium)
+                Text("“$itemName”", style = MaterialTheme.typography.titleMedium)
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    "Cet article n'est pas reconnu.",
+                    "This item is not recognized.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(Modifier.height(16.dp))
-                ChoiceRow("Ajouter au modèle", Icons.Default.Add) {
+                ChoiceRow("Add to the template", Icons.Default.Add) {
                     step = ReconcileStep.Group
                 }
-                ChoiceRow("C'est déjà dans le modèle", Icons.Default.Edit) {
+                ChoiceRow("It's already in the template", Icons.Default.Edit) {
                     step = ReconcileStep.Existing
                 }
                 // The closest model entries, so an obvious variant spelling can be picked without
@@ -88,9 +88,9 @@ fun IngredientReconcileDialog(
             }
 
             ReconcileStep.Group -> {
-                Text("Dans quel groupe ?", style = MaterialTheme.typography.titleMedium)
+                Text("Which group?", style = MaterialTheme.typography.titleMedium)
                 Text(
-                    "« $itemName » sera placé par ordre alphabétique dans le groupe.",
+                    "“$itemName” goes in alphabetical order within the group.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -101,7 +101,7 @@ fun IngredientReconcileDialog(
                         HorizontalDivider()
                     }
                     item {
-                        PositionRow("Nouvelle catégorie", bold = true) { step = ReconcileStep.NewGroup }
+                        PositionRow("New category", bold = true) { step = ReconcileStep.NewGroup }
                     }
                 }
                 Spacer(Modifier.height(8.dp))
@@ -110,18 +110,18 @@ fun IngredientReconcileDialog(
 
             ReconcileStep.NewGroup -> {
                 var name by remember { mutableStateOf("") }
-                Text("Nouvelle catégorie", style = MaterialTheme.typography.titleMedium)
+                Text("New category", style = MaterialTheme.typography.titleMedium)
                 Spacer(Modifier.height(8.dp))
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
-                    placeholder = { Text("Nom") },
+                    placeholder = { Text("Name") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(Modifier.height(12.dp))
                 Text(
-                    "Placer avant :",
+                    "Place before:",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -133,7 +133,7 @@ fun IngredientReconcileDialog(
                         HorizontalDivider()
                     }
                     item {
-                        PositionRow("À la fin", bold = true) {
+                        PositionRow("At the end", bold = true) {
                             if (name.isNotBlank()) onAddNewGroup(name.trim(), groups.size)
                         }
                     }
@@ -144,12 +144,12 @@ fun IngredientReconcileDialog(
 
             ReconcileStep.Existing -> {
                 var query by remember { mutableStateOf("") }
-                Text("Lequel ?", style = MaterialTheme.typography.titleMedium)
+                Text("Which one?", style = MaterialTheme.typography.titleMedium)
                 Spacer(Modifier.height(8.dp))
                 OutlinedTextField(
                     value = query,
                     onValueChange = { query = it },
-                    placeholder = { Text("Rechercher") },
+                    placeholder = { Text("Search") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -170,7 +170,7 @@ fun IngredientReconcileDialog(
 /** Simple name prompt for adding an item directly to the Ingrédients or Courses note. */
 @Composable
 fun AddIngredientNameDialog(
-    title: String = "Ajouter un ingrédient",
+    title: String = "Add an ingredient",
     onConfirm: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -181,14 +181,14 @@ fun AddIngredientNameDialog(
         OutlinedTextField(
             value = text,
             onValueChange = { text = it },
-            placeholder = { Text("Nom") },
+            placeholder = { Text("Name") },
             singleLine = true,
             modifier = Modifier.fillMaxWidth()
         )
         Spacer(Modifier.height(12.dp))
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-            TextButton(onClick = onDismiss) { Text("Annuler") }
-            TextButton(onClick = { if (text.isNotBlank()) onConfirm(text.trim()) }) { Text("Ajouter") }
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+            TextButton(onClick = { if (text.isNotBlank()) onConfirm(text.trim()) }) { Text("Add") }
         }
     }
 }
@@ -246,6 +246,6 @@ private fun BackRow(onClick: () -> Unit) {
     TextButton(onClick = onClick) {
         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null, modifier = Modifier.size(18.dp))
         Spacer(Modifier.size(6.dp))
-        Text("Retour")
+        Text("Back")
     }
 }

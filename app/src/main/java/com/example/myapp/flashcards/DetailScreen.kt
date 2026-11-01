@@ -73,11 +73,11 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 private enum class SortField(val menuLabel: String) {
-    INTERVAL("Intervalle révision"),
-    VIEWS("Nombre vues totales"),
+    INTERVAL("Review interval"),
+    VIEWS("Total views"),
     SCORE("Score"),
     /** Not a sort but a filter: shows one kind of card at a time, still ordered by interval. */
-    SIDE("Toujours le même sens")
+    SIDE("Always the same side")
 }
 
 /**
@@ -118,7 +118,7 @@ private fun List<FlashcardElement>.filteredAndSorted(query: String, mode: SortMo
     }
 }
 
-// What the edit dialog is open on. Null means closed, [EditTarget.New] is the "Ajouter" button.
+// What the edit dialog is open on. Null means closed, [EditTarget.New] is the "Add" button.
 private sealed interface EditTarget {
     data object New : EditTarget
     data class Existing(val element: FlashcardElement) : EditTarget
@@ -149,7 +149,7 @@ fun FlashcardDetailScreen(
     val lists by remember { repository.observeLists() }
         .collectAsState(initial = repository.lastListsWithCounts?.first.orEmpty())
     val listName = remember(lists, listId) {
-        if (isAllLists) "Tout"
+        if (isAllLists) "All"
         else lists.find { it.id == listId }?.name ?: ""
     }
     val listFixedSide = remember(lists, listId) {
@@ -248,17 +248,17 @@ fun FlashcardDetailScreen(
                         repository.setListFixedSide(listId, fixed)
                         Toast.makeText(
                             context,
-                            if (fixed) "Une seule face" else "Deux faces",
+                            if (fixed) "One side" else "Two sides",
                             Toast.LENGTH_SHORT
                         ).show()
                     }
                 },
                 onShowAverageWait = {
-                    val message = if (visibleElements.isEmpty()) "Aucune carte à réviser" else {
+                    val message = if (visibleElements.isEmpty()) "No cards to review" else {
                         val avgMillis = visibleElements.map {
                             maxOf(0L, it.nextReviewAt - System.currentTimeMillis())
                         }.average().toLong()
-                        "Temps moyen : ${formatDuration(avgMillis, detailed = true)}"
+                        "Average wait: ${formatDuration(avgMillis, detailed = true)}"
                     }
                     Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
                 }
@@ -270,7 +270,7 @@ fun FlashcardDetailScreen(
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
                 modifier = Modifier.fillMaxWidth(),
-                placeholder = { Text("Rechercher...") },
+                placeholder = { Text("Search...") },
                 singleLine = true,
                 leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) }
             )
@@ -322,7 +322,7 @@ fun FlashcardDetailScreen(
             }
         }
 
-        // "Tout" is read only: cards are added and played from a real list.
+        // "All" is read only: cards are added and played from a real list.
         if (!isAllLists) {
             Column(
                 modifier = Modifier
@@ -337,12 +337,12 @@ fun FlashcardDetailScreen(
                     horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     MyButton(
-                        text = "Jouer",
+                        text = "Play",
                         modifier = Modifier.weight(1f).height(100.dp)
                     ) { navController.navigate("game/$listId") }
 
                     MyButton(
-                        text = "Ajouter",
+                        text = "Add",
                         modifier = Modifier.weight(1f).height(100.dp)
                     ) { editTarget = EditTarget.New }
                 }
@@ -357,7 +357,7 @@ fun FlashcardDetailScreen(
     elementToDelete?.let { element ->
         ShowAlertDialog(
             onDismiss = { elementToDelete = null },
-            title = "T'es sûr ??",
+            title = "You sure??",
             onCancel = { elementToDelete = null },
             onConfirm = {
                 scope.launch {
@@ -366,8 +366,8 @@ fun FlashcardDetailScreen(
                 }
                 elementToDelete = null
             },
-            cancelText = "Oula non merci",
-            confirmText = "Oui t'inquiète"
+            cancelText = "Whoa, no thanks",
+            confirmText = "Yes, don't worry"
         )
     }
 
@@ -432,18 +432,18 @@ private fun ElementScoreDialog(element: FlashcardElement, onDismiss: () -> Unit)
             ) {
                 val bold = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold)
                 Text(
-                    text = "Nombre total de réponses: ${element.totalWins + element.totalLosses}",
+                    text = "Total answers: ${element.totalWins + element.totalLosses}",
                     style = bold,
                     textAlign = TextAlign.Center
                 )
                 Text(
-                    text = "Bonnes réponses: ${element.totalWins}",
+                    text = "Right answers: ${element.totalWins}",
                     color = Color(0xFF37A13B),
                     style = bold,
                     textAlign = TextAlign.Center
                 )
                 Text(
-                    text = "Mauvaises réponses: ${element.totalLosses}",
+                    text = "Wrong answers: ${element.totalLosses}",
                     color = Color(0xFFC4362D),
                     style = bold,
                     textAlign = TextAlign.Center
@@ -452,7 +452,7 @@ private fun ElementScoreDialog(element: FlashcardElement, onDismiss: () -> Unit)
         },
         onCancel = onDismiss,
         onConfirm = onDismiss,
-        cancelText = "Fermer"
+        cancelText = "Close"
     )
 }
 
@@ -490,12 +490,12 @@ private fun DetailTopBar(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.End
         ) {
-            // "Tout" spans every list, so there is no single list to fix a side on.
+            // "All" spans every list, so there is no single list to fix a side on.
             if (!isAllLists) {
                 IconButton(onClick = onToggleFixedSide) {
                     Icon(
                         if (listFixedSide) Icons.Default.LooksOne else Icons.Default.Flip,
-                        contentDescription = if (listFixedSide) "Une seule face" else "Deux faces",
+                        contentDescription = if (listFixedSide) "One side" else "Two sides",
                         tint = if (listFixedSide) MaterialTheme.colorScheme.primary
                         else MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -504,7 +504,7 @@ private fun DetailTopBar(
 
             Box {
                 IconButton(onClick = { onSetSortMenu(true) }) {
-                    Icon(Icons.Default.SwapVert, contentDescription = "Trier")
+                    Icon(Icons.Default.SwapVert, contentDescription = "Sort")
                 }
                 DropdownMenu(expanded = showSortMenu, onDismissRequest = { onSetSortMenu(false) }) {
                     SortField.entries.forEach { field ->
@@ -532,7 +532,7 @@ private fun DetailTopBar(
             Spacer(Modifier.width(12.dp))
 
             Text(
-                "$dueCount à réviser",
+                "$dueCount to review",
                 style = MaterialTheme.typography.bodyMedium,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -562,7 +562,7 @@ private fun ElementEditDialog(
         scope.launch {
             val imported = importCardImage(context, uri)
             if (imported != null) image = imported
-            else Toast.makeText(context, "Image illisible", Toast.LENGTH_SHORT).show()
+            else Toast.makeText(context, "Unreadable picture", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -575,20 +575,20 @@ private fun ElementEditDialog(
 
     ShowAlertDialog(
         onDismiss = onDismiss,
-        title = if (element == null) "Nouvel élément" else "Modifier élément",
+        title = if (element == null) "New card" else "Edit card",
         textContent = {
             Column {
                 TextField(
                     value = name,
                     onValueChange = { name = it },
-                    label = { Text("Nom") },
+                    label = { Text("Name") },
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Next),
                     keyboardActions = KeyboardActions(onNext = { definitionFocusRequester.requestFocus() })
                 )
                 TextField(
                     value = definition,
                     onValueChange = { definition = it },
-                    label = { Text("Définition") },
+                    label = { Text("Definition") },
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Done),
                     keyboardActions = KeyboardActions(onDone = { save() }),
                     modifier = Modifier.focusRequester(definitionFocusRequester)
@@ -597,7 +597,7 @@ private fun ElementEditDialog(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.padding(top = 8.dp)
                 ) {
-                    Text("Montrer côté aléatoire")
+                    Text("Show a random side")
                     Spacer(Modifier.weight(1f))
                     Switch(
                         checked = randomSide,
@@ -612,17 +612,17 @@ private fun ElementEditDialog(
                     if (current != null) {
                         CardImage(image = current, modifier = Modifier.size(width = 72.dp, height = 54.dp))
                     } else {
-                        Text("Image au recto")
+                        Text("Front picture")
                     }
                     Spacer(Modifier.weight(1f))
                     IconButton(onClick = {
                         pickImage.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
                     }) {
-                        Icon(Icons.Default.AddPhotoAlternate, contentDescription = "Choisir une image")
+                        Icon(Icons.Default.AddPhotoAlternate, contentDescription = "Pick a picture")
                     }
                     if (current != null) {
                         IconButton(onClick = { image = null }) {
-                            Icon(Icons.Default.HideImage, contentDescription = "Retirer l'image")
+                            Icon(Icons.Default.HideImage, contentDescription = "Remove the picture")
                         }
                     }
                 }

@@ -125,7 +125,7 @@ object WorkoutReminder {
     suspend fun markDoneWithUndo(context: Context) {
         val previous = state(context).first()
         markDone(context)
-        AppSnackbar.show("Séance enregistrée", "Annuler") { reschedule(context, edit(context) { previous }) }
+        AppSnackbar.show("Session logged", "Undo") { reschedule(context, edit(context) { previous }) }
     }
 
     /**
@@ -192,13 +192,13 @@ object WorkoutReminder {
         val text = lastSessionText(lastDone?.toLocalDateTime(), LocalDate.now())
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_fitness)
-            .setContentTitle("C'est l'heure de la muscu")
+            .setContentTitle("Workout time")
             .setContentText(text)
             .setContentIntent(open)
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
-            .addAction(0, "C'est fait", receiverIntent(context, ACTION_DONE, 1))
-            .addAction(0, "Dans 1 h", receiverIntent(context, ACTION_SNOOZE_LATER, 2))
-            .addAction(0, "Demain", receiverIntent(context, ACTION_SNOOZE_DAY, 3))
+            .addAction(0, "Done", receiverIntent(context, ACTION_DONE, 1))
+            .addAction(0, "In 1 h", receiverIntent(context, ACTION_SNOOZE_LATER, 2))
+            .addAction(0, "Tomorrow", receiverIntent(context, ACTION_SNOOZE_DAY, 3))
             .build()
         manager.notify(NOTIFICATION_ID, notification)
     }

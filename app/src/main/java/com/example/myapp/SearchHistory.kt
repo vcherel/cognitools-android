@@ -158,7 +158,7 @@ fun RecentSearchChips(
                 )
                 Icon(
                     Icons.Default.Close,
-                    contentDescription = "Oublier « $query »",
+                    contentDescription = "Forget “$query”",
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier
                         .padding(start = 4.dp)

@@ -45,26 +45,26 @@ fun PodcastDownloadsScreen(repo: PodcastRepository, onBack: () -> Unit) {
         .map { row -> episodes.firstOrNull { it.id == row.episodeId } ?: row.toEpisode(seen = false) }
 
     Column(Modifier.fillMaxSize()) {
-        ScreenTopBar(title = "Téléchargés", onBack = onBack)
+        ScreenTopBar(title = "Downloaded", onBack = onBack)
 
         confirmRemove?.let { episode ->
             ShowAlertDialog(
                 onDismiss = { confirmRemove = null },
-                title = "Supprimer le téléchargement de « ${episode.title} » ?",
+                title = "Delete the download of “${episode.title}”?",
                 onCancel = { confirmRemove = null },
                 onConfirm = {
                     confirmRemove = null
                     scope.launch { repo.downloads.remove(episode.id) }
                 },
-                cancelText = "Annuler",
-                confirmText = "Supprimer"
+                cancelText = "Cancel",
+                confirmText = "Delete"
             )
         }
 
         if (downloadedEpisodes.isEmpty()) {
             Box(Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
                 Text(
-                    "Aucun épisode téléchargé.",
+                    "No downloaded episodes.",
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -83,7 +83,7 @@ fun PodcastDownloadsScreen(repo: PodcastRepository, onBack: () -> Unit) {
                         onClick = {
                             scope.launch {
                                 runCatching { repo.playEpisode(episode, downloadedEpisodes) }
-                                    .onFailure { AppSnackbar.show(userMessage(it, "Erreur de lecture")) }
+                                    .onFailure { AppSnackbar.show(userMessage(it, "Playback error")) }
                             }
                         },
                         onToggleDownload = { confirmRemove = episode },
@@ -94,8 +94,8 @@ fun PodcastDownloadsScreen(repo: PodcastRepository, onBack: () -> Unit) {
                                 } else {
                                     repo.markSeen(episode.id)
                                     AppSnackbar.show(
-                                        message = "Marqué comme écouté",
-                                        actionLabel = "Annuler",
+                                        message = "Marked as heard",
+                                        actionLabel = "Undo",
                                         onAction = { repo.markUnseen(episode.id) }
                                     )
                                 }

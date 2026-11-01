@@ -111,7 +111,7 @@ fun TrackRow(
         textAlpha = if (refused) 0.45f else 1f,
         below = {
             MediaRowSubtitle(track.artist)
-            (note ?: if (refused) "Indisponible sur Deezer" else null)?.let {
+            (note ?: if (refused) "Unavailable on Deezer" else null)?.let {
                 Text(
                     it,
                     style = MaterialTheme.typography.labelSmall,
@@ -125,18 +125,18 @@ fun TrackRow(
             IconButton(onClick = { onToggleFavorite?.invoke() }, modifier = Modifier.size(40.dp)) {
                 Icon(
                     if (isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
-                    contentDescription = if (isFavorite) "Retirer des favoris" else "Ajouter aux favoris",
+                    contentDescription = if (isFavorite) "Remove from favorites" else "Add to favorites",
                     tint = if (isFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
             Box {
                 IconButton(onClick = { menuExpanded = true }, modifier = Modifier.size(40.dp)) {
-                    Icon(Icons.Filled.MoreVert, contentDescription = "Plus d'options", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Icon(Icons.Filled.MoreVert, contentDescription = "More options", tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
                     if (onToggleBestPepites != null) {
                         DropdownMenuItem(
-                            text = { Text(if (inPepites) "Retirer de Best pépites" else "Ajouter à Best pépites") },
+                            text = { Text(if (inPepites) "Remove from Best pépites" else "Add to Best pépites") },
                             leadingIcon = {
                                 Icon(
                                     Icons.Filled.Diamond,
@@ -149,21 +149,21 @@ fun TrackRow(
                     }
                     if (onAddToPlaylist != null) {
                         DropdownMenuItem(
-                            text = { Text("Ajouter à une playlist") },
+                            text = { Text("Add to a playlist") },
                             leadingIcon = { Icon(Icons.AutoMirrored.Filled.PlaylistAdd, contentDescription = null) },
                             onClick = { menuExpanded = false; onAddToPlaylist() }
                         )
                     }
                     if (onRemoveFromPlaylist != null) {
                         DropdownMenuItem(
-                            text = { Text("Retirer de la playlist") },
+                            text = { Text("Remove from the playlist") },
                             leadingIcon = { Icon(Icons.Filled.Close, contentDescription = null) },
                             onClick = { menuExpanded = false; onRemoveFromPlaylist() }
                         )
                     }
                     if (onOpenArtist != null) {
                         DropdownMenuItem(
-                            text = { Text("Voir l'artiste") },
+                            text = { Text("Go to artist") },
                             leadingIcon = { Icon(Icons.Filled.Person, contentDescription = null) },
                             onClick = { menuExpanded = false; onOpenArtist() }
                         )
@@ -174,7 +174,7 @@ fun TrackRow(
                 IconButton(onClick = onDismiss, modifier = Modifier.size(40.dp)) {
                     Icon(
                         Icons.Filled.Close,
-                        contentDescription = "Ignorer",
+                        contentDescription = "Ignore",
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -246,8 +246,8 @@ private fun SwipeToQueue(onQueue: (() -> Unit)?, content: @Composable () -> Unit
 /** Shared: runs the "add to queue" action and returns the toast to show. */
 suspend fun addToQueueMessage(repo: DeezerRepository, track: DeezerTrack): String =
     runCatching { repo.player.addToQueue(track) }.fold(
-        onSuccess = { "Ajouté à la file d'attente" },
-        onFailure = { "Échec de l'ajout" }
+        onSuccess = { "Added to the queue" },
+        onFailure = { "Couldn't add" }
     )
 
 /**
@@ -266,10 +266,10 @@ suspend fun bestPepitesMessage(
         // Without the membership loaded the track would look absent and be added a second time.
         runCatching { repo.ensureBestPepitesLoaded() }
         if (repo.isBestPepites(playingFrom) && repo.bestPepitesContains(track.sngId) == true) {
-            if (repo.removeFromBestPepites(track.sngId)) "Retiré de Best pépites"
-            else "Playlist Best pépites introuvable"
+            if (repo.removeFromBestPepites(track.sngId)) "Removed from Best pépites"
+            else "Best pépites playlist not found"
         } else when (val result = repo.addToBestPepites(track)) {
-            PlaylistAddResult.NO_PLAYLIST -> "Playlist Best pépites introuvable"
+            PlaylistAddResult.NO_PLAYLIST -> "Best pépites playlist not found"
             else -> {
                 // Best pépites is what the DJ set is drawn from, so the file goes to Download with it.
                 if (withContext(Dispatchers.IO) { repo.saver.isSaved(track) }) {
@@ -277,18 +277,18 @@ suspend fun bestPepitesMessage(
                 } else {
                     repo.saver.save(track)
                 }
-                if (result == PlaylistAddResult.ADDED) "Ajouté à Best pépites" else "Déjà dans Best pépites"
+                if (result == PlaylistAddResult.ADDED) "Added to Best pépites" else "Already in Best pépites"
             }
         }
-    }.getOrElse { "Échec de l'action" }
+    }.getOrElse { "Action failed" }
 
 /** Shared: same for the playlist picked in [PlaylistPickerDialog]. */
 suspend fun addToPlaylistMessage(repo: DeezerRepository, playlist: DeezerPlaylist, track: DeezerTrack): String =
     runCatching { repo.addToPlaylist(playlist.id, track) }.fold(
         onSuccess = {
-            if (it == PlaylistAddResult.DUPLICATE) "Déjà dans ${playlist.title}" else "Ajouté à ${playlist.title}"
+            if (it == PlaylistAddResult.DUPLICATE) "Already in ${playlist.title}" else "Added to ${playlist.title}"
         },
-        onFailure = { "Échec de l'ajout" }
+        onFailure = { "Couldn't add" }
     )
 
 /**
@@ -307,7 +307,7 @@ fun PlaylistPickerDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         confirmButton = {},
-        title = { Text("Ajouter à une playlist") },
+        title = { Text("Add to a playlist") },
         text = {
             when (val p = playlists) {
                 null -> Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
@@ -324,7 +324,7 @@ fun PlaylistPickerDialog(
                             Column(Modifier.weight(1f)) {
                                 Text(pl.title, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 Text(
-                                    "${pl.trackCount} titres",
+                                    "${pl.trackCount} tracks",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )

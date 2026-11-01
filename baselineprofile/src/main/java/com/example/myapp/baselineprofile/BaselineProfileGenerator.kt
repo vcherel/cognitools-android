@@ -35,7 +35,7 @@ class BaselineProfileGenerator {
 
         openFromMenu("Notes") {
             flingScrollable()
-            if (tap("Nouvelle note")) {
+            if (tap("New note")) {
                 // A long note typed a line at a time, the path that was slow.
                 repeat(12) {
                     device.executeShellCommand("input text $TYPED_LINE")
@@ -47,25 +47,25 @@ class BaselineProfileGenerator {
                 device.waitForIdle()
                 // Back on the list, the note goes to the trash instead of piling up in the real notes.
                 repeat(3) {
-                    if (!device.hasObject(By.text("Nouvelle note"))) device.pressBack()
+                    if (!device.hasObject(By.text("New note"))) device.pressBack()
                     device.waitForIdle()
                 }
                 trashTypedNote()
             }
         }
-        openFromMenu("Musique") { flingScrollable() }
+        openFromMenu("Music") { flingScrollable() }
         openFromMenu("Flashcards") {
             flingScrollable()
             // Every card of every list, the biggest list the detail screen draws.
-            if (tapDescription("Rechercher dans tout")) {
+            if (tapDescription("Search everything")) {
                 flingScrollable()
                 device.pressBack()
                 device.waitForIdle()
             }
             // A list's own cards, then a review round on it, read only: it is left before any answer.
-            if (tap(By.textEndsWith("à réviser"))) {
+            if (tap(By.textEndsWith("to review"))) {
                 flingScrollable()
-                if (tap(By.text("Jouer"))) {
+                if (tap(By.text("Play"))) {
                     device.pressBack()
                     device.waitForIdle()
                 }
@@ -73,7 +73,7 @@ class BaselineProfileGenerator {
                 device.waitForIdle()
             }
         }
-        openFromMenu("Galerie") {
+        openFromMenu("Gallery") {
             flingScrollable()
             try {
                 device.findObject(By.scrollable(true))?.children?.firstOrNull()?.click()
@@ -93,23 +93,23 @@ class BaselineProfileGenerator {
         // One back is not always enough (an open keyboard eats the first one), and a tool left open
         // makes every later step miss its label and silently record nothing.
         repeat(5) {
-            if (device.hasObject(By.text("Bienvenue !"))) return
+            if (device.hasObject(By.text("Welcome!"))) return
             device.pressBack()
-            device.wait(Until.hasObject(By.text("Bienvenue !")), 2_000)
+            device.wait(Until.hasObject(By.text("Welcome!")), 2_000)
         }
     }
 
-    // The bin of the card the journey typed: the nearest "Supprimer" below its first line, same column.
+    // The bin of the card the journey typed: the nearest "Delete" below its first line, same column.
     private fun MacrobenchmarkScope.trashTypedNote() {
         try {
             val line = device.findObject(By.text(TYPED_LINE)) ?: return
             val card = line.visibleBounds
-            val bin = device.findObjects(By.desc("Supprimer"))
+            val bin = device.findObjects(By.desc("Delete"))
                 .filter { it.visibleBounds.top > card.top && it.visibleBounds.left < card.right && it.visibleBounds.right > card.left }
                 .minByOrNull { it.visibleBounds.top } ?: return
             bin.click()
             // Only ever confirms a dialog that names the typed note, never a real one.
-            if (device.wait(Until.hasObject(By.textContains("« $TYPED_LINE »")), 3_000)) tap("Ok")
+            if (device.wait(Until.hasObject(By.textContains("“$TYPED_LINE”")), 3_000)) tap("Ok")
             else device.pressBack()
         } catch (_: StaleObjectException) {
         }

@@ -151,8 +151,8 @@ class VolumeBoosterService : Service() {
 
     private fun createNotification(): Notification {
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("Volume Booster Actif")
-            .setContentText("Gain : ${formatGain(currentGain)}")
+            .setContentTitle("Volume Booster on")
+            .setContentText("Gain: ${formatGain(currentGain)}")
             .setSmallIcon(android.R.drawable.ic_lock_silent_mode_off)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
@@ -172,7 +172,7 @@ class VolumeBoosterService : Service() {
             )
             .addAction(
                 android.R.drawable.ic_delete,
-                "Arrêter",
+                "Stop",
                 actionIntent(ACTION_STOP, 0)
             )
             .build()
@@ -202,7 +202,7 @@ fun VolumeBoosterScreen(onBack: () -> Unit) {
         verticalArrangement = Arrangement.Center
     ) {
         Text(
-            text = if (boostState.running) "Activé" else "Désactivé",
+            text = if (boostState.running) "On" else "Off",
             style = MaterialTheme.typography.headlineLarge,
             color = if (boostState.running) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
             fontWeight = FontWeight.Bold
@@ -212,7 +212,7 @@ fun VolumeBoosterScreen(onBack: () -> Unit) {
 
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
-                text = "Gain : ",
+                text = "Gain: ",
                 style = MaterialTheme.typography.headlineSmall,
                 color = MaterialTheme.colorScheme.onSurface,
                 fontWeight = FontWeight.Bold

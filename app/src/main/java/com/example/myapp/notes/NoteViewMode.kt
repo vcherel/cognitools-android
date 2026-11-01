@@ -417,7 +417,7 @@ private fun NoteLine(
                         )
                         HorizontalDivider(modifier = Modifier.weight(1f))
                     }
-                    LineIconButton(Icons.Default.Delete, "Supprimer la ligne") { actions.onDeleteLine(lineIndex) }
+                    LineIconButton(Icons.Default.Delete, "Delete the line") { actions.onDeleteLine(lineIndex) }
                 }
             }
         } else if (line.isCheckboxLine()) {
@@ -456,28 +456,28 @@ private fun NoteLine(
                 )
                 if (isCoursesNote) {
                     if (text.itemQuantity() > 1) {
-                        LineIconButton(Icons.Default.Remove, "Diminuer la quantité", iconTopPadding) {
+                        LineIconButton(Icons.Default.Remove, "Decrease the quantity", iconTopPadding) {
                             actions.onChangeQuantity(lineIndex, -1)
                         }
                     }
-                    LineIconButton(Icons.Default.Add, "Augmenter la quantité", iconTopPadding) {
+                    LineIconButton(Icons.Default.Add, "Increase the quantity", iconTopPadding) {
                         actions.onChangeQuantity(lineIndex, 1)
                     }
                 }
                 if (isIngredientsNote) {
-                    LineIconButton(Icons.Default.AddShoppingCart, "Ajouter à Courses", iconTopPadding) {
+                    LineIconButton(Icons.Default.AddShoppingCart, "Add to Courses", iconTopPadding) {
                         actions.onCopyToCourses(lineIndex)
                     }
-                    LineIconButton(Icons.Default.ShoppingCart, "Déplacer vers Courses", iconTopPadding) {
+                    LineIconButton(Icons.Default.ShoppingCart, "Move to Courses", iconTopPadding) {
                         actions.onMoveToCourses(lineIndex)
                     }
                 }
                 if (isTodoListNote && text.hasDateSuffix()) {
-                    LineIconButton(Icons.Default.EventBusy, "Retirer la date", iconTopPadding) {
+                    LineIconButton(Icons.Default.EventBusy, "Remove the date", iconTopPadding) {
                         actions.onRemoveDateSuffix(lineIndex)
                     }
                 }
-                LineIconButton(Icons.Default.Delete, "Supprimer la ligne", iconTopPadding) {
+                LineIconButton(Icons.Default.Delete, "Delete the line", iconTopPadding) {
                     actions.onDeleteLine(lineIndex)
                 }
             }
@@ -508,19 +508,19 @@ private fun NoteLine(
                             }
                     )
                     if (isMoviesNote && line.hasEpisode()) {
-                        LineTextButton("S+", "Saison suivante") { actions.onBumpEpisode(lineIndex, true) }
-                        LineTextButton("E+", "Épisode suivant") { actions.onBumpEpisode(lineIndex, false) }
+                        LineTextButton("S+", "Next season") { actions.onBumpEpisode(lineIndex, true) }
+                        LineTextButton("E+", "Next episode") { actions.onBumpEpisode(lineIndex, false) }
                     }
                     if (isTitle) {
                         LineIconButton(
                             if (hasResumeAfter) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
-                            if (hasResumeAfter) "Retirer Reprendre" else "Marquer à reprendre"
+                            if (hasResumeAfter) "Unmark resume" else "Mark to resume"
                         ) { actions.onToggleResume(lineIndex) }
                         LineIconButton(
                             if (hasEnhanceAfter) Icons.Default.Code else Icons.Default.CodeOff,
-                            if (hasEnhanceAfter) "Retirer Enhance code" else "Ajouter Enhance code"
+                            if (hasEnhanceAfter) "Remove Enhance code" else "Add Enhance code"
                         ) { actions.onToggleEnhance(lineIndex) }
-                        LineIconButton(Icons.Default.ContentCut, "Couper les lignes") {
+                        LineIconButton(Icons.Default.ContentCut, "Cut the lines") {
                             actions.onCutCategory(lineIndex)
                         }
                     }
@@ -535,29 +535,29 @@ private fun NoteLine(
                     ) {
                         // Ingrédients trades the formatting for its cart buttons, all of them do not fit.
                         if (!isIngredientsNote) {
-                            LineIconButton(Icons.Default.FormatBold, "Gras") {
+                            LineIconButton(Icons.Default.FormatBold, "Bold") {
                                 actions.onToggleLineMarker(lineIndex, "**")
                             }
-                            LineIconButton(Icons.Default.FormatItalic, "Italique") {
+                            LineIconButton(Icons.Default.FormatItalic, "Italic") {
                                 actions.onToggleLineMarker(lineIndex, "*")
                             }
-                            LineIconButton(Icons.Default.FormatUnderlined, "Souligné") {
+                            LineIconButton(Icons.Default.FormatUnderlined, "Underline") {
                                 actions.onToggleLineMarker(lineIndex, "__")
                             }
-                            LineIconButton(Icons.Default.Title, "Titre") {
+                            LineIconButton(Icons.Default.Title, "Title") {
                                 actions.onToggleTitleLine(lineIndex)
                             }
                         } else {
-                            LineIconButton(Icons.Default.AddShoppingCart, "Ajouter à Courses") {
+                            LineIconButton(Icons.Default.AddShoppingCart, "Add to Courses") {
                                 actions.onCopyToCourses(lineIndex)
                                 onDeselect()
                             }
-                            LineIconButton(Icons.Default.ShoppingCart, "Déplacer vers Courses") {
+                            LineIconButton(Icons.Default.ShoppingCart, "Move to Courses") {
                                 actions.onMoveToCourses(lineIndex)
                                 onDeselect()
                             }
                         }
-                        LineIconButton(Icons.Default.Delete, "Supprimer la ligne") {
+                        LineIconButton(Icons.Default.Delete, "Delete the line") {
                             actions.onDeleteLine(lineIndex)
                             onDeselect()
                         }

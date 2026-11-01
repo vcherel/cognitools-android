@@ -97,7 +97,7 @@ fun queryAlbums(context: Context): List<Album> {
                 }
                 buckets[bucketId] = AlbumBuilding(
                     dateAdded = cursor.getLong(dateCol),
-                    name = cursor.getString(bucketNameCol) ?: "Autres",
+                    name = cursor.getString(bucketNameCol) ?: "Other",
                     coverId = cursor.getLong(idCol),
                     coverType = mediaType,
                     coverDateModified = cursor.getLong(dateModifiedCol),
@@ -268,7 +268,7 @@ fun queryMediaItems(
                     dateModified = cursor.getLong(dateModifiedCol),
                     dateTaken = cursor.getLong(dateTakenCol),
                     bucketId = cursor.getLong(bucketIdCol),
-                    bucketName = cursor.getString(bucketNameCol) ?: "Autres",
+                    bucketName = cursor.getString(bucketNameCol) ?: "Other",
                     relativePath = relativeFolderFromData(data),
                     mimeType = cursor.getString(mimeCol) ?: "",
                     dateExpires = if (expiresCol >= 0) cursor.getLong(expiresCol) else 0
@@ -297,7 +297,7 @@ private inline fun writeOutcome(failureMessage: String, write: () -> Boolean): W
     } catch (e: RecoverableSecurityException) {
         WriteOutcome.NeedsConsent(e.userAction.actionIntent.intentSender)
     } catch (e: Exception) {
-        WriteOutcome.Error(e.message ?: "Erreur")
+        WriteOutcome.Error(e.message ?: "Error")
     }
 
 // Asks for consent and runs the write again when Android demands it (raised as a
@@ -336,14 +336,14 @@ suspend fun performRename(
     newName: String,
     requestConsent: suspend (IntentSender) -> Boolean
 ): Boolean = performMediaWrite(context, listOf(item.uri), requestConsent) {
-    writeOutcome("Renommage impossible") {
+    writeOutcome("Rename failed") {
         val values = ContentValues().apply { put(MediaStore.Files.FileColumns.DISPLAY_NAME, newName) }
         context.contentResolver.update(item.uri, values, null, null) > 0
     }
 }
 
 private fun updateRelativePath(context: Context, item: MediaItem, targetRelativePath: String): WriteOutcome =
-    writeOutcome("Déplacement impossible") {
+    writeOutcome("Move failed") {
         val values = ContentValues().apply { put(MediaStore.Files.FileColumns.RELATIVE_PATH, targetRelativePath) }
         context.contentResolver.update(item.uri, values, null, null) > 0
     }
@@ -402,7 +402,7 @@ private suspend fun performDelete(
         return requestConsent(pending.intentSender)
     }
     val delete = {
-        writeOutcome("Suppression impossible") { context.contentResolver.delete(item.uri, null, null) > 0 }
+        writeOutcome("Delete failed") { context.contentResolver.delete(item.uri, null, null) > 0 }
     }
     return delete().orConsentThenRetry(requestConsent, delete)
 }
@@ -493,7 +493,7 @@ suspend fun performOverwrite(
     requestConsent: suspend (IntentSender) -> Boolean,
     writeBytes: (OutputStream) -> Unit
 ): Boolean = performMediaWrite(context, listOf(item.uri), requestConsent) {
-    writeOutcome("Impossible d'ouvrir le fichier") {
+    writeOutcome("Can't open the file") {
         val output = context.contentResolver.openOutputStream(item.uri, "wt") ?: return@writeOutcome false
         output.use(writeBytes)
         val values = ContentValues().apply {
