@@ -12,17 +12,17 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.navigation.NamedNavArgument
+import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
@@ -110,17 +110,14 @@ fun MainScreen(
         val snackbarHostState = rememberAppSnackbarHostState()
 
         Scaffold(snackbarHost = { SnackbarHost(snackbarHostState) }) { innerPadding ->
-            // The tool on screen lends its color and icon to the headers and buttons under it.
-            val currentEntry by navController.currentBackStackEntryAsState()
             Box(modifier = Modifier.padding(innerPadding)) {
-                CompositionLocalProvider(LocalToolAccent provides ToolAccents.forRoute(currentEntry?.destination?.route)) {
                 NavHost(
                     navController = navController,
                     startDestination = "menu",
                     enterTransition = { screenEnter },
                     exitTransition = { screenExit }
                 ) {
-                    composable("menu") {
+                    screen("menu") {
                         MenuScreen(
                             isDarkMode = isDarkMode,
                             onToggleDarkMode = {
@@ -146,69 +143,69 @@ fun MainScreen(
                             onOpenTool = { route -> navController.navigate(route) }
                         )
                     }
-                    composable("randomGenerator") { RandomGeneratorScreen(onBack = back) }
-                    composable("volumeBooster") { VolumeBoosterScreen(onBack = back) }
-                    composable("undercover") { UndercoverScreen(onBack = back) }
-                    composable("wikipedia") { WikipediaScreen(onBack = back) }
-                    composable("files") {
+                    screen("randomGenerator") { RandomGeneratorScreen(onBack = back) }
+                    screen("volumeBooster") { VolumeBoosterScreen(onBack = back) }
+                    screen("undercover") { UndercoverScreen(onBack = back) }
+                    screen("wikipedia") { WikipediaScreen(onBack = back) }
+                    screen("files") {
                         FilesScreen(onBack = back, onOpenMedia = { id -> navController.navigate("gallery/item/$id") })
                     }
-                    composable("weather") { WeatherScreen(onBack = back) }
-                    composable("news") {
+                    screen("weather") { WeatherScreen(onBack = back) }
+                    screen("news") {
                         NewsScreen(
                             onBack = back,
                             onOpenArticle = { link -> navController.navigate("news/article/${Uri.encode(link)}") },
                             onOpenSaved = { navController.navigate("news/saved") }
                         )
                     }
-                    composable("news/saved") {
+                    screen("news/saved") {
                         NewsSavedScreen(
                             onBack = back,
                             onOpenArticle = { link -> navController.navigate("news/article/${Uri.encode(link)}") }
                         )
                     }
-                    composable("news/article/{link}") { backStackEntry ->
+                    screen("news/article/{link}") { backStackEntry ->
                         val link = backStackEntry.arguments?.getString("link").orEmpty()
                         NewsArticleScreen(link = link, onBack = back)
                     }
-                    composable("journal") {
+                    screen("journal") {
                         JournalScreen(
                             onBack = back,
                             onOpenArticle = { link -> navController.navigate("news/article/${Uri.encode(link)}") }
                         )
                     }
-                    composable("mail") {
+                    screen("mail") {
                         MailScreen(onBack = back, onOpenMessage = { uid -> navController.navigate("mail/message/$uid") })
                     }
-                    composable("mail/message/{uid}") { backStackEntry ->
+                    screen("mail/message/{uid}") { backStackEntry ->
                         val uid = backStackEntry.arguments?.getString("uid")?.toLongOrNull() ?: 0L
                         MailMessageScreen(uid = uid, onBack = back)
                     }
-                    composable(
+                    screen(
                         "workout?pickDay={pickDay}",
                         arguments = listOf(navArgument("pickDay") { type = NavType.BoolType; defaultValue = false })
                     ) { backStackEntry ->
                         WorkoutScreen(onBack = back, pickDayInitially = backStackEntry.arguments?.getBoolean("pickDay") ?: false)
                     }
-                    composable(
+                    screen(
                         "calendar?day={day}",
                         arguments = listOf(navArgument("day") { type = NavType.StringType; defaultValue = "" })
                     ) { backStackEntry ->
                         CalendarScreen(onBack = back, initialDay = backStackEntry.arguments?.getString("day")?.ifEmpty { null })
                     }
-                    composable("motsFleches") { MotsFlechesScreen(onBack = back) }
-                    composable("translate") { TranslateScreen(onBack = back) }
-                    composable("reader") {
+                    screen("motsFleches") { MotsFlechesScreen(onBack = back) }
+                    screen("translate") { TranslateScreen(onBack = back) }
+                    screen("reader") {
                         BookLibraryScreen(
                             onBack = back,
                             onOpenBook = { bookId -> navController.navigate("reader/book/$bookId") }
                         )
                     }
-                    composable("reader/book/{bookId}") { backStackEntry ->
+                    screen("reader/book/{bookId}") { backStackEntry ->
                         val bookId = backStackEntry.arguments?.getString("bookId").orEmpty()
                         ReaderScreen(bookId = bookId, onBack = back)
                     }
-                    composable(
+                    screen(
                         "deezer?openPlayer={openPlayer}",
                         arguments = listOf(navArgument("openPlayer") { type = NavType.BoolType; defaultValue = false })
                     ) { backStackEntry ->
@@ -219,7 +216,7 @@ fun MainScreen(
                             onOpenVolume = { navController.navigate("volumeBooster") }
                         )
                     }
-                    composable("gallery") {
+                    screen("gallery") {
                         GalleryAlbumsScreen(
                             onBack = back,
                             onOpenAlbum = { bucketId -> navController.navigate("gallery/album/$bucketId") },
@@ -228,8 +225,8 @@ fun MainScreen(
                             onOpenPinnedGrid = { navController.navigate("gallery/pinned/grid") }
                         )
                     }
-                    composable("gallery/trash") { GalleryTrashScreen(onBack = back) }
-                    composable("gallery/album/{bucketId}") { backStackEntry ->
+                    screen("gallery/trash") { GalleryTrashScreen(onBack = back) }
+                    screen("gallery/album/{bucketId}") { backStackEntry ->
                         val bucketId = backStackEntry.arguments?.getString("bucketId")?.toLongOrNull() ?: 0L
                         GalleryAlbumGridScreen(
                             bucketId = bucketId,
@@ -242,7 +239,7 @@ fun MainScreen(
                         ViewerSource.Album(args?.getString("bucketId")?.toLongOrNull() ?: 0L) to
                             (args?.getString("itemId")?.toLongOrNull() ?: 0L)
                     }
-                    composable("gallery/pinned/grid") {
+                    screen("gallery/pinned/grid") {
                         GalleryPinnedGridScreen(
                             onBack = back,
                             onOpenItem = { itemId -> navController.navigate("gallery/pinned/item/$itemId") }
@@ -257,17 +254,17 @@ fun MainScreen(
                         val itemId = args?.getString("itemId")?.toLongOrNull() ?: -1L
                         ViewerSource.Single(itemId) to itemId
                     }
-                    composable("gallery/crop/{itemId}") { backStackEntry ->
+                    screen("gallery/crop/{itemId}") { backStackEntry ->
                         val itemId = backStackEntry.arguments?.getString("itemId")?.toLongOrNull() ?: 0L
                         GalleryCropScreen(itemId = itemId, onBack = back)
                     }
-                    composable("gallery/trim/{itemId}") { backStackEntry ->
+                    screen("gallery/trim/{itemId}") { backStackEntry ->
                         val itemId = backStackEntry.arguments?.getString("itemId")?.toLongOrNull() ?: 0L
                         GalleryTrimScreen(itemId = itemId, onBack = back)
                     }
-                    composable("notes") { NotesListScreen(navController = navController) }
-                    composable("notes/trash") { NotesTrashScreen(onBack = back) }
-                    composable(
+                    screen("notes") { NotesListScreen(navController = navController) }
+                    screen("notes/trash") { NotesTrashScreen(onBack = back) }
+                    screen(
                         "note/{noteId}?editAt={editAt}&search={search}",
                         arguments = listOf(
                             navArgument("editAt") { type = NavType.IntType; defaultValue = -1 },
@@ -285,8 +282,8 @@ fun MainScreen(
                         )
                     }
                     navigation(startDestination = "lists", route = "flashcards") {
-                        composable("lists") { FlashcardListsScreen(navController = navController) }
-                        composable("elements/{listId}") { backStackEntry ->
+                        screen("lists") { FlashcardListsScreen(navController = navController) }
+                        screen("elements/{listId}") { backStackEntry ->
                             val listId = backStackEntry.arguments?.getString("listId") ?: ""
                             FlashcardDetailScreen(
                                 listId = listId,
@@ -294,15 +291,28 @@ fun MainScreen(
                                 onBack = back
                             )
                         }
-                        composable("game/{listId}") { backStackEntry ->
+                        screen("game/{listId}") { backStackEntry ->
                             val listId = backStackEntry.arguments?.getString("listId") ?: ""
                             FlashcardGameScreen(listId = listId, navController = navController)
                         }
                     }
                 }
-                }
             }
         }
+    }
+}
+
+/**
+ * A destination that lends its tool's color and icon to the headers and buttons under it. Taken
+ * from its own route, not the current one: the screen being left keeps its colors while it fades.
+ */
+private fun NavGraphBuilder.screen(
+    route: String,
+    arguments: List<NamedNavArgument> = emptyList(),
+    content: @Composable (NavBackStackEntry) -> Unit
+) = composable(route, arguments) { backStackEntry ->
+    CompositionLocalProvider(LocalToolAccent provides ToolAccents.forRoute(route)) {
+        content(backStackEntry)
     }
 }
 
@@ -312,7 +322,7 @@ private fun NavGraphBuilder.viewerRoute(
     navController: NavController,
     onBack: () -> Unit,
     source: (Bundle?) -> Pair<ViewerSource, Long>
-) = composable(route) { backStackEntry ->
+) = screen(route) { backStackEntry ->
     val (viewerSource, initialItemId) = source(backStackEntry.arguments)
     GalleryViewerScreen(
         source = viewerSource,
