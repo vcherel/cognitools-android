@@ -86,7 +86,7 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.Locale
 
-/** What a Couper/Copier left waiting for a Coller in some other folder. */
+/** What a Cut or Copy left waiting for a Paste in some other folder. */
 private data class Clipboard(val files: List<File>, val move: Boolean)
 
 /**
@@ -147,6 +147,9 @@ fun FilesScreen(onBack: () -> Unit, onOpenMedia: (Long) -> Unit) {
     }
 
     val selectedEntries = entries.orEmpty().filter { it.path in selected }
+    fun toggleSelected(path: String) {
+        selected = if (path in selected) selected - path else selected + path
+    }
 
     fun runOnFiles(action: suspend () -> String) {
         busy = true
@@ -283,17 +286,12 @@ fun FilesScreen(onBack: () -> Unit, onOpenMedia: (Long) -> Unit) {
                         selectionMode = selected.isNotEmpty(),
                         onClick = {
                             when {
-                                selected.isNotEmpty() ->
-                                    selected = if (entry.path in selected) selected - entry.path
-                                    else selected + entry.path
+                                selected.isNotEmpty() -> toggleSelected(entry.path)
                                 entry.isDirectory -> currentDir = entry.file
                                 else -> open(entry.file)
                             }
                         },
-                        onLongClick = {
-                            selected = if (entry.path in selected) selected - entry.path
-                            else selected + entry.path
-                        }
+                        onLongClick = { toggleSelected(entry.path) }
                     )
                     HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
                 }

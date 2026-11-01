@@ -63,10 +63,10 @@ object ToolAccents {
             "motsFleches" -> Crosswords
             "translate" -> Translate
             "reader" -> Reader
-            "volumeBooster" -> Volume
+            "volume" -> Volume
             "undercover" -> Undercover
             "wikipedia" -> Wiki
-            "randomGenerator" -> Random
+            "random" -> Random
             "files" -> Files
             "news" -> News
             "journal" -> Journal

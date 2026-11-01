@@ -109,9 +109,9 @@ fun NotesListScreen(navController: NavController) {
     // The whole list, not just its size: a search looks through the trash too.
     val trashedNotes by context.notesLists.trashed.collectAsState()
     val trashedCount = trashedNotes.size
-    // Set while a "supprimer définitivement" confirmation is waiting on a trashed search result.
+    // Set while a "delete for good" confirmation is waiting on a trashed search result.
     var confirmDelete by remember { mutableStateOf<Note?>(null) }
-    // Set while a "mettre à la corbeille" confirmation is waiting on a note of the list.
+    // Set while a "move to trash" confirmation is waiting on a note of the list.
     var confirmTrash by remember { mutableStateOf<Note?>(null) }
 
     // Rewrites a note's lines and saves it, for the edits the pinned Todo widget makes in place.

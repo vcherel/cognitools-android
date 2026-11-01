@@ -61,7 +61,7 @@ data class DiscoveryState(
 }
 
 /**
- * The daily "Découvertes du jour" batch: at most [BATCH_SIZE] tracks Valentin has never been offered
+ * The daily "Today's discoveries" batch: at most [BATCH_SIZE] tracks Valentin has never been offered
  * before, each of which he can push into his favorites one by one or all at once. A handled track
  * leaves the batch, and once the batch is empty nothing shows until the next day brings a new one.
  *

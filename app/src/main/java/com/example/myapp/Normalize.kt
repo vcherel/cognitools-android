@@ -3,8 +3,8 @@ package com.example.myapp
 import java.text.Normalizer
 
 /**
- * Accent-free lowercase form, the base every comparison in the app normalizes to: "Best pépites 💎"
- * becomes "best pepites 💎". Decomposes to NFD so an accent becomes a separate combining mark, then
+ * Accent-free lowercase form, the base every comparison in the app normalizes to: "Best pépites!"
+ * becomes "best pepites!". Decomposes to NFD so an accent becomes a separate combining mark, then
  * drops those marks; anything that isn't a letter is left alone (see [matchNormalized] to drop it).
  */
 fun String.deaccented(): String =

@@ -171,33 +171,19 @@ fun FlashcardDetailScreen(
         val flow = if (isAllLists) repository.observeAllElements()
         else repository.observeElements(listId)
 
-        var firstEmission = true
         flow.collect { list ->
-            if (firstEmission) {
-                // The LazyColumn only composes the rows on screen, so the whole list goes in at once.
-                elementsState.clear()
-                elementsState.addAll(list)
-                elementsVersion++
-                firstEmission = false
-            } else {
-                // Later DB updates (reset, edit, ...): patch only what changed so just the
-                // affected cards recompose and the scroll stays where it is.
-                elementsState.patchTo(list)
-                elementsVersion++
-            }
+            elementsState.patchTo(list)
+            elementsVersion++
         }
     }
 
     // The filtered and sorted list actually rendered, rebuilt when data, query, or sort change.
     val visibleElements = remember { mutableStateListOf<FlashcardElement>() }
 
-    // Detect whether this effect fired from a filter/sort change (jump to top) or from a data
-    // update like reset/edit (keep the viewport where it is).
     val prevQuery = remember { mutableStateOf(searchQuery) }
     val prevSort = remember { mutableStateOf(sortMode) }
 
     LaunchedEffect(elementsVersion, searchQuery, sortMode) {
-        // Capture the current scroll position before the visible list is rebuilt.
         val savedIndex = listState.firstVisibleItemIndex
         val savedOffset = listState.firstVisibleItemScrollOffset
         val filterOrSortChanged = searchQuery != prevQuery.value || sortMode != prevSort.value
@@ -649,7 +635,5 @@ private fun MutableList<FlashcardElement>.patchTo(new: List<FlashcardElement>) {
         if (updated != null && updated != this[i]) this[i] = updated
         existingIds.add(this[i].id)
     }
-    for (card in new) {
-        if (card.id !in existingIds) add(card)
-    }
+    addAll(new.filter { it.id !in existingIds })
 }

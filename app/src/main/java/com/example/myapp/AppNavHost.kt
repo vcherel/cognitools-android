@@ -78,6 +78,7 @@ fun MainScreen(
     val idleGuard = remember { IdleResetGuard() }
     val goHome: () -> Unit = { navController.popBackStack("menu", inclusive = false) }
     val back: () -> Unit = { navController.popBackStackOnce() }
+    val openArticle: (String) -> Unit = { link -> navController.navigate("news/article/${Uri.encode(link)}") }
 
     // Coming back after a long time away starts over from the main menu
     IdleReturnToMenu(guard = idleGuard, onIdle = goHome)
@@ -143,8 +144,8 @@ fun MainScreen(
                             onOpenTool = { route -> navController.navigate(route) }
                         )
                     }
-                    screen("randomGenerator") { RandomGeneratorScreen(onBack = back) }
-                    screen("volumeBooster") { VolumeBoosterScreen(onBack = back) }
+                    screen("random") { RandomGeneratorScreen(onBack = back) }
+                    screen("volume") { VolumeBoosterScreen(onBack = back) }
                     screen("undercover") { UndercoverScreen(onBack = back) }
                     screen("wikipedia") { WikipediaScreen(onBack = back) }
                     screen("files") {
@@ -154,26 +155,16 @@ fun MainScreen(
                     screen("news") {
                         NewsScreen(
                             onBack = back,
-                            onOpenArticle = { link -> navController.navigate("news/article/${Uri.encode(link)}") },
+                            onOpenArticle = openArticle,
                             onOpenSaved = { navController.navigate("news/saved") }
                         )
                     }
-                    screen("news/saved") {
-                        NewsSavedScreen(
-                            onBack = back,
-                            onOpenArticle = { link -> navController.navigate("news/article/${Uri.encode(link)}") }
-                        )
-                    }
+                    screen("news/saved") { NewsSavedScreen(onBack = back, onOpenArticle = openArticle) }
                     screen("news/article/{link}") { backStackEntry ->
                         val link = backStackEntry.arguments?.getString("link").orEmpty()
                         NewsArticleScreen(link = link, onBack = back)
                     }
-                    screen("journal") {
-                        JournalScreen(
-                            onBack = back,
-                            onOpenArticle = { link -> navController.navigate("news/article/${Uri.encode(link)}") }
-                        )
-                    }
+                    screen("journal") { JournalScreen(onBack = back, onOpenArticle = openArticle) }
                     screen("mail") {
                         MailScreen(onBack = back, onOpenMessage = { uid -> navController.navigate("mail/message/$uid") })
                     }
@@ -213,7 +204,7 @@ fun MainScreen(
                         DeezerScreen(
                             onBack = back,
                             openFullPlayerInitially = openPlayer,
-                            onOpenVolume = { navController.navigate("volumeBooster") }
+                            onOpenVolume = { navController.navigate("volume") }
                         )
                     }
                     screen("gallery") {

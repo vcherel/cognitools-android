@@ -108,7 +108,7 @@ data class PuzzleState(
 
     fun cleared(cell: Int): PuzzleState = withLetter(cell, Puzzle.EMPTY).unmarked(cell)
 
-    /** Wipes a whole word, crossing letters included: what the "effacer le mot" action does. */
+    /** Wipes a whole word, crossing letters included: what the clue bar's Clear action does. */
     fun clearSlot(slot: Slot): PuzzleState =
         puzzle.cellsOf(slot).fold(this) { state, cell -> state.cleared(cell) }
 

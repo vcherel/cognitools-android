@@ -66,7 +66,7 @@ object PodcastStreamCache {
      * What the player reads through: whatever is held plays from the phone, the rest streams, and
      * nothing it streams is written. A writing player locks the whole rest of the episode for as long
      * as it plays, so a download or a sleep pre-fetch of the episode on air read past that range
-     * without keeping it and always ended "Téléchargement incomplet".
+     * without keeping it and always ended "Incomplete download".
      */
     fun playerDataSourceFactory(context: Context): DataSource.Factory =
         cacheDataSourceFactory(context).setCacheWriteDataSinkFactory(null)

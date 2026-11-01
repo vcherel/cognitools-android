@@ -290,8 +290,8 @@ fun MyButton(
 @Composable
 fun SplitMyButton(
     text: String,
-    rightIcon: ImageVector,
     modifier: Modifier = Modifier,
+    rightIcon: ImageVector? = null,
     rightText: String? = null,
     height: Dp = 90.dp,
     rightWidth: Dp = 80.dp,
@@ -336,7 +336,7 @@ fun SplitMyButton(
                     fontSize = 28.sp,
                     fontWeight = FontWeight.SemiBold
                 )
-            } else {
+            } else if (rightIcon != null) {
                 Icon(
                     imageVector = rightIcon,
                     contentDescription = null,

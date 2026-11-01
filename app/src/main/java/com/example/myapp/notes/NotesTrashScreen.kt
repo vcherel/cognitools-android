@@ -59,7 +59,7 @@ fun NotesTrashScreen(onBack: () -> Unit) {
     val dao = remember { AppDatabase.get(context).noteDao() }
 
     val notes by context.notesLists.trashed.collectAsState()
-    // The note a "supprimer définitivement" confirmation is waiting on, or null when the pending
+    // The note a "delete for good" confirmation is waiting on, or null when the pending
     // confirmation is for emptying the whole trash.
     var confirmDelete by remember { mutableStateOf<Note?>(null) }
     var confirmEmpty by remember { mutableStateOf(false) }

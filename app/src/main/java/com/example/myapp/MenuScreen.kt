@@ -46,9 +46,8 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 
-// One of the small grid tools. [id] is what the usage counters are keyed by and never changes;
-// [route] is where tapping it goes, which is the same string for all but two of them.
-private class MenuTool(val id: String, val label: String, val accent: ToolAccent, val route: String = id)
+// One of the small grid tools. [id] is its nav route and what the usage counters are keyed by.
+private class MenuTool(val id: String, val label: String, val accent: ToolAccent)
 
 // Big tool heights against a grid row's, and the gap that leaves room for the raised edge.
 private const val BIG_ROW_WEIGHT = 1.25f
@@ -78,10 +77,10 @@ fun MenuScreen(
         MenuTool("motsFleches", "Crosswords", ToolAccents.Crosswords),
         MenuTool("translate", "Translate", ToolAccents.Translate),
         MenuTool("reader", "Reader", ToolAccents.Reader),
-        MenuTool("volume", "Volume", ToolAccents.Volume, route = "volumeBooster"),
+        MenuTool("volume", "Volume", ToolAccents.Volume),
         MenuTool("undercover", "Undercover", ToolAccents.Undercover),
         MenuTool("wikipedia", "Wiki", ToolAccents.Wiki),
-        MenuTool("random", "Random", ToolAccents.Random, route = "randomGenerator"),
+        MenuTool("random", "Random", ToolAccents.Random),
         MenuTool("files", "Files", ToolAccents.Files),
         MenuTool("news", "News", ToolAccents.News),
         MenuTool("journal", "Journal", ToolAccents.Journal),
@@ -95,7 +94,6 @@ fun MenuScreen(
     )
     val bigFontSize = 21.sp
     val bigRightWidth = 70.dp
-    val bigRowModifier = Modifier.fillMaxWidth()
 
     // No scroll: the rows share the screen height, the big tools a little taller than the grid's.
     Column(
@@ -125,7 +123,7 @@ fun MenuScreen(
         SplitMyButton(
             text = "Notes",
             rightIcon = Icons.Default.Checklist,
-            modifier = bigRowModifier.weight(BIG_ROW_WEIGHT),
+            modifier = Modifier.weight(BIG_ROW_WEIGHT),
             height = Dp.Unspecified,
             rightWidth = bigRightWidth,
             fontSize = bigFontSize,
@@ -136,7 +134,7 @@ fun MenuScreen(
             onRightClick = onOpenTodoNote
         )
         DeezerMenuButton(
-            modifier = bigRowModifier.weight(BIG_ROW_WEIGHT),
+            modifier = Modifier.weight(BIG_ROW_WEIGHT),
             rightWidth = bigRightWidth,
             fontSize = bigFontSize,
             onOpenDeezer = onOpenDeezer
@@ -157,8 +155,7 @@ fun MenuScreen(
         }
         SplitMyButton(
             text = "Flashcards",
-            rightIcon = Icons.Default.PlayArrow,
-            modifier = bigRowModifier.weight(BIG_ROW_WEIGHT),
+            modifier = Modifier.weight(BIG_ROW_WEIGHT),
             rightText = dueCount.toString(),
             rightEnabled = dueCount > 0,
             height = Dp.Unspecified,
@@ -176,7 +173,7 @@ fun MenuScreen(
         SplitMyButton(
             text = "Gallery",
             rightIcon = if (somethingPinned) Icons.Default.PushPin else Icons.Default.AccountBalanceWallet,
-            modifier = bigRowModifier.weight(BIG_ROW_WEIGHT),
+            modifier = Modifier.weight(BIG_ROW_WEIGHT),
             height = Dp.Unspecified,
             rightWidth = bigRightWidth,
             fontSize = bigFontSize,
@@ -193,10 +190,6 @@ fun MenuScreen(
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 row.forEach { tool ->
-                    val open = {
-                        scope.launch { usageStore.recordClick(tool.id) }
-                        onOpenTool(tool.route)
-                    }
                     MyButton(
                         text = tool.label,
                         modifier = Modifier.weight(1f),
@@ -209,7 +202,10 @@ fun MenuScreen(
                         onLongClick = if (tool.id == "workout") {
                             { scope.launch { WorkoutReminder.markDoneWithUndo(context) } }
                         } else null,
-                        onClick = { open() }
+                        onClick = {
+                            scope.launch { usageStore.recordClick(tool.id) }
+                            onOpenTool(tool.id)
+                        }
                     )
                 }
                 repeat(2 - row.size) { Spacer(modifier = Modifier.weight(1f)) }

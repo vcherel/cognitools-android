@@ -157,12 +157,10 @@ class DeezerPlaybackService : MediaSessionService() {
         scope.launch { repo.favoriteIds.collect { refreshActionButtons() } }
     }
 
-    // Two extra buttons sit on either side of prev/play/next in the media notification and on the
-    // lockscreen, so a track can be liked or pushed into Best pépites without unlocking the phone.
-
     /**
-     * The heart takes the slot before the transport controls, the pépites button the one after, which
-     * leaves previous/play/next untouched in the collapsed notification.
+     * The heart and the Best pépites buttons of the media notification and the lockscreen, so a track
+     * can be liked or kept without unlocking the phone. They take the slots on either side of the
+     * transport controls, which leaves previous/play/next untouched in the collapsed notification.
      */
     private fun actionButtons(liked: Boolean, inPepites: Boolean, removesFromPepites: Boolean = false): List<CommandButton> = listOf(
         CommandButton.Builder(if (liked) CommandButton.ICON_HEART_FILLED else CommandButton.ICON_HEART_UNFILLED)

@@ -22,7 +22,7 @@ const val EXTRA_OPENED_EXTENSION = "com.example.myapp.files.EXTENSION"
 
 /**
  * Which app opens which kind of file. The first file of an extension goes through the system
- * "Ouvrir avec" sheet, whose choice is captured by [FileOpenChoiceReceiver] and kept here; every
+ * "Open with" sheet, whose choice is captured by [FileOpenChoiceReceiver] and kept here; every
  * later file of that extension is handed straight to that app.
  */
 object FileDefaults {

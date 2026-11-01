@@ -83,7 +83,7 @@ fun PodcastEpisodesScreen(repo: PodcastRepository, favoriteId: String, onBack: (
     val searchFocus = remember { FocusRequester() }
     var confirmUnfollow by remember { mutableStateOf(false) }
     var confirmRemoveDownload by remember { mutableStateOf<PodcastEpisode?>(null) }
-    // Set by the "marqué comme écouté" undo: the episode comes back where it was, and the list
+    // Set by the "Marked as heard" undo: the episode comes back where it was, and the list
     // scrolls to it, otherwise undoing the top one looks like nothing happened.
     var scrollBackTo by remember { mutableStateOf<String?>(null) }
     val listState = rememberLazyListState()

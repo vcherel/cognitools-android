@@ -1,6 +1,6 @@
 # CogniTools
 
-An Android app built in Kotlin for **fun**, grouping all the little tools and games I like to have on my phone. Jetpack Compose throughout, sideloaded, single user. The in-app text is French on purpose.
+An Android app built in Kotlin for **fun**, grouping all the little tools and games I like to have on my phone. Jetpack Compose throughout, sideloaded, single user. The UI is in English, except the Undercover game, which stays French, and the content that is French by nature (the French crossword grids, the flashcard decks, the French news).
 
 <p align="center">
   <img src="/images/main_menu.jpeg" alt="Main menu" width="300">
@@ -9,6 +9,8 @@ An Android app built in Kotlin for **fun**, grouping all the little tools and ga
 ## Building and installing
 
 From the command line, with a phone plugged in and USB debugging on:
+
+`uv run --no-project src/deploy.py` runs all four steps below (`--no-build` reuses the last APK):
 
 ```bash
 ./gradlew assembleRelease
@@ -26,20 +28,23 @@ Always install the release build: performance on device matters, and debug build
 ### Big ones
 
 - **Notes**: checkbox and separator lines, a pinned Todo widget on the list, PIN lock per note, a 30 day trash, and a Courses/Ingrédients sync mode that keeps a shopping list and an ingredients list reconciled against their model notes.
-- **Flashcards**: spaced repetition. The scheduler shows cards you know less often, so reviews concentrate on what is not yet learned. Cross-list stats, bulk import, and a filing dialog the translator and the mots fléchés clue bar both write into.
-- **Galerie**: a photo and video browser on top of MediaStore. Albums from your own folders, a full screen swipe viewer with pinch zoom and video playback, batch select by long press and drag, rename, move, share, crop, video trim, pinned pictures, albums lockable behind the notes PIN, and the system 30 day trash.
-- **Musique**: a Deezer streaming client (favorites, playlists, search, a daily "Découvertes du jour" batch, an offline mirror of one playlist) and a podcast client (iTunes directory search, RSS subscriptions, downloads, listening progress, a sleep timer that pre-fetches the audio it needs so the night plays through offline) sharing one screen, with a mini player for each.
+- **Flashcards**: spaced repetition. The scheduler shows cards you know less often, so reviews concentrate on what is not yet learned. Cross-list stats, bulk import, and a filing dialog the translator and the crossword clue bar both write into.
+- **Gallery**: a photo and video browser on top of MediaStore. Albums from your own folders, a full screen swipe viewer with pinch zoom and video playback, batch select by long press and drag, rename, move, share, crop, video trim, pinned pictures, albums lockable behind the notes PIN, and the system 30 day trash.
+- **Music**: a Deezer streaming client (favorites, playlists, search, a daily "Today's discoveries" batch, an offline mirror of one playlist) and a podcast client (iTunes directory search, RSS subscriptions, downloads, listening progress, a sleep timer that pre-fetches the audio it needs so the night plays through offline) sharing one screen, with a mini player for each.
 
 ### Smaller ones
 
-- **Actus**: French and world headlines merged from a fixed set of RSS feeds, readable in the app with the boilerplate stripped out, saved articles kept offline.
-- **Mots fléchés**: arrow-word grids generated on the phone, French or English, with a per-word check and reveal. The dictionaries are built offline (see below).
-- **Traduction**: live translation with dictionary entries, text to speech, and a one tap "add to flashcards".
-- **Lecture**: an epub reader written against the format directly, no library. Long press a word to open the translator's lookup sheet.
-- **Météo**: forecast for your GPS location or a searched city, with temperature, conditions and rain amount.
+- **Calendar**: tasks, birthdays and events with their reminders, repeating tasks, the French public holidays and the Rennes school holidays.
+- **Journal**: the daily newsletter written on the laptop by the daily-journal project, read and rated here, the ratings mailed back.
+- **Workout**: a reminder two days after the last session, snoozable from its notification, with the session history.
+- **News**: French and world headlines merged from a fixed set of RSS feeds, readable in the app with the boilerplate stripped out, saved articles kept offline.
+- **Crosswords**: arrow word grids (mots fléchés) generated on the phone, French or English, with a per word check and reveal. The dictionaries are built offline (see below).
+- **Translate**: live translation with dictionary entries, text to speech, and a one tap "add to flashcards".
+- **Reader**: an epub reader written against the format directly, no library. Long press a word to open the translator's lookup sheet.
+- **Weather**: forecast for your GPS location or a searched city, with temperature, conditions and rain amount.
 - **Undercover**: the social deduction party game. Most players share a secret word, the *Undercover* have a different one and *Mr. White* has none. The ~80,000 word pairs were generated with NLP and FastText embeddings (see below).
-- **Mail**: the Yahoo inbox over IMAP, fetched only when the screen opens. Read and delete, with the one-time login code of a mail shown on its row and copied in one tap.
-- **Fichiers**: a plain file explorer, one folder at a time, with a remembered "open with" app per extension.
+- **Mail**: the Yahoo inbox over IMAP, fetched only when the screen opens. Read and delete, with the one time login code of a mail shown on its row and copied in one tap.
+- **Files**: a plain file explorer, one folder at a time, with a remembered "open with" app per extension.
 - **Wiki**: a random Wikipedia article.
 - **Random**: random numbers and words.
 - **Volume**: pushes the volume past the system limit.
@@ -93,13 +98,13 @@ Lint and format run on commit through pre-commit, tests run on push:
 uv run --with pre-commit pre-commit install
 ```
 
-The JVM unit tests cover the pure logic (the Deezer stream decryption, the puzzle generator, the epub parser, the RSS extraction, the translation parsing, the spaced repetition scheduler, the car parts note, the verification code detection, the saved MP3 tagging, the Movies note episode bump):
+The JVM unit tests cover the pure logic (the Deezer stream decryption, the puzzle generator, the epub parser, the RSS extraction, the translation parsing, the spaced repetition scheduler, the calendar and workout schedules, the Todo list reminders, the verification code detection, the saved MP3 tagging, the Movies note episode bump). `-PskipPuzzleTests` leaves out the 2 minute generator test, as the pre-push hook does unless the generator changed:
 
 ```bash
-./gradlew :app:testReleaseUnitTest
+./gradlew :app:testReleaseUnitTest -PskipPuzzleTests
 ```
 
-Three scripts drive the app on the connected phone. `frame_stats.py` runs a fixed navigation journey and prints the janky frames per step, to compare two builds. `regenerate_profile.py` records the baseline profile (about 5 minutes with the phone unlocked), checks that every screen the journey opens made it into the profile, and sends any test note the journey left behind to the notes trash. `import_flashcards.py` pushes a flashcards JSON bundle to Downloads and imports it through the lists screen, which replaces the cards it holds by id:
+Three scripts drive the app on the connected phone. `frame_stats.py` runs a fixed navigation journey and prints the janky frames per step, to compare two builds. `regenerate_profile.py` records the baseline profile (about 5 minutes with the phone unlocked), checks that every screen the journey opens made it into the profile, and sends any test note the journey left behind to the notes trash. `import_flashcards.py` pushes a flashcards JSON bundle to the app's external files folder and imports it through a broadcast only the adb shell can send, which replaces the cards it holds by id:
 
 ```bash
 uv run --no-project src/frame_stats.py 3
@@ -111,6 +116,12 @@ uv run --no-project src/import_flashcards.py corrections.json
 
 ```bash
 uv run --no-project src/deezer_logs.py
+```
+
+`mockup.py` renders HTML mockups to PNG in headless Firefox, at the phone's 360 dp width:
+
+```bash
+uv run --no-project src/mockup.py mockups/page.html --size 360,825
 ```
 
 `CLAUDE.md` carries a one line per file map of the whole codebase, kept current as files are added or renamed.

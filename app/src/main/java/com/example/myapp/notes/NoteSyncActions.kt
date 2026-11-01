@@ -478,7 +478,7 @@ class NoteSyncActions(
     }
 
     // Drops the current item from the pending list and, once none remain, closes the batch and
-    // shows its snackbar. `moved` counts the item toward the "X ajoutés" tally.
+    // shows its snackbar. `moved` counts the item toward the "X added" tally.
     private fun advancePending(moved: Boolean) {
         val current = batch ?: return
         val remaining = current.pending.drop(1)
@@ -494,7 +494,7 @@ class NoteSyncActions(
         }
     }
 
-    // Shows the "X ingrédients/articles ajoutés/réordonnés" snackbar, whose Annuler restores the
+    // Shows the "X items/ingredients added/reordered" snackbar, whose Undo restores the
     // source, target and model notes to their snapshots.
     private fun finish(finished: NoteSyncBatch) {
         if (finished.movedCount == 0) return

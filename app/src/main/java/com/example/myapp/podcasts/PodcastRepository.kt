@@ -128,7 +128,7 @@ class PodcastRepository(private val appContext: Context) {
 
     /**
      * Adds back the downloaded episodes [fetched] does not already contain. With no connection every
-     * feed read fails and comes back empty, and the screens would show "Aucun épisode" while the
+     * feed read fails and comes back empty, and the screens would show "No episodes." while the
      * episodes are sitting on the phone, playable. Also covers a single feed being down.
      */
     private suspend fun withDownloadedFallback(
