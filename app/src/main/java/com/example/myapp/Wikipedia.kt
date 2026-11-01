@@ -133,7 +133,8 @@ fun WikipediaScreen(onBack: () -> Unit) {
                     onClick = {
                         selectedLanguage = if (selectedLanguage == "fr") "en" else "fr"
                     },
-                    modifier = Modifier.weight(0.2f).height(75.dp)
+                    modifier = Modifier.weight(0.2f).height(75.dp),
+                    secondary = true
                 )
             }
 

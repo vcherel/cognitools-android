@@ -127,6 +127,7 @@ fun AddToFlashcardsDialog(
                 modifier = Modifier.weight(1f),
                 height = 48.dp,
                 fontSize = 16.sp,
+                secondary = true,
                 onClick = onDismiss
             )
             MyButton(

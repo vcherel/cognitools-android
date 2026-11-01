@@ -253,6 +253,7 @@ fun VolumeBoosterScreen(onBack: () -> Unit) {
                 modifier = Modifier.width(100.dp),
                 fontSize = 32.sp,
                 enabled = boostState.running,
+                secondary = true,
                 onClick = { sendServiceAction(context, VolumeBoosterService.ACTION_DECREASE_GAIN) }
             )
 
@@ -261,6 +262,7 @@ fun VolumeBoosterScreen(onBack: () -> Unit) {
                 modifier = Modifier.width(100.dp),
                 fontSize = 32.sp,
                 enabled = boostState.running,
+                secondary = true,
                 onClick = { sendServiceAction(context, VolumeBoosterService.ACTION_INCREASE_GAIN) }
             )
         }

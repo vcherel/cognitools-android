@@ -18,6 +18,8 @@ A complaint about the Music tool's errors starts with `uv run --no-project src/d
 
 A flag complaint starts with `uv run --no-project --with pillow python src/generate_flags.py --sheet <codes>` from the repo root, opened for Valentin: it puts the shipped picture next to a fresh render and writes nothing to the assets, so the same command previews a generator change before the full run.
 
+The phone's screen is 360 x 825 dp (720 x 1650 px at density 2.0): size UI mockups and fit checks to that width. Mockups go in the gitignored `mockups/` folder and render with `uv run --no-project src/mockup.py <page.html>... --size W,H`, headless Firefox with Inter and Material Symbols cached locally.
+
 A layout complaint starts with `adb exec-out screencap -p`, never with the code. A black capture means the phone is locked: ask Valentin to unlock it and open the screen, then capture again.
 
 ## Deploy method
@@ -41,7 +43,7 @@ Always install release builds, never debug (performance matters on device). Debu
 ## Codebase map
 The independent tools live under `app/src/main/java/com/example/myapp/`. Use this map to jump straight to the right file with Read/Grep instead of spawning an exploration agent. Keep it current when files are added or renamed: a stale map misleads more than no map.
 
-Outside that package: `src/` holds the Python asset generators (see the README): `generate_flags.py` builds the Drapeaux list (`assets/flags/` and `assets/seed_flags.json`, from flagcdn), `generate_pairs.py` builds the Undercover `assets/pairs.json` (`generate_dataset.ipynb` at the root only drives it), the mots fléchés scripts are listed under `motsfleches/` below, `deploy.py` builds, installs and compiles the release, `deezer_logs.py` pulls and summarizes the music tool's logs, `phone.py` drives the app over adb for `frame_stats.py` (janky frames per navigation step) `regenerate_profile.py` (records and checks the baseline profile) and `import_flashcards.py` (pushes a flashcards bundle and imports it through `flashcards/FlashcardImportReceiver.kt`, a broadcast only the adb shell can send). `data/` holds their inputs, `app/src/test/` the JVM unit tests, `baselineprofile/` the startup profile module (`BaselineProfileGenerator.kt`, the journey the profile is recorded from).
+Outside that package: `src/` holds the Python asset generators (see the README): `generate_flags.py` builds the Drapeaux list (`assets/flags/` and `assets/seed_flags.json`, from flagcdn), `generate_pairs.py` builds the Undercover `assets/pairs.json` (`generate_dataset.ipynb` at the root only drives it), the mots fléchés scripts are listed under `motsfleches/` below, `deploy.py` builds, installs and compiles the release, `mockup.py` renders HTML mockups to PNG, `deezer_logs.py` pulls and summarizes the music tool's logs, `phone.py` drives the app over adb for `frame_stats.py` (janky frames per navigation step) `regenerate_profile.py` (records and checks the baseline profile) and `import_flashcards.py` (pushes a flashcards bundle and imports it through `flashcards/FlashcardImportReceiver.kt`, a broadcast only the adb shell can send). `data/` holds their inputs, `app/src/test/` the JVM unit tests, `baselineprofile/` the startup profile module (`BaselineProfileGenerator.kt`, the journey the profile is recorded from).
 
 Root package (shared/misc):
 - `MainActivity.kt`: app entry point; the window, the intents it is launched with, and the locked-over-the-keyguard quick view
@@ -51,7 +53,8 @@ Root package (shared/misc):
 - `Theme.kt`: ThemeManager (dark mode DataStore), AppTheme, LocalIsDarkMode
 - `MyApplication.kt`: Application class, holds the FlashcardRepository / DeezerRepository / PodcastRepository singletons plus their `Context.<name>Repository` extensions, and the app start housekeeping
 - `Buttons.kt`: shared composables, MyButton, SplitMyButton, MySwitch, ShowAlertDialog, ErrorText, AppDialog, LightIconButton (the one-node icon button for anything repeated per card or line), AddItemRow (the gray "New item" placeholder where a new entry goes: the Todo widget, the Todo list note, the Calendar day). The buttons are all built on RaisedSurface, the custom dialogs all on AppDialog
-- `ScreenTopBar.kt`: shared back-arrow + title header used by the tool screens
+- `ScreenTopBar.kt`: shared back-arrow + tool chip + title header used by the tool screens
+- `ToolAccents.kt`: each tool's color and icon (the menu chips), `ToolAccents.forRoute` and LocalToolAccent, which AppNavHost provides from the current route so a tool's headers show its chip and its buttons take its tint (`secondary = true` keeps Cancel and the like gray)
 - `Home.kt`: BackIconButton (tap = back, long press = main menu), the LocalGoHome hook, and the idle-return-to-menu lifecycle watcher with its IdleResetGuard
 - `PlayerUi.kt`: the surfaces `deezer/` and `podcasts/` both draw; MediaArt, MediaListRow, MiniPlayerBar (swipe to change track when given the callbacks), PlayPauseButton, PlayerSeekBar (which owns the position polling), formatPlaybackTime
 - `PauseOnOutputLost.kt`: `pauseOnOutputLost`, the device callback both playback services use to pause when a Bluetooth or wired output disappears (MIUI skips the noisy broadcast for some disconnects)

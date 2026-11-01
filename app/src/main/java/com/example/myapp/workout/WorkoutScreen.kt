@@ -117,10 +117,10 @@ fun WorkoutScreen(onBack: () -> Unit, pickDayInitially: Boolean = false) {
 
         if (current.due) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                MyButton(text = "In 1 h", modifier = Modifier.weight(1f), fontSize = 20.sp) {
+                MyButton(text = "In 1 h", modifier = Modifier.weight(1f), fontSize = 20.sp, secondary = true) {
                     scope.launch { WorkoutReminder.snoozeLater(context) }
                 }
-                MyButton(text = "Tomorrow", modifier = Modifier.weight(1f), fontSize = 20.sp) {
+                MyButton(text = "Tomorrow", modifier = Modifier.weight(1f), fontSize = 20.sp, secondary = true) {
                     scope.launch { WorkoutReminder.snoozeDay(context) }
                 }
             }

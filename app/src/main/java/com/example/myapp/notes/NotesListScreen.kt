@@ -60,6 +60,7 @@ import com.example.myapp.copyToClipboard
 import com.example.myapp.LightIconButton
 import com.example.myapp.LocalIsDarkMode
 import com.example.myapp.MyButton
+import com.example.myapp.ToolChip
 import com.example.myapp.notesLists
 import com.example.myapp.popBackStackOnce
 import com.example.myapp.RecentSearchChips
@@ -190,10 +191,11 @@ fun NotesListScreen(navController: NavController) {
                         )
                     } else {
                         BackIconButton(onBack = { navController.popBackStackOnce() })
+                        ToolChip(size = 32.dp)
                         Text(
                             "Notes",
                             style = MaterialTheme.typography.headlineSmall,
-                            modifier = Modifier.padding(start = 8.dp)
+                            modifier = Modifier.padding(start = 12.dp)
                         )
                     }
                 }

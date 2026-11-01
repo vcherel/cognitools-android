@@ -17,6 +17,8 @@ backups/
 # Deezer ARL credential, never commit
 .deezer_arl.local
 __pycache__/
+# UI mockups rendered by src/mockup.py, local work across design rounds
+mockups/
 
 # Wiktionary scrape cache for the mots fleches dictionary. Not tracked: it is 12 MB, it is only an
 # input to regenerating the shipped asset (which is tracked), and generate_motsfleches.py refetches

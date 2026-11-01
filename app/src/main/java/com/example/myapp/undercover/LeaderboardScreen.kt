@@ -90,7 +90,8 @@ fun LeaderboardScreen(
             onClick = onBackToMenu,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(80.dp)
+                .height(80.dp),
+            secondary = true
         )
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -113,7 +114,8 @@ fun LeaderboardScreen(
                 onClick = { onSettings() },
                 modifier = Modifier
                     .weight(1f)
-                    .height(80.dp)
+                    .height(80.dp),
+                secondary = true
             )
         }
     }

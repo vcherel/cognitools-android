@@ -120,7 +120,8 @@ fun DeezerDiscoveriesScreen(repo: DeezerRepository, onBack: () -> Unit) {
                             modifier = Modifier.weight(1f),
                             height = 56.dp,
                             fontSize = 16.sp,
-                            enabled = !state.generating
+                            enabled = !state.generating,
+                            secondary = true
                         ) {
                             discoveries.dismissAll()
                             onBack()

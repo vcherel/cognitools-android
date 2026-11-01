@@ -350,6 +350,7 @@ private fun AbandonGridDialog(onDismiss: () -> Unit, onNewGrid: () -> Unit) {
                 text = "Cancel",
                 modifier = Modifier.weight(1f).height(50.dp),
                 fontSize = 14.sp,
+                secondary = true,
                 onClick = onDismiss
             )
             MyButton(

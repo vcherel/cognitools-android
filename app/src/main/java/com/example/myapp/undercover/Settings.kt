@@ -367,6 +367,7 @@ fun NumberSetting(
                 onClick = { onValueChange(value - 1) },
                 enabled = enabled && value > min,
                 fontSize = fontSize,
+                secondary = true,
                 modifier = Modifier.size(62.dp)
             )
             Text(
@@ -380,6 +381,7 @@ fun NumberSetting(
                 onClick = { onValueChange(value + 1) },
                 enabled = enabled && value < max,
                 fontSize = fontSize,
+                secondary = true,
                 modifier = Modifier.size(62.dp)
             )
         }

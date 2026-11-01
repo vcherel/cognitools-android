@@ -283,6 +283,7 @@ fun AddToFlashcardsButton(source: String, translation: String, modifier: Modifie
             icon = Icons.AutoMirrored.Filled.List,
             text = "Pick the list",
             enabled = lists.isNotEmpty(),
+            secondary = true,
             onClick = {
                 startWithPicker = true
                 filing = true

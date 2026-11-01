@@ -12,6 +12,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
@@ -21,6 +22,7 @@ import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
@@ -108,7 +110,10 @@ fun MainScreen(
         val snackbarHostState = rememberAppSnackbarHostState()
 
         Scaffold(snackbarHost = { SnackbarHost(snackbarHostState) }) { innerPadding ->
+            // The tool on screen lends its color and icon to the headers and buttons under it.
+            val currentEntry by navController.currentBackStackEntryAsState()
             Box(modifier = Modifier.padding(innerPadding)) {
+                CompositionLocalProvider(LocalToolAccent provides ToolAccents.forRoute(currentEntry?.destination?.route)) {
                 NavHost(
                     navController = navController,
                     startDestination = "menu",
@@ -294,6 +299,7 @@ fun MainScreen(
                             FlashcardGameScreen(listId = listId, navController = navController)
                         }
                     }
+                }
                 }
             }
         }

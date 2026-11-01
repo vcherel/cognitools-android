@@ -569,7 +569,8 @@ private fun AllReviewedScreen(
             MyButton(
                 text = "Back",
                 onClick = onBack,
-                modifier = Modifier.fillMaxWidth().height(56.dp)
+                modifier = Modifier.fillMaxWidth().height(56.dp),
+                secondary = true
             )
         }
     }

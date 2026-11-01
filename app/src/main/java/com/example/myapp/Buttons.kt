@@ -2,6 +2,7 @@ package com.example.myapp
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.InteractionSource
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.PressInteraction
@@ -44,7 +45,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.takeOrElse
 import androidx.compose.ui.semantics.Role
@@ -178,7 +181,13 @@ private fun RaisedSurface(
 
 /** A tool's icon on a small square tinted with its [color], drawn before a button's label. */
 @Composable
-private fun IconChip(icon: ImageVector, color: Color, size: Dp, highlighted: Boolean) {
+internal fun IconChip(
+    icon: ImageVector,
+    color: Color,
+    size: Dp,
+    highlighted: Boolean,
+    modifier: Modifier = Modifier
+) {
     val isDarkMode = LocalIsDarkMode.current
     val background = when {
         highlighted -> Color.White.copy(alpha = 0.45f)
@@ -191,7 +200,7 @@ private fun IconChip(icon: ImageVector, color: Color, size: Dp, highlighted: Boo
         else -> lerp(color, Color.Black, 0.2f)
     }
     Box(
-        modifier = Modifier.size(size).background(background, RoundedCornerShape(size * 0.3f)),
+        modifier = modifier.size(size).background(background, RoundedCornerShape(size * 0.3f)),
         contentAlignment = Alignment.Center
     ) {
         Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(size * 0.62f))
@@ -247,6 +256,9 @@ fun MyButton(
     icon: ImageVector? = null,
     chipIcon: ImageVector? = null,
     chipColor: Color = Color.Gray,
+    /** Keeps the button gray inside a tool, whose buttons otherwise take its color (Cancel, steppers). */
+    secondary: Boolean = false,
+    onLongClick: (() -> Unit)? = null,
     onClick: () -> Unit
 ) {
     RaisedButton(
@@ -254,6 +266,8 @@ fun MyButton(
         height = height,
         enabled = enabled,
         highlighted = highlighted,
+        tint = if (secondary) null else LocalToolAccent.current?.color,
+        onLongClick = onLongClick,
         onClick = onClick
     ) { textColor ->
         if (icon != null) {
@@ -343,12 +357,14 @@ private fun RaisedButton(
     enabled: Boolean = true,
     highlighted: Boolean = false,
     tint: Color? = null,
+    onLongClick: (() -> Unit)? = null,
     onClick: () -> Unit,
     content: @Composable (textColor: Color) -> Unit
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by rememberHeldPressed(interactionSource)
     val isDarkMode = LocalIsDarkMode.current
+    val haptics = LocalHapticFeedback.current
     val style = remember(isPressed, enabled, isDarkMode, highlighted, tint) {
         buttonStyle(isPressed, enabled = enabled, isDarkMode = isDarkMode, highlighted = highlighted, tint = tint)
     }
@@ -357,9 +373,15 @@ private fun RaisedButton(
         style = style,
         isPressed = isPressed,
         modifier = modifier.then(if (height.isSpecified) Modifier.height(height) else Modifier.fillMaxHeight()),
-        clickModifier = if (enabled) Modifier.clickable(
+        clickModifier = if (enabled) Modifier.combinedClickable(
             interactionSource = interactionSource,
             indication = null,
+            onLongClick = onLongClick?.let { longClick ->
+                {
+                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                    longClick()
+                }
+            },
             onClick = onClick
         ) else Modifier
     ) {
@@ -381,9 +403,14 @@ fun MySwitch(
     val boxWidth = if (text != null) 200.dp else 85.dp
     val boxHeight = if (text != null) 100.dp else 55.dp
 
-    // The "pressed" style doubles as the "switch on" look.
-    val style = remember(isEnabled, isDarkMode) {
-        buttonStyle(isPressed = isEnabled, enabled = true, isDarkMode = isDarkMode, highlighted = false)
+    // On reads as the tool's tint inside a tool, else as the blue "pressed" style.
+    val accent = LocalToolAccent.current?.color
+    val style = remember(isEnabled, isDarkMode, accent) {
+        if (isEnabled && accent != null) {
+            buttonStyle(isPressed = false, enabled = true, isDarkMode = isDarkMode, highlighted = false, tint = accent)
+        } else {
+            buttonStyle(isPressed = isEnabled, enabled = true, isDarkMode = isDarkMode, highlighted = false)
+        }
     }
 
     RaisedSurface(
@@ -421,7 +448,7 @@ fun MySwitch(
                 onCheckedChange = null,
                 colors = SwitchDefaults.colors(
                     checkedThumbColor = Color.White,
-                    checkedTrackColor = Color(0xFF0D47A1),
+                    checkedTrackColor = accent ?: Color(0xFF0D47A1),
                     uncheckedThumbColor = Color.White,
                     uncheckedTrackColor = if (isDarkMode) Color(0xFF37474F) else Color(0xFFB0BEC5)
                 ),
@@ -455,7 +482,8 @@ fun ShowAlertDialog(
                         text = cancelText,
                         onClick = onCancel,
                         modifier = Modifier.weight(1f).height(50.dp),
-                        fontSize = 14.sp
+                        fontSize = 14.sp,
+                        secondary = true
                     )
                 }
                 MyButton(

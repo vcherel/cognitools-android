@@ -287,6 +287,7 @@ private fun ChapterNavigation(chapterIndex: Int, chapterCount: Int, onGo: (Int) 
             height = 56.dp,
             fontSize = 16.sp,
             enabled = chapterIndex > 0,
+            secondary = true,
             onClick = { onGo(chapterIndex - 1) }
         )
         MyButton(

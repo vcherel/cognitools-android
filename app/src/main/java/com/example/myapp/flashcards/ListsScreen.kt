@@ -64,6 +64,7 @@ import com.example.myapp.flashcardRepository
 import com.example.myapp.formatDuration
 import com.example.myapp.BottomFadeOverlay
 import com.example.myapp.MyButton
+import com.example.myapp.ToolChip
 import com.example.myapp.ShowAlertDialog
 import kotlinx.coroutines.launch
 import sh.calvin.reorderable.ReorderableItem
@@ -146,11 +147,12 @@ fun FlashcardListsScreen(navController: NavController) {
                     modifier = Modifier.weight(1f)
                 ) {
                     BackIconButton(onBack = { backToMenu() })
+                    ToolChip(size = 32.dp)
                     Text(
                         "Lists",
                         style = MaterialTheme.typography.headlineSmall,
                         modifier = Modifier
-                            .padding(start = 8.dp, end = 12.dp)
+                            .padding(start = 12.dp, end = 12.dp)
                             .clickable { showGlobalStats = true }
                     )
                 }
@@ -500,7 +502,8 @@ private fun BulkImportDialog(
                     modifier = Modifier
                         .weight(1f)
                         .height(50.dp),
-                    fontSize = 14.sp
+                    fontSize = 14.sp,
+                    secondary = true
                 )
 
                 MyButton(

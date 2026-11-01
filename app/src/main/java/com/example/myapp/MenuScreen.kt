@@ -9,33 +9,14 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Article
-import androidx.compose.material.icons.automirrored.filled.MenuBook
-import androidx.compose.material.icons.automirrored.filled.StickyNote2
-import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.AccountBalanceWallet
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.Casino
 import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.DarkMode
-import androidx.compose.material.icons.filled.FitnessCenter
-import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material.icons.filled.GridOn
 import androidx.compose.material.icons.filled.LightMode
-import androidx.compose.material.icons.filled.Mail
-import androidx.compose.material.icons.filled.MusicNote
-import androidx.compose.material.icons.filled.Newspaper
 import androidx.compose.material.icons.filled.Pause
-import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Shuffle
-import androidx.compose.material.icons.filled.Style
-import androidx.compose.material.icons.filled.TheaterComedy
-import androidx.compose.material.icons.filled.Translate
-import androidx.compose.material.icons.filled.WbSunny
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -52,8 +33,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
@@ -69,19 +48,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 
 // One of the small grid tools. [id] is what the usage counters are keyed by and never changes;
 // [route] is where tapping it goes, which is the same string for all but two of them.
-private class MenuTool(
-    val id: String,
-    val label: String,
-    val icon: ImageVector,
-    val color: Color,
-    val route: String = id
-)
-
-private val NotesColor = Color(0xFFE3A72F)
-private val MusicColor = Color(0xFFE0457B)
-private val FlashcardsColor = Color(0xFF3F74D6)
-private val GalleryColor = Color(0xFF2FA383)
-private val WorkoutColor = Color(0xFF2E9E6A)
+private class MenuTool(val id: String, val label: String, val accent: ToolAccent, val route: String = id)
 
 // Big tool heights against a grid row's, and the gap that leaves room for the raised edge.
 private const val BIG_ROW_WEIGHT = 1.25f
@@ -107,20 +74,20 @@ fun MenuScreen(
     val usage by usageStore.counts.collectAsState(initial = emptyMap())
 
     val tools = listOf(
-        MenuTool("weather", "Weather", Icons.Default.WbSunny, Color(0xFF3D8FD6)),
-        MenuTool("motsFleches", "Crosswords", Icons.Default.GridOn, Color(0xFF6F7A86)),
-        MenuTool("translate", "Translate", Icons.Default.Translate, Color(0xFF1F9DB0)),
-        MenuTool("reader", "Reader", Icons.AutoMirrored.Filled.MenuBook, Color(0xFFA8703A)),
-        MenuTool("volume", "Volume", Icons.AutoMirrored.Filled.VolumeUp, Color(0xFFDB6F33), route = "volumeBooster"),
-        MenuTool("undercover", "Undercover", Icons.Default.TheaterComedy, Color(0xFF5F5F8F)),
-        MenuTool("wikipedia", "Wiki", Icons.Default.Public, Color(0xFF4F8F4F)),
-        MenuTool("random", "Random", Icons.Default.Casino, Color(0xFFC2509A), route = "randomGenerator"),
-        MenuTool("files", "Files", Icons.Default.Folder, Color(0xFFC99A1E)),
-        MenuTool("news", "News", Icons.Default.Newspaper, Color(0xFF7A63CC)),
-        MenuTool("journal", "Journal", Icons.AutoMirrored.Filled.Article, Color(0xFFE58A2B)),
-        MenuTool("mail", "Mail", Icons.Default.Mail, Color(0xFF5A6FD6)),
-        MenuTool("workout", "Workout", Icons.Default.FitnessCenter, WorkoutColor),
-        MenuTool("calendar", "Calendar", Icons.Default.CalendarMonth, Color(0xFFD64B4B))
+        MenuTool("weather", "Weather", ToolAccents.Weather),
+        MenuTool("motsFleches", "Crosswords", ToolAccents.Crosswords),
+        MenuTool("translate", "Translate", ToolAccents.Translate),
+        MenuTool("reader", "Reader", ToolAccents.Reader),
+        MenuTool("volume", "Volume", ToolAccents.Volume, route = "volumeBooster"),
+        MenuTool("undercover", "Undercover", ToolAccents.Undercover),
+        MenuTool("wikipedia", "Wiki", ToolAccents.Wiki),
+        MenuTool("random", "Random", ToolAccents.Random, route = "randomGenerator"),
+        MenuTool("files", "Files", ToolAccents.Files),
+        MenuTool("news", "News", ToolAccents.News),
+        MenuTool("journal", "Journal", ToolAccents.Journal),
+        MenuTool("mail", "Mail", ToolAccents.Mail),
+        MenuTool("workout", "Workout", ToolAccents.Workout),
+        MenuTool("calendar", "Calendar", ToolAccents.Calendar)
     )
     // Most used first, alphabetical between tools opened as often (so a fresh install is A to Z).
     val orderedTools = tools.sortedWith(
@@ -162,9 +129,9 @@ fun MenuScreen(
             height = Dp.Unspecified,
             rightWidth = bigRightWidth,
             fontSize = bigFontSize,
-            chipIcon = Icons.AutoMirrored.Filled.StickyNote2,
-            chipColor = NotesColor,
-            rightTint = NotesColor,
+            chipIcon = ToolAccents.Notes.icon,
+            chipColor = ToolAccents.Notes.color,
+            rightTint = ToolAccents.Notes.color,
             onMainClick = onOpenNotes,
             onRightClick = onOpenTodoNote
         )
@@ -197,9 +164,9 @@ fun MenuScreen(
             height = Dp.Unspecified,
             rightWidth = bigRightWidth,
             fontSize = bigFontSize,
-            chipIcon = Icons.Default.Style,
-            chipColor = FlashcardsColor,
-            rightTint = FlashcardsColor,
+            chipIcon = ToolAccents.Flashcards.icon,
+            chipColor = ToolAccents.Flashcards.color,
+            rightTint = ToolAccents.Flashcards.color,
             onMainClick = onOpenFlashcards,
             onRightClick = onPlayFlashcards
         )
@@ -213,9 +180,9 @@ fun MenuScreen(
             height = Dp.Unspecified,
             rightWidth = bigRightWidth,
             fontSize = bigFontSize,
-            chipIcon = Icons.Default.PhotoLibrary,
-            chipColor = GalleryColor,
-            rightTint = GalleryColor,
+            chipIcon = ToolAccents.Gallery.icon,
+            chipColor = ToolAccents.Gallery.color,
+            rightTint = ToolAccents.Gallery.color,
             onMainClick = onOpenGallery,
             onRightClick = if (somethingPinned) onOpenPinnedPictures else onOpenWallet
         )
@@ -230,33 +197,20 @@ fun MenuScreen(
                         scope.launch { usageStore.recordClick(tool.id) }
                         onOpenTool(tool.route)
                     }
-                    // Workout's right half logs a session on the spot, without opening the screen.
-                    if (tool.id == "workout") {
-                        SplitMyButton(
-                            text = tool.label,
-                            rightIcon = Icons.Default.Add,
-                            modifier = Modifier.weight(1f),
-                            height = Dp.Unspecified,
-                            rightWidth = 40.dp,
-                            fontSize = 16.sp,
-                            chipIcon = tool.icon,
-                            chipColor = tool.color,
-                            rightTint = tool.color,
-                            onMainClick = { open() },
-                            onRightClick = { scope.launch { WorkoutReminder.markDoneWithUndo(context) } }
-                        )
-                    } else {
-                        MyButton(
-                            text = tool.label,
-                            modifier = Modifier.weight(1f),
-                            height = Dp.Unspecified,
-                            fontSize = 16.sp,
-                            highlighted = tool.id == "journal" && journalUnread,
-                            chipIcon = tool.icon,
-                            chipColor = tool.color,
-                            onClick = { open() }
-                        )
-                    }
+                    MyButton(
+                        text = tool.label,
+                        modifier = Modifier.weight(1f),
+                        height = Dp.Unspecified,
+                        fontSize = 16.sp,
+                        highlighted = tool.id == "journal" && journalUnread,
+                        chipIcon = tool.accent.icon,
+                        chipColor = tool.accent.color,
+                        // A long press on Workout logs a session on the spot, without opening the screen.
+                        onLongClick = if (tool.id == "workout") {
+                            { scope.launch { WorkoutReminder.markDoneWithUndo(context) } }
+                        } else null,
+                        onClick = { open() }
+                    )
                 }
                 repeat(2 - row.size) { Spacer(modifier = Modifier.weight(1f)) }
             }
@@ -301,9 +255,9 @@ private fun DeezerMenuButton(
         height = Dp.Unspecified,
         rightWidth = rightWidth,
         fontSize = fontSize,
-        chipIcon = Icons.Default.MusicNote,
-        chipColor = MusicColor,
-        rightTint = MusicColor,
+        chipIcon = ToolAccents.Music.icon,
+        chipColor = ToolAccents.Music.color,
+        rightTint = ToolAccents.Music.color,
         rightLoading = isShuffleLoading,
         onMainClick = onOpenDeezer,
         onRightClick = {

@@ -13,7 +13,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
-// Back arrow + screen title, the header every tool screen opens with.
+// Back arrow, the tool's chip and the screen title, the header every tool screen opens with.
 @Composable
 fun ScreenTopBar(
     title: String,
@@ -30,13 +30,14 @@ fun ScreenTopBar(
         verticalAlignment = Alignment.CenterVertically
     ) {
         BackIconButton(onBack = onBack)
+        ToolChip()
         Text(
             title,
             style = titleStyle,
             maxLines = titleMaxLines,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier
-                .padding(start = 8.dp)
+                .padding(start = if (LocalToolAccent.current != null) 12.dp else 8.dp)
                 .then(if (titleWeight) Modifier.weight(1f) else Modifier)
         )
         titleSuffix()

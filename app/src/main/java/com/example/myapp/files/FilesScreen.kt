@@ -615,6 +615,7 @@ private fun DefaultAppsDialog(
             text = "Close",
             modifier = Modifier.fillMaxWidth().height(50.dp),
             fontSize = 14.sp,
+            secondary = true,
             onClick = onDismiss
         )
     }
@@ -644,6 +645,7 @@ private fun NameDialog(
                 text = "Cancel",
                 modifier = Modifier.weight(1f).height(50.dp),
                 fontSize = 14.sp,
+                secondary = true,
                 onClick = onDismiss
             )
             MyButton(
