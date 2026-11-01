@@ -438,11 +438,7 @@ private fun ItemRow(
                 item.kind == CalendarKind.BIRTHDAY -> null
                 else -> listOfNotNull(
                     timeOn(item, day),
-                    when (item.recurrence) {
-                        Recurrence.WEEKLY -> "chaque semaine"
-                        Recurrence.MONTHLY -> "chaque mois"
-                        Recurrence.NONE -> null
-                    }
+                    item.recurrence.takeIf { it != Recurrence.NONE }?.label?.lowercase()
                 ).joinToString(", ").ifEmpty { null }?.replaceFirstChar { it.uppercase() }
             }
             details?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = muted) }

@@ -48,6 +48,7 @@ fun birthdayTitle(item: CalendarItem) = "Anniversaire ${birthdayOf(item.title)}"
  */
 object CalendarReminders {
     private const val CHANNEL_ID = "calendar"
+    private const val DIGEST_NOTIFICATION_ID = 1_999_999
     private const val CATCH_UP_HOURS = 12L
     private val mutex = Mutex()
 
@@ -72,18 +73,48 @@ object CalendarReminders {
             val stored = context.calendarStore.data.first()[LAST_CHECK]?.toLocalDateTime()
             val from = maxOf(stored ?: now, now.minusHours(CATCH_UP_HOURS))
             items.flatMap { remindersBetween(it, from, now) }.forEach { notify(context, it) }
+            digestsBetween(items, from, now).forEach { notifyDigest(context, it, digestItems(items, it)) }
         }
         context.calendarStore.edit { it[LAST_CHECK] = now.toMillis() }
-        val next = nextReminder(items, now)
+        val next = listOfNotNull(nextReminder(items, now)?.at, nextDigest(items, now)).minOrNull()
         val alarms = context.getSystemService(AlarmManager::class.java)
         val intent = receiverIntent(context, ACTION_REMIND, null)
         if (next == null) {
             alarms.cancel(intent)
         } else if (alarms.canScheduleExactAlarms()) {
-            alarms.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, next.at.toMillis(), intent)
+            alarms.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, next.toMillis(), intent)
         } else {
-            alarms.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, next.at.toMillis(), intent)
+            alarms.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, next.toMillis(), intent)
         }
+    }
+
+    private fun createChannel(context: Context) =
+        context.getSystemService(NotificationManager::class.java).createNotificationChannel(
+            NotificationChannel(CHANNEL_ID, context.getString(R.string.calendar_channel), NotificationManager.IMPORTANCE_HIGH)
+        )
+
+    /** "Demain" with "10:00 Dentiste" on one line per item. */
+    private fun notifyDigest(context: Context, day: LocalDate, items: List<CalendarItem>) {
+        if (items.isEmpty()) return
+        createChannel(context)
+        val lines = items.map { item -> listOfNotNull(item.localTime()?.let(timeFormat::format), item.title).joinToString(" ") }
+        val open = PendingIntent.getActivity(
+            context, DIGEST_NOTIFICATION_ID,
+            Intent(context, MainActivity::class.java).putExtra(MainActivity.EXTRA_OPEN_ROUTE, "calendar?day=$day"),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        val style = NotificationCompat.InboxStyle()
+        lines.forEach { style.addLine(it) }
+        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_calendar)
+            .setContentTitle("Demain")
+            .setContentText(lines.joinToString(", "))
+            .setStyle(style)
+            .setContentIntent(open)
+            .setAutoCancel(true)
+            .setCategory(NotificationCompat.CATEGORY_REMINDER)
+            .build()
+        context.getSystemService(NotificationManager::class.java).notify(DIGEST_NOTIFICATION_ID, notification)
     }
 
     internal suspend fun onAction(context: Context, action: String, itemId: String, notificationId: Int) {
@@ -102,9 +133,7 @@ object CalendarReminders {
 
     private fun notify(context: Context, reminder: Reminder) {
         val manager = context.getSystemService(NotificationManager::class.java)
-        manager.createNotificationChannel(
-            NotificationChannel(CHANNEL_ID, context.getString(R.string.calendar_channel), NotificationManager.IMPORTANCE_HIGH)
-        )
+        createChannel(context)
         val item = reminder.item
         val id = notificationId(reminder)
         val day = when (item.kind) {

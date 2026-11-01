@@ -14,7 +14,18 @@ import java.util.UUID
 
 enum class CalendarKind { TASK, BIRTHDAY, EVENT }
 
-enum class Recurrence { NONE, WEEKLY, MONTHLY }
+/**
+ * WEEKLY and MONTHLY count from the day the task was checked, WEEKLY_ON_DAY and MONTHLY_ON_DAY keep
+ * the day it was set for, MONTH_END is the last day of every month. [label] is the dialog's menu entry.
+ */
+enum class Recurrence(val label: String) {
+    NONE("Jamais"),
+    WEEKLY_ON_DAY("Chaque semaine"),
+    WEEKLY("Chaque semaine après fait"),
+    MONTHLY_ON_DAY("Chaque mois"),
+    MONTHLY("Chaque mois après fait"),
+    MONTH_END("Dernier jour du mois")
+}
 
 /**
  * One task, birthday or event. [date] is ISO; a birthday's is the birth date, its year 2000 (a leap
@@ -22,8 +33,7 @@ enum class Recurrence { NONE, WEEKLY, MONTHLY }
  * [date], null for a one day event. [time] and [endTime] are "HH:mm", the start on the first day and
  * the end on the last. [wishedYear] is the last year a birthday was marked wished, which skips that
  * year's morning reminder.
- * A repeating task ([recurrence]) is never done: checking it moves [date] a week or a month past the day
- * it was done.
+ * A repeating task ([recurrence]) is never done: checking it moves [date] to its next time.
  * [snoozedUntil] is the ISO date time a task's "Dans 1 h" put its reminder off to, cleared by any edit.
  */
 @Entity(tableName = "calendar_items")

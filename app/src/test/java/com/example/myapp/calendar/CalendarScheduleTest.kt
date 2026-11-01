@@ -89,6 +89,19 @@ class CalendarScheduleTest {
     }
 
     @Test
+    fun onDayRepeatsKeepTheirDayAndSkipMissedTimes() {
+        val task = CalendarItem(kind = CalendarKind.TASK, title = "Poubelles", date = "2026-11-02", recurrence = Recurrence.WEEKLY_ON_DAY)
+        assertEquals("2026-11-09", task.completed(LocalDate.of(2026, 11, 4)).date)
+        assertEquals("2026-11-23", task.completed(LocalDate.of(2026, 11, 17)).date)
+        assertEquals("2026-11-09", task.completed(LocalDate.of(2026, 10, 30)).date)
+        val monthly = task.copy(recurrence = Recurrence.MONTHLY_ON_DAY).completed(LocalDate.of(2026, 11, 20))
+        assertEquals("2026-12-02", monthly.date)
+        val monthEnd = task.copy(date = "2027-01-31", recurrence = Recurrence.MONTH_END)
+        assertEquals("2027-02-28", monthEnd.completed(LocalDate.of(2027, 2, 1)).date)
+        assertEquals("2027-03-31", monthEnd.copy(date = "2027-02-28").completed(LocalDate.of(2027, 2, 28)).date)
+    }
+
+    @Test
     fun lateTaskShowsOnlyOnToday() {
         val task = CalendarItem(kind = CalendarKind.TASK, title = "Poubelles", date = "2026-11-02", recurrence = Recurrence.WEEKLY)
         val today = LocalDate.of(2026, 11, 5)
@@ -126,5 +139,24 @@ class CalendarScheduleTest {
         assertEquals(LocalDate.of(2025, 11, 3), holidays[0].end)
         assertTrue(holidays[0].contains(LocalDate.of(2025, 11, 2)))
         assertTrue(!holidays[0].contains(LocalDate.of(2025, 11, 3)))
+    }
+
+    @Test
+    fun digestListsTomorrowsPendingTasksAndEventsAt20() {
+        val items = listOf(
+            CalendarItem(id = "t", kind = CalendarKind.TASK, title = "Dentiste", date = "2026-11-05", time = "10:00"),
+            CalendarItem(id = "e", kind = CalendarKind.EVENT, title = "Concert", date = "2026-11-05", time = "08:00"),
+            CalendarItem(id = "d", kind = CalendarKind.TASK, title = "Fait", date = "2026-11-05", done = true),
+            CalendarItem(id = "l", kind = CalendarKind.TASK, title = "Plus tard", date = "2026-11-08"),
+            birthday("1996-11-05")
+        )
+        assertEquals(listOf("e", "t"), digestItems(items, LocalDate.of(2026, 11, 5)).map { it.id })
+        val now = LocalDateTime.of(2026, 11, 4, 12, 0)
+        assertEquals(LocalDateTime.of(2026, 11, 4, 20, 0), nextDigest(items, now))
+        assertEquals(
+            listOf(LocalDate.of(2026, 11, 5)),
+            digestsBetween(items, now, LocalDateTime.of(2026, 11, 6, 0, 0))
+        )
+        assertEquals(LocalDateTime.of(2026, 11, 7, 20, 0), nextDigest(items, LocalDateTime.of(2026, 11, 4, 20, 0)))
     }
 }

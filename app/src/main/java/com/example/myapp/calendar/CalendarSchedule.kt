@@ -36,13 +36,24 @@ fun CalendarItem.occursOn(day: LocalDate, today: LocalDate): Boolean = when {
 
 fun CalendarItem.daysLate(today: LocalDate): Long = ChronoUnit.DAYS.between(localDate(), today)
 
-/** A task checked on [today]; a repeating one comes back a week or a month later instead of staying done. */
-fun CalendarItem.completed(today: LocalDate): CalendarItem =
-    when (recurrence) {
-        Recurrence.WEEKLY -> copy(date = today.plusWeeks(1).toString(), snoozedUntil = null)
-        Recurrence.MONTHLY -> copy(date = today.plusMonths(1).toString(), snoozedUntil = null)
-        Recurrence.NONE -> copy(done = true, snoozedUntil = null)
+fun LocalDate.endOfMonth(): LocalDate = withDayOfMonth(lengthOfMonth())
+
+/**
+ * A task checked on [today]; a repeating one comes back instead of staying done. One that keeps its day
+ * moves to its first time after today, skipping the ones a late check missed.
+ */
+fun CalendarItem.completed(today: LocalDate): CalendarItem {
+    fun after(step: (LocalDate) -> LocalDate) = generateSequence(step(localDate()), step).first { it.isAfter(today) }
+    val next = when (recurrence) {
+        Recurrence.NONE -> return copy(done = true, snoozedUntil = null)
+        Recurrence.WEEKLY -> today.plusWeeks(1)
+        Recurrence.MONTHLY -> today.plusMonths(1)
+        Recurrence.WEEKLY_ON_DAY -> after { it.plusWeeks(1) }
+        Recurrence.MONTHLY_ON_DAY -> after { it.plusMonths(1) }
+        Recurrence.MONTH_END -> after { it.plusMonths(1).endOfMonth() }
     }
+    return copy(date = next.toString(), snoozedUntil = null)
+}
 
 /** How long a task's "Dans 1 h" puts its reminder off. */
 const val TASK_SNOOZE_MINUTES = 60L
@@ -81,6 +92,28 @@ fun remindersBetween(item: CalendarItem, from: LocalDateTime, to: LocalDateTime)
 /** The first reminder of any item after [now], within the next two years. */
 fun nextReminder(items: List<CalendarItem>, now: LocalDateTime): Reminder? =
     items.flatMap { remindersBetween(it, now, now.plusYears(2)) }.minByOrNull { it.at }
+
+/** When the evening digest announces the next day's tasks and events. */
+val DIGEST: LocalTime = LocalTime.of(20, 0)
+
+/** What the digest on the eve of [day] lists: its pending tasks and the events starting on it, by time. */
+fun digestItems(items: List<CalendarItem>, day: LocalDate): List<CalendarItem> =
+    items.filter {
+        (it.kind == CalendarKind.EVENT || it.kind == CalendarKind.TASK && !it.done) && it.localDate() == day
+    }.sortedBy { it.time ?: "" }
+
+private fun digestTimes(items: List<CalendarItem>): List<LocalDateTime> =
+    items.filter { it.kind == CalendarKind.EVENT || it.kind == CalendarKind.TASK && !it.done }
+        .map { it.localDate().minusDays(1).atTime(DIGEST) }
+        .distinct()
+
+/** The days whose digest falls in (from, to]. */
+fun digestsBetween(items: List<CalendarItem>, from: LocalDateTime, to: LocalDateTime): List<LocalDate> =
+    digestTimes(items).filter { it.isAfter(from) && !it.isAfter(to) }.map { it.toLocalDate().plusDays(1) }.sorted()
+
+/** The first digest after [now]. */
+fun nextDigest(items: List<CalendarItem>, now: LocalDateTime): LocalDateTime? =
+    digestTimes(items).filter { it.isAfter(now) }.minOrNull()
 
 /** Western Easter Sunday, by the anonymous Gregorian algorithm. */
 fun easterSunday(year: Int): LocalDate {

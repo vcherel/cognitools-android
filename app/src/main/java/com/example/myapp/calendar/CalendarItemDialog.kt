@@ -59,11 +59,7 @@ private val KIND_LABELS = listOf(
     CalendarKind.EVENT to "Event"
 )
 
-private val REPEAT_OPTIONS = listOf(
-    Recurrence.NONE to "Jamais",
-    Recurrence.WEEKLY to "Chaque semaine",
-    Recurrence.MONTHLY to "Chaque mois"
-)
+private val REPEAT_OPTIONS = Recurrence.entries.map { it to it.label }
 
 private enum class Picking { DATE, END_DATE, START, END }
 
@@ -161,7 +157,11 @@ fun CalendarItemDialog(
                             initial.copy(
                                 kind = kind,
                                 title = title.trim(),
-                                date = (if (isBirthday && !yearKnown) date.withYear(UNKNOWN_BIRTH_YEAR) else date).toString(),
+                                date = when {
+                                    isBirthday && !yearKnown -> date.withYear(UNKNOWN_BIRTH_YEAR)
+                                    kind == CalendarKind.TASK && recurrence == Recurrence.MONTH_END -> date.endOfMonth()
+                                    else -> date
+                                }.toString(),
                                 endDate = if (isEvent) endDate?.takeIf { it.isAfter(date) }?.toString() else null,
                                 time = start?.let(timeFormat::format),
                                 endTime = if (isEvent && start != null) endTime?.let(timeFormat::format) else null,
