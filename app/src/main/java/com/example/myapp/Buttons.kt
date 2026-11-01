@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -49,6 +51,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -56,6 +59,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.isSpecified
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import kotlinx.coroutines.delay
@@ -92,7 +96,13 @@ fun rememberHeldPressed(interactionSource: InteractionSource): State<Boolean> {
 
 private class ButtonStyle(val shadow: Color, val gradient: Brush, val text: Color)
 
-private fun buttonStyle(isPressed: Boolean, enabled: Boolean, isDarkMode: Boolean, highlighted: Boolean): ButtonStyle = when {
+private fun buttonStyle(
+    isPressed: Boolean,
+    enabled: Boolean,
+    isDarkMode: Boolean,
+    highlighted: Boolean,
+    tint: Color? = null
+): ButtonStyle = when {
     !enabled -> ButtonStyle(
         shadow = if (isDarkMode) Color(0xFF424242) else Color(0xFF9E9E9E),
         gradient = if (isDarkMode) {
@@ -111,6 +121,16 @@ private fun buttonStyle(isPressed: Boolean, enabled: Boolean, isDarkMode: Boolea
         shadow = Color(0xFFFF8F00),
         gradient = Brush.horizontalGradient(listOf(Color(0xFFFFCA28), Color(0xFFFFB300))),
         text = Color.Black
+    )
+    // The default surface washed with [tint], its edge a deeper shade of it.
+    tint != null -> ButtonStyle(
+        shadow = lerp(if (isDarkMode) Color(0xFF263238) else Color(0xFFB0BEC5), tint, 0.45f),
+        gradient = if (isDarkMode) {
+            Brush.horizontalGradient(listOf(lerp(Color(0xFF455A64), tint, 0.22f), lerp(Color(0xFF37474F), tint, 0.22f)))
+        } else {
+            Brush.horizontalGradient(listOf(lerp(Color(0xFFECEFF1), tint, 0.16f), lerp(Color(0xFFCFD8DC), tint, 0.16f)))
+        },
+        text = if (isDarkMode) lerp(tint, Color.White, 0.3f) else lerp(tint, Color.Black, 0.2f)
     )
     else -> ButtonStyle(
         shadow = if (isDarkMode) Color(0xFF37474F) else Color(0xFFB0BEC5),
@@ -156,6 +176,66 @@ private fun RaisedSurface(
     }
 }
 
+/** A tool's icon on a small square tinted with its [color], drawn before a button's label. */
+@Composable
+private fun IconChip(icon: ImageVector, color: Color, size: Dp, highlighted: Boolean) {
+    val isDarkMode = LocalIsDarkMode.current
+    val background = when {
+        highlighted -> Color.White.copy(alpha = 0.45f)
+        isDarkMode -> lerp(Color(0xFF263238), color, 0.3f)
+        else -> lerp(Color.White, color, 0.18f)
+    }
+    val tint = when {
+        highlighted -> Color.Black
+        isDarkMode -> lerp(color, Color.White, 0.3f)
+        else -> lerp(color, Color.Black, 0.2f)
+    }
+    Box(
+        modifier = Modifier.size(size).background(background, RoundedCornerShape(size * 0.3f)),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(size * 0.62f))
+    }
+}
+
+// The label centered, or with a chip, chip and label from the start edge. The chip scales with the text.
+@Composable
+private fun ButtonLabel(
+    text: String,
+    textColor: Color,
+    fontSize: TextUnit,
+    chipIcon: ImageVector?,
+    chipColor: Color,
+    highlighted: Boolean
+) {
+    if (chipIcon == null) {
+        Text(
+            text,
+            color = textColor,
+            fontSize = fontSize,
+            fontWeight = FontWeight.SemiBold,
+            textAlign = TextAlign.Center
+        )
+        return
+    }
+    val chipSize = (fontSize.value * 1.85f).dp
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(start = chipSize * 0.4f, end = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        IconChip(chipIcon, chipColor, chipSize, highlighted)
+        Spacer(modifier = Modifier.width(chipSize * 0.35f))
+        Text(
+            text,
+            color = textColor,
+            fontSize = fontSize,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+
 @Composable
 fun MyButton(
     text: String,
@@ -165,6 +245,8 @@ fun MyButton(
     enabled: Boolean = true,
     highlighted: Boolean = false,
     icon: ImageVector? = null,
+    chipIcon: ImageVector? = null,
+    chipColor: Color = Color.Gray,
     onClick: () -> Unit
 ) {
     RaisedButton(
@@ -182,17 +264,15 @@ fun MyButton(
                 modifier = Modifier.size(32.dp)
             )
         } else {
-            Text(
-                text,
-                color = textColor,
-                fontSize = fontSize,
-                fontWeight = FontWeight.SemiBold,
-                textAlign = TextAlign.Center
-            )
+            ButtonLabel(text, textColor, fontSize, chipIcon, chipColor, highlighted)
         }
     }
 }
 
+/**
+ * A main button with a narrow action button beside it. [height] unspecified fills the height the
+ * caller gives the row; [rightTint] colors the action button.
+ */
 @Composable
 fun SplitMyButton(
     text: String,
@@ -204,6 +284,9 @@ fun SplitMyButton(
     fontSize: TextUnit = 24.sp,
     rightLoading: Boolean = false,
     rightEnabled: Boolean = true,
+    chipIcon: ImageVector? = null,
+    chipColor: Color = Color.Gray,
+    rightTint: Color? = null,
     onMainClick: () -> Unit,
     onRightClick: () -> Unit
 ) {
@@ -216,18 +299,14 @@ fun SplitMyButton(
             height = height,
             onClick = onMainClick
         ) { textColor ->
-            Text(
-                text,
-                color = textColor,
-                fontSize = fontSize,
-                fontWeight = FontWeight.SemiBold
-            )
+            ButtonLabel(text, textColor, fontSize, chipIcon, chipColor, highlighted = false)
         }
 
         RaisedButton(
             modifier = Modifier.width(rightWidth),
             height = height,
             enabled = rightEnabled,
+            tint = rightTint,
             onClick = onRightClick
         ) { textColor ->
             if (rightLoading) {
@@ -263,20 +342,21 @@ private fun RaisedButton(
     height: Dp = 90.dp,
     enabled: Boolean = true,
     highlighted: Boolean = false,
+    tint: Color? = null,
     onClick: () -> Unit,
     content: @Composable (textColor: Color) -> Unit
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by rememberHeldPressed(interactionSource)
     val isDarkMode = LocalIsDarkMode.current
-    val style = remember(isPressed, enabled, isDarkMode, highlighted) {
-        buttonStyle(isPressed, enabled = enabled, isDarkMode = isDarkMode, highlighted = highlighted)
+    val style = remember(isPressed, enabled, isDarkMode, highlighted, tint) {
+        buttonStyle(isPressed, enabled = enabled, isDarkMode = isDarkMode, highlighted = highlighted, tint = tint)
     }
 
     RaisedSurface(
         style = style,
         isPressed = isPressed,
-        modifier = modifier.height(height),
+        modifier = modifier.then(if (height.isSpecified) Modifier.height(height) else Modifier.fillMaxHeight()),
         clickModifier = if (enabled) Modifier.clickable(
             interactionSource = interactionSource,
             indication = null,

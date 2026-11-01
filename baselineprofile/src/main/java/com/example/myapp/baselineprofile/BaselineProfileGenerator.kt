@@ -93,9 +93,9 @@ class BaselineProfileGenerator {
         // One back is not always enough (an open keyboard eats the first one), and a tool left open
         // makes every later step miss its label and silently record nothing.
         repeat(5) {
-            if (device.hasObject(By.text("Welcome!"))) return
+            if (device.hasObject(By.text("CogniTools"))) return
             device.pressBack()
-            device.wait(Until.hasObject(By.text("Welcome!")), 2_000)
+            device.wait(Until.hasObject(By.text("CogniTools")), 2_000)
         }
     }
 
