@@ -40,7 +40,6 @@ import androidx.compose.material.icons.filled.FormatUnderlined
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.Title
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -74,6 +73,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import com.example.myapp.AddItemRow
+import com.example.myapp.LightCheckbox
 import com.example.myapp.LightIconButton
 import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
@@ -423,6 +423,7 @@ private fun NoteLine(
         } else if (line.isCheckboxLine()) {
             val checked = line.isCheckedLine()
             val text = line.checkboxText()
+            val formatted = remember(text, searchTerms) { withSearchHighlight(text.formatInline(), searchTerms) }
             // Long items wrap over several lines: the box and the actions stay on the
             // first line so it is obvious where an item starts.
             Row(
@@ -432,9 +433,9 @@ private fun NoteLine(
                     .clickable { actions.onToggleLine(lineIndex) }
             ) {
                 val iconTopPadding = Modifier.padding(top = ICON_TOP_PADDING)
-                Checkbox(checked = checked, onCheckedChange = { actions.onToggleLine(lineIndex) })
+                LightCheckbox(checked = checked, onToggle = { actions.onToggleLine(lineIndex) })
                 Text(
-                    withSearchHighlight(text.formatInline(), searchTerms),
+                    formatted,
                     style = MaterialTheme.typography.bodyLarge,
                     textDecoration = if (checked) TextDecoration.LineThrough else TextDecoration.None,
                     color = if (checked) Color.Gray else MaterialTheme.colorScheme.onBackground,

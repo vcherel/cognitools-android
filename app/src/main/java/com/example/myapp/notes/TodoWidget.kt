@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -17,10 +16,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import com.example.myapp.AddItemRow
+import com.example.myapp.LightCheckbox
 import com.example.myapp.LightIconButton
 
 /** Pinned preview of the "Todo list" note: only the lines before its first separator, checkboxes toggle in place. */
@@ -45,6 +46,10 @@ internal fun TodoWidgetCard(
         contentLines.withIndex()
             .takeWhile { !it.value.isSeparatorLine() }
             .filter { it.index != titleLineIndex && it.value.isNotBlank() }
+            .map { (index, line) ->
+                val formatted = if (line.isCheckboxLine()) line.checkboxText().formatInline() else line.formatInline()
+                WidgetLine(index, line, formatted)
+            }
     }
 
     // The new item goes at the start of the active block (right under an inline title) or at its
@@ -73,7 +78,7 @@ internal fun TodoWidgetCard(
         // One add row at each end: a long list otherwise means scrolling to the bottom for the
         // item that belongs first. An empty block only needs the one below.
         if (bodyLines.isNotEmpty()) AddItemRow(onClick = { addItem(true) })
-        bodyLines.forEach { (index, line) ->
+        bodyLines.forEach { (index, line, formatted) ->
             if (line.isCheckboxLine()) {
                 val checked = line.isCheckedLine()
                 // Same as the editor: a wrapped item keeps its box and its delete
@@ -84,9 +89,9 @@ internal fun TodoWidgetCard(
                         .fillMaxWidth()
                         .clickable { onToggleLine(index) }
                 ) {
-                    Checkbox(checked = checked, onCheckedChange = { onToggleLine(index) })
+                    LightCheckbox(checked = checked, onToggle = { onToggleLine(index) })
                     Text(
-                        line.checkboxText().formatInline(),
+                        formatted,
                         style = MaterialTheme.typography.bodyMedium,
                         textDecoration = if (checked) TextDecoration.LineThrough else TextDecoration.None,
                         color = if (checked) Color.Gray else MaterialTheme.colorScheme.onBackground,
@@ -105,7 +110,7 @@ internal fun TodoWidgetCard(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(
-                        line.formatInline(),
+                        formatted,
                         style = MaterialTheme.typography.bodyMedium,
                         modifier = Modifier
                             .weight(1f)
@@ -118,6 +123,8 @@ internal fun TodoWidgetCard(
         AddItemRow(onClick = { addItem(false) })
     }
 }
+
+private data class WidgetLine(val index: Int, val line: String, val formatted: AnnotatedString)
 
 /** Small trailing "x" to remove a single line of the Todo widget, checked or not. */
 @Composable

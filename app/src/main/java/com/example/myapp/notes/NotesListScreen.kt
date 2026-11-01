@@ -15,10 +15,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.staggeredgrid.LazyVerticalStaggeredGrid
-import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
-import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridItemSpan
-import androidx.compose.foundation.lazy.staggeredgrid.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
@@ -262,14 +262,14 @@ fun NotesListScreen(navController: NavController) {
                         style = MaterialTheme.typography.bodyMedium
                     )
                     else -> Box(modifier = Modifier.fillMaxSize()) {
-                        LazyVerticalStaggeredGrid(
-                            columns = StaggeredGridCells.Fixed(2),
+                        LazyVerticalGrid(
+                            columns = GridCells.Fixed(2),
                             contentPadding = PaddingValues(bottom = 116.dp),
                             horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            verticalItemSpacing = 12.dp
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             if (pinnedTodo != null) {
-                                item(key = "todo-widget", span = StaggeredGridItemSpan.FullLine) {
+                                item(key = "todo-widget", span = { GridItemSpan(maxLineSpan) }) {
                                     TodoWidgetCard(
                                         note = pinnedTodo,
                                         onNavigate = { navController.navigate("note/${pinnedTodo.id}") },
@@ -309,7 +309,7 @@ fun NotesListScreen(navController: NavController) {
                                 )
                             }
                             if (trashedMatches.isNotEmpty()) {
-                                item(key = "trash-heading", span = StaggeredGridItemSpan.FullLine) {
+                                item(key = "trash-heading", span = { GridItemSpan(maxLineSpan) }) {
                                     Text(
                                         "In the trash",
                                         style = MaterialTheme.typography.titleSmall,
@@ -320,7 +320,7 @@ fun NotesListScreen(navController: NavController) {
                                 items(
                                     items = trashedMatches,
                                     key = { "trashed-${it.id}" },
-                                    span = { StaggeredGridItemSpan.FullLine }
+                                    span = { GridItemSpan(maxLineSpan) }
                                 ) { note ->
                                     TrashedNoteCard(
                                         note = note,
@@ -337,7 +337,7 @@ fun NotesListScreen(navController: NavController) {
                                 }
                             }
                             if (trashedCount > 0 && searchTerms.isEmpty()) {
-                                item(key = "trash-entry", span = StaggeredGridItemSpan.FullLine) {
+                                item(key = "trash-entry", span = { GridItemSpan(maxLineSpan) }) {
                                     TrashEntryRow(
                                         count = trashedCount,
                                         onClick = { navController.navigate("notes/trash") }

@@ -3,6 +3,7 @@ package com.example.myapp
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.interaction.InteractionSource
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.PressInteraction
@@ -24,6 +25,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CheckBox
+import androidx.compose.material.icons.filled.CheckBoxOutlineBlank
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material3.AlertDialog
@@ -565,6 +568,29 @@ fun LightIconButton(
                 onClick = onClick
             )
             .padding((size - iconSize) / 2)
+    )
+}
+
+/**
+ * A one node checkbox for long lists of items (the Todo widget, a note's lines): the Material one
+ * animates and lays out several nodes per box, which a list of dozens pays for on every frame.
+ */
+@Composable
+fun LightCheckbox(checked: Boolean, onToggle: () -> Unit, modifier: Modifier = Modifier) {
+    Icon(
+        if (checked) Icons.Filled.CheckBox else Icons.Filled.CheckBoxOutlineBlank,
+        contentDescription = null,
+        tint = if (checked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = modifier
+            .size(48.dp)
+            .toggleable(
+                value = checked,
+                interactionSource = null,
+                indication = ripple(bounded = false, radius = 20.dp),
+                role = Role.Checkbox,
+                onValueChange = { onToggle() }
+            )
+            .padding(12.dp)
     )
 }
 
