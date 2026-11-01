@@ -243,10 +243,15 @@ Root package (shared/misc):
 - `TranslateUi.kt`: the pieces both entry points share, TranslationCard, AddToFlashcardsButton, the TextToSpeech reader, and WordLookupSheet (what the reader opens)
 - `TranslateScreen.kt`: the tool screen, debounced live translation and the history
 
-`workout/` (workout reminder, the "Workout" grid tool):
+`workout/` (workout reminder and guided sessions, the "Workout" grid tool):
+- `WorkoutProgram.kt`: Exercise (Reps, Timed, PerSide, Negatives), WorkoutProgram (exercises, rounds, the two rests), the default program and its JSON
+- `WorkoutSession.kt`: the steps a program expands to (exercise and rest), the boss round (the last one), the XP and level curve, the boss names, SessionProgress and `advance`. Pure, covered by a JVM unit test
+- `WorkoutStore.kt`: the program and the XP in the workout DataStore, the session in progress in `filesDir/workout_session.json` (resumed after a kill), `finish` (adds the XP and logs the session through `markDone`)
+- `WorkoutSessionScreen.kt`: the guided session; header clock, the dot path, exercise cards (timed ring, per side, paced negatives), rests with +15 s and Skip, the boss round in red with its health bar, the victory screen with the XP bar and confetti; vibrations and beeps (notification stream, so music keeps playing)
+- `WorkoutProgramScreen.kt`: the program editor; drag to reorder, the New exercise placeholder, the exercise dialog, the rounds and rest rows
 - `WorkoutSchedule.kt`: ReminderTimes (19:30 weekdays, 15:00 weekends by default), when the reminder goes off after a session (two days off) or a snooze, the days since the last session and the month/year counts. Pure, covered by a JVM unit test
 - `WorkoutReminder.kt`: the DataStore state (next reminder, every session, due, the times), the one exact alarm, the notification with its done / in 1 h / tomorrow buttons (a tap on its body opens the screen on the day picker), `markDoneWithUndo` (the screen and the menu tile's right half), and WorkoutReceiver (alarm, buttons, reboot)
-- `WorkoutScreen.kt`: next reminder (tap it to pick the day it comes back) and last session, "Session done", the snooze buttons while a reminder is due, the two reminder times with their time picker, the history; `lastSessionText` is shared with the notification
+- `WorkoutScreen.kt`: next reminder (tap it to pick the day it comes back) and last session, Start (or Resume) session with the "Session done" check beside it, the snooze buttons while a reminder is due, the level card, the program card, the two reminder times with their time picker, the history; `lastSessionText` is shared with the notification, `Card` with the other workout screens
 
 `undercover/` (party game tool):
 - `GameModels.kt`: Player, GameSettings, GameState, MrWhiteScenario, ScoreValues data model

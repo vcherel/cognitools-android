@@ -3,17 +3,21 @@ package com.example.myapp.workout
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.FitnessCenter
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -25,6 +29,7 @@ import androidx.compose.material3.TimePicker
 import androidx.compose.material3.DatePickerState
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -43,6 +48,7 @@ import androidx.compose.ui.unit.sp
 import com.example.myapp.AppDialog
 import com.example.myapp.MyButton
 import com.example.myapp.ScreenTopBar
+import com.example.myapp.ToolAccents
 import com.example.myapp.plural
 import kotlinx.coroutines.launch
 import java.time.Instant
@@ -68,11 +74,20 @@ fun lastSessionText(lastDone: LocalDateTime?, today: LocalDate): String? {
 }
 
 @Composable
-fun WorkoutScreen(onBack: () -> Unit, pickDayInitially: Boolean = false) {
+fun WorkoutScreen(
+    onBack: () -> Unit,
+    onStartSession: () -> Unit,
+    onOpenProgram: () -> Unit,
+    pickDayInitially: Boolean = false
+) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val stateFlow = remember(context) { WorkoutReminder.state(context) }
     val state by stateFlow.collectAsState(initial = null)
+    val program by remember(context) { WorkoutStore.program(context) }.collectAsState(initial = WorkoutProgram.DEFAULT)
+    val xp by remember(context) { WorkoutStore.xp(context) }.collectAsState(initial = 0)
+    var resumable by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { resumable = WorkoutStore.loadSession(context) != null }
     var editingWeekend by remember { mutableStateOf<Boolean?>(null) }
     var pickingDay by rememberSaveable { mutableStateOf(pickDayInitially) }
 
@@ -111,8 +126,47 @@ fun WorkoutScreen(onBack: () -> Unit, pickDayInitially: Boolean = false) {
             )
         }
 
-        MyButton(text = "Session done", icon = Icons.Default.FitnessCenter) {
-            scope.launch { WorkoutReminder.markDoneWithUndo(context) }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            MyButton(
+                text = if (resumable) "Resume session" else "Start session",
+                modifier = Modifier.weight(1f),
+                highlighted = true,
+                enabled = program.exercises.isNotEmpty(),
+                onClick = onStartSession
+            )
+            MyButton(text = "Session done", modifier = Modifier.width(90.dp), icon = Icons.Default.Check) {
+                scope.launch { WorkoutReminder.markDoneWithUndo(context) }
+            }
+        }
+
+        val level = levelOf(xp)
+        Card {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text("Level ${level.level}", fontSize = 20.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
+                Text(
+                    "${level.into} / ${level.needed} XP",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Box(
+                Modifier.padding(top = 8.dp).fillMaxWidth().height(12.dp)
+                    .background(MaterialTheme.colorScheme.background, RoundedCornerShape(6.dp))
+            ) {
+                Box(
+                    Modifier.fillMaxWidth(level.into / level.needed.toFloat()).height(12.dp)
+                        .background(ToolAccents.Workout.color, RoundedCornerShape(6.dp))
+                )
+            }
+        }
+
+        Card(onClick = onOpenProgram) {
+            Text("Program", style = MaterialTheme.typography.titleMedium)
+            val count = program.exercises.size
+            Text(
+                "${program.rounds} round${plural(program.rounds)}, $count exercise${plural(count)}",
+                style = MaterialTheme.typography.bodyLarge
+            )
         }
 
         if (current.due) {
@@ -171,11 +225,16 @@ fun WorkoutScreen(onBack: () -> Unit, pickDayInitially: Boolean = false) {
     }
 }
 
+/** The tool's rounded card, its content centered. */
 @Composable
-private fun Card(onClick: (() -> Unit)? = null, content: @Composable () -> Unit) {
+internal fun Card(
+    modifier: Modifier = Modifier,
+    onClick: (() -> Unit)? = null,
+    content: @Composable ColumnScope.() -> Unit
+) {
     val shape = RoundedCornerShape(20.dp)
     Column(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .clip(shape)
             .background(MaterialTheme.colorScheme.surfaceVariant)

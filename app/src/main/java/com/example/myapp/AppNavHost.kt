@@ -59,7 +59,9 @@ import com.example.myapp.reader.BookLibraryScreen
 import com.example.myapp.reader.ReaderScreen
 import com.example.myapp.translate.TranslateScreen
 import com.example.myapp.undercover.UndercoverScreen
+import com.example.myapp.workout.WorkoutProgramScreen
 import com.example.myapp.workout.WorkoutScreen
+import com.example.myapp.workout.WorkoutSessionScreen
 import kotlinx.coroutines.launch
 
 /**
@@ -184,8 +186,15 @@ fun MainScreen(
                         "workout?pickDay={pickDay}",
                         arguments = listOf(navArgument("pickDay") { type = NavType.BoolType; defaultValue = false })
                     ) { backStackEntry ->
-                        WorkoutScreen(onBack = back, pickDayInitially = backStackEntry.arguments?.getBoolean("pickDay") ?: false)
+                        WorkoutScreen(
+                            onBack = back,
+                            onStartSession = { navController.navigate("workout/session") },
+                            onOpenProgram = { navController.navigate("workout/program") },
+                            pickDayInitially = backStackEntry.arguments?.getBoolean("pickDay") ?: false
+                        )
                     }
+                    screen("workout/session") { WorkoutSessionScreen(onBack = back) }
+                    screen("workout/program") { WorkoutProgramScreen(onBack = back) }
                     screen(
                         "calendar?day={day}",
                         arguments = listOf(navArgument("day") { type = NavType.StringType; defaultValue = "" })

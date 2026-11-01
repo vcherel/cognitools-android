@@ -31,7 +31,7 @@ import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.ZoneId
 
-private val Context.workoutDataStore by preferencesDataStore("workout")
+internal val Context.workoutDataStore by preferencesDataStore("workout")
 
 private val REMIND_AT = longPreferencesKey("remind_at")
 private val SESSIONS = stringPreferencesKey("sessions")
