@@ -56,10 +56,14 @@ private val timeFormat = DateTimeFormatter.ofPattern("HH:mm", Locale.FRENCH)
 private val KIND_LABELS = listOf(
     CalendarKind.TASK to "Tâche",
     CalendarKind.BIRTHDAY to "Anniv.",
-    CalendarKind.EVENT to "Événement"
+    CalendarKind.EVENT to "Event"
 )
 
-private val REPEAT_OPTIONS = listOf(false to "Jamais", true to "Chaque semaine")
+private val REPEAT_OPTIONS = listOf(
+    Recurrence.NONE to "Jamais",
+    Recurrence.WEEKLY to "Chaque semaine",
+    Recurrence.MONTHLY to "Chaque mois"
+)
 
 private enum class Picking { DATE, END_DATE, START, END }
 
@@ -81,8 +85,9 @@ fun CalendarItemDialog(
     var endDate by remember { mutableStateOf(initial.endDate?.let(LocalDate::parse)) }
     var time by remember { mutableStateOf(initial.localTime()) }
     var endTime by remember { mutableStateOf(initial.localEndTime()) }
-    var yearKnown by remember { mutableStateOf(initial.yearKnown) }
-    var weekly by remember { mutableStateOf(initial.weekly) }
+    // A new birthday starts without its year, the usual case.
+    var yearKnown by remember { mutableStateOf(!isNew && initial.yearKnown) }
+    var recurrence by remember { mutableStateOf(initial.recurrence) }
     var picking by remember { mutableStateOf<Picking?>(null) }
     val isEvent = kind == CalendarKind.EVENT
     val isBirthday = kind == CalendarKind.BIRTHDAY
@@ -120,7 +125,7 @@ fun CalendarItemDialog(
                 )
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.clickable { yearKnown = !yearKnown }) {
                     Checkbox(checked = yearKnown, onCheckedChange = { yearKnown = it })
-                    Text("Je connais l'année")
+                    Text("Année")
                 }
             } else {
                 if (isEvent) {
@@ -139,7 +144,7 @@ fun CalendarItemDialog(
             }
 
             if (kind == CalendarKind.TASK) {
-                ChoiceRow("Répéter", REPEAT_OPTIONS, weekly) { weekly = it }
+                ChoiceRow("Répéter", REPEAT_OPTIONS, recurrence) { recurrence = it }
             }
 
             Row(modifier = Modifier.fillMaxWidth().padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -161,8 +166,8 @@ fun CalendarItemDialog(
                                 time = start?.let(timeFormat::format),
                                 endTime = if (isEvent && start != null) endTime?.let(timeFormat::format) else null,
                                 yearKnown = !isBirthday || yearKnown,
-                                weekly = kind == CalendarKind.TASK && weekly,
-                                done = initial.done && !(kind == CalendarKind.TASK && weekly),
+                                recurrence = if (kind == CalendarKind.TASK) recurrence else Recurrence.NONE,
+                                done = initial.done && !(kind == CalendarKind.TASK && recurrence != Recurrence.NONE),
                                 snoozedUntil = null
                             )
                         )

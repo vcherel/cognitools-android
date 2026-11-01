@@ -1,6 +1,5 @@
 package com.example.myapp.calendar
 
-import androidx.room.ColumnInfo
 import androidx.room.Dao
 import androidx.room.Entity
 import androidx.room.PrimaryKey
@@ -15,13 +14,16 @@ import java.util.UUID
 
 enum class CalendarKind { TASK, BIRTHDAY, EVENT }
 
+enum class Recurrence { NONE, WEEKLY, MONTHLY }
+
 /**
  * One task, birthday or event. [date] is ISO; a birthday's is the birth date, its year 2000 (a leap
  * year, so 29 February stays valid) when [yearKnown] is false. [endDate] is an event's last day, after
  * [date], null for a one day event. [time] and [endTime] are "HH:mm", the start on the first day and
  * the end on the last. [wishedYear] is the last year a birthday was marked wished, which skips that
  * year's morning reminder.
- * A [weekly] task is never done: checking it moves [date] a week past the day it was done.
+ * A repeating task ([recurrence]) is never done: checking it moves [date] a week or a month past the day
+ * it was done.
  * [snoozedUntil] is the ISO date time a task's "Dans 1 h" put its reminder off to, cleared by any edit.
  */
 @Entity(tableName = "calendar_items")
@@ -35,7 +37,7 @@ data class CalendarItem(
     val yearKnown: Boolean = true,
     val done: Boolean = false,
     val wishedYear: Int? = null,
-    @ColumnInfo(defaultValue = "0") val weekly: Boolean = false,
+    val recurrence: Recurrence = Recurrence.NONE,
     val snoozedUntil: String? = null,
     val endDate: String? = null
 )
@@ -43,6 +45,8 @@ data class CalendarItem(
 const val UNKNOWN_BIRTH_YEAR = 2000
 
 fun CalendarItem.localDate(): LocalDate = LocalDate.parse(date)
+
+val CalendarItem.repeats: Boolean get() = recurrence != Recurrence.NONE
 
 /** The item's last day, [date] itself unless it is an event over several days. */
 fun CalendarItem.lastDate(): LocalDate = endDate?.let(LocalDate::parse) ?: localDate()
@@ -82,7 +86,7 @@ fun calendarToJson(items: List<CalendarItem>): JSONArray = JSONArray().apply {
                 .put("yearKnown", item.yearKnown)
                 .put("done", item.done)
                 .put("wishedYear", item.wishedYear)
-                .put("weekly", item.weekly)
+                .put("recurrence", item.recurrence.name)
         )
     }
 }

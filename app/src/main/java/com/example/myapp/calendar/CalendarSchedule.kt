@@ -25,7 +25,7 @@ fun CalendarItem.isOverdue(today: LocalDate): Boolean =
     kind == CalendarKind.TASK && !done && localDate().isBefore(today)
 
 /**
- * The days [item] shows on: a late task leaves its own day for today, a weekly one shows only its
+ * The days [item] shows on: a late task leaves its own day for today, a repeating one shows only its
  * next time, an event over several days shows on each of them.
  */
 fun CalendarItem.occursOn(day: LocalDate, today: LocalDate): Boolean = when {
@@ -36,10 +36,13 @@ fun CalendarItem.occursOn(day: LocalDate, today: LocalDate): Boolean = when {
 
 fun CalendarItem.daysLate(today: LocalDate): Long = ChronoUnit.DAYS.between(localDate(), today)
 
-/** A task checked on [today]; a weekly one comes back a week later instead of staying done. */
+/** A task checked on [today]; a repeating one comes back a week or a month later instead of staying done. */
 fun CalendarItem.completed(today: LocalDate): CalendarItem =
-    if (weekly) copy(date = today.plusWeeks(1).toString(), snoozedUntil = null)
-    else copy(done = true, snoozedUntil = null)
+    when (recurrence) {
+        Recurrence.WEEKLY -> copy(date = today.plusWeeks(1).toString(), snoozedUntil = null)
+        Recurrence.MONTHLY -> copy(date = today.plusMonths(1).toString(), snoozedUntil = null)
+        Recurrence.NONE -> copy(done = true, snoozedUntil = null)
+    }
 
 /** How long a task's "Dans 1 h" puts its reminder off. */
 const val TASK_SNOOZE_MINUTES = 60L

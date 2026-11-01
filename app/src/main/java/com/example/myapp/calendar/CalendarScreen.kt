@@ -76,13 +76,13 @@ private val WEEKDAYS = listOf("L", "M", "M", "J", "V", "S", "D")
 /** What an item is colored by, in the order its dots are drawn. */
 enum class ItemTone(val color: Color) {
     TASK(Color(0xFF42A5F5)),
-    WEEKLY_TASK(Color(0xFFAB47BC)),
+    REPEATING_TASK(Color(0xFFAB47BC)),
     BIRTHDAY(Color(0xFFEC407A)),
     EVENT(Color(0xFF66BB6A))
 }
 
 fun CalendarItem.tone(): ItemTone = when (kind) {
-    CalendarKind.TASK -> if (weekly) ItemTone.WEEKLY_TASK else ItemTone.TASK
+    CalendarKind.TASK -> if (repeats) ItemTone.REPEATING_TASK else ItemTone.TASK
     CalendarKind.BIRTHDAY -> ItemTone.BIRTHDAY
     CalendarKind.EVENT -> ItemTone.EVENT
 }
@@ -186,7 +186,7 @@ fun CalendarScreen(onBack: () -> Unit, initialDay: String?) {
             onToggleDone = { item ->
                 scope.launch {
                     when {
-                        item.weekly -> {
+                        item.repeats -> {
                             val next = item.completed(LocalDate.now())
                             CalendarReminders.save(context, next)
                             AppSnackbar.show("Revient ${dayFormat.format(next.localDate())}", "Annuler") {
@@ -438,7 +438,11 @@ private fun ItemRow(
                 item.kind == CalendarKind.BIRTHDAY -> null
                 else -> listOfNotNull(
                     timeOn(item, day),
-                    if (item.weekly) "chaque semaine" else null
+                    when (item.recurrence) {
+                        Recurrence.WEEKLY -> "chaque semaine"
+                        Recurrence.MONTHLY -> "chaque mois"
+                        Recurrence.NONE -> null
+                    }
                 ).joinToString(", ").ifEmpty { null }?.replaceFirstChar { it.uppercase() }
             }
             details?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = muted) }

@@ -77,17 +77,20 @@ class CalendarScheduleTest {
 
     @Test
     fun weeklyTaskComesBackAWeekAfterItIsDone() {
-        val task = CalendarItem(kind = CalendarKind.TASK, title = "Poubelles", date = "2026-11-02", weekly = true)
+        val task = CalendarItem(kind = CalendarKind.TASK, title = "Poubelles", date = "2026-11-02", recurrence = Recurrence.WEEKLY)
         val done = task.copy(snoozedUntil = "2026-11-04T10:00").completed(LocalDate.of(2026, 11, 4))
         assertEquals("2026-11-11", done.date)
         assertEquals(false, done.done)
         assertEquals(null, done.snoozedUntil)
-        assertTrue(task.copy(weekly = false).completed(LocalDate.of(2026, 11, 4)).done)
+        assertTrue(task.copy(recurrence = Recurrence.NONE).completed(LocalDate.of(2026, 11, 4)).done)
+        val monthly = task.copy(recurrence = Recurrence.MONTHLY).completed(LocalDate.of(2026, 11, 4))
+        assertEquals("2026-12-04", monthly.date)
+        assertEquals(false, monthly.done)
     }
 
     @Test
     fun lateTaskShowsOnlyOnToday() {
-        val task = CalendarItem(kind = CalendarKind.TASK, title = "Poubelles", date = "2026-11-02", weekly = true)
+        val task = CalendarItem(kind = CalendarKind.TASK, title = "Poubelles", date = "2026-11-02", recurrence = Recurrence.WEEKLY)
         val today = LocalDate.of(2026, 11, 5)
         assertTrue(task.occursOn(today, today))
         assertTrue(!task.occursOn(LocalDate.of(2026, 11, 2), today))
