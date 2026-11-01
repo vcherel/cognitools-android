@@ -63,15 +63,33 @@ def back():
     time.sleep(1.2)
 
 
+_size = None
+
+
+def screen_size():
+    global _size
+    if _size is None:
+        _size = tuple(map(int, re.search(r"(\d+)x(\d+)", adb("shell", "wm", "size")).groups()))
+    return _size
+
+
+def drag(up, duration_ms=250, settle=0.6):
+    """One finger drag over most of the screen height; up scrolls the content down."""
+    width, height = screen_size()
+    low, high = str(height * 8 // 10), str(height * 3 // 10)
+    y_from, y_to = (low, high) if up else (high, low)
+    x = str(width // 2)
+    adb("shell", "input", "swipe", x, y_from, x, y_to, str(duration_ms))
+    time.sleep(settle)
+
+
 def fling():
-    adb("shell", "input", "swipe", "540", "1800", "540", "500", "80")
-    time.sleep(1)
-    adb("shell", "input", "swipe", "540", "500", "540", "1800", "80")
-    time.sleep(1)
+    drag(up=True, duration_ms=80, settle=1)
+    drag(up=False, duration_ms=80, settle=1)
 
 
 def swipe_left():
-    width, height = map(int, re.search(r"(\d+)x(\d+)", adb("shell", "wm", "size")).groups())
+    width, height = screen_size()
     y = str(height // 2)
     adb("shell", "input", "swipe", str(width * 8 // 10), y, str(width // 10), y, "150")
     time.sleep(1)
