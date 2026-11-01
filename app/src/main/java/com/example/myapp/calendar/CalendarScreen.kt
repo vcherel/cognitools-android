@@ -51,7 +51,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.myapp.AppSnackbar
+import com.example.myapp.MyButton
 import com.example.myapp.ScreenTopBar
 import com.example.myapp.plural
 import com.example.myapp.flashcards.AppDatabase
@@ -129,10 +131,6 @@ fun CalendarScreen(onBack: () -> Unit, initialDay: String?) {
                 selected = today
                 scope.launch { pagerState.animateScrollToPage(START_PAGE) }
             }) { Icon(Icons.Default.Today, contentDescription = "Aujourd'hui") }
-            IconButton(onClick = {
-                editingIsNew = true
-                editing = CalendarItem(kind = CalendarKind.TASK, title = "", date = selected.toString())
-            }) { Icon(Icons.Default.Add, contentDescription = "Ajouter") }
         }
 
         Row(
@@ -183,6 +181,10 @@ fun CalendarScreen(onBack: () -> Unit, initialDay: String?) {
             items = items,
             schoolHolidays = schoolHolidays,
             modifier = Modifier.weight(1f),
+            onAdd = {
+                editingIsNew = true
+                editing = CalendarItem(kind = CalendarKind.TASK, title = "", date = selected.toString())
+            },
             onToggleDone = { item ->
                 scope.launch {
                     when {
@@ -344,6 +346,7 @@ private fun DayList(
     items: List<CalendarItem>,
     schoolHolidays: List<SchoolHoliday>,
     modifier: Modifier,
+    onAdd: () -> Unit,
     onToggleDone: (CalendarItem) -> Unit,
     onOpen: (CalendarItem) -> Unit
 ) {
@@ -366,6 +369,14 @@ private fun DayList(
             listOfNotNull(publicHoliday?.let { "Férié : $it" }, schoolHoliday?.name).forEach {
                 Text(it, style = MaterialTheme.typography.bodySmall, color = muted)
             }
+            MyButton(
+                text = "Ajouter",
+                icon = Icons.Default.Add,
+                height = 48.dp,
+                fontSize = 16.sp,
+                modifier = Modifier.padding(top = 12.dp),
+                onClick = onAdd
+            )
         }
         if (overdue.isNotEmpty()) {
             item { SectionLabel("En retard") }

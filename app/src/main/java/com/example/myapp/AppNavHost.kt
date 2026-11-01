@@ -15,6 +15,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavType
@@ -26,6 +27,7 @@ import androidx.navigation.navArgument
 import com.example.myapp.calendar.CalendarScreen
 import com.example.myapp.deezer.DeezerScreen
 import com.example.myapp.files.FilesScreen
+import com.example.myapp.flashcards.AppDatabase
 import com.example.myapp.flashcards.FlashcardDetailScreen
 import com.example.myapp.flashcards.FlashcardGameScreen
 import com.example.myapp.flashcards.FlashcardListsScreen
@@ -49,6 +51,7 @@ import com.example.myapp.news.NewsScreen
 import com.example.myapp.notes.NoteEditorScreen
 import com.example.myapp.notes.NotesListScreen
 import com.example.myapp.notes.NotesTrashScreen
+import com.example.myapp.notes.findTodoNote
 import com.example.myapp.reader.BookLibraryScreen
 import com.example.myapp.reader.ReaderScreen
 import com.example.myapp.translate.TranslateScreen
@@ -88,6 +91,7 @@ fun MainScreen(
         LocalMediaConsent provides mediaConsent
     ) {
         val coroutineScope = rememberCoroutineScope()
+        val context = LocalContext.current
 
         LaunchedEffect(initialRoute) {
             val route = initialRoute ?: return@LaunchedEffect
@@ -118,6 +122,13 @@ fun MainScreen(
                                 coroutineScope.launch { themeManager.setDarkMode(!isDarkMode) }
                             },
                             onOpenNotes = { navController.navigate("notes") },
+                            onOpenTodoNote = {
+                                coroutineScope.launch {
+                                    val todo = findTodoNote(AppDatabase.get(context).noteDao())
+                                    navController.navigate("notes")
+                                    if (todo != null) navController.navigate("note/${todo.id}")
+                                }
+                            },
                             onOpenDeezer = { navController.navigate("deezer") },
                             onOpenFlashcards = { navController.navigate("flashcards") },
                             onPlayFlashcards = {
