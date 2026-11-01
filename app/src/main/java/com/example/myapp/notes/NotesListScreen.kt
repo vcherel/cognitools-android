@@ -22,7 +22,6 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Palette
@@ -56,7 +55,6 @@ import androidx.navigation.NavController
 import com.example.myapp.AppSnackbar
 import com.example.myapp.BackIconButton
 import com.example.myapp.BottomFadeOverlay
-import com.example.myapp.copyToClipboard
 import com.example.myapp.LightIconButton
 import com.example.myapp.LocalIsDarkMode
 import com.example.myapp.MyButton
@@ -521,12 +519,6 @@ private fun NoteItem(
                 modifier = Modifier.weight(1f)
             )
             LightIconButton(Icons.Default.Palette, "Next color", onClick = onRecolor, size = 32.dp, iconSize = 20.dp)
-            if (!note.locked) {
-                val context = LocalContext.current
-                LightIconButton(Icons.Default.ContentCopy, "Copy the content", size = 32.dp, iconSize = 20.dp, onClick = {
-                    copyToClipboard(context, note.content)
-                })
-            }
             LightIconButton(Icons.Default.Delete, "Delete", onClick = onDelete, size = 32.dp, iconSize = 20.dp)
         }
     }

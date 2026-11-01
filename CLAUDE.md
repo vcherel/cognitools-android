@@ -67,7 +67,7 @@ Root package (shared/misc):
 - `Http.kt`: shared httpGet helper and User-Agent (Weather + Wikipedia + podcast feeds + news)
 - `Errors.kt`: `userMessage(throwable)`, what a failed job says on screen; rethrows cancellation so a screen left mid-request never shows an error
 - `AtomicWrite.kt`: `File.writeAtomically`, the one way a JSON state file is written (tmp then rename), since the process dies screen-off often enough to truncate a direct write
-- `Clipboard.kt`: `copyToClipboard`, the one clipboard write (ErrorText's copy button, the Deezer error log, the playback failure snackbars, the note card copy, the translation copy)
+- `Clipboard.kt`: `copyToClipboard`, the one clipboard write (ErrorText's copy button, the Deezer error log, the playback failure snackbars, the Claude note cut, the translation copy)
 - `Share.kt`: `shareUrisIntent` (files, for the gallery and the file explorer) and `shareTextIntent` (a link, for the Deezer track and playlist shares), the one place an ACTION_SEND is built
 - `Browser.kt`: `openInBrowser`, the one ACTION_VIEW for a link (news articles, Wiktionary from the mots fléchés, links in a mail), with a snackbar when nothing can open it
 - `Duration.kt`: `formatDuration`, the "3d" / "2h 5min" wait formatting the flashcards and the notes list share
