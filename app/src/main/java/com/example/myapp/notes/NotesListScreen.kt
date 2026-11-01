@@ -73,7 +73,7 @@ import kotlinx.coroutines.launch
 
 private fun formatNoteDate(updatedAt: Long): String {
     val diff = System.currentTimeMillis() - updatedAt
-    return if (diff < 60_000L) "just now" else "${formatDuration(diff)} ago"
+    return if (diff < 60_000L) "now" else formatDuration(diff)
 }
 
 // Note card colors, one light and one dark variant per palette index (Note.color).
@@ -481,12 +481,9 @@ private fun NoteItem(
     onDelete: () -> Unit,
     searchTerms: List<String> = emptyList()
 ) {
-    val (title, preview) = remember(note) { noteTitleAndPreview(note) }
-    // While searching, the line that actually matched replaces the usual first lines, so a card
-    // whose hit is buried deep in the note explains itself.
-    val shownLine = remember(note, searchTerms) {
-        matchingLineOf(note, searchTerms) ?: preview
-    }
+    val title = remember(note) { noteTitleAndPreview(note).first }
+    // Only a search shows a line of the body: the one that matched, so a buried hit explains itself.
+    val shownLine = remember(note, searchTerms) { matchingLineOf(note, searchTerms).orEmpty() }
     val highlighted = remember(shownLine, searchTerms) { highlightedSearchText(shownLine, searchTerms) }
 
     NoteCard(note = note, onClick = onNavigate) {
@@ -506,31 +503,31 @@ private fun NoteItem(
                     highlighted,
                     style = MaterialTheme.typography.bodyMedium,
                     color = Color.Gray,
-                    maxLines = 3,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
             }
         }
-        Spacer(Modifier.height(4.dp))
-        Text(
-            formatNoteDate(note.updatedAt),
-            style = MaterialTheme.typography.bodySmall,
-            color = Color.Gray
-        )
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.End
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            LightIconButton(Icons.Default.Palette, "Next color", onClick = onRecolor)
+            Text(
+                formatNoteDate(note.updatedAt),
+                style = MaterialTheme.typography.bodySmall,
+                color = Color.Gray,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f)
+            )
+            LightIconButton(Icons.Default.Palette, "Next color", onClick = onRecolor, size = 32.dp, iconSize = 20.dp)
             if (!note.locked) {
-                Spacer(Modifier.size(4.dp))
                 val context = LocalContext.current
-                LightIconButton(Icons.Default.ContentCopy, "Copy the content", onClick = {
+                LightIconButton(Icons.Default.ContentCopy, "Copy the content", size = 32.dp, iconSize = 20.dp, onClick = {
                     copyToClipboard(context, note.content)
                 })
             }
-            Spacer(Modifier.size(4.dp))
-            LightIconButton(Icons.Default.Delete, "Delete", onClick = onDelete)
+            LightIconButton(Icons.Default.Delete, "Delete", onClick = onDelete, size = 32.dp, iconSize = 20.dp)
         }
     }
 }
