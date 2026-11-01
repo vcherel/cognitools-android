@@ -27,6 +27,7 @@ import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.Today
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -52,6 +53,7 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import com.example.myapp.AppSnackbar
 import com.example.myapp.ScreenTopBar
+import com.example.myapp.plural
 import com.example.myapp.flashcards.AppDatabase
 import kotlinx.coroutines.launch
 import java.time.DayOfWeek
@@ -69,13 +71,20 @@ private const val GRID_DAYS = 42
 private val monthFormat = DateTimeFormatter.ofPattern("LLLL yyyy", Locale.FRENCH)
 private val dayFormat = DateTimeFormatter.ofPattern("EEEE d MMMM", Locale.FRENCH)
 private val dayYearFormat = DateTimeFormatter.ofPattern("EEEE d MMMM yyyy", Locale.FRENCH)
-private val shortDayFormat = DateTimeFormatter.ofPattern("EEE d MMM", Locale.FRENCH)
 private val WEEKDAYS = listOf("L", "M", "M", "J", "V", "S", "D")
 
-fun kindColor(kind: CalendarKind): Color = when (kind) {
-    CalendarKind.TASK -> Color(0xFF42A5F5)
-    CalendarKind.BIRTHDAY -> Color(0xFFEC407A)
-    CalendarKind.EVENT -> Color(0xFF66BB6A)
+/** What an item is colored by, in the order its dots are drawn. */
+enum class ItemTone(val color: Color) {
+    TASK(Color(0xFF42A5F5)),
+    WEEKLY_TASK(Color(0xFFAB47BC)),
+    BIRTHDAY(Color(0xFFEC407A)),
+    EVENT(Color(0xFF66BB6A))
+}
+
+fun CalendarItem.tone(): ItemTone = when (kind) {
+    CalendarKind.TASK -> if (weekly) ItemTone.WEEKLY_TASK else ItemTone.TASK
+    CalendarKind.BIRTHDAY -> ItemTone.BIRTHDAY
+    CalendarKind.EVENT -> ItemTone.EVENT
 }
 
 /** Monday of the week holding the 1st, so every month fills the same six rows. */
@@ -226,21 +235,15 @@ private fun MonthGrid(
     val end = remember(start) { start.plusDays(GRID_DAYS.toLong()) }
     val publicDays = remember(month) { (month.year - 1..month.year + 1).flatMap { publicHolidays(it).keys }.toSet() }
     val marks = remember(items, start, today) {
-        val byDay = HashMap<LocalDate, MutableSet<CalendarKind>>()
-        fun mark(day: LocalDate, kind: CalendarKind) {
-            if (!day.isBefore(start) && day.isBefore(end)) byDay.getOrPut(day) { sortedSetOf() } += kind
+        val byDay = HashMap<LocalDate, MutableSet<ItemTone>>()
+        fun mark(day: LocalDate, tone: ItemTone) {
+            if (!day.isBefore(start) && day.isBefore(end)) byDay.getOrPut(day) { sortedSetOf() } += tone
         }
         items.forEach { item ->
             if (item.kind == CalendarKind.BIRTHDAY) {
-                (start.year..end.year).forEach { mark(item.birthdayIn(it), item.kind) }
-            } else if (item.weekly) {
-                generateSequence(item.localDate()) { it.plusWeeks(1) }
-                    .takeWhile { it.isBefore(end) }
-                    .forEach { mark(it, item.kind) }
-                if (item.isOverdue(today)) mark(today, item.kind)
+                (start.year..end.year).forEach { mark(item.birthdayIn(it), item.tone()) }
             } else {
-                mark(item.localDate(), item.kind)
-                if (item.isOverdue(today)) mark(today, item.kind)
+                mark(if (item.isOverdue(today)) today else item.localDate(), item.tone())
             }
         }
         byDay
@@ -257,7 +260,7 @@ private fun MonthGrid(
                         isSelected = day == selected,
                         isPublicHoliday = day in publicDays,
                         inSchoolHoliday = schoolHolidays.any { it.contains(day) },
-                        kinds = marks[day].orEmpty(),
+                        tones = marks[day].orEmpty(),
                         onClick = { onSelect(day) },
                         modifier = Modifier.weight(1f)
                     )
@@ -275,7 +278,7 @@ private fun DayCell(
     isSelected: Boolean,
     isPublicHoliday: Boolean,
     inSchoolHoliday: Boolean,
-    kinds: Set<CalendarKind>,
+    tones: Set<ItemTone>,
     onClick: () -> Unit,
     modifier: Modifier
 ) {
@@ -319,11 +322,11 @@ private fun DayCell(
                 horizontalArrangement = Arrangement.spacedBy(3.dp),
                 modifier = Modifier.padding(top = 3.dp).height(6.dp)
             ) {
-                kinds.forEach { kind ->
+                tones.forEach { tone ->
                     Box(
                         Modifier
                             .size(6.dp)
-                            .background(kindColor(kind).copy(alpha = if (inMonth) 1f else 0.4f), CircleShape)
+                            .background(tone.color.copy(alpha = if (inMonth) 1f else 0.4f), CircleShape)
                     )
                 }
             }
@@ -347,9 +350,8 @@ private fun DayList(
     val overdue = remember(items, day, today) {
         if (day == today) items.filter { it.isOverdue(today) }.sortedBy { it.date } else emptyList()
     }
-    // A weekly task more than a week late also lands on today; it shows once, as late.
-    val dayItems = remember(items, day, overdue) {
-        items.filter { it.occursOn(day) && it !in overdue }.sortedWith(dayOrder)
+    val dayItems = remember(items, day, today) {
+        items.filter { it.occursOn(day, today) && !it.isOverdue(today) }.sortedWith(dayOrder)
     }
     val publicHoliday = remember(day) { publicHolidays(day.year)[day] }
     val schoolHoliday = schoolHolidays.firstOrNull { it.contains(day) }
@@ -368,7 +370,7 @@ private fun DayList(
         if (overdue.isNotEmpty()) {
             item { SectionLabel("En retard") }
             items(overdue, key = { "late_${it.id}" }) { item ->
-                ItemRow(item, day, onToggleDone, onOpen, lateFrom = item.localDate())
+                ItemRow(item, day, onToggleDone, onOpen, daysLate = item.daysLate(today).toInt())
             }
             if (dayItems.isNotEmpty()) item { SectionLabel("Aujourd'hui") }
         }
@@ -395,7 +397,7 @@ private fun ItemRow(
     day: LocalDate,
     onToggleDone: (CalendarItem) -> Unit,
     onOpen: (CalendarItem) -> Unit,
-    lateFrom: LocalDate? = null
+    daysLate: Int? = null
 ) {
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
     Row(
@@ -406,9 +408,13 @@ private fun ItemRow(
         verticalAlignment = Alignment.CenterVertically
     ) {
         when (item.kind) {
-            CalendarKind.TASK -> Checkbox(checked = item.done, onCheckedChange = { onToggleDone(item) })
-            CalendarKind.BIRTHDAY -> KindIcon(Icons.Default.Cake, kindColor(item.kind))
-            CalendarKind.EVENT -> KindIcon(Icons.Default.Event, kindColor(item.kind))
+            CalendarKind.TASK -> Checkbox(
+                checked = item.done,
+                onCheckedChange = { onToggleDone(item) },
+                colors = CheckboxDefaults.colors(checkedColor = item.tone().color, uncheckedColor = item.tone().color)
+            )
+            CalendarKind.BIRTHDAY -> KindIcon(Icons.Default.Cake, item.tone().color)
+            CalendarKind.EVENT -> KindIcon(Icons.Default.Event, item.tone().color)
         }
         Column(modifier = Modifier.weight(1f).padding(start = 8.dp)) {
             val title = when (item.kind) {
@@ -422,7 +428,7 @@ private fun ItemRow(
                 color = if (item.done) muted else MaterialTheme.colorScheme.onSurface
             )
             val details = when {
-                lateFrom != null -> "Prévu ${shortDayFormat.format(lateFrom)}"
+                daysLate != null -> "En retard de $daysLate jour${plural(daysLate)}"
                 item.kind == CalendarKind.BIRTHDAY -> null
                 else -> listOfNotNull(
                     timeRange(item),

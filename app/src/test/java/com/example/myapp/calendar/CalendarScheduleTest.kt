@@ -82,10 +82,18 @@ class CalendarScheduleTest {
         assertEquals("2026-11-11", done.date)
         assertEquals(false, done.done)
         assertEquals(null, done.snoozedUntil)
-        assertTrue(task.occursOn(LocalDate.of(2026, 11, 16)))
-        assertTrue(!task.occursOn(LocalDate.of(2026, 11, 17)))
-        assertTrue(!task.occursOn(LocalDate.of(2026, 10, 26)))
         assertTrue(task.copy(weekly = false).completed(LocalDate.of(2026, 11, 4)).done)
+    }
+
+    @Test
+    fun lateTaskShowsOnlyOnToday() {
+        val task = CalendarItem(kind = CalendarKind.TASK, title = "Poubelles", date = "2026-11-02", weekly = true)
+        val today = LocalDate.of(2026, 11, 5)
+        assertTrue(task.occursOn(today, today))
+        assertTrue(!task.occursOn(LocalDate.of(2026, 11, 2), today))
+        assertTrue(!task.occursOn(LocalDate.of(2026, 11, 9), today))
+        assertEquals(3L, task.daysLate(today))
+        assertTrue(task.occursOn(LocalDate.of(2026, 11, 2), LocalDate.of(2026, 11, 1)))
     }
 
     @Test

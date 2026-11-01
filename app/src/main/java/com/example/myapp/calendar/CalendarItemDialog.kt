@@ -129,13 +129,6 @@ fun CalendarItemDialog(
                         FilterChip(selected = weekly == option, onClick = { weekly = option }, label = { Text(label) })
                     }
                 }
-                Text(
-                    (if (time == null) "Rappel à 9:00 le jour même" else "Rappel à l'heure prévue") +
-                        ", puis chaque jour tant que ce n'est pas fait." +
-                        (if (weekly) " Une fois fait, revient une semaine plus tard." else ""),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = muted
-                )
             }
 
             if (kind == CalendarKind.EVENT) {

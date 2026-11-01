@@ -20,16 +20,18 @@ fun CalendarItem.birthdayIn(year: Int): LocalDate =
 
 fun CalendarItem.ageIn(year: Int): Int? = if (yearKnown) year - localDate().year else null
 
-/** A weekly task also falls on every week after its date, the weeks to come once this one is done. */
-fun CalendarItem.occursOn(day: LocalDate): Boolean = when {
+/** A task left unchecked on an earlier day, shown on today instead until it is done. */
+fun CalendarItem.isOverdue(today: LocalDate): Boolean =
+    kind == CalendarKind.TASK && !done && localDate().isBefore(today)
+
+/** The day [item] shows on: a late task leaves its own day for today. A weekly one shows only its next time. */
+fun CalendarItem.occursOn(day: LocalDate, today: LocalDate): Boolean = when {
     kind == CalendarKind.BIRTHDAY -> birthdayIn(day.year) == day
-    weekly -> !day.isBefore(localDate()) && ChronoUnit.DAYS.between(localDate(), day) % 7 == 0L
+    isOverdue(today) -> day == today
     else -> localDate() == day
 }
 
-/** A task left unchecked on an earlier day, shown again on today until it is done. */
-fun CalendarItem.isOverdue(today: LocalDate): Boolean =
-    kind == CalendarKind.TASK && !done && localDate().isBefore(today)
+fun CalendarItem.daysLate(today: LocalDate): Long = ChronoUnit.DAYS.between(localDate(), today)
 
 /** A task checked on [today]; a weekly one comes back a week later instead of staying done. */
 fun CalendarItem.completed(today: LocalDate): CalendarItem =

@@ -82,7 +82,7 @@ Root package (shared/misc):
 - `CalendarSchedule.kt`: when each item reminds (a task at its time or 9:00 then daily until checked, a weekly task back a week after it is done, an event its chosen lead, a birthday a week before, at 23:59 the eve and at 9:00 unless wished), the French public holidays from Easter. Pure, covered by a JVM unit test
 - `SchoolHolidays.kt`: the zone B holidays from the ministry's open data API, cached in filesDir and refetched monthly
 - `CalendarReminders.kt`: every write goes through it so the one exact alarm points at the next reminder; the notifications with their Fait / Dans 1 h / Demain / Souhaité buttons, and CalendarReceiver (alarm, buttons, reboot)
-- `CalendarScreen.kt`: month grid pager (dots per kind, school holidays as a faint band, fériés muted) and the selected day's list, overdue tasks shown on today
+- `CalendarScreen.kt`: month grid pager (a dot color per kind, weekly tasks their own, school holidays as a faint band, fériés muted) and the selected day's list, overdue tasks moved onto today
 - `CalendarItemDialog.kt`: the add/edit dialog with its date and time pickers
 
 `deezer/` (Deezer streaming client: library, playback, offline mirror):
