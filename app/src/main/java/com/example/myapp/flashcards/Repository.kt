@@ -46,9 +46,15 @@ class FlashcardRepository(private val context: Context) {
 
     suspend fun primeListsWithCounts() {
         observeListsWithCounts().first()
+        observeDueCount(System.currentTimeMillis()).first()
     }
 
-    fun observeDueCount(now: Long): Flow<Int> = dao.observeDueCounts(now).map { rows -> rows.sumOf { it.c } }
+    /** The last due total seen, so the menu's first frame shows it instead of 0 until the query lands. */
+    @Volatile var lastDueCount: Int? = null
+        private set
+
+    fun observeDueCount(now: Long): Flow<Int> =
+        dao.observeDueCounts(now).map { rows -> rows.sumOf { it.c } }.onEach { lastDueCount = it }
 
     suspend fun addList(list: FlashcardList) {
         val current = dao.getLists()

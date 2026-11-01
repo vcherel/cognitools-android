@@ -53,6 +53,10 @@ private class MenuTool(val id: String, val label: String, val accent: ToolAccent
 private const val BIG_ROW_WEIGHT = 1.25f
 private val RowGap = 16.dp
 
+// What the Gallery tile showed last, so coming back to the menu does not flash the wallet icon
+// before the pinned query answers.
+private var lastSomethingPinned = false
+
 @Composable
 fun MenuScreen(
     isDarkMode: Boolean,
@@ -149,7 +153,7 @@ fun MenuScreen(
                 now = System.currentTimeMillis()
             }
         }
-        var dueCount by remember { mutableIntStateOf(0) }
+        var dueCount by remember { mutableIntStateOf(context.flashcardRepository.lastDueCount ?: 0) }
         LaunchedEffect(now) {
             context.flashcardRepository.observeDueCount(now).collect { dueCount = it }
         }
@@ -168,8 +172,9 @@ fun MenuScreen(
             onRightClick = onPlayFlashcards
         )
         val pinDao = remember { AppDatabase.get(context).pinnedMediaItemDao() }
-        val pinnedRows by remember { pinDao.observePinned() }.collectAsState(initial = emptyList())
-        val somethingPinned = pinnedRows.isNotEmpty()
+        val pinnedRows by remember { pinDao.observePinned() }.collectAsState(initial = null)
+        val somethingPinned = pinnedRows?.isNotEmpty() ?: lastSomethingPinned
+        lastSomethingPinned = somethingPinned
         SplitMyButton(
             text = "Gallery",
             rightIcon = if (somethingPinned) Icons.Default.PushPin else Icons.Default.AccountBalanceWallet,
