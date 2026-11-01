@@ -1,7 +1,9 @@
 package com.example.myapp.workout
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.LocalDateTime
 import java.time.LocalTime
@@ -37,10 +39,16 @@ class WorkoutScheduleTest {
     }
 
     @Test
-    fun `snoozing later adds the drawn minutes`() {
-        assertEquals(at(26, 20, 15), reminderSnoozed(at(26, 19, 45), 30))
-        assertEquals(at(26, 21, 45), reminderSnoozed(at(26, 19, 45), 120))
-        assertEquals(listOf("30 min", "1 h", "2 h"), SNOOZE_MINUTES.map(::snoozeLabel))
+    fun `snoozing later adds one hour`() {
+        assertEquals(at(26, 20, 45), reminderSnoozed(at(26, 19, 45)))
+    }
+
+    @Test
+    fun `a picked day is offered only while its slot is ahead`() {
+        assertTrue(canRemindOn(at(26, 0).toLocalDate(), at(26, 12), times))
+        assertFalse(canRemindOn(at(26, 0).toLocalDate(), at(26, 20), times))
+        assertTrue(canRemindOn(at(31, 0).toLocalDate(), at(26, 20), times))
+        assertFalse(canRemindOn(at(25, 0).toLocalDate(), at(26, 12), times))
     }
 
     @Test

@@ -7,7 +7,6 @@ import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import androidx.datastore.preferences.core.MutablePreferences
 import androidx.datastore.preferences.core.Preferences
@@ -26,7 +25,6 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -102,17 +100,15 @@ object WorkoutReminder {
         }
     }
 
-    /** Snoozes for a drawn [SNOOZE_MINUTES] and toasts how long it came out. */
-    suspend fun snoozeLater(context: Context) {
-        val minutes = SNOOZE_MINUTES.random()
-        update(context) { it.copy(remindAt = reminderSnoozed(LocalDateTime.now(), minutes).toMillis()) }
-        withContext(Dispatchers.Main) {
-            Toast.makeText(context, "🎲 Rappel dans ${snoozeLabel(minutes)}", Toast.LENGTH_LONG).show()
-        }
-    }
+    suspend fun snoozeLater(context: Context) =
+        update(context) { it.copy(remindAt = reminderSnoozed(LocalDateTime.now()).toMillis()) }
 
     suspend fun snoozeDay(context: Context) =
         update(context) { it.copy(remindAt = reminderSnoozedDay(LocalDateTime.now(), it.times).toMillis()) }
+
+    /** Puts the reminder off until [date]'s slot, for days away (a festival, a trip). */
+    suspend fun snoozeUntil(context: Context, date: LocalDate) =
+        update(context) { it.copy(remindAt = slotOn(date, it.times).toMillis()) }
 
     /** Changes the reminder times, moving a pending reminder that sat on the old slot. */
     suspend fun setTimes(context: Context, times: ReminderTimes) {
@@ -190,7 +186,7 @@ object WorkoutReminder {
         )
         val open = PendingIntent.getActivity(
             context, 0,
-            Intent(context, MainActivity::class.java).putExtra(MainActivity.EXTRA_OPEN_ROUTE, "workout"),
+            Intent(context, MainActivity::class.java).putExtra(MainActivity.EXTRA_OPEN_ROUTE, "workout?pickDay=true"),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         val text = lastSessionText(lastDone?.toLocalDateTime(), LocalDate.now())
@@ -201,7 +197,7 @@ object WorkoutReminder {
             .setContentIntent(open)
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
             .addAction(0, "C'est fait", receiverIntent(context, ACTION_DONE, 1))
-            .addAction(0, "Plus tard 🎲", receiverIntent(context, ACTION_SNOOZE_LATER, 2))
+            .addAction(0, "Dans 1 h", receiverIntent(context, ACTION_SNOOZE_LATER, 2))
             .addAction(0, "Demain", receiverIntent(context, ACTION_SNOOZE_DAY, 3))
             .build()
         manager.notify(NOTIFICATION_ID, notification)

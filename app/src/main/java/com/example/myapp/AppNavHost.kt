@@ -167,7 +167,12 @@ fun MainScreen(
                         val uid = backStackEntry.arguments?.getString("uid")?.toLongOrNull() ?: 0L
                         MailMessageScreen(uid = uid, onBack = back)
                     }
-                    composable("workout") { WorkoutScreen(onBack = back) }
+                    composable(
+                        "workout?pickDay={pickDay}",
+                        arguments = listOf(navArgument("pickDay") { type = NavType.BoolType; defaultValue = false })
+                    ) { backStackEntry ->
+                        WorkoutScreen(onBack = back, pickDayInitially = backStackEntry.arguments?.getBoolean("pickDay") ?: false)
+                    }
                     composable("motsFleches") { MotsFlechesScreen(onBack = back) }
                     composable("translate") { TranslateScreen(onBack = back) }
                     composable("reader") {

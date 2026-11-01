@@ -33,19 +33,21 @@ fun nextSlotAfter(now: LocalDateTime, times: ReminderTimes): LocalDateTime {
 fun reminderAfterSession(now: LocalDateTime, times: ReminderTimes): LocalDateTime =
     slotOn(now.toLocalDate().plusDays(RECOVERY_DAYS + 1), times)
 
-/** What the "Plus tard" snooze can draw, with even odds. */
-val SNOOZE_MINUTES = listOf(30L, 60L, 120L)
+/** How long the "Dans 1 h" snooze puts the reminder off. */
+const val SNOOZE_MINUTES = 60L
 
-fun reminderSnoozed(now: LocalDateTime, minutes: Long): LocalDateTime = now.plusMinutes(minutes)
-
-fun snoozeLabel(minutes: Long): String = if (minutes < 60) "$minutes min" else "${minutes / 60} h"
+fun reminderSnoozed(now: LocalDateTime): LocalDateTime = now.plusMinutes(SNOOZE_MINUTES)
 
 fun reminderSnoozedDay(now: LocalDateTime, times: ReminderTimes): LocalDateTime =
     slotOn(now.toLocalDate().plusDays(1), times)
 
+/** Whether [date] can be picked as the day the reminder comes back: its slot is still ahead. */
+fun canRemindOn(date: LocalDate, now: LocalDateTime, times: ReminderTimes): Boolean =
+    slotOn(date, times).isAfter(now)
+
 /**
  * The reminder moved along when the times change: one sitting on its day's old slot takes the new
- * slot, one set by a "Plus tard" snooze stays where it is.
+ * slot, one set by a "Dans 1 h" snooze stays where it is.
  */
 fun reminderWithNewTimes(remindAt: LocalDateTime, old: ReminderTimes, new: ReminderTimes): LocalDateTime =
     if (remindAt == slotOn(remindAt.toLocalDate(), old)) slotOn(remindAt.toLocalDate(), new) else remindAt
