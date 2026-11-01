@@ -83,7 +83,7 @@ Root package (shared/misc):
 - `SchoolHolidays.kt`: the zone B holidays from the ministry's open data API, cached in filesDir and refetched monthly
 - `CalendarReminders.kt`: every write goes through it so the one exact alarm points at the next reminder; the notifications with their Fait / Dans 1 h / Demain / Souhaité buttons, and CalendarReceiver (alarm, buttons, reboot)
 - `CalendarScreen.kt`: month grid pager (a dot color per kind, weekly tasks their own, school holidays as a faint band, fériés muted) and the selected day's list, overdue tasks moved onto today
-- `CalendarItemDialog.kt`: the add/edit dialog with its date and time pickers
+- `CalendarItemDialog.kt`: the add/edit dialog with its date and time pickers; an event's date and time rows are "start → end" ranges, Répéter and Rappel are one row each opening a menu
 
 `deezer/` (Deezer streaming client: library, playback, offline mirror):
 - `DeezerModels.kt`: DeezerTrack/DeezerPlaylist/DeezerQuality data classes
@@ -255,7 +255,7 @@ Root package (shared/misc):
 ## Cross-cutting things, and where they actually live
 The map above is by feature. These are the ones you won't find by feature name:
 
-- **Room**: one database for the whole app, declared in `flashcards/Database.kt` (version 20). The notes `Note` entity and `NoteDao` are registered there too but defined in `notes/Models.kt`; same for the gallery's `PinnedMediaItem`/`PinnedMediaItemDao` in `gallery/GalleryPins.kt`, the podcasts' tables in `podcasts/`, the reader's `Book`/`BookDao` in `reader/BookModels.kt`, the news tool's `NewsRead`/`NewsSaved`/`NewsProgress`/`NewsDao` in `news/NewsModels.kt`, and the calendar's `CalendarItem`/`CalendarDao` in `calendar/CalendarModels.kt`.
+- **Room**: one database for the whole app, declared in `flashcards/Database.kt` (version 21). The notes `Note` entity and `NoteDao` are registered there too but defined in `notes/Models.kt`; same for the gallery's `PinnedMediaItem`/`PinnedMediaItemDao` in `gallery/GalleryPins.kt`, the podcasts' tables in `podcasts/`, the reader's `Book`/`BookDao` in `reader/BookModels.kt`, the news tool's `NewsRead`/`NewsSaved`/`NewsProgress`/`NewsDao` in `news/NewsModels.kt`, and the calendar's `CalendarItem`/`CalendarDao` in `calendar/CalendarModels.kt`.
 - **Word to flashcard loop**: the reader, the translator and the flashcards are one chain. Long pressing a word in `reader/ReaderScreen.kt` opens `translate/WordLookupSheet`, which writes a `FlashcardElement` into the list used last (remembered in `TranslateStore`). The reader is also the only screen that calls `SuppressIdleReset`.
 - **Media notification and lockscreen buttons**: `deezer/DeezerPlaybackService.kt`, `actionButtons()`. Media3 draws the notification; the buttons are `CommandButton`s handled in `SessionCallback.onCustomCommand`, so they act without opening the app. `podcasts/PodcastPlaybackService.kt` does the same with its ±30 s pair.
 - **Two playback stacks, one player at a time**: music (`deezer/`) and podcasts (`podcasts/`) each have their own repository, service, notification and mini-player, and they are deliberately mutually exclusive: `DeezerRepository.stopPodcastPlayback()` and `PodcastRepository.playEpisode()` stop the other one, because two foreground services fighting over audio focus used to take the app down. Their two services must also keep **different notification ids and channels** (see either `onCreate`). What they share lives in the root package: `PlayerUi.kt` (every surface) and `MediaControllerHolder.kt` (the connection and the stop).

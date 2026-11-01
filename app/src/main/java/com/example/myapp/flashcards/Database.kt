@@ -90,7 +90,7 @@ interface FlashcardDao {
         PodcastDownload::class, Book::class, NewsRead::class, NewsSaved::class,
         NewsProgress::class, CalendarItem::class
     ],
-    version = 20
+    version = 21
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun calendarDao(): CalendarDao
@@ -110,7 +110,7 @@ abstract class AppDatabase : RoomDatabase() {
                     context.applicationContext,
                     AppDatabase::class.java,
                     "flashcards.db"
-                ).addMigrations(MIGRATION_18_19, MIGRATION_19_20).build().also { instance = it }
+                ).addMigrations(MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21).build().also { instance = it }
             }
     }
 }
@@ -130,5 +130,11 @@ private val MIGRATION_19_20 = object : Migration(19, 20) {
     override fun migrate(db: SupportSQLiteDatabase) {
         db.execSQL("ALTER TABLE `calendar_items` ADD COLUMN `weekly` INTEGER NOT NULL DEFAULT 0")
         db.execSQL("ALTER TABLE `calendar_items` ADD COLUMN `snoozedUntil` TEXT")
+    }
+}
+
+private val MIGRATION_20_21 = object : Migration(20, 21) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `calendar_items` ADD COLUMN `endDate` TEXT")
     }
 }

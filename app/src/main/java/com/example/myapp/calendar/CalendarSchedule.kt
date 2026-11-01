@@ -24,11 +24,14 @@ fun CalendarItem.ageIn(year: Int): Int? = if (yearKnown) year - localDate().year
 fun CalendarItem.isOverdue(today: LocalDate): Boolean =
     kind == CalendarKind.TASK && !done && localDate().isBefore(today)
 
-/** The day [item] shows on: a late task leaves its own day for today. A weekly one shows only its next time. */
+/**
+ * The days [item] shows on: a late task leaves its own day for today, a weekly one shows only its
+ * next time, an event over several days shows on each of them.
+ */
 fun CalendarItem.occursOn(day: LocalDate, today: LocalDate): Boolean = when {
     kind == CalendarKind.BIRTHDAY -> birthdayIn(day.year) == day
     isOverdue(today) -> day == today
-    else -> localDate() == day
+    else -> !day.isBefore(localDate()) && !day.isAfter(lastDate())
 }
 
 fun CalendarItem.daysLate(today: LocalDate): Long = ChronoUnit.DAYS.between(localDate(), today)

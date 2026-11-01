@@ -97,6 +97,17 @@ class CalendarScheduleTest {
     }
 
     @Test
+    fun eventOverSeveralDaysShowsOnEachOfThem() {
+        val event = CalendarItem(kind = CalendarKind.EVENT, title = "Festival", date = "2026-11-06", endDate = "2026-11-08")
+        val today = LocalDate.of(2026, 11, 1)
+        assertTrue(!event.occursOn(LocalDate.of(2026, 11, 5), today))
+        assertTrue(event.occursOn(LocalDate.of(2026, 11, 6), today))
+        assertTrue(event.occursOn(LocalDate.of(2026, 11, 7), today))
+        assertTrue(event.occursOn(LocalDate.of(2026, 11, 8), today))
+        assertTrue(!event.occursOn(LocalDate.of(2026, 11, 9), today))
+    }
+
+    @Test
     fun schoolHolidaysSkipTeachersAndMarkers() {
         val json = """
             {"results": [

@@ -240,10 +240,17 @@ private fun MonthGrid(
             if (!day.isBefore(start) && day.isBefore(end)) byDay.getOrPut(day) { sortedSetOf() } += tone
         }
         items.forEach { item ->
-            if (item.kind == CalendarKind.BIRTHDAY) {
-                (start.year..end.year).forEach { mark(item.birthdayIn(it), item.tone()) }
-            } else {
-                mark(if (item.isOverdue(today)) today else item.localDate(), item.tone())
+            when {
+                item.kind == CalendarKind.BIRTHDAY -> (start.year..end.year).forEach { mark(item.birthdayIn(it), item.tone()) }
+                item.isOverdue(today) -> mark(today, item.tone())
+                else -> {
+                    var day = maxOf(item.localDate(), start)
+                    val last = minOf(item.lastDate(), end)
+                    while (!day.isAfter(last)) {
+                        mark(day, item.tone())
+                        day = day.plusDays(1)
+                    }
+                }
             }
         }
         byDay
@@ -430,7 +437,7 @@ private fun ItemRow(
                 daysLate != null -> "En retard de $daysLate jour${plural(daysLate)}"
                 item.kind == CalendarKind.BIRTHDAY -> null
                 else -> listOfNotNull(
-                    timeRange(item),
+                    timeOn(item, day),
                     item.place?.takeIf { it.isNotBlank() },
                     if (item.weekly) "chaque semaine" else null
                 ).joinToString(", ").ifEmpty { null }?.replaceFirstChar { it.uppercase() }
@@ -449,8 +456,25 @@ private fun KindIcon(icon: ImageVector, tint: Color) {
 
 private val timeFormat = DateTimeFormatter.ofPattern("HH:mm", Locale.FRENCH)
 
-private fun timeRange(item: CalendarItem): String? {
-    val start = item.localTime()?.let(timeFormat::format) ?: return null
+/** The time line under an item on [day]; an event over several days says which of its days this is. */
+private fun timeOn(item: CalendarItem, day: LocalDate): String? {
+    val start = item.localTime()?.let(timeFormat::format)
     val end = item.localEndTime()?.let(timeFormat::format)
-    return if (end != null) "$start à $end" else start
+    val first = item.localDate()
+    val last = item.lastDate()
+    if (first == last) {
+        return when {
+            start == null -> null
+            end != null -> "$start à $end"
+            else -> start
+        }
+    }
+    val total = ChronoUnit.DAYS.between(first, last) + 1
+    val index = ChronoUnit.DAYS.between(first, day) + 1
+    val time = when (day) {
+        first -> start?.let { "dès $it" }
+        last -> end?.let { "jusqu'à $it" }
+        else -> null
+    }
+    return listOfNotNull("jour $index sur $total", time).joinToString(", ")
 }

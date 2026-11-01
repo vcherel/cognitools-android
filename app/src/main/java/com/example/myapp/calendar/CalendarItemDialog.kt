@@ -2,6 +2,7 @@ package com.example.myapp.calendar
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -10,11 +11,14 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
@@ -31,6 +35,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
@@ -40,9 +45,12 @@ import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
+import java.time.temporal.ChronoUnit
 import java.util.Locale
 
 private val fullDateFormat = DateTimeFormatter.ofPattern("EEEE d MMMM yyyy", Locale.FRENCH)
+private val shortDateFormat = DateTimeFormatter.ofPattern("EEE d MMM", Locale.FRENCH)
+private val shortDateYearFormat = DateTimeFormatter.ofPattern("d MMM yyyy", Locale.FRENCH)
 private val birthDateFormat = DateTimeFormatter.ofPattern("d MMMM yyyy", Locale.FRENCH)
 private val dayMonthFormat = DateTimeFormatter.ofPattern("d MMMM", Locale.FRENCH)
 private val timeFormat = DateTimeFormatter.ofPattern("HH:mm", Locale.FRENCH)
@@ -53,7 +61,12 @@ private val KIND_LABELS = listOf(
     CalendarKind.EVENT to "Événement"
 )
 
-private enum class Picking { DATE, START, END }
+private val REPEAT_OPTIONS = listOf(false to "Jamais", true to "Chaque semaine")
+
+private enum class Picking { DATE, END_DATE, START, END }
+
+private fun shortDate(day: LocalDate): String =
+    (if (day.year == LocalDate.now().year) shortDateFormat else shortDateYearFormat).format(day)
 
 /** Adds or edits one item; the kind can only be changed while adding. */
 @OptIn(ExperimentalLayoutApi::class)
@@ -68,6 +81,7 @@ fun CalendarItemDialog(
     var kind by remember { mutableStateOf(initial.kind) }
     var title by remember { mutableStateOf(initial.title) }
     var date by remember { mutableStateOf(initial.localDate()) }
+    var endDate by remember { mutableStateOf(initial.endDate?.let(LocalDate::parse)) }
     var time by remember { mutableStateOf(initial.localTime()) }
     var endTime by remember { mutableStateOf(initial.localEndTime()) }
     var place by remember { mutableStateOf(initial.place.orEmpty()) }
@@ -75,12 +89,13 @@ fun CalendarItemDialog(
     var reminderMinutes by remember { mutableStateOf(initial.reminderMinutes) }
     var weekly by remember { mutableStateOf(initial.weekly) }
     var picking by remember { mutableStateOf<Picking?>(null) }
-    val muted = MaterialTheme.colorScheme.onSurfaceVariant
+    val isEvent = kind == CalendarKind.EVENT
+    val isBirthday = kind == CalendarKind.BIRTHDAY
 
     AppDialog(onDismiss = onDismiss) {
         Column(
             modifier = Modifier.verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             if (isNew) {
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -92,46 +107,42 @@ fun CalendarItemDialog(
             OutlinedTextField(
                 value = title,
                 onValueChange = { title = it },
-                label = { Text(if (kind == CalendarKind.BIRTHDAY) "Prénom" else "Titre") },
+                label = { Text(if (isBirthday) "Prénom" else "Titre") },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp)
             )
 
-            val dateText = when {
-                kind != CalendarKind.BIRTHDAY -> fullDateFormat.format(date)
-                yearKnown -> birthDateFormat.format(date)
-                else -> dayMonthFormat.format(date)
-            }
-            ValueRow(if (kind == CalendarKind.BIRTHDAY) "Né le" else "Date", dateText) { picking = Picking.DATE }
-
-            if (kind == CalendarKind.BIRTHDAY) {
+            if (isBirthday) {
+                RangeRow(
+                    "Né le", if (yearKnown) birthDateFormat.format(date) else dayMonthFormat.format(date),
+                    onFirst = { picking = Picking.DATE }
+                )
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.clickable { yearKnown = !yearKnown }) {
                     Checkbox(checked = yearKnown, onCheckedChange = { yearKnown = it })
                     Text("Je connais l'année")
                 }
-                Text(
-                    "Rappels une semaine avant, la veille à 23:59 et le jour même à 9:00.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = muted
-                )
             } else {
-                ValueRow("Heure", time?.let(timeFormat::format) ?: "Aucune") { picking = Picking.START }
-                if (kind == CalendarKind.EVENT && time != null) {
-                    ValueRow("Fin", endTime?.let(timeFormat::format) ?: "Aucune") { picking = Picking.END }
+                if (isEvent) {
+                    RangeRow(
+                        "Date", shortDate(date), { picking = Picking.DATE },
+                        second = endDate?.let(::shortDate), onSecond = { picking = Picking.END_DATE }
+                    )
+                } else {
+                    RangeRow("Date", fullDateFormat.format(date), onFirst = { picking = Picking.DATE })
                 }
+                RangeRow(
+                    "Heure", time?.let(timeFormat::format) ?: "Aucune", { picking = Picking.START },
+                    second = endTime?.let(timeFormat::format),
+                    onSecond = if (isEvent && time != null) ({ picking = Picking.END }) else null
+                )
             }
 
             if (kind == CalendarKind.TASK) {
-                Text("Répéter", style = MaterialTheme.typography.labelLarge)
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf(false to "Jamais", true to "Chaque semaine").forEach { (option, label) ->
-                        FilterChip(selected = weekly == option, onClick = { weekly = option }, label = { Text(label) })
-                    }
-                }
+                ChoiceRow("Répéter", REPEAT_OPTIONS, weekly) { weekly = it }
             }
 
-            if (kind == CalendarKind.EVENT) {
+            if (isEvent) {
                 OutlinedTextField(
                     value = place,
                     onValueChange = { place = it },
@@ -140,24 +151,15 @@ fun CalendarItemDialog(
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
                     modifier = Modifier.fillMaxWidth()
                 )
-                Text("Rappel", style = MaterialTheme.typography.labelLarge)
                 val options = if (time == null) {
                     listOf(null to "Aucun", 0 to "Le jour même à 9:00", 1440 to "La veille à 9:00")
                 } else {
                     listOf(null to "Aucun", 0 to "À l'heure", 60 to "1 h avant", 1440 to "La veille")
                 }
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    options.forEach { (minutes, label) ->
-                        FilterChip(
-                            selected = reminderMinutes == minutes,
-                            onClick = { reminderMinutes = minutes },
-                            label = { Text(label) }
-                        )
-                    }
-                }
+                ChoiceRow("Rappel", options, reminderMinutes) { reminderMinutes = it }
             }
 
-            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Row(modifier = Modifier.fillMaxWidth().padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                 if (!isNew) {
                     TextButton(onClick = onDelete) { Text("Supprimer", color = MaterialTheme.colorScheme.error) }
                 }
@@ -166,14 +168,13 @@ fun CalendarItemDialog(
                 TextButton(
                     enabled = title.isNotBlank(),
                     onClick = {
-                        val isEvent = kind == CalendarKind.EVENT
-                        val isBirthday = kind == CalendarKind.BIRTHDAY
                         val start = if (isBirthday) null else time
                         onSave(
                             initial.copy(
                                 kind = kind,
                                 title = title.trim(),
                                 date = (if (isBirthday && !yearKnown) date.withYear(UNKNOWN_BIRTH_YEAR) else date).toString(),
+                                endDate = if (isEvent) endDate?.takeIf { it.isAfter(date) }?.toString() else null,
                                 time = start?.let(timeFormat::format),
                                 endTime = if (isEvent && start != null) endTime?.let(timeFormat::format) else null,
                                 place = if (isEvent) place.trim().ifEmpty { null } else null,
@@ -196,8 +197,22 @@ fun CalendarItemDialog(
         Picking.DATE -> DatePickDialog(
             initial = date,
             onDismiss = { picking = null },
+            onConfirm = { picked ->
+                // Moving the first day carries the last one along, so the event keeps its length.
+                endDate = endDate?.plusDays(ChronoUnit.DAYS.between(date, picked))
+                date = picked
+                picking = null
+            }
+        )
+        Picking.END_DATE -> DatePickDialog(
+            initial = endDate ?: date.plusDays(1),
+            onDismiss = { picking = null },
+            onClear = {
+                endDate = null
+                picking = null
+            },
             onConfirm = {
-                date = it
+                endDate = it.takeIf { it.isAfter(date) }
                 picking = null
             }
         )
@@ -211,6 +226,7 @@ fun CalendarItemDialog(
                     if (isStart) {
                         time = null
                         endTime = null
+                        if (reminderMinutes == 60) reminderMinutes = 0
                     } else {
                         endTime = null
                     }
@@ -226,23 +242,73 @@ fun CalendarItemDialog(
     }
 }
 
+/**
+ * A label and its value, each value tapped to change it. With [onSecond] the row holds a range,
+ * "first → second", the second shown as "…" until it is set.
+ */
 @Composable
-private fun ValueRow(label: String, value: String, onClick: () -> Unit) {
+private fun RangeRow(
+    label: String,
+    first: String,
+    onFirst: () -> Unit,
+    second: String? = null,
+    onSecond: (() -> Unit)? = null
+) {
+    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Text(label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+        ValueText(first, onClick = onFirst)
+        if (onSecond != null) {
+            Text("→", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            ValueText(second ?: "…", muted = second == null, onClick = onSecond)
+        }
+    }
+}
+
+/** A label and the chosen option, the options in a menu opened by tapping the row. */
+@Composable
+private fun <T> ChoiceRow(label: String, options: List<Pair<T, String>>, selected: T, onSelect: (T) -> Unit) {
+    var open by remember { mutableStateOf(false) }
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(vertical = 10.dp),
+        modifier = Modifier.fillMaxWidth().clickable { open = true },
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
-        Text(value, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
+        Box {
+            ValueText(options.firstOrNull { it.first == selected }?.second ?: options.first().second, onClick = { open = true })
+            DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+                options.forEach { (value, text) ->
+                    DropdownMenuItem(text = { Text(text) }, onClick = {
+                        onSelect(value)
+                        open = false
+                    })
+                }
+            }
+        }
     }
+}
+
+@Composable
+private fun ValueText(text: String, muted: Boolean = false, onClick: () -> Unit) {
+    Text(
+        text,
+        style = MaterialTheme.typography.bodyLarge,
+        fontWeight = if (muted) FontWeight.Normal else FontWeight.SemiBold,
+        color = if (muted) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
+        modifier = Modifier
+            .clip(RoundedCornerShape(8.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 6.dp, vertical = 10.dp)
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun DatePickDialog(initial: LocalDate, onDismiss: () -> Unit, onConfirm: (LocalDate) -> Unit) {
+private fun DatePickDialog(
+    initial: LocalDate,
+    onDismiss: () -> Unit,
+    onConfirm: (LocalDate) -> Unit,
+    onClear: (() -> Unit)? = null
+) {
     val pickerState = rememberDatePickerState(
         initialSelectedDateMillis = initial.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
     )
@@ -258,7 +324,12 @@ private fun DatePickDialog(initial: LocalDate, onDismiss: () -> Unit, onConfirm:
                 enabled = pickerState.selectedDateMillis != null
             ) { Text("Ok") }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Annuler") } }
+        dismissButton = {
+            Row {
+                onClear?.let { TextButton(onClick = it) { Text("Aucune") } }
+                TextButton(onClick = onDismiss) { Text("Annuler") }
+            }
+        }
     ) {
         DatePicker(state = pickerState, showModeToggle = false)
     }

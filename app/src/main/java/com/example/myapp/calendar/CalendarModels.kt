@@ -17,7 +17,9 @@ enum class CalendarKind { TASK, BIRTHDAY, EVENT }
 
 /**
  * One task, birthday or event. [date] is ISO; a birthday's is the birth date, its year 2000 (a leap
- * year, so 29 February stays valid) when [yearKnown] is false. [time] and [endTime] are "HH:mm".
+ * year, so 29 February stays valid) when [yearKnown] is false. [endDate] is an event's last day, after
+ * [date], null for a one day event. [time] and [endTime] are "HH:mm", the start on the first day and
+ * the end on the last.
  * [reminderMinutes] is how long before an event its reminder goes off, none when null. [wishedYear]
  * is the last year a birthday was marked wished, which skips that year's morning reminder.
  * A [weekly] task is never done: checking it moves [date] a week past the day it was done.
@@ -37,12 +39,16 @@ data class CalendarItem(
     val done: Boolean = false,
     val wishedYear: Int? = null,
     @ColumnInfo(defaultValue = "0") val weekly: Boolean = false,
-    val snoozedUntil: String? = null
+    val snoozedUntil: String? = null,
+    val endDate: String? = null
 )
 
 const val UNKNOWN_BIRTH_YEAR = 2000
 
 fun CalendarItem.localDate(): LocalDate = LocalDate.parse(date)
+
+/** The item's last day, [date] itself unless it is an event over several days. */
+fun CalendarItem.lastDate(): LocalDate = endDate?.let(LocalDate::parse) ?: localDate()
 
 fun CalendarItem.localTime(): LocalTime? = time?.let { LocalTime.parse(it) }
 
@@ -73,6 +79,7 @@ fun calendarToJson(items: List<CalendarItem>): JSONArray = JSONArray().apply {
                 .put("kind", item.kind.name)
                 .put("title", item.title)
                 .put("date", item.date)
+                .put("endDate", item.endDate)
                 .put("time", item.time)
                 .put("endTime", item.endTime)
                 .put("place", item.place)
