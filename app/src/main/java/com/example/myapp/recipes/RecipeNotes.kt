@@ -9,7 +9,7 @@ import com.example.myapp.notes.insertCourseLine
 import com.example.myapp.notes.itemKey
 import com.example.myapp.notes.presentCourseLines
 import com.example.myapp.notes.presentIngredients
-import com.example.myapp.notes.renderIntoIngredientsNote
+import com.example.myapp.notes.renderIngredientsNote
 
 // The pure text side of what a recipe does to the Ingrédients and Courses notes, on top of IngredientSync.
 
@@ -36,6 +36,5 @@ fun withCourseItems(courses: String, groups: List<CourseGroup>, names: List<Stri
 /** The Ingrédients note without the lines for [names], the rest re-sorted as the editor sorts it. */
 fun withoutIngredients(ingredientsNote: String, groups: List<CourseGroup>, names: List<String>): String {
     val keys = names.map { it.itemKey() }.toSet()
-    val kept = presentIngredients(ingredientsNote).filter { it.ingredientLineKey() !in keys }
-    return renderIntoIngredientsNote(ingredientsNote, kept, groups)
+    return renderIngredientsNote(presentIngredients(ingredientsNote).filter { it.ingredientLineKey() !in keys }, groups)
 }

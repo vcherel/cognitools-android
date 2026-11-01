@@ -1,13 +1,12 @@
 package com.example.myapp.recipes
 
 import com.example.myapp.notes.parseCourseGroups
-import com.example.myapp.notes.presentIngredients
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class RecipeNotesTest {
     private val groups = parseCourseGroups("--- Légumes\nCarottes\nOignons\n--- Crèmerie\nLait\n--- Épicerie\nPâtes")
-    private val note = "Propose des recettes.\nIngrédients :\nCarottes\n\nLait (entamé)\n\nPâtes\nContraintes :\nRapide"
+    private val note = "Carottes\n\nLait (entamé)\n\nPâtes"
 
     @Test
     fun stockIgnoresTheStateNotes() {
@@ -15,11 +14,8 @@ class RecipeNotesTest {
     }
 
     @Test
-    fun deletingKeepsTheRestOfTheNote() {
-        val after = withoutIngredients(note, groups, listOf("Lait"))
-        assertEquals(listOf("Carottes", "Pâtes"), presentIngredients(after))
-        assertEquals("Propose des recettes.", after.lines().first())
-        assertEquals("Rapide", after.lines().last())
+    fun deletingKeepsTheOtherGroups() {
+        assertEquals("Carottes\n\nPâtes", withoutIngredients(note, groups, listOf("Lait")))
     }
 
     @Test

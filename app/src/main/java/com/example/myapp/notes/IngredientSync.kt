@@ -14,10 +14,9 @@ import java.util.Locale
 // re-render, so manual drag reordering elsewhere survives; only the explicit "reorder"
 // action rebuilds the whole note from the model.
 //
-// The Ingrédients note is a free-text recipe prompt whose ingredient names sit between an
-// "Ingrédients :" header and a "Contraintes :" section, one per line with a blank line
-// between groups: one group per food section of the model, in model order, each sorted
-// alphabetically. Non food sections never appear there.
+// The Ingrédients note is nothing but ingredient names, one per line with a blank line between
+// groups: one group per food section of the model, in model order, each sorted alphabetically.
+// Non food sections never appear there. The recipe prompt lives on the laptop (the /recipes skill).
 
 enum class SyncKind { INGREDIENT, COURSE }
 
@@ -83,30 +82,16 @@ fun removeFirstLines(content: String, toRemove: List<String>): String {
     return lines.joinToString("\n")
 }
 
-// The [start, end) line range holding the ingredient list: after the "Ingrédients :"
-// header up to the "Contraintes" line (or the end of the note).
-private fun ingredientRegion(lines: List<String>): Pair<Int, Int> {
-    val header = lines.indexOfFirst { it.lowercase().contains("ingrédients") }
-    val start = header + 1
-    val end = (start until lines.size).firstOrNull { lines[it].lowercase().contains("contraintes") } ?: lines.size
-    return start to end
-}
-
-/** The ingredient names currently listed in the prompt (one per line, blanks skipped). */
-fun presentIngredients(noteContent: String): List<String> {
-    val lines = noteContent.split("\n")
-    val (start, end) = ingredientRegion(lines)
-    return lines.subList(start.coerceIn(0, lines.size), end.coerceIn(start.coerceIn(0, lines.size), lines.size))
-        .map { it.trim() }
-        .filter { it.isNotEmpty() && !it.isSeparatorLine() }
-}
+/** The ingredient names the note lists (one per line, blanks skipped). */
+fun presentIngredients(noteContent: String): List<String> =
+    noteContent.split("\n").map { it.trim() }.filter { it.isNotEmpty() && !it.isSeparatorLine() }
 
 /**
- * Lays out the present ingredients grouped and ordered by the model: one block per food
- * group (blank line between blocks), each block sorted alphabetically. Names not found in
- * any food group are kept together in a trailing block so nothing is ever lost.
+ * The whole Ingrédients note laid out from the present ingredients, grouped and ordered by the
+ * model: one block per food group (blank line between blocks), each block sorted alphabetically.
+ * Names not found in any food group are kept together in a trailing block so nothing is ever lost.
  */
-private fun renderIngredientSection(present: List<String>, groups: List<CourseGroup>): String {
+fun renderIngredientsNote(present: List<String>, groups: List<CourseGroup>): String {
     val food = groups.filter { it.food }.map { it.items }
     val canonical = HashMap<String, String>()
     for (g in food) for (n in g) canonical.putIfAbsent(n.itemKey(), n.trim())
@@ -124,27 +109,6 @@ private fun renderIngredientSection(present: List<String>, groups: List<CourseGr
     val unknown = distinct.filter { it.ingredientLineKey() !in known }.sortedWith(byFrenchName)
     if (unknown.isNotEmpty()) blocks.add(unknown.joinToString("\n"))
     return blocks.joinToString("\n\n")
-}
-
-/**
- * Rewrites the prompt's ingredient list with `present` rendered by renderIngredientSection,
- * leaving the header, the Contraintes section and the blank spacing around the list intact.
- */
-fun renderIntoIngredientsNote(noteContent: String, present: List<String>, groups: List<CourseGroup>): String {
-    val lines = noteContent.split("\n")
-    val (start, end) = ingredientRegion(lines)
-    var lead = start.coerceIn(0, lines.size)
-    while (lead < end && lines[lead].isBlank()) lead++
-    var trail = end.coerceIn(lead, lines.size)
-    while (trail > lead && lines[trail - 1].isBlank()) trail--
-
-    val section = renderIngredientSection(present, groups)
-    val rebuilt = buildList {
-        addAll(lines.subList(0, lead))
-        if (section.isNotEmpty()) addAll(section.split("\n"))
-        addAll(lines.subList(trail, lines.size))
-    }
-    return rebuilt.joinToString("\n")
 }
 
 /** The suffix a model section header carries when its items never go into a recipe. */

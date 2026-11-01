@@ -36,7 +36,7 @@ fun parseRecipe(raw: String): Recipe {
     )
 }
 
-/** What the laptop proposes recipes from: the Ingrédients note (prompt and list) and the Modèle courses note. */
+/** What the laptop proposes recipes from: the Ingrédients note (the list alone) and the Modèle courses note. */
 fun snapshotJson(ingredients: String, model: String): String = JSONObject().apply {
     put("ingredients", ingredients)
     put("model", model)

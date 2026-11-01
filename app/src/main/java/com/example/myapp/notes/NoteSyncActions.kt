@@ -38,7 +38,7 @@ class NoteSyncActions(
     private val content: String get() = textFieldState.text.toString()
 
     /**
-     * Moves every checked Courses item into the Ingrédients prompt. Items found in the model note
+     * Moves every checked Courses item into the Ingrédients note. Items found in the model note
      * are spliced in at their canonical spot and removed from Courses right away (a non food item
      * is only removed, the fridge doesn't hold toilet paper); items not in the model are queued for
      * the reconcile dialog.
@@ -81,7 +81,7 @@ class NoteSyncActions(
                 val present = presentIngredients(ingredientsNote.content)
                 // A bought ingredient replaces its "Lait (entamé)" line: the note on what was left is stale.
                 val newPresent = (matchedNames + present).distinctBy { it.ingredientLineKey() }
-                updateNoteContent(ingredientsNote.id, renderIntoIngredientsNote(ingredientsNote.content, newPresent, groups))
+                updateNoteContent(ingredientsNote.id, renderIngredientsNote(newPresent, groups))
             }
             if (matchedLines.isNotEmpty()) {
                 saveContent(dropEmptyCourseSections(removeFirstLines(content, matchedLines)))
@@ -170,7 +170,7 @@ class NoteSyncActions(
             val pending = if (modelIndex >= 0) {
                 val present = presentIngredients(content)
                 val newPresent = (listOf(flatModel[modelIndex]) + present).distinctBy { it.ingredientLineKey() }
-                saveContent(renderIntoIngredientsNote(content, newPresent, groups))
+                saveContent(renderIngredientsNote(newPresent, groups))
                 emptyList()
             } else {
                 listOf(ReconcileItem(name = name, sourceLine = null, inTarget = false))
@@ -211,7 +211,7 @@ class NoteSyncActions(
             val present = presentIngredients(ingredientsContent)
             val unknown = present.filter { it.ingredientLineKey() !in modelKeys }
 
-            val newContent = renderIntoIngredientsNote(ingredientsContent, present, groups)
+            val newContent = renderIngredientsNote(present, groups)
             if (newContent != ingredientsContent) {
                 updateNoteContent(ingredientsNote.id, newContent)
             }
@@ -341,7 +341,7 @@ class NoteSyncActions(
                     val food = newGroups.getOrNull(groupIndex)?.food ?: true
                     val newPresent = if (current.inTarget || !food) present
                     else (present + current.name).distinctBy { it.itemKey() }
-                    updateNoteContent(currentBatch.targetId, renderIntoIngredientsNote(targetContent, newPresent, newGroups))
+                    updateNoteContent(currentBatch.targetId, renderIngredientsNote(newPresent, newGroups))
                 }
                 SyncKind.COURSE -> {
                     val newTargetContent = if (current.inTarget) {
@@ -386,7 +386,7 @@ class NoteSyncActions(
                     val present = presentIngredients(targetContent)
                     val newPresent = if (current.inTarget) present
                     else (present + current.name).distinctBy { it.itemKey() }
-                    renderIntoIngredientsNote(targetContent, newPresent, newGroups)
+                    renderIngredientsNote(newPresent, newGroups)
                 }
                 SyncKind.COURSE -> if (current.inTarget) {
                     renderCoursesSection(presentCourseLines(targetContent), newGroups)
@@ -430,7 +430,7 @@ class NoteSyncActions(
                         present.filter { it.itemKey() != current.name.itemKey() }
                     } else present
                     val newPresent = (basePresent + canonical).distinctBy { it.itemKey() }
-                    updateNoteContent(currentBatch.targetId, renderIntoIngredientsNote(targetContent, newPresent, currentBatch.groups))
+                    updateNoteContent(currentBatch.targetId, renderIngredientsNote(newPresent, currentBatch.groups))
                 }
                 SyncKind.COURSE -> {
                     val groups = currentBatch.groups
