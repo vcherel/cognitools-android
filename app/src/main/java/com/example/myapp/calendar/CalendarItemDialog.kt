@@ -27,6 +27,7 @@ import androidx.compose.material3.TimePicker
 import androidx.compose.material3.DatePickerState
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -180,6 +181,7 @@ fun CalendarItemDialog(
     when (picking) {
         Picking.DATE -> DatePickDialog(
             initial = date,
+            keepDayOnYearChange = isBirthday,
             onDismiss = { picking = null },
             onConfirm = { picked ->
                 // Moving the first day carries the last one along, so the event keeps its length.
@@ -284,29 +286,39 @@ private fun ValueText(text: String, muted: Boolean = false, onClick: () -> Unit)
     )
 }
 
+private fun LocalDate.toUtcMillis() = atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
+
+private fun Long.toUtcDate(): LocalDate = Instant.ofEpochMilli(this).atZone(ZoneOffset.UTC).toLocalDate()
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun DatePickDialog(
     initial: LocalDate,
     onDismiss: () -> Unit,
     onConfirm: (LocalDate) -> Unit,
-    onClear: (() -> Unit)? = null
+    onClear: (() -> Unit)? = null,
+    keepDayOnYearChange: Boolean = false
 ) {
     // A French locale starts the weeks on Monday whatever the phone's language.
     val pickerState = remember {
-        DatePickerState(
-            locale = Locale.FRANCE,
-            initialSelectedDateMillis = initial.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
-        )
+        DatePickerState(locale = Locale.FRANCE, initialSelectedDateMillis = initial.toUtcMillis())
+    }
+    if (keepDayOnYearChange) {
+        // The year menu keeps the shown month, so the selection follows into the new year.
+        LaunchedEffect(pickerState.displayedMonthMillis) {
+            val shown = pickerState.displayedMonthMillis.toUtcDate()
+            val selected = pickerState.selectedDateMillis?.toUtcDate() ?: return@LaunchedEffect
+            if (shown.year != selected.year && shown.monthValue == selected.monthValue) {
+                pickerState.selectedDateMillis = selected.withYear(shown.year).toUtcMillis()
+            }
+        }
     }
     DatePickerDialog(
         onDismissRequest = onDismiss,
         confirmButton = {
             TextButton(
                 onClick = {
-                    pickerState.selectedDateMillis?.let {
-                        onConfirm(Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate())
-                    }
+                    pickerState.selectedDateMillis?.let { onConfirm(it.toUtcDate()) }
                 },
                 enabled = pickerState.selectedDateMillis != null
             ) { Text("Ok") }
