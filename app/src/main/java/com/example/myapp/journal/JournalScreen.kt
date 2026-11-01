@@ -61,12 +61,15 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import com.example.myapp.AppDialog
 import com.example.myapp.AppSnackbar
 import com.example.myapp.ErrorText
 import com.example.myapp.LightIconButton
+import com.example.myapp.MyButton
 import com.example.myapp.ScreenTopBar
 import com.example.myapp.journalRepository
 import com.example.myapp.news.NewsArticle
@@ -89,9 +92,9 @@ private data class NoteTarget(val itemId: String?, val title: String, val text: 
 
 /**
  * The day's journal as one scroll: the sections in the order the laptop wrote them, each item a card
- * whose full text opens on tap, with its rating, its note and its sources always on it. The arrows in
- * the header walk back through the older issues, which can still be rated; the check marks the one
- * shown as read. Opening the screen fetches nothing, only the refresh button does. It reopens on the
+ * whose full text opens on tap, with its rating, its note and its sources always on it. The arrows
+ * around the date walk back through the older issues, which can still be rated; the button at the
+ * end marks the one shown as read. Opening the screen fetches nothing, only the refresh button does. It reopens on the
  * issue left last, scrolled and expanded as it was, unless a newer unread issue has arrived since.
  */
 @Composable
@@ -127,21 +130,6 @@ fun JournalScreen(onBack: () -> Unit, onOpenArticle: (String) -> Unit) {
             titleStyle = MaterialTheme.typography.titleLarge,
             titleWeight = true
         ) {
-            IconButton(onClick = { date = issues[index + 1].date }, enabled = index in 0 until issues.lastIndex) {
-                Icon(Icons.Filled.ChevronLeft, contentDescription = "Previous issue")
-            }
-            IconButton(onClick = { date = issues[index - 1].date }, enabled = index > 0) {
-                Icon(Icons.Filled.ChevronRight, contentDescription = "Next issue")
-            }
-            if (issue != null) {
-                val isRead = issue.date in read
-                IconButton(onClick = { repo.toggleRead(issue.date) }) {
-                    Icon(
-                        if (isRead) Icons.Filled.CheckCircle else Icons.Outlined.CheckCircle,
-                        contentDescription = if (isRead) "Mark as unread" else "Mark as read"
-                    )
-                }
-            }
             if (loading) {
                 Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(Modifier.size(22.dp), strokeWidth = 2.dp)
@@ -184,12 +172,22 @@ fun JournalScreen(onBack: () -> Unit, onOpenArticle: (String) -> Unit) {
         LazyColumn(Modifier.fillMaxSize().padding(horizontal = 12.dp), state = listState) {
             item(key = "head-${issue.date}") {
                 Column(Modifier.padding(horizontal = 4.dp, vertical = 8.dp)) {
-                    Text(
-                        runCatching { LocalDate.parse(issue.date).format(DAY_FORMAT) }.getOrDefault(issue.date)
-                            .replaceFirstChar { it.uppercase() },
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.primary
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(onClick = { date = issues[index + 1].date }, enabled = index < issues.lastIndex) {
+                            Icon(Icons.Filled.ChevronLeft, contentDescription = "Previous issue")
+                        }
+                        Text(
+                            runCatching { LocalDate.parse(issue.date).format(DAY_FORMAT) }.getOrDefault(issue.date)
+                                .replaceFirstChar { it.uppercase() },
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.weight(1f)
+                        )
+                        IconButton(onClick = { date = issues[index - 1].date }, enabled = index > 0) {
+                            Icon(Icons.Filled.ChevronRight, contentDescription = "Next issue")
+                        }
+                    }
                     if (issue.headline.isNotBlank()) {
                         Text(issue.headline, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                     }
@@ -262,6 +260,18 @@ fun JournalScreen(onBack: () -> Unit, onOpenArticle: (String) -> Unit) {
                         }
                     }
                 }
+            }
+            item(key = "read-${issue.date}") {
+                val isRead = issue.date in read
+                MyButton(
+                    text = if (isRead) "Read" else "Mark as read",
+                    icon = if (isRead) Icons.Filled.CheckCircle else Icons.Outlined.CheckCircle,
+                    fontSize = 18.sp,
+                    height = 56.dp,
+                    secondary = isRead,
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp),
+                    onClick = { repo.toggleRead(issue.date) }
+                )
             }
         }
     }
