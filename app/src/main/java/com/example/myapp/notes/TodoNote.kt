@@ -12,8 +12,7 @@ suspend fun addToTodoNote(context: Context, text: String): Boolean {
     val item = text.trim()
     if (item.isEmpty()) return false
     val dao = AppDatabase.get(context).noteDao()
-    val note = dao.getNotes().firstOrNull { noteTitleAndPreview(it).first.equals(TODO_LIST_TITLE, ignoreCase = true) }
-        ?: Note(title = TODO_LIST_TITLE)
+    val note = findTodoNote(dao) ?: Note(title = TODO_LIST_TITLE)
     val lines = if (note.content.isEmpty()) mutableListOf() else note.content.split("\n").toMutableList()
     if (lines.any { it.isCheckboxLine() && it.checkboxText().trim().equals(item, ignoreCase = true) }) return false
 
@@ -23,3 +22,6 @@ suspend fun addToTodoNote(context: Context, text: String): Boolean {
     dao.upsertNote(note.copy(content = lines.joinToString("\n"), updatedAt = System.currentTimeMillis()))
     return true
 }
+
+suspend fun findTodoNote(dao: NoteDao): Note? =
+    dao.getNotes().firstOrNull { noteTitleAndPreview(it).first.equals(TODO_LIST_TITLE, ignoreCase = true) }

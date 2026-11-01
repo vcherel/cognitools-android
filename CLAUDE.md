@@ -208,7 +208,8 @@ Root package (shared/misc):
 - `NoteSyncActions.kt`: the flows the editor triggers across the Courses/Ingrédients/model notes (move, add, re-sort, reconcile) and the batch state behind the reconcile dialog
 - `IngredientSync.kt`: the pure text side of that sync, parsing the `Modèle courses` note and rendering Courses and Ingrédients from it
 - `IngredientDialogs.kt`: the reconcile dialog and the add-an-item name prompt
-- `TodoNote.kt`: `addToTodoNote`, the unchecked item appended to the active block of the "Todo list" note, written by the journal's per item button
+- `TodoNote.kt`: `addToTodoNote`, the unchecked item appended to the active block of the "Todo list" note, written by the journal's per item button, and `findTodoNote`
+- `TodoReminders.kt`: the two Todo list notifications at random times, the unchecked items left (about every 6 h) and those under `--- Attente` (about every 3 days), each drawn between half and one and a half times its mean and pushed out of the night; `todoItems` and `nextTodoReminder` are pure, covered by a JVM unit test
 - `DjNote.kt`: `appendToDjNote`, the "Artiste - Titre" line appended to the DJ note (the tracks to download), written by the music tool, suffixed "(téléchargé)" once the app saved the MP3
 
 `reader/` (epub reader):
@@ -254,7 +255,7 @@ The map above is by feature. These are the ones you won't find by feature name:
 - **App start work**: `MyApplication.onCreate` purges the expired trashed notes and the expired news read marks and reading positions, calls `FlashcardRepository.seedAndPurge()` (seeds the builtin flashcard lists on a fresh install, drops mastered cards outside them), primes the saved discoveries batch, and sweeps the stream cache of heard podcast episodes. The repositories themselves assume this has been kicked off.
 - **HTTP**: `Http.kt`'s `httpGet` serves Weather, Wikipedia, the podcast feeds/directory and the news feeds/pages. Deezer has its own client in `deezer/DeezerApi.kt`, mail goes over IMAP through JavaMail in `mail/MailRepository.kt`, podcast episode audio is fetched by hand in `PodcastDownloads.openAudio` (tracking prefixes need manual redirect following), Gallery does no networking.
 - **All files access**: `gallery/GalleryPermissions.kt` owns the MANAGE_EXTERNAL_STORAGE check and the settings requester; the file explorer reads them from there rather than duplicating the check.
-- **Alarms**: only `workout/WorkoutReminder.kt`, one exact alarm re-armed by `MyApplication.onCreate` and by WorkoutReceiver on boot and app update. Notification id 1004, after the three in the services.
+- **Alarms**: `workout/WorkoutReminder.kt`, one exact alarm re-armed by `MyApplication.onCreate` and by WorkoutReceiver on boot and app update, notification id 1004, after the three in the services. `notes/TodoReminders.kt`, two inexact alarms re-armed the same way by TodoReminderReceiver, notification ids 1005 and 1006 (also their PendingIntent request codes, so the activity intents don't overwrite the workout's).
 - **Foreground services**: `Volume.kt` (volume booster), `deezer/DeezerPlaybackService.kt`, `podcasts/PodcastPlaybackService.kt` and `podcasts/PodcastDownloadService.kt`. The Deezer offline sync deliberately has none.
 - **30 day trash**: two different mechanisms. Notes carry a `deletedAt` timestamp and are purged by `MyApplication.onCreate`. The gallery uses MediaStore's own trash (`IS_TRASHED`, `performTrashBatch`/`performRestoreBatch`), which Android empties by itself.
 - **Media consent launcher**: registered once in `MainActivity` and passed down through `LocalMediaConsent`, so an undo posted after its screen is gone can still show the system dialog. Gallery screens read it instead of calling `rememberIntentSenderRequester` themselves.
