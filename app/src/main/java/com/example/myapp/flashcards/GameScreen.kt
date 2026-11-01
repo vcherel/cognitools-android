@@ -80,6 +80,9 @@ private val Gold = Color(0xFFFFC107)
 
 private data class DueState(val cards: List<FlashcardElement>, val totalCount: Int)
 
+// The card drawn next, with its side and golden roll decided up front so an undo can bring it back as it was.
+private data class Upcoming(val id: String, val showFront: Boolean, val golden: Boolean)
+
 // A random-side card shows front or back with even odds each draw; a fixed-side one always shows the front.
 private fun randomFrontSide(card: FlashcardElement, random: Random): Boolean =
     if (card.randomSide) random.nextBoolean() else true
@@ -106,7 +109,7 @@ fun FlashcardGameScreen(listId: String, navController: NavController) {
 
     var currentCard by remember { mutableStateOf<FlashcardElement?>(null) }
     // The card drawn next, picked one answer ahead so its picture is decoded before it shows.
-    var upcomingId by remember { mutableStateOf<String?>(null) }
+    var upcoming by remember { mutableStateOf<Upcoming?>(null) }
     var showDefinition by remember { mutableStateOf(false) }
     var cardOffset by remember { mutableFloatStateOf(0f) }
     var isSliding by remember { mutableStateOf(false) }
@@ -158,13 +161,14 @@ fun FlashcardGameScreen(listId: String, navController: NavController) {
 
     fun draw(card: FlashcardElement?) {
         currentCard = card
-        upcomingId = null
+        val preset = upcoming?.takeIf { it.id == card?.id }
+        upcoming = null
         if (card == null) return
-        showFront = randomFrontSide(card, sessionRandom)
-        isGolden = sessionRandom.nextInt(GOLDEN_ODDS) == 0
-        val upcoming = dueState.cards.filter { it.id != card.id }.randomOrNull(sessionRandom) ?: return
-        upcomingId = upcoming.id
-        upcoming.image?.let { prefetchCardImage(context, it) }
+        showFront = preset?.showFront ?: randomFrontSide(card, sessionRandom)
+        isGolden = preset?.golden ?: (sessionRandom.nextInt(GOLDEN_ODDS) == 0)
+        val next = dueState.cards.filter { it.id != card.id }.randomOrNull(sessionRandom) ?: return
+        upcoming = Upcoming(next.id, randomFrontSide(next, sessionRandom), sessionRandom.nextInt(GOLDEN_ODDS) == 0)
+        next.image?.let { prefetchCardImage(context, it) }
     }
 
     fun pickIfIdle() {
@@ -220,7 +224,7 @@ fun FlashcardGameScreen(listId: String, navController: NavController) {
             // The card just answered only comes straight back when it is the last one still due
             val availableCards = dueState.cards.filter { it.id != card.id }.ifEmpty { dueState.cards }
 
-            draw(availableCards.firstOrNull { it.id == upcomingId } ?: availableCards.randomOrNull(sessionRandom))
+            draw(availableCards.firstOrNull { it.id == upcoming?.id } ?: availableCards.randomOrNull(sessionRandom))
         }
     }
 
@@ -251,6 +255,8 @@ fun FlashcardGameScreen(listId: String, navController: NavController) {
         lastCard?.let { card ->
             store(card)
 
+            // The card the answer had brought up comes next again, same side, same golden roll
+            upcoming = currentCard?.let { Upcoming(it.id, showFront, isGolden) }
             currentCard = card
             showFront = lastShowFront
             isGolden = lastGolden
