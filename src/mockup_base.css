@@ -1,0 +1,54 @@
+/* The app's real look for mockups, copied next to each page as app.css by mockup.py.
+   Mirrors Theme.kt (Material 3 default light scheme), Buttons.kt (RaisedSurface, MyButton,
+   IconChip), ScreenTopBar.kt and the tools' rounded cards. Set --c to the tool's ToolAccents color. */
+@font-face{font-family:Sym;src:url(fonts/symbols.woff2) format('woff2')}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#d9dce1;font-family:Roboto,sans-serif;padding:20px;display:flex;gap:20px;align-items:flex-start;color:#1C1B1F}
+
+/* One phone, 360 dp wide; the screen's height is the page's choice. */
+.screen{--c:#6F7A86;width:360px;height:805px;background:#FFFBFE;padding:8px 20px 28px;display:flex;flex-direction:column;gap:16px;position:relative;overflow:hidden}
+.ic{font-family:Sym;font-style:normal;font-size:24px;line-height:1;font-feature-settings:'liga'}
+
+/* ScreenTopBar: back arrow, the tool chip, a 28 sp regular title, anything after it on the right. */
+.hdr{display:flex;align-items:center;height:56px;margin:0 -8px}
+.back{width:48px;height:48px;display:flex;align-items:center;justify-content:center}
+.chip{width:30px;height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center;background:color-mix(in srgb,var(--c) 18%,#fff);color:color-mix(in srgb,var(--c) 80%,#000)}
+.chip .ic{font-size:19px}
+.hdr .t{flex:1;font-size:28px;margin-left:12px}
+
+/* The tools' cards: surfaceVariant, 20 dp corners, 20 dp padding, content centered. */
+.card{border-radius:20px;background:#E7E0EC;padding:20px;display:flex;flex-direction:column;align-items:center;gap:4px;text-align:center}
+
+/* Material 3 type: titleMedium, bodyLarge, bodyMedium, onSurfaceVariant. */
+.tm{font-size:16px;font-weight:500}
+.bl{font-size:16px;letter-spacing:.3px}
+.bm{font-size:14px;letter-spacing:.25px}
+.sub{color:#49454F}
+
+/* MyButton: 90 dp tall, 35% corners, 6 dp shadow, 24 sp semibold, either a text or an icon.
+   Default is tinted with the tool's color; .sec is the gray secondary, .hl the amber highlighted. */
+.btn{--t:var(--c);height:90px;flex:none;border-radius:31.5px;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:600;
+  background:linear-gradient(90deg,color-mix(in srgb,var(--t) 16%,#ECEFF1),color-mix(in srgb,var(--t) 16%,#CFD8DC));
+  box-shadow:0 6px 0 color-mix(in srgb,var(--t) 45%,#B0BEC5);color:color-mix(in srgb,var(--t) 80%,#000)}
+.btn .ic{font-size:32px}
+.btn.sec{background:linear-gradient(90deg,#ECEFF1,#CFD8DC);box-shadow:0 6px 0 #B0BEC5;color:#000}
+.btn.hl{background:linear-gradient(90deg,#FFCA28,#FFB300);box-shadow:0 6px 0 #FF8F00;color:#000}
+.btns{display:flex;gap:8px}
+.btns .btn{flex:1}
+
+/* A label and a bold value on one line, like the reminder times. */
+.trow{width:100%;display:flex;align-items:center;padding:8px 0;text-align:left}
+.trow .l{flex:1;font-size:16px;letter-spacing:.3px}
+.trow .v{font-size:22px;font-weight:700}
+
+/* AddItemRow: the gray placeholder where a new entry goes. */
+.add{display:flex;align-items:center;gap:12px;padding:12px 16px 12px 12px;color:#79747E;font-size:14px}
+
+/* AppDialog over a dimmed screen, M3 outlined fields, text buttons. */
+.dim{position:absolute;inset:0;background:#0006}
+.dialog{position:absolute;left:20px;right:20px;top:150px;border-radius:16px;background:#F3EDF7;padding:20px;display:flex;flex-direction:column;gap:14px}
+.dialog .h{font-size:22px}
+.field{border:1px solid #79747E;border-radius:4px;padding:14px;font-size:16px;position:relative}
+.field .fl{position:absolute;top:-9px;left:10px;background:#F3EDF7;padding:0 4px;font-size:12px;color:#49454F}
+.actions{display:flex;justify-content:flex-end;gap:4px}
+.actions .tb{font-size:14px;font-weight:500;padding:10px 12px}

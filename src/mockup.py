@@ -2,6 +2,8 @@
 # Mockups live in the gitignored mockups/ folder, which survives across design rounds.
 # Pages load the cached fonts as url(fonts/inter.woff2) and url(fonts/symbols.woff2)
 # (Material Symbols Rounded, ligatures: <i style="font-family:Sym">music_note</i>).
+# The app's real styles (mockup_base.css) are copied next to each page as app.css: link it and
+# build tool screens from its classes rather than a look of your own.
 import argparse
 import shutil
 import subprocess
@@ -9,11 +11,16 @@ import urllib.request
 from pathlib import Path
 
 MOCKUPS = Path(__file__).resolve().parent.parent / "mockups"
+BASE_CSS = Path(__file__).resolve().parent / "mockup_base.css"
 FONTS = {
     "inter.woff2": "https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa1ZL7.woff2",
     "symbols.woff2": "https://fonts.gstatic.com/s/materialsymbolsrounded/v383/"
     "syl7-zNym6YjUruM-QrEh7-nyTnjDwKNJ_190FjpZIvLgyidOK7BDB_Qb9vUdV6_gjDK-P3JuF_Zs-obHph2-jOcZTKPqw.woff2",
 }
+
+
+def ensure_base(folder: Path):
+    shutil.copy(BASE_CSS, folder / "app.css")
 
 
 def ensure_fonts(folder: Path):
@@ -62,6 +69,7 @@ def main():
     shots = []
     for i, page in enumerate(args.pages, 1):
         ensure_fonts(page.resolve().parent)
+        ensure_base(page.resolve().parent)
         shots.append(render(page, args.size, profile))
         print(f"rendered {i}/{len(args.pages)} {shots[-1]}", flush=True)
     if not args.no_open:
