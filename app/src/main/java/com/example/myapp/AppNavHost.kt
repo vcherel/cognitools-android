@@ -164,7 +164,13 @@ fun MainScreen(
                         val link = backStackEntry.arguments?.getString("link").orEmpty()
                         NewsArticleScreen(link = link, onBack = back)
                     }
-                    screen("journal") { JournalScreen(onBack = back, onOpenArticle = openArticle) }
+                    screen("journal") {
+                        JournalScreen(
+                            onBack = back,
+                            onOpenArticle = openArticle,
+                            onOpenNews = { navController.navigate("news") }
+                        )
+                    }
                     screen("mail") {
                         MailScreen(onBack = back, onOpenMessage = { uid -> navController.navigate("mail/message/$uid") })
                     }

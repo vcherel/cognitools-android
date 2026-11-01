@@ -176,7 +176,7 @@ Root package (shared/misc):
 `journal/` (the daily newsletter written on the laptop by `~/Documents/Code/daily-journal`, read and rated here):
 - `JournalModels.kt`: the issue and feedback shapes and their org.json (de)serialization, mirroring that repo's `issue.py`
 - `JournalRepository.kt`: the singleton; issues fetched from the mailbox's Journal folder into `filesDir/journal` only on refresh (14 kept, as on the mailbox), the read marks behind the menu tile's amber unread fill, where each issue was left (scroll, expanded cards) and which issue to reopen, the ratings, notes, idea answers and opened sources per issue, sent back as `feedback_<date>.json` a few seconds after the last change (pending dates survive a killed process)
-- `JournalScreen.kt`: one scroll of the day's issue, collapsed cards (tap for the full text, an item's picture as a thumbnail that grows full width when expanded), thumbs, note dialog, the add to Todo list button (asks Todo list or Week-end), sources opened in the news article screen, the arrows to older issues, the mark as read check
+- `JournalScreen.kt`: one scroll of the day's issue, collapsed cards (tap for the full text, an item's picture as a thumbnail that grows full width when expanded), thumbs, note dialog, the add to Todo list button (asks Todo list or Week-end), sources opened in the news article screen, the arrows to older issues, the mark as read check, the header's News button (the news tool has no menu tile of its own)
 
 `mail/` (the Yahoo inbox, read and delete only, fetched only when the screen opens or on refresh; no background work; plus the backup upload and the journal files):
 - `MailSettings.kt`: DataStore for the Yahoo address and its app password

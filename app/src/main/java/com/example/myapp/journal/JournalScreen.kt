@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.Newspaper
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.ThumbDown
 import androidx.compose.material.icons.filled.ThumbUp
@@ -98,7 +99,7 @@ private data class NoteTarget(val itemId: String?, val title: String, val text: 
  * issue left last, scrolled and expanded as it was, unless a newer unread issue has arrived since.
  */
 @Composable
-fun JournalScreen(onBack: () -> Unit, onOpenArticle: (String) -> Unit) {
+fun JournalScreen(onBack: () -> Unit, onOpenArticle: (String) -> Unit, onOpenNews: () -> Unit) {
     val context = LocalContext.current
     val repo = context.journalRepository
     val issues by repo.issues.collectAsState()
@@ -130,6 +131,9 @@ fun JournalScreen(onBack: () -> Unit, onOpenArticle: (String) -> Unit) {
             titleStyle = MaterialTheme.typography.titleLarge,
             titleWeight = true
         ) {
+            IconButton(onClick = onOpenNews) {
+                Icon(Icons.Filled.Newspaper, contentDescription = "News")
+            }
             if (loading) {
                 Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(Modifier.size(22.dp), strokeWidth = 2.dp)

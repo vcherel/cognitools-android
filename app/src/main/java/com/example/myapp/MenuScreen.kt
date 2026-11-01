@@ -86,7 +86,6 @@ fun MenuScreen(
         MenuTool("wikipedia", "Wiki", ToolAccents.Wiki),
         MenuTool("random", "Random", ToolAccents.Random),
         MenuTool("files", "Files", ToolAccents.Files),
-        MenuTool("news", "News", ToolAccents.News),
         MenuTool("journal", "Journal", ToolAccents.Journal),
         MenuTool("mail", "Mail", ToolAccents.Mail),
         MenuTool("workout", "Workout", ToolAccents.Workout),
