@@ -73,6 +73,7 @@ fun CalendarItemDialog(
     var place by remember { mutableStateOf(initial.place.orEmpty()) }
     var yearKnown by remember { mutableStateOf(initial.yearKnown) }
     var reminderMinutes by remember { mutableStateOf(initial.reminderMinutes) }
+    var weekly by remember { mutableStateOf(initial.weekly) }
     var picking by remember { mutableStateOf<Picking?>(null) }
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
 
@@ -122,8 +123,16 @@ fun CalendarItemDialog(
             }
 
             if (kind == CalendarKind.TASK) {
+                Text("Répéter", style = MaterialTheme.typography.labelLarge)
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf(false to "Jamais", true to "Chaque semaine").forEach { (option, label) ->
+                        FilterChip(selected = weekly == option, onClick = { weekly = option }, label = { Text(label) })
+                    }
+                }
                 Text(
-                    if (time == null) "Rappel à 9:00 le jour même." else "Rappel à l'heure prévue.",
+                    (if (time == null) "Rappel à 9:00 le jour même" else "Rappel à l'heure prévue") +
+                        ", puis chaque jour tant que ce n'est pas fait." +
+                        (if (weekly) " Une fois fait, revient une semaine plus tard." else ""),
                     style = MaterialTheme.typography.bodySmall,
                     color = muted
                 )
@@ -176,6 +185,9 @@ fun CalendarItemDialog(
                                 endTime = if (isEvent && start != null) endTime?.let(timeFormat::format) else null,
                                 place = if (isEvent) place.trim().ifEmpty { null } else null,
                                 yearKnown = !isBirthday || yearKnown,
+                                weekly = kind == CalendarKind.TASK && weekly,
+                                done = initial.done && !(kind == CalendarKind.TASK && weekly),
+                                snoozedUntil = null,
                                 // "1 h avant" means nothing without a time, it falls back to the morning one.
                                 reminderMinutes = if (!isEvent) null
                                 else if (start == null && reminderMinutes == 60) 0 else reminderMinutes

@@ -50,6 +50,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
+import com.example.myapp.AppSnackbar
 import com.example.myapp.ScreenTopBar
 import com.example.myapp.flashcards.AppDatabase
 import kotlinx.coroutines.launch
@@ -173,7 +174,21 @@ fun CalendarScreen(onBack: () -> Unit, initialDay: String?) {
             items = items,
             schoolHolidays = schoolHolidays,
             modifier = Modifier.weight(1f),
-            onToggleDone = { item -> scope.launch { CalendarReminders.save(context, item.copy(done = !item.done)) } },
+            onToggleDone = { item ->
+                scope.launch {
+                    when {
+                        item.weekly -> {
+                            val next = item.completed(LocalDate.now())
+                            CalendarReminders.save(context, next)
+                            AppSnackbar.show("Revient ${dayFormat.format(next.localDate())}", "Annuler") {
+                                CalendarReminders.save(context, item)
+                            }
+                        }
+                        item.done -> CalendarReminders.save(context, item.copy(done = false))
+                        else -> CalendarReminders.save(context, item.completed(LocalDate.now()))
+                    }
+                }
+            },
             onOpen = { item ->
                 editingIsNew = false
                 editing = item
@@ -218,6 +233,11 @@ private fun MonthGrid(
         items.forEach { item ->
             if (item.kind == CalendarKind.BIRTHDAY) {
                 (start.year..end.year).forEach { mark(item.birthdayIn(it), item.kind) }
+            } else if (item.weekly) {
+                generateSequence(item.localDate()) { it.plusWeeks(1) }
+                    .takeWhile { it.isBefore(end) }
+                    .forEach { mark(it, item.kind) }
+                if (item.isOverdue(today)) mark(today, item.kind)
             } else {
                 mark(item.localDate(), item.kind)
                 if (item.isOverdue(today)) mark(today, item.kind)
@@ -324,9 +344,12 @@ private fun DayList(
     onToggleDone: (CalendarItem) -> Unit,
     onOpen: (CalendarItem) -> Unit
 ) {
-    val dayItems = remember(items, day) { items.filter { it.occursOn(day) }.sortedWith(dayOrder) }
     val overdue = remember(items, day, today) {
         if (day == today) items.filter { it.isOverdue(today) }.sortedBy { it.date } else emptyList()
+    }
+    // A weekly task more than a week late also lands on today; it shows once, as late.
+    val dayItems = remember(items, day, overdue) {
+        items.filter { it.occursOn(day) && it !in overdue }.sortedWith(dayOrder)
     }
     val publicHoliday = remember(day) { publicHolidays(day.year)[day] }
     val schoolHoliday = schoolHolidays.firstOrNull { it.contains(day) }
@@ -401,7 +424,11 @@ private fun ItemRow(
             val details = when {
                 lateFrom != null -> "Prévu ${shortDayFormat.format(lateFrom)}"
                 item.kind == CalendarKind.BIRTHDAY -> null
-                else -> listOfNotNull(timeRange(item), item.place?.takeIf { it.isNotBlank() }).joinToString(", ").ifEmpty { null }
+                else -> listOfNotNull(
+                    timeRange(item),
+                    item.place?.takeIf { it.isNotBlank() },
+                    if (item.weekly) "chaque semaine" else null
+                ).joinToString(", ").ifEmpty { null }?.replaceFirstChar { it.uppercase() }
             }
             details?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = muted) }
         }

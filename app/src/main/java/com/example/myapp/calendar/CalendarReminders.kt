@@ -90,8 +90,9 @@ object CalendarReminders {
         context.getSystemService(NotificationManager::class.java).cancel(notificationId)
         val item = dao(context).get(itemId) ?: return
         val changed = when (action) {
-            ACTION_DONE -> item.copy(done = true)
-            ACTION_TOMORROW -> item.copy(date = LocalDate.now().plusDays(1).toString())
+            ACTION_DONE -> item.completed(LocalDate.now())
+            ACTION_LATER -> item.copy(snoozedUntil = LocalDateTime.now().plusMinutes(TASK_SNOOZE_MINUTES).withNano(0).toString())
+            ACTION_TOMORROW -> item.copy(date = LocalDate.now().plusDays(1).toString(), snoozedUntil = null)
             // Tapped on the eve, so the birthday is tomorrow's year (a 1 January one is next year's).
             ACTION_WISHED -> item.copy(wishedYear = LocalDate.now().plusDays(1).year)
             else -> return
@@ -128,6 +129,7 @@ object CalendarReminders {
         when {
             item.kind == CalendarKind.TASK -> builder
                 .addAction(0, "Fait", receiverIntent(context, ACTION_DONE, item.id, id))
+                .addAction(0, "Dans 1 h", receiverIntent(context, ACTION_LATER, item.id, id))
                 .addAction(0, "Demain", receiverIntent(context, ACTION_TOMORROW, item.id, id))
             reminder.slot == ReminderSlot.EVE ->
                 builder.addAction(0, "Souhaité", receiverIntent(context, ACTION_WISHED, item.id, id))
@@ -192,6 +194,7 @@ private fun LocalDateTime.toMillis(): Long = atZone(ZoneId.systemDefault()).toIn
 
 private const val ACTION_REMIND = "com.example.myapp.calendar.REMIND"
 private const val ACTION_DONE = "com.example.myapp.calendar.DONE"
+private const val ACTION_LATER = "com.example.myapp.calendar.LATER"
 private const val ACTION_TOMORROW = "com.example.myapp.calendar.TOMORROW"
 private const val ACTION_WISHED = "com.example.myapp.calendar.WISHED"
 private const val EXTRA_ITEM_ID = "itemId"

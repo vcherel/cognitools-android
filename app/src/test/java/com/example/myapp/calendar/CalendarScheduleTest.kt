@@ -60,6 +60,35 @@ class CalendarScheduleTest {
     }
 
     @Test
+    fun pendingTaskRemindsAgainEveryDayAndSnoozeMovesTheFirst() {
+        val task = CalendarItem(kind = CalendarKind.TASK, title = "Poubelles", date = "2026-11-02", time = "19:00")
+        val from = LocalDateTime.of(2026, 11, 2, 0, 0)
+        val to = LocalDateTime.of(2026, 11, 4, 23, 0)
+        assertEquals(
+            listOf(2, 3, 4).map { LocalDateTime.of(2026, 11, it, 19, 0) },
+            remindersBetween(task, from, to).map { it.at }
+        )
+        val snoozed = task.copy(snoozedUntil = "2026-11-02T20:05")
+        assertEquals(
+            listOf(LocalDateTime.of(2026, 11, 2, 20, 5), LocalDateTime.of(2026, 11, 3, 19, 0)),
+            remindersBetween(snoozed, LocalDateTime.of(2026, 11, 2, 19, 30), LocalDateTime.of(2026, 11, 3, 20, 0)).map { it.at }
+        )
+    }
+
+    @Test
+    fun weeklyTaskComesBackAWeekAfterItIsDone() {
+        val task = CalendarItem(kind = CalendarKind.TASK, title = "Poubelles", date = "2026-11-02", weekly = true)
+        val done = task.copy(snoozedUntil = "2026-11-04T10:00").completed(LocalDate.of(2026, 11, 4))
+        assertEquals("2026-11-11", done.date)
+        assertEquals(false, done.done)
+        assertEquals(null, done.snoozedUntil)
+        assertTrue(task.occursOn(LocalDate.of(2026, 11, 16)))
+        assertTrue(!task.occursOn(LocalDate.of(2026, 11, 17)))
+        assertTrue(!task.occursOn(LocalDate.of(2026, 10, 26)))
+        assertTrue(task.copy(weekly = false).completed(LocalDate.of(2026, 11, 4)).done)
+    }
+
+    @Test
     fun schoolHolidaysSkipTeachersAndMarkers() {
         val json = """
             {"results": [

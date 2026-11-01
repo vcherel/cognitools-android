@@ -1,5 +1,6 @@
 package com.example.myapp.calendar
 
+import androidx.room.ColumnInfo
 import androidx.room.Dao
 import androidx.room.Entity
 import androidx.room.PrimaryKey
@@ -19,6 +20,8 @@ enum class CalendarKind { TASK, BIRTHDAY, EVENT }
  * year, so 29 February stays valid) when [yearKnown] is false. [time] and [endTime] are "HH:mm".
  * [reminderMinutes] is how long before an event its reminder goes off, none when null. [wishedYear]
  * is the last year a birthday was marked wished, which skips that year's morning reminder.
+ * A [weekly] task is never done: checking it moves [date] a week past the day it was done.
+ * [snoozedUntil] is the ISO date time a task's "Dans 1 h" put its reminder off to, cleared by any edit.
  */
 @Entity(tableName = "calendar_items")
 data class CalendarItem(
@@ -32,7 +35,9 @@ data class CalendarItem(
     val yearKnown: Boolean = true,
     val reminderMinutes: Int? = null,
     val done: Boolean = false,
-    val wishedYear: Int? = null
+    val wishedYear: Int? = null,
+    @ColumnInfo(defaultValue = "0") val weekly: Boolean = false,
+    val snoozedUntil: String? = null
 )
 
 const val UNKNOWN_BIRTH_YEAR = 2000
@@ -75,6 +80,7 @@ fun calendarToJson(items: List<CalendarItem>): JSONArray = JSONArray().apply {
                 .put("reminderMinutes", item.reminderMinutes)
                 .put("done", item.done)
                 .put("wishedYear", item.wishedYear)
+                .put("weekly", item.weekly)
         )
     }
 }

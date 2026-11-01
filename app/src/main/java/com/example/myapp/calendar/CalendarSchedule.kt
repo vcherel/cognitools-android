@@ -4,6 +4,7 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.MonthDay
+import java.time.temporal.ChronoUnit
 
 /** When a task or an event without a time is reminded, and when birthdays are. */
 val MORNING: LocalTime = LocalTime.of(9, 0)
@@ -19,19 +20,42 @@ fun CalendarItem.birthdayIn(year: Int): LocalDate =
 
 fun CalendarItem.ageIn(year: Int): Int? = if (yearKnown) year - localDate().year else null
 
-fun CalendarItem.occursOn(day: LocalDate): Boolean =
-    if (kind == CalendarKind.BIRTHDAY) birthdayIn(day.year) == day else localDate() == day
+/** A weekly task also falls on every week after its date, the weeks to come once this one is done. */
+fun CalendarItem.occursOn(day: LocalDate): Boolean = when {
+    kind == CalendarKind.BIRTHDAY -> birthdayIn(day.year) == day
+    weekly -> !day.isBefore(localDate()) && ChronoUnit.DAYS.between(localDate(), day) % 7 == 0L
+    else -> localDate() == day
+}
 
 /** A task left unchecked on an earlier day, shown again on today until it is done. */
 fun CalendarItem.isOverdue(today: LocalDate): Boolean =
     kind == CalendarKind.TASK && !done && localDate().isBefore(today)
+
+/** A task checked on [today]; a weekly one comes back a week later instead of staying done. */
+fun CalendarItem.completed(today: LocalDate): CalendarItem =
+    if (weekly) copy(date = today.plusWeeks(1).toString(), snoozedUntil = null)
+    else copy(done = true, snoozedUntil = null)
+
+/** How long a task's "Dans 1 h" puts its reminder off. */
+const val TASK_SNOOZE_MINUTES = 60L
+
+/**
+ * A pending task reminds at its time (or a snooze's), then again every day at that time until it is
+ * checked, like the Muscu reminder.
+ */
+private fun taskReminders(item: CalendarItem, to: LocalDateTime): Sequence<LocalDateTime> {
+    val time = item.localTime() ?: MORNING
+    val first = item.snoozedUntil?.let(LocalDateTime::parse) ?: item.localDate().atTime(time)
+    val daily = generateSequence(first.toLocalDate().plusDays(1).atTime(time)) { it.plusDays(1) }
+    return (sequenceOf(first) + daily).takeWhile { !it.isAfter(to) }
+}
 
 /** Every reminder of [item] in (from, to]. */
 fun remindersBetween(item: CalendarItem, from: LocalDateTime, to: LocalDateTime): List<Reminder> {
     val candidates = when (item.kind) {
         CalendarKind.TASK ->
             if (item.done) emptyList()
-            else listOf(Reminder(item, ReminderSlot.AT_TIME, item.localDate().atTime(item.localTime() ?: MORNING)))
+            else taskReminders(item, to).filter { it.isAfter(from) }.map { Reminder(item, ReminderSlot.AT_TIME, it) }.toList()
         CalendarKind.EVENT -> item.reminderMinutes?.let { minutes ->
             val start = item.localDate().atTime(item.localTime() ?: MORNING)
             listOf(Reminder(item, ReminderSlot.AT_TIME, start.minusMinutes(minutes.toLong())))
