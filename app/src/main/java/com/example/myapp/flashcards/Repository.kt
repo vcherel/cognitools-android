@@ -117,7 +117,7 @@ class FlashcardRepository(private val context: Context) {
         )
     }
 
-    suspend fun createBackupJson(): String {
+    suspend fun backupJson(): JSONObject {
         val lists = dao.getLists()
         val cards = dao.getAllElements()
         val jsonLists = JSONArray().also { arr -> lists.forEach { arr.put(it.toJson()) } }
@@ -132,7 +132,7 @@ class FlashcardRepository(private val context: Context) {
             put("version", 1)
             put("lists", jsonLists)
             put("cards", jsonCards)
-        }.toString(2)
+        }
     }
 
     suspend fun importFromJson(json: String) = upsertBundle(JSONObject(json))

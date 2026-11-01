@@ -55,13 +55,12 @@ interface CalendarDao {
     suspend fun get(id: String): CalendarItem?
 
     @Upsert suspend fun upsert(item: CalendarItem)
-    @Upsert suspend fun upsertAll(items: List<CalendarItem>)
 
     @Query("DELETE FROM calendar_items WHERE id = :id")
     suspend fun delete(id: String)
 }
 
-fun calendarToJson(items: List<CalendarItem>): String = JSONArray().apply {
+fun calendarToJson(items: List<CalendarItem>): JSONArray = JSONArray().apply {
     items.forEach { item ->
         put(
             JSONObject()
@@ -78,26 +77,4 @@ fun calendarToJson(items: List<CalendarItem>): String = JSONArray().apply {
                 .put("wishedYear", item.wishedYear)
         )
     }
-}.toString(2)
-
-fun calendarFromJson(json: String): List<CalendarItem> {
-    val array = JSONArray(json)
-    return (0 until array.length()).map { i ->
-        val o = array.getJSONObject(i)
-        CalendarItem(
-            id = o.getString("id"),
-            kind = CalendarKind.valueOf(o.getString("kind")),
-            title = o.getString("title"),
-            date = LocalDate.parse(o.getString("date")).toString(),
-            time = o.optStringOrNull("time"),
-            endTime = o.optStringOrNull("endTime"),
-            place = o.optStringOrNull("place"),
-            yearKnown = o.optBoolean("yearKnown", true),
-            reminderMinutes = if (o.isNull("reminderMinutes")) null else o.getInt("reminderMinutes"),
-            done = o.optBoolean("done", false),
-            wishedYear = if (o.isNull("wishedYear")) null else o.getInt("wishedYear")
-        )
-    }
 }
-
-private fun JSONObject.optStringOrNull(key: String): String? = if (isNull(key)) null else getString(key)

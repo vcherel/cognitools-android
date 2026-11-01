@@ -27,30 +27,7 @@ data class Note(
     // When the note was moved to the trash, 0 while it is a normal note. Trashed notes are hidden
     // everywhere but the trash screen and are purged after NOTES_TRASH_RETENTION_DAYS days.
     val deletedAt: Long = 0
-) {
-    companion object {
-        fun fromJson(json: JSONObject): Note {
-            return Note(
-                id = json.optString("id", UUID.randomUUID().toString()),
-                title = json.optString("title", ""),
-                content = json.optString("content", ""),
-                updatedAt = json.optLong("updatedAt", System.currentTimeMillis()),
-                color = json.optInt("color", 0),
-                locked = json.optBoolean("locked", false),
-                deletedAt = json.optLong("deletedAt", 0)
-            )
-        }
-
-        fun listFromJsonString(jsonString: String): List<Note> {
-            return try {
-                val jsonArray = JSONArray(jsonString)
-                List(jsonArray.length()) { i -> fromJson(jsonArray.getJSONObject(i)) }
-            } catch (_: Exception) {
-                emptyList()
-            }
-        }
-    }
-}
+)
 
 fun Note.toJson(): JSONObject = JSONObject().also {
     it.put("id", id)
@@ -62,11 +39,7 @@ fun Note.toJson(): JSONObject = JSONObject().also {
     it.put("deletedAt", deletedAt)
 }
 
-fun notesToJsonString(notes: List<Note>): String {
-    val array = JSONArray()
-    notes.forEach { array.put(it.toJson()) }
-    return array.toString()
-}
+fun notesToJson(notes: List<Note>): JSONArray = JSONArray().apply { notes.forEach { put(it.toJson()) } }
 
 // How long a trashed note is kept before it is purged for good, matching the gallery trash.
 const val NOTES_TRASH_RETENTION_DAYS = 30
@@ -86,7 +59,6 @@ interface NoteDao {
     suspend fun getNote(id: String): Note?
 
     @Upsert suspend fun upsertNote(note: Note)
-    @Upsert suspend fun upsertNotes(notes: List<Note>)
     @Query("DELETE FROM notes WHERE id = :id") suspend fun deleteNote(id: String)
     @Query("UPDATE notes SET locked = 0") suspend fun unlockAll()
 

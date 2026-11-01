@@ -41,7 +41,7 @@ Always install release builds, never debug (performance matters on device). Debu
 ## Codebase map
 The independent tools live under `app/src/main/java/com/example/myapp/`. Use this map to jump straight to the right file with Read/Grep instead of spawning an exploration agent. Keep it current when files are added or renamed: a stale map misleads more than no map.
 
-Outside that package: `src/` holds the Python asset generators (see the README): `generate_flags.py` builds the Drapeaux list (`assets/flags/` and `assets/seed_flags.json`, from flagcdn), `generate_pairs.py` builds the Undercover `assets/pairs.json` (`generate_dataset.ipynb` at the root only drives it), the mots fléchés scripts are listed under `motsfleches/` below, `deploy.py` builds, installs and compiles the release, `deezer_logs.py` pulls and summarizes the music tool's logs, `phone.py` drives the app over adb for `frame_stats.py` (janky frames per navigation step) `regenerate_profile.py` (records and checks the baseline profile) and `import_flashcards.py` (pushes a flashcards bundle and imports it through the lists screen). `data/` holds their inputs, `app/src/test/` the JVM unit tests, `baselineprofile/` the startup profile module (`BaselineProfileGenerator.kt`, the journey the profile is recorded from).
+Outside that package: `src/` holds the Python asset generators (see the README): `generate_flags.py` builds the Drapeaux list (`assets/flags/` and `assets/seed_flags.json`, from flagcdn), `generate_pairs.py` builds the Undercover `assets/pairs.json` (`generate_dataset.ipynb` at the root only drives it), the mots fléchés scripts are listed under `motsfleches/` below, `deploy.py` builds, installs and compiles the release, `deezer_logs.py` pulls and summarizes the music tool's logs, `phone.py` drives the app over adb for `frame_stats.py` (janky frames per navigation step) `regenerate_profile.py` (records and checks the baseline profile) and `import_flashcards.py` (pushes a flashcards bundle and imports it through `flashcards/FlashcardImportReceiver.kt`, a broadcast only the adb shell can send). `data/` holds their inputs, `app/src/test/` the JVM unit tests, `baselineprofile/` the startup profile module (`BaselineProfileGenerator.kt`, the journey the profile is recorded from).
 
 Root package (shared/misc):
 - `MainActivity.kt`: app entry point; the window, the intents it is launched with, and the locked-over-the-keyguard quick view
@@ -69,7 +69,7 @@ Root package (shared/misc):
 - `BottomFadeOverlay.kt`: shared fade out gradient overlay composable
 - `Snackbar.kt`: AppSnackbar, the app wide snackbar screens post undo actions through
 - `SearchHistory.kt`: recent search terms per surface (notes, cities, Deezer, news) and the RecentSearchChips row
-- `BackupRestore.kt`: the notes, flashcards and calendar backups; one save writes Téléchargements and uploads to Yahoo, keeping the 3 newest in each place, plus the import dialog and the menu's save button (its icon ages with the last Yahoo copy)
+- `Backup.kt`: the menu's save button (its icon ages with the last Yahoo copy); one `cognitools_backup_<date>.json` bundle of the notes, flashcards and calendar, written to Téléchargements and uploaded to Yahoo, keeping the 3 newest in each place. Nothing in the app restores it
 - `Random.kt`: random number generator tool screen
 - `Volume.kt`: volume booster foreground service and its screen
 - `Wikipedia.kt`: random Wikipedia article tool screen
@@ -142,6 +142,7 @@ Root package (shared/misc):
 - `AddToFlashcards.kt`: the shared filing dialog (list picker + editable card) the translator and the mots fleches clue bar both open
 - `Database.kt`: Room FlashcardDao
 - `Repository.kt`: FlashcardRepository, mediates between DB and UI
+- `FlashcardImportReceiver.kt`: upserts a bundle pushed into the app's external files dir; exported but guarded by DUMP, so only `adb shell am broadcast` reaches it
 - `SpacedRepetition.kt`: reviewCard, the spaced repetition scheduling algorithm
 - `ListsScreen.kt`: list of flashcard lists, bulk import dialog
 - `DetailScreen.kt`: single list detail/edit screen

@@ -111,6 +111,11 @@
         <receiver
             android:name=".files.FileOpenChoiceReceiver"
             android:exported="false" />
+        <!-- src/import_flashcards.py's import. DUMP is held by the adb shell, not by other apps. -->
+        <receiver
+            android:name=".flashcards.FlashcardImportReceiver"
+            android:exported="true"
+            android:permission="android.permission.DUMP" />
         <receiver
             android:name=".workout.WorkoutReceiver"
             android:exported="true">

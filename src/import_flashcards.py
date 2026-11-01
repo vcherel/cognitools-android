@@ -1,65 +1,35 @@
-# Imports a flashcards JSON bundle into the app on the phone, through the lists screen's restore
-# button. The import upserts by id, so a bundle of corrected cards with zeroed progress fixes them.
+# Imports a flashcards JSON bundle into the app on the phone through FlashcardImportReceiver, a
+# broadcast only the adb shell can send. The import upserts by id, so a bundle of corrected cards
+# with zeroed progress fixes them. The phone may stay locked.
 import sys
-import time
 from pathlib import Path
 
-from phone import (
-    adb,
-    back,
-    countdown,
-    desc,
-    find,
-    nodes,
-    open_app_at_menu,
-    tap,
-    tap_node,
-    text,
-    wait_until_unlocked,
-)
+from phone import adb
 
-
-def dump():
-    for n in nodes():
-        if n.get("text") or n.get("content-desc"):
-            print("   ", repr(n.get("text")), repr(n.get("content-desc")), n.get("bounds"), flush=True)
-
-
-def pick_file(name):
-    node = find(text(name), timeout=4)
-    if node is None:
-        # The picker may open on Recents: go to Downloads through its drawer.
-        tap(desc("Show roots"), "picker drawer")
-        for label in ("Downloads", "Téléchargements", "Download"):
-            if find(text(label), timeout=1.5) is not None:
-                tap(text(label), label)
-                break
-        node = find(text(name), timeout=6)
-    if node is not None:
-        tap_node(node)
-    return node is not None
+PACKAGE = "com.example.myapp"
+FILES_DIR = f"/sdcard/Android/data/{PACKAGE}/files/"
+INCLUDE_STOPPED_PACKAGES = "32"
 
 
 def main():
     path = Path(sys.argv[1])
-    adb("push", str(path), "/sdcard/Download/")
+    adb("push", str(path), FILES_DIR)
     print(f"pushed {path.name}", flush=True)
-    countdown()
-    wait_until_unlocked()
-    if not open_app_at_menu():
-        sys.exit("main menu not reached")
-    steps = [
-        lambda: tap(text("Flashcards"), "Flashcards"),
-        lambda: tap(desc("Restaurer"), "restore button"),
-        lambda: pick_file(path.name),
-        lambda: tap(text("Importer"), "import confirmation"),
-    ]
-    for step in steps:
-        if not step():
-            dump()
-            sys.exit("import failed")
-    time.sleep(2)
-    back()
+    out = adb(
+        "shell",
+        "am",
+        "broadcast",
+        "-f",
+        INCLUDE_STOPPED_PACKAGES,
+        "-n",
+        f"{PACKAGE}/.flashcards.FlashcardImportReceiver",
+        "--es",
+        "file",
+        path.name,
+    )
+    print(out.strip(), flush=True)
+    if 'data="imported"' not in out:
+        sys.exit("import failed")
     print("imported", flush=True)
 
 

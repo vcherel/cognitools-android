@@ -55,7 +55,6 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.myapp.AppSnackbar
 import com.example.myapp.BackIconButton
-import com.example.myapp.ImportBackupButton
 import com.example.myapp.BottomFadeOverlay
 import com.example.myapp.copyToClipboard
 import com.example.myapp.LightIconButton
@@ -200,19 +199,8 @@ fun NotesListScreen(navController: NavController) {
                 }
 
                 if (!searchActive) {
-                    Row {
-                        IconButton(onClick = { searchActive = true }) {
-                            Icon(Icons.Default.Search, contentDescription = "Rechercher")
-                        }
-                        ImportBackupButton(
-                            importDialogText = "Les notes du fichier seront ajoutées. " +
-                                    "Celles qui existent déjà seront remplacées par la version du fichier.",
-                            importFromJson = { json ->
-                                val imported = Note.listFromJsonString(json)
-                                if (imported.isEmpty()) throw IllegalArgumentException("Aucune note dans le fichier")
-                                dao.upsertNotes(imported)
-                            }
-                        )
+                    IconButton(onClick = { searchActive = true }) {
+                        Icon(Icons.Default.Search, contentDescription = "Rechercher")
                     }
                 }
             }

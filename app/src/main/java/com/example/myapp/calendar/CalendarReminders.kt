@@ -58,11 +58,6 @@ object CalendarReminders {
         refresh(context, notifyDue = false)
     }
 
-    suspend fun saveAll(context: Context, items: List<CalendarItem>) {
-        dao(context).upsertAll(items)
-        refresh(context, notifyDue = false)
-    }
-
     suspend fun deleteWithUndo(context: Context, item: CalendarItem) {
         dao(context).delete(item.id)
         refresh(context, notifyDue = false)

@@ -50,7 +50,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
-import com.example.myapp.ImportBackupButton
 import com.example.myapp.ScreenTopBar
 import com.example.myapp.flashcards.AppDatabase
 import kotlinx.coroutines.launch
@@ -120,9 +119,6 @@ fun CalendarScreen(onBack: () -> Unit, initialDay: String?) {
                 selected = today
                 scope.launch { pagerState.animateScrollToPage(START_PAGE) }
             }) { Icon(Icons.Default.Today, contentDescription = "Aujourd'hui") }
-            ImportBackupButton(
-                importDialogText = "Les éléments de la sauvegarde remplacent ceux de l'agenda qui ont le même identifiant."
-            ) { json -> CalendarReminders.saveAll(context, calendarFromJson(json)) }
             IconButton(onClick = {
                 editingIsNew = true
                 editing = CalendarItem(kind = CalendarKind.TASK, title = "", date = selected.toString())
