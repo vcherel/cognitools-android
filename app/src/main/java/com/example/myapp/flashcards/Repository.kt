@@ -264,7 +264,9 @@ class FlashcardRepository(private val context: Context) {
             5 to "flag-cr",
             5 to "flag-lt",
             5 to "flag-bo",
-            5 to "flag-ga"
+            5 to "flag-ga",
+            6 to "flag-ni",
+            6 to "flag-py"
         )
         private const val SIX_MONTHS_MINUTES = 6 * 30 * 24 * 60
         private val builtinListIds = listOf(

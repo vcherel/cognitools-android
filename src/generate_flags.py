@@ -41,6 +41,11 @@ NAME_BOXES = {
     "yt": [((145, 32, 495, 102), "white")],
     "gu": [((283, 159, 314, 178), "#94dbfc"), ((323, 159, 358, 178), "#94dbfc")],
 }
+# Same for names written around a seal: a ring (center, inner and outer radius) painted over.
+NAME_RINGS = {
+    "ni": ((320, 212), 54.5, 68, "white"),
+    "py": ((320.5, 175.5), 28.6, 36.4, "white"),
+}
 # Look-alikes whose official proportions would give the answer away, all brought to 3:2 so only
 # their colors and emblems tell them apart. Indonesia and Monaco keep theirs: it is their only
 # difference.
@@ -96,6 +101,17 @@ def card(code, name):
 def hide_name(image, code):
     for box, fill in NAME_BOXES.get(code, []):
         ImageDraw.Draw(image).rectangle(box, fill=fill)
+    if code in NAME_RINGS:
+        (cx, cy), inner, outer, fill = NAME_RINGS[code]
+        scale = 4
+        mask = Image.new("L", (image.width * scale, image.height * scale), 0)
+        draw = ImageDraw.Draw(mask)
+        for radius, value in [(outer, 255), (inner, 0)]:
+            draw.ellipse(
+                [scale * (cx - radius), scale * (cy - radius), scale * (cx + radius), scale * (cy + radius)],
+                fill=value,
+            )
+        image.paste(fill, (0, 0, image.width, image.height), mask.resize(image.size, Image.LANCZOS))
     return image
 
 
