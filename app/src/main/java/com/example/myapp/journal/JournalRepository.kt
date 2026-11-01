@@ -167,9 +167,18 @@ class JournalRepository(context: Context) {
         fb.copy(ideas = if (fb.ideas[ideaId] == answer) fb.ideas - ideaId else fb.ideas + (ideaId to answer))
     }
 
+    fun setIdeaNote(date: String, ideaId: String, note: String) = edit(date) { fb ->
+        fb.copy(ideaNotes = if (note.isBlank()) fb.ideaNotes - ideaId else fb.ideaNotes + (ideaId to note.trim()))
+    }
+
     fun markOpened(date: String, itemId: String) {
         if (itemId in _feedback.value[date]?.opened.orEmpty()) return
         edit(date) { it.copy(opened = it.opened + itemId) }
+    }
+
+    fun markTodo(date: String, itemId: String) {
+        if (itemId in _feedback.value[date]?.todo.orEmpty()) return
+        edit(date) { it.copy(todo = it.todo + itemId) }
     }
 
     fun setGeneral(date: String, text: String) = edit(date) { it.copy(general = text.trim()) }

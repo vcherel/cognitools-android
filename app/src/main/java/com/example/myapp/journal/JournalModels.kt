@@ -43,8 +43,11 @@ data class JournalFeedback(
     val ratings: Map<String, Int> = emptyMap(),
     val notes: Map<String, String> = emptyMap(),
     val ideas: Map<String, IdeaAnswer> = emptyMap(),
+    val ideaNotes: Map<String, String> = emptyMap(),
     /** Items with a source opened, a signal of interest even unrated. */
     val opened: Set<String> = emptySet(),
+    /** Items added to the Todo list, the strongest signal of interest. */
+    val todo: Set<String> = emptySet(),
     val general: String = ""
 )
 
@@ -123,7 +126,9 @@ fun JournalFeedback.toJson(date: String): String = JSONObject().apply {
         }
     })
     put("ideas", JSONObject().apply { ideas.forEach { (id, answer) -> put(id, answer.code) } })
+    put("idea_notes", JSONObject().apply { ideaNotes.forEach { (id, note) -> put(id, note) } })
     put("opened", JSONArray(opened.toList()))
+    put("todo", JSONArray(todo.toList()))
     put("general", general)
 }.toString()
 
@@ -132,15 +137,20 @@ fun parseFeedback(raw: String): JournalFeedback {
     val items = obj.optJSONObject("items") ?: JSONObject()
     val entries = items.keys().asSequence().map { it to items.getJSONObject(it) }.toList()
     val ideas = obj.optJSONObject("ideas") ?: JSONObject()
+    val ideaNotes = obj.optJSONObject("idea_notes") ?: JSONObject()
     return JournalFeedback(
         ratings = entries.mapNotNull { (id, e) -> e.optInt("rating").takeIf { it != 0 }?.let { id to it } }.toMap(),
         notes = entries.mapNotNull { (id, e) -> e.optString("note").takeIf { it.isNotBlank() }?.let { id to it } }.toMap(),
         ideas = ideas.keys().asSequence().mapNotNull { id ->
             IdeaAnswer.entries.firstOrNull { it.code == ideas.getString(id) }?.let { id to it }
         }.toMap(),
-        opened = (obj.optJSONArray("opened") ?: JSONArray()).let { a -> (0 until a.length()).map(a::getString).toSet() },
+        ideaNotes = ideaNotes.keys().asSequence().associateWith(ideaNotes::getString).filterValues { it.isNotBlank() },
+        opened = (obj.optJSONArray("opened") ?: JSONArray()).strings(),
+        todo = (obj.optJSONArray("todo") ?: JSONArray()).strings(),
         general = obj.optString("general")
     )
 }
 
 private fun JSONArray.objects(): List<JSONObject> = (0 until length()).map(::getJSONObject)
+
+private fun JSONArray.strings(): Set<String> = (0 until length()).map(::getString).toSet()

@@ -88,8 +88,14 @@ import kotlinx.coroutines.launch
 private val DAY_FORMAT = DateTimeFormatter.ofPattern("EEEE d MMMM", Locale.FRENCH)
 private const val SCROLL_SAVE_DELAY_MS = 500L
 
-/** What the note dialog is editing: one item's note, or the note on the whole issue when [itemId] is null. */
-private data class NoteTarget(val itemId: String?, val title: String, val text: String)
+/**
+ * What the note dialog is editing: one item's note, an idea's comment when [idea] is set, or the note
+ * on the whole issue when [id] is null.
+ */
+private data class NoteTarget(val id: String?, val title: String, val text: String, val idea: Boolean = false)
+
+/** The item the Todo list dialog is filing, and the line it writes. */
+private data class TodoTarget(val itemId: String, val text: String)
 
 /**
  * The day's journal as one scroll: the sections in the order the laptop wrote them, each item a card
@@ -111,7 +117,7 @@ fun JournalScreen(onBack: () -> Unit, onOpenArticle: (String) -> Unit, onOpenNew
 
     var date by rememberSaveable { mutableStateOf<String?>(null) }
     var noteTarget by remember { mutableStateOf<NoteTarget?>(null) }
-    var todoText by remember { mutableStateOf<String?>(null) }
+    var todoTarget by remember { mutableStateOf<TodoTarget?>(null) }
     val scope = rememberCoroutineScope()
     val shownDate = date?.takeIf { d -> issues.any { it.date == d } } ?: repo.startDate()
     val index = issues.indexOfFirst { it.date == shownDate }
@@ -210,7 +216,7 @@ fun JournalScreen(onBack: () -> Unit, onOpenArticle: (String) -> Unit, onOpenNew
                         onRate = { repo.rate(issue.date, item.id, it) },
                         onEditNote = { noteTarget = NoteTarget(item.id, item.title, feedback.notes[item.id].orEmpty()) },
                         onSaveTodo = {
-                            todoText = if (item.meta.isBlank()) item.title else "${item.title} (${item.meta})"
+                            todoTarget = TodoTarget(item.id, if (item.meta.isBlank()) item.title else "${item.title} (${item.meta})")
                         },
                         onOpenSource = { source ->
                             repo.markOpened(issue.date, item.id)
@@ -232,7 +238,13 @@ fun JournalScreen(onBack: () -> Unit, onOpenArticle: (String) -> Unit, onOpenNew
                     )
                 }
                 items(issue.ideas, key = { "${issue.date}-${it.id}" }) { idea ->
-                    IdeaCard(idea, feedback.ideas[idea.id]) { repo.answerIdea(issue.date, idea.id, it) }
+                    IdeaCard(
+                        idea = idea,
+                        answer = feedback.ideas[idea.id],
+                        note = feedback.ideaNotes[idea.id],
+                        onAnswer = { repo.answerIdea(issue.date, idea.id, it) },
+                        onEditNote = { noteTarget = NoteTarget(idea.id, idea.text, feedback.ideaNotes[idea.id].orEmpty(), idea = true) }
+                    )
                 }
             }
             item(key = "general-${issue.date}") {
@@ -286,23 +298,29 @@ fun JournalScreen(onBack: () -> Unit, onOpenArticle: (String) -> Unit, onOpenNew
             target = target,
             onDismiss = { noteTarget = null },
             onSave = { text ->
-                if (target.itemId == null) repo.setGeneral(date, text) else repo.setNote(date, target.itemId, text)
+                when {
+                    target.id == null -> repo.setGeneral(date, text)
+                    target.idea -> repo.setIdeaNote(date, target.id, text)
+                    else -> repo.setNote(date, target.id, text)
+                }
                 noteTarget = null
             }
         )
     }
 
-    todoText?.let { text ->
+    todoTarget?.let { target ->
+        val date = issue?.date ?: return@let
         TodoTargetDialog(
-            text = text,
-            onDismiss = { todoText = null },
+            text = target.text,
+            onDismiss = { todoTarget = null },
             onPick = { section ->
-                todoText = null
+                todoTarget = null
                 scope.launch {
-                    val added = runCatching { addToTodoNote(context, text, section) }.getOrElse {
+                    val added = runCatching { addToTodoNote(context, target.text, section) }.getOrElse {
                         AppSnackbar.show("Error: ${userMessage(it)}")
                         return@launch
                     }
+                    repo.markTodo(date, target.itemId)
                     val where = section ?: "Todo list"
                     AppSnackbar.show(if (added) "Added to $where" else "Already in the Todo list")
                 }
@@ -475,7 +493,13 @@ private fun ItemPicture(url: String, modifier: Modifier) {
 }
 
 @Composable
-private fun IdeaCard(idea: JournalIdea, answer: IdeaAnswer?, onAnswer: (IdeaAnswer) -> Unit) {
+private fun IdeaCard(
+    idea: JournalIdea,
+    answer: IdeaAnswer?,
+    note: String?,
+    onAnswer: (IdeaAnswer) -> Unit,
+    onEditNote: () -> Unit
+) {
     Surface(
         color = MaterialTheme.colorScheme.surfaceVariant,
         shape = RoundedCornerShape(12.dp),
@@ -486,6 +510,15 @@ private fun IdeaCard(idea: JournalIdea, answer: IdeaAnswer?, onAnswer: (IdeaAnsw
                 Text(idea.text, style = MaterialTheme.typography.bodyLarge)
                 if (idea.reason.isNotBlank()) {
                     Text(idea.reason, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                if (!note.isNullOrBlank()) {
+                    Text(
+                        "“$note”",
+                        style = MaterialTheme.typography.bodySmall,
+                        fontStyle = FontStyle.Italic,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
                 }
             }
             Spacer(Modifier.width(4.dp))
@@ -502,6 +535,13 @@ private fun IdeaCard(idea: JournalIdea, answer: IdeaAnswer?, onAnswer: (IdeaAnsw
                 onClick = { onAnswer(IdeaAnswer.DECLINED) },
                 size = 44.dp,
                 tint = if (answer == IdeaAnswer.DECLINED) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            LightIconButton(
+                if (note.isNullOrBlank()) Icons.Outlined.AddComment else Icons.AutoMirrored.Filled.Comment,
+                contentDescription = "Comment",
+                onClick = onEditNote,
+                size = 44.dp,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }
