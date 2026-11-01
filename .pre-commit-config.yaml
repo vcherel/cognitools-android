@@ -26,9 +26,9 @@ repos:
         stages: [pre-push]
 
       - id: puzzle-tests
-        name: mots fleches generator test (2 min, only when the tool changed)
+        name: mots fleches generator test (2 min, only when the generator changed)
         entry: ./gradlew --quiet :app:testReleaseUnitTest --tests '*.PuzzleGeneratorTest'
         language: system
         pass_filenames: false
-        files: ^app/src/(main/java/com/example/myapp/motsfleches/|main/assets/motsfleches_|test/java/com/example/myapp/motsfleches/)
+        files: ^app/src/(main/java/com/example/myapp/motsfleches/(PuzzleGenerator|ClueDictionary|Puzzle)\.kt|main/assets/motsfleches_|test/java/com/example/myapp/motsfleches/)
         stages: [pre-push]
