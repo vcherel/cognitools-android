@@ -349,31 +349,39 @@ class Crossfader(
      * Alignment gets [ALIGN_TRIES], or keeps trying until the [alignUntil] uptime when that is later.
      */
     private suspend fun blend(fadeMs: Long, fitToTail: Boolean = true, alignUntil: Long = 0L): String? {
-        // 1. The fader joins the outgoing track muted. Each seek costs it a restart the main
-        // player doesn't pay, so it aims ahead by what the last try came out behind, and only
-        // takes over once its settled position matches: a swap between two copies a few tens
-        // of ms apart is heard as a stutter.
-        var lead = 0L
-        var drift = 0L
+        // 1. The fader joins the outgoing track muted, and only takes over once its settled position
+        // matches: a swap between two copies a few tens of ms apart is heard as a stutter. A seek
+        // restarts the fader after a delay that varies by hundreds of ms from one seek to the next,
+        // so seeking again never converges; the gap is closed by playing the muted fader a little
+        // faster or slower instead, and a seek only happens first or when the gap is far too wide.
+        var drift = Long.MAX_VALUE
         val drifts = ArrayList<Long>()
         var aligned = false
         var attempt = 0
-        while (++attempt <= ALIGN_TRIES || SystemClock.elapsedRealtime() < alignUntil) {
-            if (player.currentMediaItem?.mediaId != faderItemId) return "track changed"
-            fader.seekTo(player.currentPosition + lead)
-            fader.play()
-            val playTimeout = maxOf(HANDOFF_TIMEOUT_MS, alignUntil - SystemClock.elapsedRealtime())
-            if (!awaitPlaying(fader, playTimeout)) return "fader stalled on try $attempt (${faderError ?: "timeout"})"
-            delay(SETTLE_MS)
-            drift = measureDrift()
-            drifts += drift
-            if (abs(drift) <= MAX_DRIFT_MS) {
-                aligned = true
-                break
+        try {
+            while (++attempt <= ALIGN_TRIES || SystemClock.elapsedRealtime() < alignUntil) {
+                if (player.currentMediaItem?.mediaId != faderItemId) return "track changed"
+                if (abs(drift) > MAX_NUDGE_MS) {
+                    fader.seekTo(player.currentPosition)
+                    fader.play()
+                    val playTimeout = maxOf(HANDOFF_TIMEOUT_MS, alignUntil - SystemClock.elapsedRealtime())
+                    if (!awaitPlaying(fader, playTimeout)) return "fader stalled on try $attempt (${faderError ?: "timeout"})"
+                } else {
+                    nudge(drift)
+                }
+                delay(SETTLE_MS)
+                drift = measureDrift()
+                drifts += drift
+                if (abs(drift) <= MAX_DRIFT_MS) {
+                    aligned = true
+                    break
+                }
             }
-            lead += drift
+        } finally {
+            fader.setPlaybackSpeed(1f)
         }
         if (!aligned) return "not aligned after ${attempt - 1} tries, drifts ${drifts.joinToString()} ms"
+        if (drifts.size > 1) log("aligned after ${drifts.size} tries, drifts ${drifts.joinToString()} ms")
 
         // 2. A quick swap over the same audio hands the outgoing track to the fader.
         ramp(SWAP_MS) { t ->
@@ -401,6 +409,14 @@ class Crossfader(
         fadeJob = null
         player.volume = 1f
         if (faderItemId != null) unloadFader()
+    }
+
+    /** Plays the fader off speed just long enough to make up [drift] (main minus fader position). */
+    private suspend fun nudge(drift: Long) {
+        val rate = (drift.toDouble() / NUDGE_MS).coerceIn(-MAX_NUDGE_RATE, MAX_NUDGE_RATE)
+        fader.setPlaybackSpeed((1 + rate).toFloat())
+        delay((drift / rate).toLong())
+        fader.setPlaybackSpeed(1f)
     }
 
     /** Main minus fader position, averaged over a few reads since each one jitters by some ms. */
@@ -484,10 +500,15 @@ class Crossfader(
          * Time the alignment tries, the handoff and the next track's lead in take, so the blend still
          * gets its full length out of the tail that is left.
          */
-        const val HANDOFF_MS = 4_500L
+        const val HANDOFF_MS = 5_500L
         const val HANDOFF_TIMEOUT_MS = 1_500L
         const val MIN_FADE_MS = 1_500L
-        const val ALIGN_TRIES = 3
+        const val ALIGN_TRIES = 4
+        /** How long a nudge takes when its speed stays in range, and the furthest it bends the speed. */
+        const val NUDGE_MS = 400L
+        const val MAX_NUDGE_RATE = 0.5
+        /** A gap wider than this is closed by seeking again rather than by a nudge. */
+        const val MAX_NUDGE_MS = 1_000L
         /** Lets a freshly started audio track's position estimate settle before trusting it. */
         const val SETTLE_MS = 400L
         const val DRIFT_SAMPLES = 5
