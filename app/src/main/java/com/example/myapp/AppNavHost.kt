@@ -44,6 +44,7 @@ import com.example.myapp.gallery.ViewerSource
 import com.example.myapp.gallery.GalleryViewerScreen
 import com.example.myapp.gallery.rememberIntentSenderRequester
 import com.example.myapp.journal.JournalScreen
+import com.example.myapp.recipes.RecipeScreen
 import com.example.myapp.mail.MailMessageScreen
 import com.example.myapp.mail.MailScreen
 import com.example.myapp.motsfleches.MotsFlechesScreen
@@ -171,6 +172,7 @@ fun MainScreen(
                             onOpenNews = { navController.navigate("news") }
                         )
                     }
+                    screen("recipes") { RecipeScreen(onBack = back) }
                     screen("mail") {
                         MailScreen(onBack = back, onOpenMessage = { uid -> navController.navigate("mail/message/$uid") })
                     }

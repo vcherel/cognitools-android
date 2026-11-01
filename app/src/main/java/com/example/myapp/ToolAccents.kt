@@ -16,6 +16,7 @@ import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Newspaper
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.Public
+import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.Style
 import androidx.compose.material.icons.filled.TheaterComedy
 import androidx.compose.material.icons.filled.Translate
@@ -50,6 +51,7 @@ object ToolAccents {
     val Mail = ToolAccent(Color(0xFF5A6FD6), Icons.Default.Mail)
     val Workout = ToolAccent(Color(0xFF2E9E6A), Icons.Default.FitnessCenter)
     val Calendar = ToolAccent(Color(0xFFD64B4B), Icons.Default.CalendarMonth)
+    val Recipes = ToolAccent(Color(0xFF8A9A2B), Icons.Default.Restaurant)
 
     /** The tool a nav destination belongs to, null on the menu. */
     fun forRoute(route: String?): ToolAccent? {
@@ -73,6 +75,7 @@ object ToolAccents {
             "mail" -> Mail
             "workout" -> Workout
             "calendar" -> Calendar
+            "recipes" -> Recipes
             else -> null
         }
     }

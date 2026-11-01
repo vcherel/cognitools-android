@@ -18,6 +18,7 @@ import com.example.myapp.news.NewsRepository
 import com.example.myapp.notes.NOTES_TRASH_RETENTION_DAYS
 import com.example.myapp.notes.NotesLists
 import com.example.myapp.podcasts.PodcastRepository
+import com.example.myapp.recipes.RecipeRepository
 import com.example.myapp.notes.TodoReminder
 import com.example.myapp.notes.ensureTodoSections
 import com.example.myapp.workout.WorkoutReminder
@@ -33,6 +34,7 @@ class MyApplication : Application(), SingletonImageLoader.Factory {
     val newsRepository: NewsRepository by lazy { NewsRepository(this) }
     val mailRepository: MailRepository by lazy { MailRepository(this) }
     val journalRepository: JournalRepository by lazy { JournalRepository(this) }
+    val recipeRepository: RecipeRepository by lazy { RecipeRepository(this) }
     lateinit var notesLists: NotesLists
         private set
 
@@ -41,6 +43,8 @@ class MyApplication : Application(), SingletonImageLoader.Factory {
     override fun onCreate() {
         super.onCreate()
         notesLists = NotesLists(AppDatabase.get(this).noteDao(), CoroutineScope(SupervisorJob() + Dispatchers.IO))
+        // Created now so it starts watching the notes the laptop proposes recipes from.
+        recipeRepository
         CoroutineScope(Dispatchers.IO).launch {
             val cutoff = System.currentTimeMillis() -
                 NOTES_TRASH_RETENTION_DAYS * 24L * 60L * 60L * 1000L
@@ -99,3 +103,6 @@ val Context.mailRepository: MailRepository
 
 val Context.journalRepository: JournalRepository
     get() = (applicationContext as MyApplication).journalRepository
+
+val Context.recipeRepository: RecipeRepository
+    get() = (applicationContext as MyApplication).recipeRepository
