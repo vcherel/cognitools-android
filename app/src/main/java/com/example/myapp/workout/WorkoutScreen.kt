@@ -86,6 +86,7 @@ fun WorkoutScreen(
     val state by stateFlow.collectAsState(initial = null)
     val program by remember(context) { WorkoutStore.program(context) }.collectAsState(initial = WorkoutProgram.DEFAULT)
     val xp by remember(context) { WorkoutStore.xp(context) }.collectAsState(initial = 0)
+    val records by remember(context) { WorkoutStore.records(context) }.collectAsState(initial = emptyList())
     var resumable by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { resumable = WorkoutStore.loadSession(context) != null }
     var editingWeekend by remember { mutableStateOf<Boolean?>(null) }
@@ -184,6 +185,27 @@ fun WorkoutScreen(
             Text("Reminders", style = MaterialTheme.typography.titleMedium)
             TimeRow("Weekdays", current.times.weekday) { editingWeekend = false }
             TimeRow("Weekends", current.times.weekend) { editingWeekend = true }
+        }
+
+        val bests = recordProgression(records, program.recordKey())
+        if (bests.isNotEmpty()) {
+            Card {
+                Text("Records", style = MaterialTheme.typography.titleMedium)
+                bests.take(HISTORY_SHOWN).forEachIndexed { i, record ->
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            formatDay(record.at.toLocalDateTime()),
+                            style = MaterialTheme.typography.bodyLarge,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Text(
+                            formatClock(record.totalMs),
+                            fontSize = if (i == 0) 22.sp else 17.sp,
+                            fontWeight = if (i == 0) FontWeight.Bold else FontWeight.Normal
+                        )
+                    }
+                }
+            }
         }
 
         Card {

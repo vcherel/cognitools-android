@@ -19,8 +19,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DragIndicator
 import androidx.compose.material.icons.filled.Repeat
-import androidx.compose.material.icons.filled.South
-import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -64,15 +62,11 @@ private val ROW_HEIGHT = 64.dp
 private fun ExerciseType.icon(): ImageVector = when (this) {
     ExerciseType.Reps -> Icons.Default.Repeat
     ExerciseType.Timed -> Icons.Default.Timer
-    ExerciseType.PerSide -> Icons.Default.SwapHoriz
-    ExerciseType.Negatives -> Icons.Default.South
 }
 
 private fun ExerciseType.label() = when (this) {
     ExerciseType.Reps -> "Reps"
     ExerciseType.Timed -> "Timed"
-    ExerciseType.PerSide -> "Per side"
-    ExerciseType.Negatives -> "Negatives"
 }
 
 private fun formatRest(seconds: Int) = "%d:%02d".format(seconds / 60, seconds % 60)
@@ -282,15 +276,9 @@ private fun ExerciseDialog(
     var target by remember { mutableStateOf(initial?.target.orEmpty()) }
     var type by remember { mutableStateOf(initial?.type ?: ExerciseType.Reps) }
     var seconds by remember { mutableStateOf(initial?.seconds?.takeIf { it > 0 }?.toString().orEmpty()) }
-    var negatives by remember { mutableStateOf(initial?.negatives?.takeIf { it > 0 }?.toString().orEmpty()) }
 
     val secondsValue = seconds.toIntOrNull() ?: 0
-    val negativesValue = negatives.toIntOrNull() ?: 0
-    val valid = name.isNotBlank() && when (type) {
-        ExerciseType.Timed -> secondsValue > 0
-        ExerciseType.Negatives -> secondsValue > 0 && negativesValue > 0
-        else -> true
-    }
+    val valid = name.isNotBlank() && (type != ExerciseType.Timed || secondsValue > 0)
     val accent = LocalToolAccent.current?.color ?: Color.Gray
 
     AppDialog(onDismiss = onDismiss) {
@@ -333,14 +321,7 @@ private fun ExerciseDialog(
                     }
                 }
             }
-            when (type) {
-                ExerciseType.Timed -> NumberField("Duration (s)", seconds, { seconds = it })
-                ExerciseType.Negatives -> Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    NumberField("Negatives", negatives, { negatives = it }, Modifier.weight(1f))
-                    NumberField("Descent (s)", seconds, { seconds = it }, Modifier.weight(1f))
-                }
-                else -> Unit
-            }
+            if (type == ExerciseType.Timed) NumberField("Duration (s)", seconds, { seconds = it })
         }
         Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             if (onDelete != null) {
@@ -356,8 +337,7 @@ private fun ExerciseDialog(
                                 name = name.trim(),
                                 target = target.trim(),
                                 type = type,
-                                seconds = if (type == ExerciseType.Timed || type == ExerciseType.Negatives) secondsValue else 0,
-                                negatives = if (type == ExerciseType.Negatives) negativesValue else 0
+                                seconds = if (type == ExerciseType.Timed) secondsValue else 0
                             )
                         )
                     }

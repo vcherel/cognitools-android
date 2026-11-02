@@ -24,7 +24,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
@@ -64,6 +63,7 @@ import com.example.myapp.AppSnackbar
 import com.example.myapp.LocalToolAccent
 import com.example.myapp.MyButton
 import com.example.myapp.ScreenTopBar
+import com.example.myapp.SuppressIdleReset
 import com.example.myapp.ToolAccent
 import com.example.myapp.ToolAccents
 import kotlinx.coroutines.delay
@@ -104,9 +104,12 @@ fun WorkoutSessionScreen(onBack: () -> Unit) {
     val scope = rememberCoroutineScope()
     val program by remember(context) { WorkoutStore.program(context) }.collectAsState(initial = null)
     val xp by remember(context) { WorkoutStore.xp(context) }.collectAsState(initial = null)
+    val records by remember(context) { WorkoutStore.records(context) }.collectAsState(initial = null)
     var progress by remember { mutableStateOf<SessionProgress?>(null) }
     val cues = remember(context) { Cues(context) }
     DisposableEffect(cues) { onDispose { cues.release() } }
+    // A phone locked between exercises would otherwise come back on the menu.
+    SuppressIdleReset()
 
     val view = LocalView.current
     DisposableEffect(view) {
@@ -123,6 +126,7 @@ fun WorkoutSessionScreen(onBack: () -> Unit) {
 
     val shownProgram = program ?: return
     val totalXp = xp ?: return
+    val allRecords = records ?: return
     val steps = remember(shownProgram) { sessionSteps(shownProgram) }
 
     LaunchedEffect(steps) {
@@ -157,10 +161,14 @@ fun WorkoutSessionScreen(onBack: () -> Unit) {
         }
     }
 
-    if (current.finishedAt != null) {
-        VictoryContent(current, shownProgram, totalXp, onBack = onBack) {
+    val finishedAt = current.finishedAt
+    if (finishedAt != null) {
+        val key = shownProgram.recordKey()
+        val best = recordProgression(allRecords, key).firstOrNull()?.totalMs
+        val total = finishedAt - current.startedAt
+        VictoryContent(current, shownProgram, totalXp, newRecord = best != null && total < best, onBack = onBack) {
             scope.launch {
-                WorkoutStore.finish(context, sessionXp(shownProgram))
+                WorkoutStore.finish(context, sessionXp(shownProgram), SessionRecord(finishedAt, total, key))
                 onBack()
             }
         }
@@ -203,7 +211,11 @@ fun WorkoutSessionScreen(onBack: () -> Unit) {
                     }, onDone = ::advance)
                     is SessionStep.Work -> {
                         if (boss) BossCard(shownProgram, step.slot, levelOf(totalXp).level)
-                        WorkContent(step.exercise, current, now, boss, cues, onDone = ::advance)
+                        WorkContent(
+                            step.exercise, current, now, boss, cues,
+                            onStart = { update(current.copy(timerStartedAt = System.currentTimeMillis())) },
+                            onDone = ::advance
+                        )
                     }
                 }
             }
@@ -211,7 +223,7 @@ fun WorkoutSessionScreen(onBack: () -> Unit) {
     }
 }
 
-private fun formatClock(ms: Long): String {
+internal fun formatClock(ms: Long): String {
     val seconds = (ms / 1000).coerceAtLeast(0)
     return "%d:%02d".format(seconds / 60, seconds % 60)
 }
@@ -311,12 +323,9 @@ private fun ColumnScope.WorkContent(
     now: Long,
     boss: Boolean,
     cues: Cues,
+    onStart: () -> Unit,
     onDone: () -> Unit
 ) {
-    val accent = LocalToolAccent.current?.color ?: Color.Gray
-    // The descent of a negative in progress, started by its button; not saved, a killed one restarts.
-    var descentStart by remember(progress.step, progress.part) { mutableStateOf<Long?>(null) }
-
     Card(Modifier.weight(1f), content = {
         Column(
             Modifier.fillMaxSize(),
@@ -330,96 +339,36 @@ private fun ColumnScope.WorkContent(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center
             )
-            when (exercise.type) {
-                ExerciseType.Reps -> Unit
-                ExerciseType.PerSide -> Text(
-                    "Side ${progress.part + 1} of 2",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = accent
-                )
-                ExerciseType.Timed -> TimedRing(exercise, progress, now, cues)
-                ExerciseType.Negatives -> NegativeSteps(exercise, progress.part, descentStart, now, accent, cues) {
-                    descentStart = null
-                    onDone()
-                }
-            }
+            if (exercise.type == ExerciseType.Timed) TimedRing(exercise, progress, now, cues)
         }
     })
 
-    val negative = exercise.type == ExerciseType.Negatives && progress.part > 0
     when {
-        negative && descentStart != null -> MyButton(text = "Lowering", enabled = false) {}
-        negative -> MyButton(text = "Start negative") {
+        exercise.type == ExerciseType.Timed && progress.timerStartedAt == null -> MyButton(text = "Start") {
             cues.tap()
-            descentStart = System.currentTimeMillis()
+            onStart()
         }
         boss -> MyButton(text = "Strike", onClick = onDone)
         else -> MyButton(text = "Done", icon = Icons.Default.Check, onClick = onDone)
     }
 }
 
-/** The full reps as a check box, then one numbered box per negative, and the descent bar. */
-@Composable
-private fun NegativeSteps(
-    exercise: Exercise,
-    part: Int,
-    descentStart: Long?,
-    now: Long,
-    accent: Color,
-    cues: Cues,
-    onDescended: () -> Unit
-) {
-    val descentMs = exercise.seconds.coerceAtLeast(1) * 1000L
-    val elapsed = descentStart?.let { now - it } ?: 0L
-    val second = (elapsed / 1000).toInt()
-    LaunchedEffect(descentStart, second) {
-        if (descentStart != null && second in 1 until exercise.seconds) cues.tick()
-    }
-    LaunchedEffect(descentStart, elapsed >= descentMs) {
-        if (descentStart != null && elapsed >= descentMs) onDescended()
-    }
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 6.dp)) {
-        for (i in 0..exercise.negatives) {
-            val shape = RoundedCornerShape(16.dp)
-            val base = Modifier.size(54.dp)
-            val box = when {
-                i < part -> base.background(accent, shape)
-                i == part -> base.background(MaterialTheme.colorScheme.background, shape).border(3.dp, accent, shape)
-                else -> base.background(MaterialTheme.colorScheme.background.copy(alpha = 0.6f), shape)
-            }
-            Box(box, contentAlignment = Alignment.Center) {
-                val color = when {
-                    i < part -> Color.White
-                    i == part -> accent
-                    else -> MaterialTheme.colorScheme.onSurfaceVariant
-                }
-                if (i == 0) Icon(Icons.Default.Check, contentDescription = null, tint = color)
-                else Text("$i", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = color)
-            }
-        }
-    }
-    if (part > 0) {
-        val fraction = (elapsed / descentMs.toFloat()).coerceIn(0f, 1f)
-        Box(
-            Modifier.padding(top = 8.dp).width(200.dp).height(12.dp)
-                .background(MaterialTheme.colorScheme.background, RoundedCornerShape(6.dp))
-        ) {
-            Box(Modifier.fillMaxWidth(fraction).height(12.dp).background(accent, RoundedCornerShape(6.dp)))
-        }
-    }
-}
-
-/** A get-ready count, then the ring running down the exercise's seconds. */
+/** The full ring until Start, then a get-ready count and the ring running down the exercise's seconds. */
 @Composable
 private fun TimedRing(exercise: Exercise, progress: SessionProgress, now: Long, cues: Cues) {
     val total = exercise.seconds.coerceAtLeast(1) * 1000L
-    val sinceStep = now - progress.stepStartedAt
-    val leadIn = sinceStep < LEAD_IN_MS
-    val elapsed = (sinceStep - LEAD_IN_MS).coerceIn(0, total)
+    val started = progress.timerStartedAt
+    if (started == null) {
+        Ring(1f, LocalToolAccent.current?.color ?: Color.Gray, formatClock(total), null)
+        return
+    }
+    val sinceStart = now - started
+    val leadIn = sinceStart < LEAD_IN_MS
+    val elapsed = (sinceStart - LEAD_IN_MS).coerceIn(0, total)
     val left = total - elapsed
-    val leadSecond = ceil((LEAD_IN_MS - sinceStep) / 1000.0).toInt()
-    LaunchedEffect(progress.stepStartedAt, leadIn, leadSecond) { if (leadIn) cues.tick() else if (sinceStep < LEAD_IN_MS + 500) cues.tap() }
-    LaunchedEffect(progress.stepStartedAt, left == 0L) { if (left == 0L) cues.end() }
+    val leadSecond = ceil((LEAD_IN_MS - sinceStart) / 1000.0).toInt()
+    LaunchedEffect(started, leadIn, leadSecond) { if (leadIn) cues.tick() else if (sinceStart < LEAD_IN_MS + 500) cues.tap() }
+    LaunchedEffect(started, left == 0L) { if (left == 0L) cues.end() }
     Ring(
         fraction = if (leadIn) 1f else left / total.toFloat(),
         color = LocalToolAccent.current?.color ?: Color.Gray,
@@ -484,12 +433,13 @@ private fun ColumnScope.RestContent(
     }
 }
 
-/** The end of the session: its time, each round's, the XP filling the level bar, and Finish. */
+/** The end of the session: its time (flagged when it beats the best), each round's, the XP filling the level bar, and Finish. */
 @Composable
 private fun VictoryContent(
     progress: SessionProgress,
     program: WorkoutProgram,
     totalXp: Int,
+    newRecord: Boolean,
     onBack: () -> Unit,
     onFinish: () -> Unit
 ) {
@@ -519,6 +469,9 @@ private fun VictoryContent(
                         style = MaterialTheme.typography.titleMedium
                     )
                     Text(formatClock(progress.finishedAt!! - progress.startedAt), fontSize = 60.sp, fontWeight = FontWeight.Bold)
+                    if (newRecord) {
+                        Text("New record", style = MaterialTheme.typography.titleMedium, color = accent)
+                    }
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     rounds.forEachIndexed { i, ms ->

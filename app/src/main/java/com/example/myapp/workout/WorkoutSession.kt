@@ -34,13 +34,6 @@ fun sessionSteps(program: WorkoutProgram): List<SessionStep> {
 /** The last round is the boss, as soon as there is more than one. */
 fun isBossRound(round: Int, program: WorkoutProgram) = program.rounds > 1 && round == program.rounds - 1
 
-/** The parts an exercise card is cleared in: each side, or the full reps then each negative. */
-fun partsOf(exercise: Exercise): Int = when (exercise.type) {
-    ExerciseType.PerSide -> 2
-    ExerciseType.Negatives -> 1 + exercise.negatives
-    else -> 1
-}
-
 const val XP_PER_EXERCISE = 5
 
 fun xpFor(round: Int, program: WorkoutProgram) = if (isBossRound(round, program)) XP_PER_EXERCISE * 2 else XP_PER_EXERCISE
@@ -75,40 +68,40 @@ fun bossName(level: Int) = BOSSES[(level - 1).mod(BOSSES.size)]
 
 /**
  * A session in progress, saved on every change so a killed process resumes it. [stepStartedAt]
- * drives the rest and timed countdowns from the wall clock; [extraRest] is what +15 s added to the
- * current rest; [roundEnds] holds when each finished round ended.
+ * drives the rest countdown from the wall clock, [timerStartedAt] the timed exercise once its Start
+ * is tapped; [extraRest] is what +15 s added to the current rest; [roundEnds] holds when each
+ * finished round ended.
  */
 data class SessionProgress(
     val startedAt: Long,
     val step: Int = 0,
-    val part: Int = 0,
     val stepStartedAt: Long = startedAt,
+    val timerStartedAt: Long? = null,
     val extraRest: Int = 0,
     val roundEnds: List<Long> = emptyList(),
     val finishedAt: Long? = null
 )
 
-/** The progress once the current part is cleared at [now]: the next part, step, or the end. */
+/** The progress once the current step is cleared at [now]: the next step, or the end. */
 fun SessionProgress.advance(steps: List<SessionStep>, now: Long): SessionProgress {
     val current = steps[step]
-    if (current is SessionStep.Work && part + 1 < partsOf(current.exercise)) return copy(part = part + 1, stepStartedAt = now)
     val next = step + 1
     val roundOver = next == steps.size || steps[next].round != current.round
     val ends = if (roundOver && current is SessionStep.Work) roundEnds + now else roundEnds
     return if (next == steps.size) {
         copy(roundEnds = ends, finishedAt = now)
     } else {
-        copy(step = next, part = 0, stepStartedAt = now, extraRest = 0, roundEnds = ends)
+        copy(step = next, stepStartedAt = now, timerStartedAt = null, extraRest = 0, roundEnds = ends)
     }
 }
 
 fun SessionProgress.toJson(): String = JSONObject()
     .put("startedAt", startedAt)
     .put("step", step)
-    .put("part", part)
     .put("stepStartedAt", stepStartedAt)
     .put("extraRest", extraRest)
     .put("roundEnds", JSONArray(roundEnds))
+    .apply { timerStartedAt?.let { put("timerStartedAt", it) } }
     .apply { finishedAt?.let { put("finishedAt", it) } }
     .toString()
 
@@ -118,8 +111,8 @@ fun sessionFromJson(text: String): SessionProgress? = runCatching {
     SessionProgress(
         startedAt = o.getLong("startedAt"),
         step = o.getInt("step"),
-        part = o.getInt("part"),
         stepStartedAt = o.getLong("stepStartedAt"),
+        timerStartedAt = if (o.has("timerStartedAt")) o.getLong("timerStartedAt") else null,
         extraRest = o.getInt("extraRest"),
         roundEnds = (0 until ends.length()).map { ends.getLong(it) },
         finishedAt = if (o.has("finishedAt")) o.getLong("finishedAt") else null
@@ -129,3 +122,33 @@ fun sessionFromJson(text: String): SessionProgress? = runCatching {
 /** How long each round took, from the session start and the round ends. */
 fun SessionProgress.roundDurations(): List<Long> =
     roundEnds.mapIndexed { i, end -> end - (if (i == 0) startedAt else roundEnds[i - 1]) }
+
+/** A finished session's time, [key] naming the program it ran, since only the same program compares. */
+data class SessionRecord(val at: Long, val totalMs: Long, val key: String)
+
+/** Everything that changes how long a session takes: the rounds, the rests and the exercises. */
+fun WorkoutProgram.recordKey(): String =
+    "$rounds/$restSeconds/$roundRestSeconds/" + exercises.joinToString("|") { "${it.name}:${it.type}:${it.seconds}" }
+
+/** The sessions of [key] that beat every earlier one, newest (the current best) first. */
+fun recordProgression(records: List<SessionRecord>, key: String): List<SessionRecord> {
+    val beaten = mutableListOf<SessionRecord>()
+    records.filter { it.key == key }.sortedBy { it.at }.forEach {
+        if (beaten.isEmpty() || it.totalMs < beaten.last().totalMs) beaten += it
+    }
+    return beaten.reversed()
+}
+
+fun recordsToJson(records: List<SessionRecord>): String = JSONArray(records.map {
+    JSONObject().put("at", it.at).put("totalMs", it.totalMs).put("key", it.key)
+}).toString()
+
+fun recordsFromJson(text: String?): List<SessionRecord> = text?.let {
+    runCatching {
+        val list = JSONArray(it)
+        (0 until list.length()).map { i ->
+            val o = list.getJSONObject(i)
+            SessionRecord(o.getLong("at"), o.getLong("totalMs"), o.getString("key"))
+        }
+    }.getOrNull()
+}.orEmpty()

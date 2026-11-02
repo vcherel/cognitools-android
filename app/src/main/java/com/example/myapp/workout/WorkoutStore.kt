@@ -13,8 +13,9 @@ import java.io.File
 
 private val PROGRAM = stringPreferencesKey("program")
 private val XP = intPreferencesKey("xp")
+private val RECORDS = stringPreferencesKey("records")
 
-/** The program and the XP in the workout DataStore, the session in progress in its own file. */
+/** The program, the XP and the session times in the workout DataStore, the session in progress in its own file. */
 object WorkoutStore {
     fun program(context: Context): Flow<WorkoutProgram> =
         context.workoutDataStore.data.map { programFromJson(it[PROGRAM]) }
@@ -25,9 +26,18 @@ object WorkoutStore {
 
     fun xp(context: Context): Flow<Int> = context.workoutDataStore.data.map { it[XP] ?: 0 }
 
-    /** Adds the session's XP and logs it as done, which moves the reminder past the recovery days. */
-    suspend fun finish(context: Context, xp: Int) {
-        context.workoutDataStore.edit { it[XP] = (it[XP] ?: 0) + xp }
+    fun records(context: Context): Flow<List<SessionRecord>> =
+        context.workoutDataStore.data.map { recordsFromJson(it[RECORDS]) }
+
+    /**
+     * Adds the session's XP and time, and logs it as done, which moves the reminder past the
+     * recovery days.
+     */
+    suspend fun finish(context: Context, xp: Int, record: SessionRecord) {
+        context.workoutDataStore.edit {
+            it[XP] = (it[XP] ?: 0) + xp
+            it[RECORDS] = recordsToJson(recordsFromJson(it[RECORDS]) + record)
+        }
         WorkoutReminder.markDone(context)
         clearSession(context)
     }

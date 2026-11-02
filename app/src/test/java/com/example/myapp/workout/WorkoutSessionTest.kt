@@ -46,15 +46,33 @@ class WorkoutSessionTest {
     }
 
     @Test
-    fun `pull ups clear in four parts and sides in two`() {
-        var progress = SessionProgress(startedAt = 0)
-        repeat(3) { progress = progress.advance(steps, it + 1L) }
-        assertEquals(0, progress.step)
-        assertEquals(3, progress.part)
+    fun `every card clears in one tap and the next one waits on its timer`() {
+        var progress = SessionProgress(startedAt = 0, timerStartedAt = 4)
         progress = progress.advance(steps, 10)
         assertEquals(1, progress.step)
-        assertEquals(0, progress.part)
         assertEquals(10, progress.stepStartedAt)
+        assertNull(progress.timerStartedAt)
+    }
+
+    @Test
+    fun `records keep only the sessions that beat the best of the same program`() {
+        val key = program.recordKey()
+        val other = program.copy(rounds = 2).recordKey()
+        val records = listOf(
+            SessionRecord(1, 900, key),
+            SessionRecord(2, 950, key),
+            SessionRecord(3, 800, other),
+            SessionRecord(4, 850, key)
+        )
+        assertEquals(listOf(4L, 1L), recordProgression(records, key).map { it.at })
+        assertEquals(records, recordsFromJson(recordsToJson(records)))
+        assertEquals(emptyList<SessionRecord>(), recordsFromJson("{broken"))
+    }
+
+    @Test
+    fun `an exercise type no longer known reads as reps`() {
+        val json = program.toJson().replace("\"Timed\"", "\"Negatives\"")
+        assertEquals(ExerciseType.Reps, programFromJson(json).exercises[4].type)
     }
 
     @Test
@@ -77,7 +95,7 @@ class WorkoutSessionTest {
 
     @Test
     fun `a session in progress survives its JSON`() {
-        val progress = SessionProgress(startedAt = 5, step = 3, part = 1, stepStartedAt = 9, extraRest = 15, roundEnds = listOf(40, 80))
+        val progress = SessionProgress(startedAt = 5, step = 3, stepStartedAt = 9, timerStartedAt = 12, extraRest = 15, roundEnds = listOf(40, 80))
         assertEquals(progress, sessionFromJson(progress.toJson()))
         assertEquals(progress.copy(finishedAt = 99), sessionFromJson(progress.copy(finishedAt = 99).toJson()))
     }
