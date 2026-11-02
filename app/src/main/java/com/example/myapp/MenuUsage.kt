@@ -7,10 +7,10 @@ import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
-private val Context.menuUsageDataStore by preferencesDataStore("menu_usage")
+private val Context.menuUsageDataStore by preferencesDataStore("menu_opens")
 
-// How many times each of the small menu tools has been opened, so the grid can put the ones used
-// most on top. Keyed by a stable id, never by the label.
+// How many times each menu tool has been opened, so the big rows and the grid can each put the
+// ones used most on top. Keyed by a stable id, never by the label.
 class MenuUsageStore(private val context: Context) {
     val counts: Flow<Map<String, Int>> = context.menuUsageDataStore.data.map { prefs ->
         prefs.asMap().mapNotNull { (key, value) ->

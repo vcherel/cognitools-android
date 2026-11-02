@@ -25,6 +25,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -40,7 +41,6 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.myapp.flashcards.AppDatabase
-import com.example.myapp.workout.WorkoutReminder
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -96,8 +96,40 @@ fun MenuScreen(
     val orderedTools = tools.sortedWith(
         compareByDescending<MenuTool> { usage[it.id] ?: 0 }.thenBy { it.label.deaccented() }
     )
+    // The big rows sort among themselves the same way, keeping this order between equal counts.
+    val bigTools = listOf("notes", "music", "flashcards", "gallery").sortedByDescending { usage[it] ?: 0 }
     val bigFontSize = 21.sp
     val bigRightWidth = 70.dp
+
+    fun open(id: String, action: () -> Unit) {
+        scope.launch { usageStore.recordClick(id) }
+        action()
+    }
+    fun showOpens(id: String, label: String) {
+        val count = usage[id] ?: 0
+        val text = if (count == 0) "$label: never opened" else "$label: opened $count time${plural(count)}"
+        Toast.makeText(context, text, Toast.LENGTH_SHORT).show()
+    }
+
+    // The right half shows how many cards are due right now instead of a play icon.
+    // Cards come due while the menu sits open (the app returns to it when idle), so the
+    // count is requeried every minute rather than only when the cards themselves change.
+    var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(60_000)
+            now = System.currentTimeMillis()
+        }
+    }
+    var dueCount by remember { mutableIntStateOf(context.flashcardRepository.lastDueCount ?: 0) }
+    LaunchedEffect(now) {
+        context.flashcardRepository.observeDueCount(now).collect { dueCount = it }
+    }
+    val pinDao = remember { AppDatabase.get(context).pinnedMediaItemDao() }
+    val pinnedRows by remember { pinDao.observePinned() }.collectAsState(initial = null)
+    val somethingPinned = pinnedRows?.isNotEmpty() ?: lastSomethingPinned
+    lastSomethingPinned = somethingPinned
+    val journalUnread by context.journalRepository.unread.collectAsState()
 
     // No scroll: the rows share the screen height, the big tools a little taller than the grid's.
     Column(
@@ -124,71 +156,62 @@ fun MenuScreen(
                 )
             }
         }
-        SplitMyButton(
-            text = "Notes",
-            rightIcon = Icons.Default.Checklist,
-            modifier = Modifier.weight(BIG_ROW_WEIGHT),
-            height = Dp.Unspecified,
-            rightWidth = bigRightWidth,
-            fontSize = bigFontSize,
-            chipIcon = ToolAccents.Notes.icon,
-            chipColor = ToolAccents.Notes.color,
-            rightTint = ToolAccents.Notes.color,
-            onMainClick = onOpenNotes,
-            onRightClick = onOpenTodoNote
-        )
-        DeezerMenuButton(
-            modifier = Modifier.weight(BIG_ROW_WEIGHT),
-            rightWidth = bigRightWidth,
-            fontSize = bigFontSize,
-            onOpenDeezer = onOpenDeezer
-        )
-        // The right half shows how many cards are due right now instead of a play icon.
-        // Cards come due while the menu sits open (the app returns to it when idle), so the
-        // count is requeried every minute rather than only when the cards themselves change.
-        var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
-        LaunchedEffect(Unit) {
-            while (true) {
-                delay(60_000)
-                now = System.currentTimeMillis()
+        bigTools.forEach { id ->
+            key(id) {
+                when (id) {
+                    "notes" -> SplitMyButton(
+                        text = "Notes",
+                        rightIcon = Icons.Default.Checklist,
+                        modifier = Modifier.weight(BIG_ROW_WEIGHT),
+                        height = Dp.Unspecified,
+                        rightWidth = bigRightWidth,
+                        fontSize = bigFontSize,
+                        chipIcon = ToolAccents.Notes.icon,
+                        chipColor = ToolAccents.Notes.color,
+                        rightTint = ToolAccents.Notes.color,
+                        onMainLongClick = { showOpens(id, "Notes") },
+                        onMainClick = { open(id, onOpenNotes) },
+                        onRightClick = { open(id, onOpenTodoNote) }
+                    )
+                    "music" -> DeezerMenuButton(
+                        modifier = Modifier.weight(BIG_ROW_WEIGHT),
+                        rightWidth = bigRightWidth,
+                        fontSize = bigFontSize,
+                        onLongClick = { showOpens(id, "Music") },
+                        onOpenDeezer = { open(id, onOpenDeezer) }
+                    )
+                    "flashcards" -> SplitMyButton(
+                        text = "Flashcards",
+                        modifier = Modifier.weight(BIG_ROW_WEIGHT),
+                        rightText = dueCount.toString(),
+                        rightEnabled = dueCount > 0,
+                        height = Dp.Unspecified,
+                        rightWidth = bigRightWidth,
+                        fontSize = bigFontSize,
+                        chipIcon = ToolAccents.Flashcards.icon,
+                        chipColor = ToolAccents.Flashcards.color,
+                        rightTint = ToolAccents.Flashcards.color,
+                        onMainLongClick = { showOpens(id, "Flashcards") },
+                        onMainClick = { open(id, onOpenFlashcards) },
+                        onRightClick = { open(id, onPlayFlashcards) }
+                    )
+                    "gallery" -> SplitMyButton(
+                        text = "Gallery",
+                        rightIcon = if (somethingPinned) Icons.Default.PushPin else Icons.Default.AccountBalanceWallet,
+                        modifier = Modifier.weight(BIG_ROW_WEIGHT),
+                        height = Dp.Unspecified,
+                        rightWidth = bigRightWidth,
+                        fontSize = bigFontSize,
+                        chipIcon = ToolAccents.Gallery.icon,
+                        chipColor = ToolAccents.Gallery.color,
+                        rightTint = ToolAccents.Gallery.color,
+                        onMainLongClick = { showOpens(id, "Gallery") },
+                        onMainClick = { open(id, onOpenGallery) },
+                        onRightClick = { open(id, if (somethingPinned) onOpenPinnedPictures else onOpenWallet) }
+                    )
+                }
             }
         }
-        var dueCount by remember { mutableIntStateOf(context.flashcardRepository.lastDueCount ?: 0) }
-        LaunchedEffect(now) {
-            context.flashcardRepository.observeDueCount(now).collect { dueCount = it }
-        }
-        SplitMyButton(
-            text = "Flashcards",
-            modifier = Modifier.weight(BIG_ROW_WEIGHT),
-            rightText = dueCount.toString(),
-            rightEnabled = dueCount > 0,
-            height = Dp.Unspecified,
-            rightWidth = bigRightWidth,
-            fontSize = bigFontSize,
-            chipIcon = ToolAccents.Flashcards.icon,
-            chipColor = ToolAccents.Flashcards.color,
-            rightTint = ToolAccents.Flashcards.color,
-            onMainClick = onOpenFlashcards,
-            onRightClick = onPlayFlashcards
-        )
-        val pinDao = remember { AppDatabase.get(context).pinnedMediaItemDao() }
-        val pinnedRows by remember { pinDao.observePinned() }.collectAsState(initial = null)
-        val somethingPinned = pinnedRows?.isNotEmpty() ?: lastSomethingPinned
-        lastSomethingPinned = somethingPinned
-        SplitMyButton(
-            text = "Gallery",
-            rightIcon = if (somethingPinned) Icons.Default.PushPin else Icons.Default.AccountBalanceWallet,
-            modifier = Modifier.weight(BIG_ROW_WEIGHT),
-            height = Dp.Unspecified,
-            rightWidth = bigRightWidth,
-            fontSize = bigFontSize,
-            chipIcon = ToolAccents.Gallery.icon,
-            chipColor = ToolAccents.Gallery.color,
-            rightTint = ToolAccents.Gallery.color,
-            onMainClick = onOpenGallery,
-            onRightClick = if (somethingPinned) onOpenPinnedPictures else onOpenWallet
-        )
-        val journalUnread by context.journalRepository.unread.collectAsState()
         orderedTools.chunked(2).forEach { row ->
             Row(
                 modifier = Modifier.fillMaxWidth().weight(1f),
@@ -203,14 +226,8 @@ fun MenuScreen(
                         highlighted = tool.id == "journal" && journalUnread,
                         chipIcon = tool.accent.icon,
                         chipColor = tool.accent.color,
-                        // A long press on Workout logs a session on the spot, without opening the screen.
-                        onLongClick = if (tool.id == "workout") {
-                            { scope.launch { WorkoutReminder.markDoneWithUndo(context) } }
-                        } else null,
-                        onClick = {
-                            scope.launch { usageStore.recordClick(tool.id) }
-                            onOpenTool(tool.id)
-                        }
+                        onLongClick = { showOpens(tool.id, tool.label) },
+                        onClick = { open(tool.id) { onOpenTool(tool.id) } }
                     )
                 }
                 repeat(2 - row.size) { Spacer(modifier = Modifier.weight(1f)) }
@@ -227,6 +244,7 @@ private fun DeezerMenuButton(
     modifier: Modifier,
     rightWidth: Dp,
     fontSize: TextUnit,
+    onLongClick: () -> Unit,
     onOpenDeezer: () -> Unit
 ) {
     val context = LocalContext.current
@@ -260,6 +278,7 @@ private fun DeezerMenuButton(
         chipColor = ToolAccents.Music.color,
         rightTint = ToolAccents.Music.color,
         rightLoading = isShuffleLoading,
+        onMainLongClick = onLongClick,
         onMainClick = onOpenDeezer,
         onRightClick = {
             if (loaded) {

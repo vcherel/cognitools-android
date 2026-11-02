@@ -50,8 +50,8 @@ Outside that package: `src/` holds the Python asset generators (see the README):
 Root package (shared/misc):
 - `MainActivity.kt`: app entry point; the window, the intents it is launched with, and the locked-over-the-keyguard quick view
 - `AppNavHost.kt`: MainScreen, the whole app's nav graph plus the composition locals and the snackbar host every screen reads
-- `MenuScreen.kt`: the main menu, sized to fill the screen without scrolling; the big tools on top with their own callbacks and color tinted quick actions, the rest a grid of MenuTool (each with its icon and color) ranked by use and opened through one `onOpenTool(route)` (Workout's tile is split, its right half logs a session)
-- `MenuUsage.kt`: MenuUsageStore, the per-tool tap counters that order the menu grid
+- `MenuScreen.kt`: the main menu, sized to fill the screen without scrolling; the big tools on top with their own callbacks and color tinted quick actions, the rest a grid of MenuTool (each with its icon and color) opened through one `onOpenTool(route)`. The big rows and the grid each rank by use, and a long press on any tile toasts its open count
+- `MenuUsage.kt`: MenuUsageStore, the per-tool open counters that order the big rows and the grid
 - `Theme.kt`: ThemeManager (dark mode DataStore), AppTheme, LocalIsDarkMode
 - `MyApplication.kt`: Application class, holds the FlashcardRepository / DeezerRepository / PodcastRepository singletons plus their `Context.<name>Repository` extensions, and the app start housekeeping
 - `Buttons.kt`: shared composables, MyButton, SplitMyButton, MySwitch, ShowAlertDialog, ErrorText, AppDialog, LightIconButton (the one-node icon button for anything repeated per card or line), LightCheckbox (its checkbox counterpart, for the Todo widget and a note's lines), AddItemRow (the gray "New item" placeholder where a new entry goes: the Todo widget, the Todo list note, the Calendar day). The buttons are all built on RaisedSurface, the custom dialogs all on AppDialog

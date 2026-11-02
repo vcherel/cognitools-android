@@ -304,6 +304,7 @@ fun SplitMyButton(
     chipIcon: ImageVector? = null,
     chipColor: Color = Color.Gray,
     rightTint: Color? = null,
+    onMainLongClick: (() -> Unit)? = null,
     onMainClick: () -> Unit,
     onRightClick: () -> Unit
 ) {
@@ -314,6 +315,7 @@ fun SplitMyButton(
         RaisedButton(
             modifier = Modifier.weight(1f),
             height = height,
+            onLongClick = onMainLongClick,
             onClick = onMainClick
         ) { textColor ->
             ButtonLabel(text, textColor, fontSize, chipIcon, chipColor, highlighted = false)
