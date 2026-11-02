@@ -37,8 +37,9 @@ def ensure_fonts(folder: Path):
 
 
 def render(page: Path, size: str, profile: Path) -> Path:
-    out = page.with_suffix(".png")
-    subprocess.run(
+    out = page.resolve().with_suffix(".png")
+    out.unlink(missing_ok=True)
+    result = subprocess.run(
         [
             "firefox",
             "--headless",
@@ -52,7 +53,10 @@ def render(page: Path, size: str, profile: Path) -> Path:
             page.resolve().as_uri(),
         ],
         capture_output=True,
+        text=True,
     )
+    if not out.exists():
+        raise SystemExit(f"firefox wrote no {out}:\n{result.stdout}{result.stderr}")
     return out
 
 
