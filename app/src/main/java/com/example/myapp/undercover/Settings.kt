@@ -190,7 +190,7 @@ fun SettingsScreen(
                 modifier = Modifier.padding(end = 25.dp)
             )
             MySwitch(
-                isEnabled = state.settings.randomComposition,
+                checked = state.settings.randomComposition,
                 onToggle = { checked ->
                     onSettingsChange(state.copy(settings = state.settings.copy(randomComposition = checked)))
                 },
@@ -277,7 +277,7 @@ fun SettingsScreen(
                 modifier = Modifier.padding(end = 25.dp)
             )
             MySwitch(
-                isEnabled = state.settings.impostorsKnowRole,
+                checked = state.settings.impostorsKnowRole,
                 onToggle = { checked ->
                     onSettingsChange(state.copy(settings = state.settings.copy(impostorsKnowRole = checked)))
                 },

@@ -42,7 +42,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.myapp.AppDialog
@@ -82,13 +84,12 @@ fun WorkoutScreen(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val stateFlow = remember(context) { WorkoutReminder.state(context) }
-    val state by stateFlow.collectAsState(initial = null)
+    val state by remember(context) { WorkoutReminder.state(context) }.collectAsState(initial = null)
     val program by remember(context) { WorkoutStore.program(context) }.collectAsState(initial = WorkoutProgram.DEFAULT)
     val xp by remember(context) { WorkoutStore.xp(context) }.collectAsState(initial = 0)
     val records by remember(context) { WorkoutStore.records(context) }.collectAsState(initial = emptyList())
     var resumable by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) { resumable = WorkoutStore.loadSession(context) != null }
+    LaunchedEffect(program) { resumable = WorkoutStore.loadSession(context, program) != null }
     var editingWeekend by remember { mutableStateOf<Boolean?>(null) }
     var pickingDay by rememberSaveable { mutableStateOf(pickDayInitially) }
 
@@ -106,7 +107,7 @@ fun WorkoutScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Card(onClick = { pickingDay = true }) {
+        WorkoutCard(onClick ={ pickingDay = true }) {
             val remindAt = current.remindAt?.toLocalDateTime()
             Text(
                 if (current.due) "It's time!" else "Next reminder",
@@ -141,7 +142,7 @@ fun WorkoutScreen(
         }
 
         val level = levelOf(xp)
-        Card {
+        WorkoutCard {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text("Level ${level.level}", fontSize = 20.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
                 Text(
@@ -150,18 +151,15 @@ fun WorkoutScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            Box(
-                Modifier.padding(top = 8.dp).fillMaxWidth().height(12.dp)
-                    .background(MaterialTheme.colorScheme.background, RoundedCornerShape(6.dp))
-            ) {
-                Box(
-                    Modifier.fillMaxWidth(level.into / level.needed.toFloat()).height(12.dp)
-                        .background(ToolAccents.Workout.color, RoundedCornerShape(6.dp))
-                )
-            }
+            LevelBar(
+                level.into / level.needed.toFloat(),
+                ToolAccents.Workout.color,
+                12.dp,
+                Modifier.padding(top = 8.dp)
+            )
         }
 
-        Card(onClick = onOpenProgram) {
+        WorkoutCard(onClick =onOpenProgram) {
             Text("Program", style = MaterialTheme.typography.titleMedium)
             val count = program.exercises.size
             Text(
@@ -181,15 +179,15 @@ fun WorkoutScreen(
             }
         }
 
-        Card {
+        WorkoutCard {
             Text("Reminders", style = MaterialTheme.typography.titleMedium)
-            TimeRow("Weekdays", current.times.weekday) { editingWeekend = false }
-            TimeRow("Weekends", current.times.weekend) { editingWeekend = true }
+            ValueRow("Weekdays", timeFormat.format(current.times.weekday)) { editingWeekend = false }
+            ValueRow("Weekends", timeFormat.format(current.times.weekend)) { editingWeekend = true }
         }
 
         val bests = recordProgression(records, program.recordKey())
         if (bests.isNotEmpty()) {
-            Card {
+            WorkoutCard {
                 Text("Records", style = MaterialTheme.typography.titleMedium)
                 bests.take(HISTORY_SHOWN).forEachIndexed { i, record ->
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -208,18 +206,18 @@ fun WorkoutScreen(
             }
         }
 
-        Card {
+        WorkoutCard {
             Text("History", style = MaterialTheme.typography.titleMedium)
             val month = sessionsInMonth(sessions, today)
             val year = sessionsInYear(sessions, today)
             Text("This month: $month session${plural(month)}", style = MaterialTheme.typography.bodyLarge)
             Text("This year: $year session${plural(year)}", style = MaterialTheme.typography.bodyLarge)
-            if (sessions.isNotEmpty()) Spacer(Modifier.padding(top = 4.dp))
+            if (sessions.isNotEmpty()) Spacer(Modifier.height(4.dp))
             sessions.take(HISTORY_SHOWN).forEach {
                 Text(formatDay(it), style = MaterialTheme.typography.bodyMedium)
             }
         }
-        Spacer(Modifier.padding(bottom = 8.dp))
+        Spacer(Modifier.height(8.dp))
     }
 
     editingWeekend?.let { weekend ->
@@ -249,7 +247,7 @@ fun WorkoutScreen(
 
 /** The tool's rounded card, its content centered. */
 @Composable
-internal fun Card(
+internal fun WorkoutCard(
     modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit
@@ -269,8 +267,18 @@ internal fun Card(
     }
 }
 
+/** The [fraction] filled part of a rounded bar, on the screen's background color. */
 @Composable
-private fun TimeRow(label: String, time: LocalTime, onClick: () -> Unit) {
+internal fun LevelBar(fraction: Float, color: Color, height: Dp, modifier: Modifier = Modifier) {
+    val shape = RoundedCornerShape(height / 2)
+    Box(modifier.fillMaxWidth().height(height).background(MaterialTheme.colorScheme.background, shape)) {
+        Box(Modifier.fillMaxWidth(fraction).height(height).background(color, shape))
+    }
+}
+
+/** A tappable setting line: its label, its value in bold at the end. */
+@Composable
+internal fun ValueRow(label: String, value: String, onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -279,7 +287,7 @@ private fun TimeRow(label: String, time: LocalTime, onClick: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
-        Text(timeFormat.format(time), fontSize = 22.sp, fontWeight = FontWeight.Bold)
+        Text(value, fontSize = 22.sp, fontWeight = FontWeight.Bold)
     }
 }
 

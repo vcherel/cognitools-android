@@ -525,7 +525,7 @@ private fun CardFace(
 
 /** The card's record under it: right answers out of all, as a bar, its current streak and when it was last seen. */
 @Composable
-private fun CardStats(card: FlashcardElement, greenColor: Color, redColor: Color) {
+internal fun CardStats(card: FlashcardElement, greenColor: Color, redColor: Color) {
     val played = card.totalWins + card.totalLosses
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
     Column(

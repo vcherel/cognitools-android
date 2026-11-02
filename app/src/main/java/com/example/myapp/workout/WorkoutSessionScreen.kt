@@ -69,6 +69,7 @@ import com.example.myapp.ToolAccents
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.ceil
+import kotlin.math.sin
 import kotlin.random.Random
 
 private val BossRed = Color(0xFFC94444)
@@ -128,18 +129,19 @@ fun WorkoutSessionScreen(onBack: () -> Unit) {
     val totalXp = xp ?: return
     val allRecords = records ?: return
     val steps = remember(shownProgram) { sessionSteps(shownProgram) }
-
-    LaunchedEffect(steps) {
-        val saved = WorkoutStore.loadSession(context)
-        progress = saved?.takeIf { it.step < steps.size } ?: SessionProgress(System.currentTimeMillis()).also {
-            WorkoutStore.saveSession(context, it)
-        }
-    }
-    val current = progress ?: return
     if (steps.isEmpty()) {
         LaunchedEffect(Unit) { onBack() }
         return
     }
+
+    LaunchedEffect(steps) {
+        val saved = WorkoutStore.loadSession(context, shownProgram)
+        progress = saved?.takeIf { it.step < steps.size }
+            ?: SessionProgress(System.currentTimeMillis(), shownProgram.recordKey()).also {
+                WorkoutStore.saveSession(context, it)
+            }
+    }
+    val current = progress ?: return
 
     fun update(next: SessionProgress) {
         progress = next
@@ -163,12 +165,11 @@ fun WorkoutSessionScreen(onBack: () -> Unit) {
 
     val finishedAt = current.finishedAt
     if (finishedAt != null) {
-        val key = shownProgram.recordKey()
-        val best = recordProgression(allRecords, key).firstOrNull()?.totalMs
+        val best = recordProgression(allRecords, current.programKey).firstOrNull()?.totalMs
         val total = finishedAt - current.startedAt
         VictoryContent(current, shownProgram, totalXp, newRecord = best != null && total < best, onBack = onBack) {
             scope.launch {
-                WorkoutStore.finish(context, sessionXp(shownProgram), SessionRecord(finishedAt, total, key))
+                WorkoutStore.finish(context, sessionXp(shownProgram), SessionRecord(finishedAt, total, current.programKey))
                 onBack()
             }
         }
@@ -279,7 +280,7 @@ private fun BossCard(program: WorkoutProgram, slot: Int, level: Int) {
             pop.animateTo(0f, tween(1200))
         }
     }
-    Card {
+    WorkoutCard {
         Box(Modifier.fillMaxWidth()) {
             Column {
                 Row(Modifier.fillMaxWidth()) {
@@ -326,7 +327,7 @@ private fun ColumnScope.WorkContent(
     onStart: () -> Unit,
     onDone: () -> Unit
 ) {
-    Card(Modifier.weight(1f), content = {
+    WorkoutCard(Modifier.weight(1f)) {
         Column(
             Modifier.fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -341,7 +342,7 @@ private fun ColumnScope.WorkContent(
             )
             if (exercise.type == ExerciseType.Timed) TimedRing(exercise, progress, now, cues)
         }
-    })
+    }
 
     when {
         exercise.type == ExerciseType.Timed && progress.timerStartedAt == null -> MyButton(text = "Start") {
@@ -359,7 +360,7 @@ private fun TimedRing(exercise: Exercise, progress: SessionProgress, now: Long, 
     val total = exercise.seconds.coerceAtLeast(1) * 1000L
     val started = progress.timerStartedAt
     if (started == null) {
-        Ring(1f, LocalToolAccent.current?.color ?: Color.Gray, formatClock(total), null)
+        Ring(1f, LocalToolAccent.current!!.color, formatClock(total), null)
         return
     }
     val sinceStart = now - started
@@ -371,7 +372,7 @@ private fun TimedRing(exercise: Exercise, progress: SessionProgress, now: Long, 
     LaunchedEffect(started, left == 0L) { if (left == 0L) cues.end() }
     Ring(
         fraction = if (leadIn) 1f else left / total.toFloat(),
-        color = LocalToolAccent.current?.color ?: Color.Gray,
+        color = LocalToolAccent.current!!.color,
         label = if (leadIn) "$leadSecond" else formatClock(left + 999),
         sub = if (leadIn) "Get ready" else "of ${formatClock(total)}"
     )
@@ -413,18 +414,16 @@ private fun ColumnScope.RestContent(
             1, 2, 3 -> cues.tick()
         }
     }
-    Card(Modifier.weight(1f)) {
+    WorkoutCard(Modifier.weight(1f)) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Ring(left / total.toFloat(), MaterialTheme.colorScheme.onSurfaceVariant, formatClock(left + 999), null)
         }
     }
-    Card {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text("Next", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text(step.next.name, fontSize = 22.sp, fontWeight = FontWeight.Medium)
-                Text(step.next.target, style = MaterialTheme.typography.bodyLarge)
-            }
+    WorkoutCard {
+        Column(Modifier.fillMaxWidth()) {
+            Text("Next", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(step.next.name, fontSize = 22.sp, fontWeight = FontWeight.Medium)
+            Text(step.next.target, style = MaterialTheme.typography.bodyLarge)
         }
     }
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -452,7 +451,7 @@ private fun VictoryContent(
         delay(400)
         bar.animateTo(after.into / after.needed.toFloat(), tween(1400))
     }
-    val accent = LocalToolAccent.current?.color ?: Color.Gray
+    val accent = LocalToolAccent.current!!.color
     val rounds = progress.roundDurations()
 
     Box(Modifier.fillMaxSize()) {
@@ -463,7 +462,7 @@ private fun VictoryContent(
                 verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically)
             ) {
                 Spacer(Modifier.weight(1f))
-                Card {
+                WorkoutCard {
                     Text(
                         if (program.rounds > 1) "Boss defeated" else "Session done",
                         style = MaterialTheme.typography.titleMedium
@@ -476,7 +475,7 @@ private fun VictoryContent(
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     rounds.forEachIndexed { i, ms ->
                         val boss = isBossRound(i, program)
-                        Card(Modifier.weight(1f)) {
+                        WorkoutCard(Modifier.weight(1f)) {
                             Text(
                                 if (boss) "Boss" else "Round ${i + 1}",
                                 style = MaterialTheme.typography.bodyLarge,
@@ -486,7 +485,7 @@ private fun VictoryContent(
                         }
                     }
                 }
-                Card {
+                WorkoutCard {
                     Row(Modifier.fillMaxWidth()) {
                         Text(
                             if (levelUp) "Level up: ${after.level}" else "Level ${after.level}",
@@ -496,19 +495,13 @@ private fun VictoryContent(
                         )
                         Text("+$gain XP", fontSize = 20.sp, fontWeight = FontWeight.Medium, color = accent)
                     }
-                    Box(
-                        Modifier.padding(top = 10.dp, bottom = 6.dp).fillMaxWidth().height(14.dp)
-                            .background(MaterialTheme.colorScheme.background, RoundedCornerShape(7.dp))
-                    ) {
-                        Box(Modifier.fillMaxWidth(bar.value).height(14.dp).background(accent, RoundedCornerShape(7.dp)))
-                    }
-                    Row(Modifier.fillMaxWidth()) {
-                        Text(
-                            "${after.into} / ${after.needed} XP",
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
+                    LevelBar(bar.value, accent, 14.dp, Modifier.padding(top = 10.dp, bottom = 6.dp))
+                    Text(
+                        "${after.into} / ${after.needed} XP",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.fillMaxWidth()
+                    )
                 }
                 Spacer(Modifier.weight(1f))
                 MyButton(text = "Finish", highlighted = true, onClick = onFinish)
@@ -549,7 +542,7 @@ private fun Confetti() {
             val t = ((time.value - p.delay) / (1f - p.delay)).coerceIn(0f, 1f)
             if (t <= 0f || t >= 1f) return@forEach
             val y = -20f + t * p.speed * size.height * 1.3f
-            val x = p.x * size.width + kotlin.math.sin(t * 12f + p.spin) * 18f
+            val x = p.x * size.width + sin(t * 12f + p.spin) * 18f
             val w = p.w * density
             val h = p.h * density
             rotate(p.spin * t, Offset(x, y)) {

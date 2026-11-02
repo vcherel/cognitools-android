@@ -70,10 +70,12 @@ fun bossName(level: Int) = BOSSES[(level - 1).mod(BOSSES.size)]
  * A session in progress, saved on every change so a killed process resumes it. [stepStartedAt]
  * drives the rest countdown from the wall clock, [timerStartedAt] the timed exercise once its Start
  * is tapped; [extraRest] is what +15 s added to the current rest; [roundEnds] holds when each
- * finished round ended.
+ * finished round ended; [programKey] is the [recordKey] of the program it runs, so an edited
+ * program starts a new session.
  */
 data class SessionProgress(
     val startedAt: Long,
+    val programKey: String,
     val step: Int = 0,
     val stepStartedAt: Long = startedAt,
     val timerStartedAt: Long? = null,
@@ -97,6 +99,7 @@ fun SessionProgress.advance(steps: List<SessionStep>, now: Long): SessionProgres
 
 fun SessionProgress.toJson(): String = JSONObject()
     .put("startedAt", startedAt)
+    .put("programKey", programKey)
     .put("step", step)
     .put("stepStartedAt", stepStartedAt)
     .put("extraRest", extraRest)
@@ -110,6 +113,7 @@ fun sessionFromJson(text: String): SessionProgress? = runCatching {
     val ends = o.getJSONArray("roundEnds")
     SessionProgress(
         startedAt = o.getLong("startedAt"),
+        programKey = o.getString("programKey"),
         step = o.getInt("step"),
         stepStartedAt = o.getLong("stepStartedAt"),
         timerStartedAt = if (o.has("timerStartedAt")) o.getLong("timerStartedAt") else null,

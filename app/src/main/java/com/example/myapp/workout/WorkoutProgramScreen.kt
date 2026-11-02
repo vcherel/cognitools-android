@@ -72,7 +72,7 @@ private fun ExerciseType.label() = when (this) {
 private fun formatRest(seconds: Int) = "%d:%02d".format(seconds / 60, seconds % 60)
 
 /** Which setting a number dialog edits. */
-private enum class NumberField(val title: String) {
+private enum class ProgramNumber(val title: String) {
     Rounds("Rounds"),
     Rest("Rest after an exercise (s)"),
     RoundRest("Rest between rounds (s)")
@@ -87,7 +87,7 @@ fun WorkoutProgramScreen(onBack: () -> Unit) {
     var program by remember { mutableStateOf<WorkoutProgram?>(null) }
     LaunchedEffect(saved) { if (saved != null) program = saved }
     var editing by remember { mutableStateOf<Int?>(null) }
-    var editingNumber by remember { mutableStateOf<NumberField?>(null) }
+    var editingNumber by remember { mutableStateOf<ProgramNumber?>(null) }
     var draggedIndex by remember { mutableIntStateOf(-1) }
     var dragOffset by remember { mutableFloatStateOf(0f) }
     val rowHeightPx = with(LocalDensity.current) { ROW_HEIGHT.toPx() }
@@ -163,7 +163,7 @@ fun WorkoutProgramScreen(onBack: () -> Unit) {
                         Icon(
                             exercise.type.icon(),
                             contentDescription = exercise.type.label(),
-                            tint = LocalToolAccent.current?.color ?: MaterialTheme.colorScheme.onSurfaceVariant
+                            tint = LocalToolAccent.current!!.color
                         )
                     }
                 }
@@ -174,10 +174,10 @@ fun WorkoutProgramScreen(onBack: () -> Unit) {
                 )
             }
 
-            Card {
-                NumberRow("Rounds", "${current.rounds}") { editingNumber = NumberField.Rounds }
-                NumberRow("Rest after an exercise", formatRest(current.restSeconds)) { editingNumber = NumberField.Rest }
-                NumberRow("Rest between rounds", formatRest(current.roundRestSeconds)) { editingNumber = NumberField.RoundRest }
+            WorkoutCard {
+                ValueRow("Rounds", "${current.rounds}") { editingNumber = ProgramNumber.Rounds }
+                ValueRow("Rest after an exercise", formatRest(current.restSeconds)) { editingNumber = ProgramNumber.Rest }
+                ValueRow("Rest between rounds", formatRest(current.roundRestSeconds)) { editingNumber = ProgramNumber.RoundRest }
             }
         }
 
@@ -207,19 +207,19 @@ fun WorkoutProgramScreen(onBack: () -> Unit) {
             NumberDialog(
                 title = field.title,
                 initial = when (field) {
-                    NumberField.Rounds -> current.rounds
-                    NumberField.Rest -> current.restSeconds
-                    NumberField.RoundRest -> current.roundRestSeconds
+                    ProgramNumber.Rounds -> current.rounds
+                    ProgramNumber.Rest -> current.restSeconds
+                    ProgramNumber.RoundRest -> current.roundRestSeconds
                 },
-                min = if (field == NumberField.Rounds) 1 else 0,
+                min = if (field == ProgramNumber.Rounds) 1 else 0,
                 onDismiss = { editingNumber = null },
                 onConfirm = { value ->
                     editingNumber = null
                     save(
                         when (field) {
-                            NumberField.Rounds -> current.copy(rounds = value)
-                            NumberField.Rest -> current.copy(restSeconds = value)
-                            NumberField.RoundRest -> current.copy(roundRestSeconds = value)
+                            ProgramNumber.Rounds -> current.copy(rounds = value)
+                            ProgramNumber.Rest -> current.copy(restSeconds = value)
+                            ProgramNumber.RoundRest -> current.copy(roundRestSeconds = value)
                         }
                     )
                 }
@@ -229,18 +229,7 @@ fun WorkoutProgramScreen(onBack: () -> Unit) {
 }
 
 @Composable
-private fun NumberRow(label: String, value: String, onClick: () -> Unit) {
-    Row(
-        Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
-        Text(value, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-    }
-}
-
-@Composable
-private fun NumberField(label: String, value: String, onChange: (String) -> Unit, modifier: Modifier = Modifier) {
+private fun DigitsField(label: String, value: String, onChange: (String) -> Unit, modifier: Modifier = Modifier) {
     OutlinedTextField(
         value = value,
         onValueChange = { text -> onChange(text.filter { it.isDigit() }.take(4)) },
@@ -257,7 +246,7 @@ private fun NumberDialog(title: String, initial: Int, min: Int, onDismiss: () ->
     val value = text.toIntOrNull()
     AppDialog(onDismiss = onDismiss) {
         Text(title, style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(bottom = 16.dp))
-        NumberField("Value", text, { text = it })
+        DigitsField("Value", text, { text = it })
         Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.End) {
             TextButton(onClick = onDismiss) { Text("Cancel") }
             TextButton(onClick = { value?.let(onConfirm) }, enabled = value != null && value >= min) { Text("Ok") }
@@ -279,7 +268,7 @@ private fun ExerciseDialog(
 
     val secondsValue = seconds.toIntOrNull() ?: 0
     val valid = name.isNotBlank() && (type != ExerciseType.Timed || secondsValue > 0)
-    val accent = LocalToolAccent.current?.color ?: Color.Gray
+    val accent = LocalToolAccent.current!!.color
 
     AppDialog(onDismiss = onDismiss) {
         Text("Exercise", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(bottom = 12.dp))
@@ -321,7 +310,7 @@ private fun ExerciseDialog(
                     }
                 }
             }
-            if (type == ExerciseType.Timed) NumberField("Duration (s)", seconds, { seconds = it })
+            if (type == ExerciseType.Timed) DigitsField("Duration (s)", seconds, { seconds = it })
         }
         Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             if (onDelete != null) {

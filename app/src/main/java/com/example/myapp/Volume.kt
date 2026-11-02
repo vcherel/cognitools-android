@@ -228,7 +228,7 @@ fun VolumeBoosterScreen(onBack: () -> Unit) {
 
         MySwitch(
             text = "Boost",
-            isEnabled = boostState.running,
+            checked = boostState.running,
             onToggle = { enabled ->
                 if (enabled) {
                     ContextCompat.startForegroundService(

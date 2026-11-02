@@ -87,7 +87,7 @@ import java.io.File
 import java.util.Locale
 
 /** What a Cut or Copy left waiting for a Paste in some other folder. */
-private data class Clipboard(val files: List<File>, val move: Boolean)
+private data class FileClipboard(val files: List<File>, val move: Boolean)
 
 /**
  * The file explorer. One folder at a time, opening on Téléchargements, with a breadcrumb up to the
@@ -107,7 +107,7 @@ fun FilesScreen(onBack: () -> Unit, onOpenMedia: (Long) -> Unit) {
     var entries by remember { mutableStateOf<List<FileEntry>?>(null) }
     var refreshKey by remember { mutableIntStateOf(0) }
     var selected by remember { mutableStateOf<Set<String>>(emptySet()) }
-    var clipboard by remember { mutableStateOf<Clipboard?>(null) }
+    var clipboard by remember { mutableStateOf<FileClipboard?>(null) }
     var busy by remember { mutableStateOf(false) }
 
     // Which app opens which extension, chosen the first time a file of that kind was opened.
@@ -226,11 +226,11 @@ fun FilesScreen(onBack: () -> Unit, onOpenMedia: (Long) -> Unit) {
                 },
                 onRename = { toRename = selectedEntries.singleOrNull() },
                 onCut = {
-                    clipboard = Clipboard(selectedEntries.map { it.file }, move = true)
+                    clipboard = FileClipboard(selectedEntries.map { it.file }, move = true)
                     selected = emptySet()
                 },
                 onCopy = {
-                    clipboard = Clipboard(selectedEntries.map { it.file }, move = false)
+                    clipboard = FileClipboard(selectedEntries.map { it.file }, move = false)
                     selected = emptySet()
                 },
                 onDelete = { confirmDelete = true },
@@ -462,7 +462,7 @@ private fun SelectionBar(
 }
 
 @Composable
-private fun ClipboardBar(clipboard: Clipboard, onPaste: () -> Unit, onCancel: () -> Unit) {
+private fun ClipboardBar(clipboard: FileClipboard, onPaste: () -> Unit, onCancel: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()

@@ -37,7 +37,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.myapp.flashcards.AppDatabase
@@ -47,15 +46,34 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 
 // One menu tool. [id] is what the usage counters are keyed by, and a small tool's nav route.
-// A big tool takes a full row with its quick action beside it.
-private class MenuTool(val id: String, val label: String, val accent: ToolAccent, val big: Boolean = false)
+private class MenuTool(val id: String, val label: String, val accent: ToolAccent)
 
+// Each takes a full row with its quick action beside it.
 private val BigTools = listOf(
-    MenuTool("notes", "Notes", ToolAccents.Notes, big = true),
-    MenuTool("music", "Music", ToolAccents.Music, big = true),
-    MenuTool("flashcards", "Flashcards", ToolAccents.Flashcards, big = true),
-    MenuTool("gallery", "Gallery", ToolAccents.Gallery, big = true)
+    MenuTool("notes", "Notes", ToolAccents.Notes),
+    MenuTool("music", "Music", ToolAccents.Music),
+    MenuTool("flashcards", "Flashcards", ToolAccents.Flashcards),
+    MenuTool("gallery", "Gallery", ToolAccents.Gallery)
 )
+
+private val SmallTools = listOf(
+    MenuTool("weather", "Weather", ToolAccents.Weather),
+    MenuTool("motsFleches", "Crosswords", ToolAccents.Crosswords),
+    MenuTool("translate", "Translate", ToolAccents.Translate),
+    MenuTool("reader", "Reader", ToolAccents.Reader),
+    MenuTool("volume", "Volume", ToolAccents.Volume),
+    MenuTool("undercover", "Undercover", ToolAccents.Undercover),
+    MenuTool("wikipedia", "Wiki", ToolAccents.Wiki),
+    MenuTool("random", "Random", ToolAccents.Random),
+    MenuTool("files", "Files", ToolAccents.Files),
+    MenuTool("journal", "Journal", ToolAccents.Journal),
+    MenuTool("mail", "Mail", ToolAccents.Mail),
+    MenuTool("workout", "Workout", ToolAccents.Workout),
+    MenuTool("calendar", "Calendar", ToolAccents.Calendar),
+    MenuTool("recipes", "Recipes", ToolAccents.Recipes)
+)
+
+private val MenuTool.big get() = this in BigTools
 
 // Splits the ranked tools into rows: a big tool alone, small ones in pairs. A small tool left alone
 // before a big one takes the next small tool up with it, so no grid row is half empty.
@@ -73,6 +91,8 @@ private fun menuRows(ranked: List<MenuTool>): List<List<MenuTool>> {
 // Big tool heights against a grid row's, and the gap that leaves room for the raised edge.
 private const val BIG_ROW_WEIGHT = 1.25f
 private val RowGap = 16.dp
+private val BigFontSize = 21.sp
+private val BigRightWidth = 70.dp
 
 // What the Gallery tile showed last, so coming back to the menu does not flash the wallet icon
 // before the pinned query answers.
@@ -97,30 +117,12 @@ fun MenuScreen(
     val usageStore = remember(context) { MenuUsageStore(context) }
     val usage by usageStore.counts.collectAsState(initial = emptyMap())
 
-    val tools = listOf(
-        MenuTool("weather", "Weather", ToolAccents.Weather),
-        MenuTool("motsFleches", "Crosswords", ToolAccents.Crosswords),
-        MenuTool("translate", "Translate", ToolAccents.Translate),
-        MenuTool("reader", "Reader", ToolAccents.Reader),
-        MenuTool("volume", "Volume", ToolAccents.Volume),
-        MenuTool("undercover", "Undercover", ToolAccents.Undercover),
-        MenuTool("wikipedia", "Wiki", ToolAccents.Wiki),
-        MenuTool("random", "Random", ToolAccents.Random),
-        MenuTool("files", "Files", ToolAccents.Files),
-        MenuTool("journal", "Journal", ToolAccents.Journal),
-        MenuTool("mail", "Mail", ToolAccents.Mail),
-        MenuTool("workout", "Workout", ToolAccents.Workout),
-        MenuTool("calendar", "Calendar", ToolAccents.Calendar),
-        MenuTool("recipes", "Recipes", ToolAccents.Recipes)
-    )
     // Big and small tools ranked together, most used first, A to Z between equal counts.
     val rows = menuRows(
-        (BigTools + tools).sortedWith(
+        (BigTools + SmallTools).sortedWith(
             compareByDescending<MenuTool> { usage[it.id] ?: 0 }.thenBy { it.label.deaccented() }
         )
     )
-    val bigFontSize = 21.sp
-    val bigRightWidth = 70.dp
 
     fun open(id: String, action: () -> Unit) {
         scope.launch { usageStore.recordClick(id) }
@@ -178,9 +180,10 @@ fun MenuScreen(
             }
         }
         rows.forEach { row ->
-            val id = row.first().id
-            if (!row.first().big) key(id) {
-                Row(
+            val lead = row.first()
+            val id = lead.id
+            key(id) {
+                if (!lead.big) Row(
                     modifier = Modifier.fillMaxWidth().weight(1f),
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
@@ -198,57 +201,54 @@ fun MenuScreen(
                         )
                     }
                     repeat(2 - row.size) { Spacer(modifier = Modifier.weight(1f)) }
-                }
-            } else key(id) {
-                when (id) {
+                } else when (id) {
                     "notes" -> SplitMyButton(
-                        text = "Notes",
+                        text = lead.label,
                         rightIcon = Icons.Default.Checklist,
                         modifier = Modifier.weight(BIG_ROW_WEIGHT),
                         height = Dp.Unspecified,
-                        rightWidth = bigRightWidth,
-                        fontSize = bigFontSize,
-                        chipIcon = ToolAccents.Notes.icon,
-                        chipColor = ToolAccents.Notes.color,
-                        rightTint = ToolAccents.Notes.color,
-                        onMainLongClick = { showOpens(id, "Notes") },
+                        rightWidth = BigRightWidth,
+                        fontSize = BigFontSize,
+                        chipIcon = lead.accent.icon,
+                        chipColor = lead.accent.color,
+                        rightTint = lead.accent.color,
+                        onMainLongClick = { showOpens(id, lead.label) },
                         onMainClick = { open(id, onOpenNotes) },
                         onRightClick = { open(id, onOpenTodoNote) }
                     )
                     "music" -> DeezerMenuButton(
+                        tool = lead,
                         modifier = Modifier.weight(BIG_ROW_WEIGHT),
-                        rightWidth = bigRightWidth,
-                        fontSize = bigFontSize,
-                        onLongClick = { showOpens(id, "Music") },
+                        onLongClick = { showOpens(id, lead.label) },
                         onRightTap = { scope.launch { usageStore.recordClick(id) } },
                         onOpenDeezer = { open(id, onOpenDeezer) }
                     )
                     "flashcards" -> SplitMyButton(
-                        text = "Flashcards",
+                        text = lead.label,
                         modifier = Modifier.weight(BIG_ROW_WEIGHT),
                         rightText = dueCount.toString(),
                         rightEnabled = dueCount > 0,
                         height = Dp.Unspecified,
-                        rightWidth = bigRightWidth,
-                        fontSize = bigFontSize,
-                        chipIcon = ToolAccents.Flashcards.icon,
-                        chipColor = ToolAccents.Flashcards.color,
-                        rightTint = ToolAccents.Flashcards.color,
-                        onMainLongClick = { showOpens(id, "Flashcards") },
+                        rightWidth = BigRightWidth,
+                        fontSize = BigFontSize,
+                        chipIcon = lead.accent.icon,
+                        chipColor = lead.accent.color,
+                        rightTint = lead.accent.color,
+                        onMainLongClick = { showOpens(id, lead.label) },
                         onMainClick = { open(id, onOpenFlashcards) },
                         onRightClick = { open(id, onPlayFlashcards) }
                     )
                     "gallery" -> SplitMyButton(
-                        text = "Gallery",
+                        text = lead.label,
                         rightIcon = if (somethingPinned) Icons.Default.PushPin else Icons.Default.AccountBalanceWallet,
                         modifier = Modifier.weight(BIG_ROW_WEIGHT),
                         height = Dp.Unspecified,
-                        rightWidth = bigRightWidth,
-                        fontSize = bigFontSize,
-                        chipIcon = ToolAccents.Gallery.icon,
-                        chipColor = ToolAccents.Gallery.color,
-                        rightTint = ToolAccents.Gallery.color,
-                        onMainLongClick = { showOpens(id, "Gallery") },
+                        rightWidth = BigRightWidth,
+                        fontSize = BigFontSize,
+                        chipIcon = lead.accent.icon,
+                        chipColor = lead.accent.color,
+                        rightTint = lead.accent.color,
+                        onMainLongClick = { showOpens(id, lead.label) },
                         onMainClick = { open(id, onOpenGallery) },
                         onRightClick = { open(id, if (somethingPinned) onOpenPinnedPictures else onOpenWallet) }
                     )
@@ -263,9 +263,8 @@ fun MenuScreen(
 // is actually playing, since connecting to the service and resolving the first stream takes a moment.
 @Composable
 private fun DeezerMenuButton(
+    tool: MenuTool,
     modifier: Modifier,
-    rightWidth: Dp,
-    fontSize: TextUnit,
     onLongClick: () -> Unit,
     onRightTap: () -> Unit,
     onOpenDeezer: () -> Unit
@@ -287,7 +286,7 @@ private fun DeezerMenuButton(
     }
 
     SplitMyButton(
-        text = "Music",
+        text = tool.label,
         rightIcon = when {
             !loaded -> Icons.Default.Shuffle
             isPlaying -> Icons.Default.Pause
@@ -295,11 +294,11 @@ private fun DeezerMenuButton(
         },
         modifier = modifier,
         height = Dp.Unspecified,
-        rightWidth = rightWidth,
-        fontSize = fontSize,
-        chipIcon = ToolAccents.Music.icon,
-        chipColor = ToolAccents.Music.color,
-        rightTint = ToolAccents.Music.color,
+        rightWidth = BigRightWidth,
+        fontSize = BigFontSize,
+        chipIcon = tool.accent.icon,
+        chipColor = tool.accent.color,
+        rightTint = tool.accent.color,
         rightLoading = isShuffleLoading,
         onMainLongClick = onLongClick,
         onMainClick = onOpenDeezer,

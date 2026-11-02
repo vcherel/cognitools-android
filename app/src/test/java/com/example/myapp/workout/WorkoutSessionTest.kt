@@ -47,7 +47,7 @@ class WorkoutSessionTest {
 
     @Test
     fun `every card clears in one tap and the next one waits on its timer`() {
-        var progress = SessionProgress(startedAt = 0, timerStartedAt = 4)
+        var progress = SessionProgress(startedAt = 0, programKey = program.recordKey(), timerStartedAt = 4)
         progress = progress.advance(steps, 10)
         assertEquals(1, progress.step)
         assertEquals(10, progress.stepStartedAt)
@@ -77,7 +77,7 @@ class WorkoutSessionTest {
 
     @Test
     fun `round ends are logged and the last part finishes the session`() {
-        var progress = SessionProgress(startedAt = 0)
+        var progress = SessionProgress(startedAt = 0, programKey = program.recordKey())
         var now = 0L
         while (progress.finishedAt == null) progress = progress.advance(steps, ++now)
         assertEquals(3, progress.roundEnds.size)
@@ -95,7 +95,7 @@ class WorkoutSessionTest {
 
     @Test
     fun `a session in progress survives its JSON`() {
-        val progress = SessionProgress(startedAt = 5, step = 3, stepStartedAt = 9, timerStartedAt = 12, extraRest = 15, roundEnds = listOf(40, 80))
+        val progress = SessionProgress(startedAt = 5, programKey = program.recordKey(), step = 3, stepStartedAt = 9, timerStartedAt = 12, extraRest = 15, roundEnds = listOf(40, 80))
         assertEquals(progress, sessionFromJson(progress.toJson()))
         assertEquals(progress.copy(finishedAt = 99), sessionFromJson(progress.copy(finishedAt = 99).toJson()))
     }

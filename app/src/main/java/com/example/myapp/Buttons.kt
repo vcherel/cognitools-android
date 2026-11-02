@@ -10,8 +10,6 @@ import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -29,7 +27,6 @@ import androidx.compose.material.icons.filled.CheckBox
 import androidx.compose.material.icons.filled.CheckBoxOutlineBlank
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
@@ -37,7 +34,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.material3.ripple
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -67,7 +63,6 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.isSpecified
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
 import kotlinx.coroutines.delay
 
 /**
@@ -396,7 +391,7 @@ private fun RaisedButton(
 
 @Composable
 fun MySwitch(
-    isEnabled: Boolean,
+    checked: Boolean,
     onToggle: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
     text: String? = null
@@ -410,11 +405,11 @@ fun MySwitch(
 
     // On reads as the tool's tint inside a tool, else as the blue "pressed" style.
     val accent = LocalToolAccent.current?.color
-    val style = remember(isEnabled, isDarkMode, accent) {
-        if (isEnabled && accent != null) {
+    val style = remember(checked, isDarkMode, accent) {
+        if (checked && accent != null) {
             buttonStyle(isPressed = false, enabled = true, isDarkMode = isDarkMode, highlighted = false, tint = accent)
         } else {
-            buttonStyle(isPressed = isEnabled, enabled = true, isDarkMode = isDarkMode, highlighted = false)
+            buttonStyle(isPressed = checked, enabled = true, isDarkMode = isDarkMode, highlighted = false)
         }
     }
 
@@ -427,7 +422,7 @@ fun MySwitch(
         clickModifier = Modifier.clickable(
             interactionSource = interactionSource,
             indication = null
-        ) { onToggle(!isEnabled) }
+        ) { onToggle(!checked) }
     ) {
         Row(
             modifier = Modifier
@@ -449,7 +444,7 @@ fun MySwitch(
 
             // Display only: the whole surface handles the toggle.
             Switch(
-                checked = isEnabled,
+                checked = checked,
                 onCheckedChange = null,
                 colors = SwitchDefaults.colors(
                     checkedThumbColor = Color.White,
@@ -461,45 +456,6 @@ fun MySwitch(
             )
         }
     }
-}
-
-@Composable
-fun ShowAlertDialog(
-    onDismiss: () -> Unit,
-    title: String,
-    textContent: (@Composable () -> Unit)? = null,
-    confirmText: String = "Ok",
-    cancelText: String? = "Cancel",
-    onConfirm: () -> Unit,
-    onCancel: (() -> Unit)? = null
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(title) },
-        text = textContent,
-        confirmButton = {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                if (onCancel != null && cancelText != null) {
-                    MyButton(
-                        text = cancelText,
-                        onClick = onCancel,
-                        modifier = Modifier.weight(1f).height(50.dp),
-                        fontSize = 14.sp,
-                        secondary = true
-                    )
-                }
-                MyButton(
-                    text = confirmText,
-                    onClick = onConfirm,
-                    modifier = Modifier.weight(1f).height(50.dp),
-                    fontSize = 14.sp
-                )
-            }
-        }
-    )
 }
 
 // A red warning message with a close button, so the user can clear it without waiting for the
@@ -524,23 +480,7 @@ fun ErrorText(message: String, onDismiss: () -> Unit, modifier: Modifier = Modif
     }
 }
 
-// The shell every custom dialog in the app is built from: a rounded, elevated surface with the
-// standard padding. Callers fill the column.
-@Composable
-fun AppDialog(onDismiss: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
-    Dialog(onDismissRequest = onDismiss) {
-        Surface(
-            shape = RoundedCornerShape(16.dp),
-            color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 6.dp
-        ) {
-            Column(
-                modifier = Modifier.fillMaxWidth().padding(20.dp),
-                content = content
-            )
-        }
-    }
-}
+
 /**
  * An IconButton drawn as one node: the icon itself is the clickable, padded out to [size]. Same
  * look, touch target and round ripple, but a screen repeating it per card or per line (the notes

@@ -54,7 +54,6 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
@@ -409,36 +408,12 @@ private fun ElementScoreDialog(element: FlashcardElement, onDismiss: () -> Unit)
         onDismiss = onDismiss,
         title = element.label,
         textContent = {
-            Column(
-                modifier = Modifier
-                    .padding(vertical = 16.dp, horizontal = 8.dp)
-                    .fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                val bold = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold)
-                Text(
-                    text = "Total answers: ${element.totalWins + element.totalLosses}",
-                    style = bold,
-                    textAlign = TextAlign.Center
-                )
-                Text(
-                    text = "Right answers: ${element.totalWins}",
-                    color = Color(0xFF37A13B),
-                    style = bold,
-                    textAlign = TextAlign.Center
-                )
-                Text(
-                    text = "Wrong answers: ${element.totalLosses}",
-                    color = Color(0xFFC4362D),
-                    style = bold,
-                    textAlign = TextAlign.Center
-                )
+            Box(Modifier.padding(vertical = 8.dp)) {
+                CardStats(element, greenColor = Color(0xFF37A13B), redColor = Color(0xFFC4362D))
             }
         },
-        onCancel = onDismiss,
-        onConfirm = onDismiss,
-        cancelText = "Close"
+        confirmText = "Close",
+        onConfirm = onDismiss
     )
 }
 

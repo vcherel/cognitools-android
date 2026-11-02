@@ -44,10 +44,11 @@ object WorkoutStore {
 
     private fun sessionFile(context: Context) = File(context.filesDir, "workout_session.json")
 
-    suspend fun loadSession(context: Context): SessionProgress? = withContext(Dispatchers.IO) {
+    /** The session in progress, unless it was started on a program since edited. */
+    suspend fun loadSession(context: Context, program: WorkoutProgram): SessionProgress? = withContext(Dispatchers.IO) {
         val file = sessionFile(context)
         if (!file.exists()) return@withContext null
-        sessionFromJson(file.readText())
+        sessionFromJson(file.readText())?.takeIf { it.programKey == program.recordKey() }
     }
 
     suspend fun saveSession(context: Context, progress: SessionProgress) = withContext(Dispatchers.IO) {
