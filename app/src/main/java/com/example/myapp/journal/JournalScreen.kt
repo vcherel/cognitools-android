@@ -281,7 +281,6 @@ fun JournalScreen(onBack: () -> Unit, onOpenArticle: (String) -> Unit, onOpenNew
                 val isRead = issue.date in read
                 MyButton(
                     text = if (isRead) "Read" else "Mark as read",
-                    icon = if (isRead) Icons.Filled.CheckCircle else Icons.Outlined.CheckCircle,
                     fontSize = 18.sp,
                     height = 56.dp,
                     secondary = isRead,
