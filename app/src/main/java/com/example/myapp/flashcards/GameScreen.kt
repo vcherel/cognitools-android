@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -44,6 +45,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
@@ -52,10 +54,14 @@ import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.example.myapp.BackIconButton
 import com.example.myapp.flashcardRepository
@@ -321,7 +327,7 @@ fun FlashcardGameScreen(listId: String, navController: NavController) {
                 }
             }
 
-            Spacer(Modifier.height(32.dp))
+            Spacer(Modifier.height(8.dp))
 
             val card = currentCard
             if (cards == null) {
@@ -333,50 +339,50 @@ fun FlashcardGameScreen(listId: String, navController: NavController) {
                 }
             }
             else if (card != null) {
+                Card(
+                    modifier = Modifier
+                        .padding(horizontal = 8.dp)
+                        .fillMaxWidth()
+                        .height(420.dp)
+                        .graphicsLayer {
+                            translationX = cardOffset
+                        }
+                        .pointerInput(Unit) {
+                            detectHorizontalDragGestures(
+                                onDragEnd = { if (!isSliding) release(size.width.toFloat()) },
+                                onDragCancel = { if (!isSliding) release(size.width.toFloat()) }
+                            ) { change, dragAmount ->
+                                change.consume()
+                                if (!isSliding) cardOffset += dragAmount
+                            }
+                        }
+                        .clickable(
+                            indication = null,
+                            interactionSource = remember { MutableInteractionSource() }
+                        ) {
+                            if (!showDefinition) showDefinition = true
+                        },
+                    border = if (isGolden) BorderStroke(4.dp, Gold) else null,
+                    // A deep shadow under a card this big is redrawn every frame of the drag.
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                ) {
+                    CardFace(
+                        card = card,
+                        showFront = showFront,
+                        showDefinition = showDefinition,
+                        listName = if (isAllListsMode) listNames[card.listId].orEmpty() else null,
+                        isGolden = isGolden
+                    )
+                }
                 Box(
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp),
+                        .padding(horizontal = 8.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(480.dp)
-                            .graphicsLayer {
-                                translationX = cardOffset
-                            }
-                            .pointerInput(Unit) {
-                                detectHorizontalDragGestures(
-                                    onDragEnd = { if (!isSliding) release(size.width.toFloat()) },
-                                    onDragCancel = { if (!isSliding) release(size.width.toFloat()) }
-                                ) { change, dragAmount ->
-                                    change.consume()
-                                    if (!isSliding) cardOffset += dragAmount
-                                }
-                            }
-                            .clickable(
-                                indication = null,
-                                interactionSource = remember { MutableInteractionSource() }
-                            ) {
-                                if (!showDefinition) showDefinition = true
-                            },
-                        border = if (isGolden) BorderStroke(4.dp, Gold) else null,
-                        // A deep shadow under a card this big is redrawn every frame of the drag.
-                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                    ) {
-                        CardFace(
-                            card = card,
-                            showFront = showFront,
-                            showDefinition = showDefinition,
-                            listName = if (isAllListsMode) listNames[card.listId].orEmpty() else null,
-                            isGolden = isGolden
-                        )
-                    }
+                    CardStats(card = card, greenColor = greenColor, redColor = redColor)
                 }
-                // Mirrors the header (48dp) and the spacer above, so the card sits at the screen's center
-                Spacer(Modifier.height(80.dp))
             } else {
                 AllReviewedScreen(
                     greenColor = greenColor,
@@ -513,6 +519,80 @@ private fun CardFace(
                     .align(Alignment.BottomStart)
                     .padding(12.dp)
             )
+        }
+    }
+}
+
+/** The card's record under it: right answers out of all, as a bar, its current streak and when it was last seen. */
+@Composable
+private fun CardStats(card: FlashcardElement, greenColor: Color, redColor: Color) {
+    val played = card.totalWins + card.totalLosses
+    val muted = MaterialTheme.colorScheme.onSurfaceVariant
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.Bottom
+        ) {
+            Text(
+                text = "${card.totalWins}/$played",
+                fontSize = 40.sp,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = if (played == 0) "New card" else "${card.totalWins * 100 / played}% right",
+                style = MaterialTheme.typography.titleMedium,
+                color = muted,
+                modifier = Modifier.padding(bottom = 6.dp)
+            )
+        }
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(16.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .background(if (played == 0) MaterialTheme.colorScheme.surfaceVariant else redColor)
+        ) {
+            if (card.totalWins > 0) {
+                Box(
+                    Modifier
+                        .weight(card.totalWins.toFloat())
+                        .fillMaxHeight()
+                        .background(greenColor)
+                )
+            }
+            if (card.totalLosses > 0) Spacer(Modifier.weight(card.totalLosses.toFloat()))
+        }
+        if (played > 0) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = buildAnnotatedString {
+                        withStyle(SpanStyle(fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)) {
+                            append("${card.repetitions}")
+                        }
+                        append(" in a row")
+                    },
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = muted
+                )
+                Text(
+                    text = buildAnnotatedString {
+                        append("last seen ")
+                        withStyle(SpanStyle(fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)) {
+                            append(formatDuration(System.currentTimeMillis() - card.lastReview))
+                        }
+                        append(" ago")
+                    },
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = muted
+                )
+            }
         }
     }
 }
