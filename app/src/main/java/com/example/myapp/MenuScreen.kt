@@ -113,10 +113,11 @@ fun MenuScreen(
         MenuTool("calendar", "Calendar", ToolAccents.Calendar),
         MenuTool("recipes", "Recipes", ToolAccents.Recipes)
     )
-    // Big and small tools ranked together, most used first. Between equal counts the big ones come
-    // first in their usual order, then the small ones A to Z.
+    // Big and small tools ranked together, most used first, A to Z between equal counts.
     val rows = menuRows(
-        (BigTools + tools.sortedBy { it.label.deaccented() }).sortedByDescending { usage[it.id] ?: 0 }
+        (BigTools + tools).sortedWith(
+            compareByDescending<MenuTool> { usage[it.id] ?: 0 }.thenBy { it.label.deaccented() }
+        )
     )
     val bigFontSize = 21.sp
     val bigRightWidth = 70.dp
