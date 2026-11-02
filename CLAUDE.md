@@ -50,8 +50,8 @@ Outside that package: `src/` holds the Python asset generators (see the README):
 Root package (shared/misc):
 - `MainActivity.kt`: app entry point; the window, the intents it is launched with, and the locked-over-the-keyguard quick view
 - `AppNavHost.kt`: MainScreen, the whole app's nav graph plus the composition locals and the snackbar host every screen reads
-- `MenuScreen.kt`: the main menu, sized to fill the screen without scrolling; the big tools on top with their own callbacks and color tinted quick actions, the rest a grid of MenuTool (each with its icon and color) opened through one `onOpenTool(route)`. The big rows and the grid each rank by use, and a long press on any tile toasts its open count
-- `MenuUsage.kt`: MenuUsageStore, the per-tool open counters that order the big rows and the grid
+- `MenuScreen.kt`: the main menu, sized to fill the screen without scrolling; every tool ranked by use in one order, a big tool (with its own callbacks and color tinted quick action, both halves counting) on a full row, the small ones in pairs opened through one `onOpenTool(route)`; a long press on any tile toasts its open count
+- `MenuUsage.kt`: MenuUsageStore, the per-tool open counters that order the menu
 - `Theme.kt`: ThemeManager (dark mode DataStore), AppTheme, LocalIsDarkMode
 - `MyApplication.kt`: Application class, holds the FlashcardRepository / DeezerRepository / PodcastRepository singletons plus their `Context.<name>Repository` extensions, and the app start housekeeping
 - `Buttons.kt`: shared composables, MyButton, SplitMyButton, MySwitch, ShowAlertDialog, ErrorText, AppDialog, LightIconButton (the one-node icon button for anything repeated per card or line), LightCheckbox (its checkbox counterpart, for the Todo widget and a note's lines), AddItemRow (the gray "New item" placeholder where a new entry goes: the Todo widget, the Todo list note, the Calendar day). The buttons are all built on RaisedSurface, the custom dialogs all on AppDialog
@@ -252,7 +252,7 @@ Root package (shared/misc):
 - `WorkoutSessionScreen.kt`: the guided session; header clock, the dot path, exercise cards (timed ring, per side, paced negatives), rests with +15 s and Skip, the boss round in red with its health bar, the victory screen with the XP bar and confetti; vibrations and beeps (notification stream, so music keeps playing)
 - `WorkoutProgramScreen.kt`: the program editor; drag to reorder, the New exercise placeholder, the exercise dialog, the rounds and rest rows
 - `WorkoutSchedule.kt`: ReminderTimes (19:30 weekdays, 15:00 weekends by default), when the reminder goes off after a session (two days off) or a snooze, the days since the last session and the month/year counts. Pure, covered by a JVM unit test
-- `WorkoutReminder.kt`: the DataStore state (next reminder, every session, due, the times), the one exact alarm, the notification with its done / in 1 h / tomorrow buttons (a tap on its body opens the screen on the day picker), `markDoneWithUndo` (the screen and the menu tile's right half), and WorkoutReceiver (alarm, buttons, reboot)
+- `WorkoutReminder.kt`: the DataStore state (next reminder, every session, due, the times), the one exact alarm, the notification with its done / in 1 h / tomorrow buttons (a tap on its body opens the screen on the day picker), `markDoneWithUndo` (the screen's "Session done" check), and WorkoutReceiver (alarm, buttons, reboot)
 - `WorkoutScreen.kt`: next reminder (tap it to pick the day it comes back) and last session, Start (or Resume) session with the "Session done" check beside it, the snooze buttons while a reminder is due, the level card, the program card, the two reminder times with their time picker, the history; `lastSessionText` is shared with the notification, `Card` with the other workout screens
 
 `undercover/` (party game tool):

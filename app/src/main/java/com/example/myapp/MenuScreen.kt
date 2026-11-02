@@ -46,8 +46,29 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 
-// One of the small grid tools. [id] is its nav route and what the usage counters are keyed by.
-private class MenuTool(val id: String, val label: String, val accent: ToolAccent)
+// One menu tool. [id] is what the usage counters are keyed by, and a small tool's nav route.
+// A big tool takes a full row with its quick action beside it.
+private class MenuTool(val id: String, val label: String, val accent: ToolAccent, val big: Boolean = false)
+
+private val BigTools = listOf(
+    MenuTool("notes", "Notes", ToolAccents.Notes, big = true),
+    MenuTool("music", "Music", ToolAccents.Music, big = true),
+    MenuTool("flashcards", "Flashcards", ToolAccents.Flashcards, big = true),
+    MenuTool("gallery", "Gallery", ToolAccents.Gallery, big = true)
+)
+
+// Splits the ranked tools into rows: a big tool alone, small ones in pairs. A small tool left alone
+// before a big one takes the next small tool up with it, so no grid row is half empty.
+private fun menuRows(ranked: List<MenuTool>): List<List<MenuTool>> {
+    val pending = ranked.toMutableList()
+    val rows = mutableListOf<List<MenuTool>>()
+    while (pending.isNotEmpty()) {
+        val first = pending.removeAt(0)
+        val partner = if (first.big) -1 else pending.indexOfFirst { !it.big }
+        rows += if (partner >= 0) listOf(first, pending.removeAt(partner)) else listOf(first)
+    }
+    return rows
+}
 
 // Big tool heights against a grid row's, and the gap that leaves room for the raised edge.
 private const val BIG_ROW_WEIGHT = 1.25f
@@ -92,12 +113,11 @@ fun MenuScreen(
         MenuTool("calendar", "Calendar", ToolAccents.Calendar),
         MenuTool("recipes", "Recipes", ToolAccents.Recipes)
     )
-    // Most used first, alphabetical between tools opened as often (so a fresh install is A to Z).
-    val orderedTools = tools.sortedWith(
-        compareByDescending<MenuTool> { usage[it.id] ?: 0 }.thenBy { it.label.deaccented() }
+    // Big and small tools ranked together, most used first. Between equal counts the big ones come
+    // first in their usual order, then the small ones A to Z.
+    val rows = menuRows(
+        (BigTools + tools.sortedBy { it.label.deaccented() }).sortedByDescending { usage[it.id] ?: 0 }
     )
-    // The big rows sort among themselves the same way, keeping this order between equal counts.
-    val bigTools = listOf("notes", "music", "flashcards", "gallery").sortedByDescending { usage[it] ?: 0 }
     val bigFontSize = 21.sp
     val bigRightWidth = 70.dp
 
@@ -156,8 +176,29 @@ fun MenuScreen(
                 )
             }
         }
-        bigTools.forEach { id ->
-            key(id) {
+        rows.forEach { row ->
+            val id = row.first().id
+            if (!row.first().big) key(id) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().weight(1f),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    row.forEach { tool ->
+                        MyButton(
+                            text = tool.label,
+                            modifier = Modifier.weight(1f),
+                            height = Dp.Unspecified,
+                            fontSize = 16.sp,
+                            highlighted = tool.id == "journal" && journalUnread,
+                            chipIcon = tool.accent.icon,
+                            chipColor = tool.accent.color,
+                            onLongClick = { showOpens(tool.id, tool.label) },
+                            onClick = { open(tool.id) { onOpenTool(tool.id) } }
+                        )
+                    }
+                    repeat(2 - row.size) { Spacer(modifier = Modifier.weight(1f)) }
+                }
+            } else key(id) {
                 when (id) {
                     "notes" -> SplitMyButton(
                         text = "Notes",
@@ -178,6 +219,7 @@ fun MenuScreen(
                         rightWidth = bigRightWidth,
                         fontSize = bigFontSize,
                         onLongClick = { showOpens(id, "Music") },
+                        onRightTap = { scope.launch { usageStore.recordClick(id) } },
                         onOpenDeezer = { open(id, onOpenDeezer) }
                     )
                     "flashcards" -> SplitMyButton(
@@ -212,27 +254,6 @@ fun MenuScreen(
                 }
             }
         }
-        orderedTools.chunked(2).forEach { row ->
-            Row(
-                modifier = Modifier.fillMaxWidth().weight(1f),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                row.forEach { tool ->
-                    MyButton(
-                        text = tool.label,
-                        modifier = Modifier.weight(1f),
-                        height = Dp.Unspecified,
-                        fontSize = 16.sp,
-                        highlighted = tool.id == "journal" && journalUnread,
-                        chipIcon = tool.accent.icon,
-                        chipColor = tool.accent.color,
-                        onLongClick = { showOpens(tool.id, tool.label) },
-                        onClick = { open(tool.id) { onOpenTool(tool.id) } }
-                    )
-                }
-                repeat(2 - row.size) { Spacer(modifier = Modifier.weight(1f)) }
-            }
-        }
     }
 }
 
@@ -245,6 +266,7 @@ private fun DeezerMenuButton(
     rightWidth: Dp,
     fontSize: TextUnit,
     onLongClick: () -> Unit,
+    onRightTap: () -> Unit,
     onOpenDeezer: () -> Unit
 ) {
     val context = LocalContext.current
@@ -281,6 +303,7 @@ private fun DeezerMenuButton(
         onMainLongClick = onLongClick,
         onMainClick = onOpenDeezer,
         onRightClick = {
+            onRightTap()
             if (loaded) {
                 if (onPodcast) context.podcastRepository.togglePlay() else context.deezerRepository.player.togglePlay()
             } else if (!isShuffleLoading) {
