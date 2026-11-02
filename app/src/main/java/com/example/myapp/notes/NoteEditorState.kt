@@ -70,14 +70,17 @@ class NoteEditorState(noteId: String, private val dao: NoteDao, private val scop
 
     private val title: String get() = titleFieldState.text.toString()
 
-    // The content without the edit padding: the only form that is ever saved, compared or put on
-    // the undo stack, so the fake lines can't leak into the note however the editor is left.
+    private val isTodoNote: Boolean get() = title.trim().equals(TODO_LIST_TITLE, ignoreCase = true)
+
+    // The content without the edit padding and the Todo list's empty checkboxes: the only form that
+    // is ever saved, compared or put on the undo stack, so the fake lines can't leak into the note
+    // however the editor is left.
     private val content: String
         get() {
             var text = textFieldState.text.toString()
             if (editPadding.bottom && text.endsWith("\n")) text = text.dropLast(1)
             if (editPadding.top && text.startsWith("\n")) text = text.drop(1)
-            return text
+            return if (isTodoNote) withoutEmptyCheckboxes(text) else text
         }
 
     private fun snapshot() = NoteSnapshot(title, content)
@@ -137,9 +140,11 @@ class NoteEditorState(noteId: String, private val dao: NoteDao, private val scop
         redoStack.clear()
     }
 
-    // Puts text in the content field, wrapped in the edit padding still in effect.
+    // Puts text in the content field, wrapped in the edit padding still in effect, with the Todo
+    // list's empty checkboxes while editing.
     private fun showContent(text: String) {
-        val padded = (if (editPadding.top) "\n" else "") + text + (if (editPadding.bottom) "\n" else "")
+        val shown = if (isEditing && isTodoNote) withTodoPlaceholders(text, 0).first else text
+        val padded = (if (editPadding.top) "\n" else "") + shown + (if (editPadding.bottom) "\n" else "")
         textFieldState.edit { replace(0, length, padded) }
     }
 
@@ -163,6 +168,7 @@ class NoteEditorState(noteId: String, private val dao: NoteDao, private val scop
     /** Immediate save for changes made from the view mode (checkbox toggles, reorders). */
     fun saveContent(newText: String) {
         showContent(newText)
+        if (snapshot() == lastSaved) return
         pushUndo()
         lastSaved = snapshot()
         save()
@@ -237,26 +243,32 @@ class NoteEditorState(noteId: String, private val dao: NoteDao, private val scop
         }
     }
 
-    // Inserts a blank line above/below the content if the first/last line isn't already blank, and
-    // shifts caretOffset to account for a line added above it. The padding is invisible to
-    // snapshots, so it never gets autosaved or lands on the undo stack.
+    // Inserts a blank line above/below the content if the first/last line isn't already room to type
+    // (blank, or the Todo list's empty checkbox), plus the Todo list's empty checkboxes, and shifts
+    // caretOffset to account for the lines added above it. Both are invisible to snapshots, so they
+    // never get autosaved or land on the undo stack.
     private fun padForEditing(caretOffset: Int): Int {
-        val text = textFieldState.text.toString()
         editPadding = EditPadding()
-        if (text.isEmpty()) return caretOffset
-        val firstLineEnd = text.indexOf('\n').let { if (it == -1) text.length else it }
-        val lastLineStart = text.lastIndexOf('\n') + 1
-        val padding = EditPadding(top = firstLineEnd > 0, bottom = lastLineStart < text.length)
-        if (!padding.any) return caretOffset
+        val original = textFieldState.text.toString()
+        val todo = isTodoNote
+        val (text, caret) = if (todo) withTodoPlaceholders(original, caretOffset) else original to caretOffset
+        if (text.isEmpty()) return caret
+        fun isRoom(line: String) = line.isEmpty() || (todo && line == UNCHECKED_PREFIX)
+        val padding = EditPadding(
+            top = !isRoom(text.substringBefore('\n')),
+            bottom = !isRoom(text.substringAfterLast('\n'))
+        )
+        if (!padding.any && text == original) return caret
         editPadding = padding
-        showContent(text)
-        return if (padding.top) caretOffset + 1 else caretOffset
+        textFieldState.edit {
+            replace(0, length, (if (padding.top) "\n" else "") + text + (if (padding.bottom) "\n" else ""))
+        }
+        return if (padding.top) caret + 1 else caret
     }
 
-    // Removes the fake padding lines added by padForEditing, but only the ones still empty;
-    // anything the user typed into them is kept.
+    // Removes the fake lines added by padForEditing, but only the ones still empty; anything the
+    // user typed into them is kept.
     private fun stripEditPadding() {
-        if (!editPadding.any) return
         val stripped = content
         editPadding = EditPadding()
         if (stripped != textFieldState.text.toString()) {

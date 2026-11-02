@@ -34,6 +34,50 @@ internal fun blockAppendIndex(lines: List<String>, from: Int): Int {
 }
 
 /**
+ * The Todo list as edit mode shows it: an empty checkbox wherever the view has an add placeholder (the
+ * end of every block, the top of a non empty active block), unless one is already there, with [caret]
+ * moved along with the line it sits on.
+ */
+internal fun withTodoPlaceholders(text: String, caret: Int): Pair<String, Int> {
+    val lines = text.split("\n")
+    val at = sortedSetOf<Int>()
+    if ((0 until blockEnd(lines, 0)).any { lines[it].isNotBlank() }) at += 0
+    var start = 0
+    lines.forEachIndexed { i, line ->
+        if (line.isSeparatorLine()) {
+            at += blockAppendIndex(lines, start)
+            start = i + 1
+        }
+    }
+    at += blockAppendIndex(lines, start)
+    at.removeAll { lines.getOrNull(it - 1) == UNCHECKED_PREFIX || lines.getOrNull(it) == UNCHECKED_PREFIX }
+    if (at.isEmpty()) return text to caret
+
+    val out = StringBuilder()
+    var newCaret = caret
+    var lineStart = 0
+    lines.forEachIndexed { i, line ->
+        if (i in at) {
+            out.append(UNCHECKED_PREFIX).append('\n')
+            if (lineStart <= caret) newCaret += UNCHECKED_PREFIX.length + 1
+        }
+        out.append(line)
+        if (i < lines.lastIndex) out.append('\n')
+        lineStart += line.length + 1
+    }
+    if (lines.size in at) out.append('\n').append(UNCHECKED_PREFIX)
+    return out.toString() to newCaret
+}
+
+/** The text without its empty unchecked items, which mean nothing in the Todo list. */
+internal fun withoutEmptyCheckboxes(text: String): String {
+    if (!text.contains(UNCHECKED_PREFIX)) return text
+    return text.split("\n").filterNot { it.isEmptyUncheckedLine() }.joinToString("\n")
+}
+
+private fun String.isEmptyUncheckedLine() = isCheckboxLine() && !isCheckedLine() && checkboxText().isBlank()
+
+/**
  * Adds "[ ] [text]" as the last item of the Todo list's active block (above its first separator),
  * which is what the pinned widget shows, or of the section named [section]. Creates the note and its
  * sections if they don't exist yet, and leaves it alone when an item with that text is already there,
