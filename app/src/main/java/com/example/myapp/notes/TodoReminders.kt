@@ -15,6 +15,9 @@ import com.example.myapp.MainActivity
 import com.example.myapp.R
 import com.example.myapp.flashcards.AppDatabase
 import com.example.myapp.plural
+import com.example.myapp.workout.ReminderTimes
+import com.example.myapp.workout.WorkoutReminder
+import com.example.myapp.workout.nextSlotAfter
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -62,6 +65,12 @@ fun nextWeekendReminder(after: LocalDateTime): LocalDateTime {
     return if (friday.isAfter(after)) friday else friday.plusWeeks(1)
 }
 
+private const val AFTER_WORKOUT_HOURS = 1L
+
+/** An hour after the workout slot (whether or not the workout reminder goes off that day), strictly after [after]. */
+fun nextDailyTodoReminder(after: LocalDateTime, times: ReminderTimes): LocalDateTime =
+    nextSlotAfter(after.minusHours(AFTER_WORKOUT_HOURS), times).plusHours(AFTER_WORKOUT_HOURS)
+
 private val DAY_START = LocalTime.of(9, 0)
 private val DAY_END = LocalTime.of(22, 0)
 private const val MORNING_SPREAD_MINUTES = 180L
@@ -100,8 +109,8 @@ enum class TodoReminder(val notificationId: Int, val action: String) {
         WEEKEND -> "$count idea${plural(count)} for the weekend"
     }
 
-    private fun nextAt(now: LocalDateTime): LocalDateTime = when (this) {
-        TO_DO -> nextTodoReminder(now, Duration.ofHours(6), Random.Default)
+    private suspend fun nextAt(context: Context, now: LocalDateTime): LocalDateTime = when (this) {
+        TO_DO -> nextDailyTodoReminder(now, WorkoutReminder.state(context).first().times)
         WAITING -> nextTodoReminder(now, Duration.ofDays(3), Random.Default)
         WEEKEND -> nextWeekendReminder(now)
     }
@@ -109,15 +118,21 @@ enum class TodoReminder(val notificationId: Int, val action: String) {
     companion object {
         private const val CHANNEL_ID = "todo"
 
-        /** Arms every alarm again at app start and after a reboot; a reminder missed meanwhile is drawn anew. */
+        /**
+         * Arms every alarm again at app start and after a reboot; a reminder missed meanwhile is drawn anew.
+         * The daily one is always recomputed, so it follows the workout times.
+         */
         suspend fun rescheduleAll(context: Context) {
             val prefs = context.todoReminderStore.data.first()
             val now = System.currentTimeMillis()
             entries.forEach { kind ->
                 val stored = prefs[kind.key]
-                if (stored != null && stored > now) kind.setAlarm(context, stored) else kind.scheduleNext(context)
+                if (kind != TO_DO && stored != null && stored > now) kind.setAlarm(context, stored) else kind.scheduleNext(context)
             }
         }
+
+        /** Moves the daily reminder after the workout times change. */
+        suspend fun rescheduleDaily(context: Context) = TO_DO.scheduleNext(context)
 
         internal suspend fun onAlarm(context: Context, action: String?) {
             val kind = entries.firstOrNull { it.action == action } ?: return
@@ -129,7 +144,7 @@ enum class TodoReminder(val notificationId: Int, val action: String) {
     }
 
     private suspend fun scheduleNext(context: Context) {
-        val at = nextAt(LocalDateTime.now()).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        val at = nextAt(context, LocalDateTime.now()).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
         context.todoReminderStore.edit { it[key] = at }
         setAlarm(context, at)
     }

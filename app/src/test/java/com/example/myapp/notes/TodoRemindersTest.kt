@@ -1,5 +1,6 @@
 package com.example.myapp.notes
 
+import com.example.myapp.workout.ReminderTimes
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -38,6 +39,19 @@ class TodoRemindersTest {
         assertEquals(LocalDateTime.of(2026, 11, 6, 18, 0), nextWeekendReminder(fridayMorning))
         val fridayAtSix = LocalDateTime.of(2026, 11, 6, 18, 0)
         assertEquals(LocalDateTime.of(2026, 11, 13, 18, 0), nextWeekendReminder(fridayAtSix))
+    }
+
+    @Test
+    fun dailyReminderIsAnHourAfterTheWorkoutSlot() {
+        val times = ReminderTimes.DEFAULT
+        val monday = LocalDateTime.of(2026, 11, 2, 10, 0)
+        assertEquals(LocalDateTime.of(2026, 11, 2, 20, 30), nextDailyTodoReminder(monday, times))
+        val mondayAtSlot = LocalDateTime.of(2026, 11, 2, 20, 0)
+        assertEquals(LocalDateTime.of(2026, 11, 2, 20, 30), nextDailyTodoReminder(mondayAtSlot, times))
+        val fridayLate = LocalDateTime.of(2026, 11, 6, 20, 30)
+        assertEquals(LocalDateTime.of(2026, 11, 7, 16, 0), nextDailyTodoReminder(fridayLate, times))
+        val sundayNight = LocalDateTime.of(2026, 11, 8, 23, 30)
+        assertEquals(LocalDateTime.of(2026, 11, 9, 20, 30), nextDailyTodoReminder(sundayNight, times))
     }
 
     @Test

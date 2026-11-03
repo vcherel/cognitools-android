@@ -19,6 +19,7 @@ import androidx.datastore.preferences.preferencesDataStore
 import com.example.myapp.AppSnackbar
 import com.example.myapp.MainActivity
 import com.example.myapp.R
+import com.example.myapp.notes.TodoReminder
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -119,6 +120,7 @@ object WorkoutReminder {
             )
         }
         reschedule(context, state)
+        TodoReminder.rescheduleDaily(context)
     }
 
     /** Logs a session from the app, with an undo snackbar for a tap made by mistake. */

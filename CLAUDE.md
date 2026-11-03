@@ -230,7 +230,7 @@ Root package (shared/misc):
 - `IngredientSync.kt`: the pure text side of that sync, parsing the `Modèle courses` note and rendering Courses and Ingrédients from it
 - `IngredientDialogs.kt`: the reconcile dialog and the add-an-item name prompt
 - `TodoNote.kt`: `withTodoSections` (the `--- Attente` and `--- Week-end` separators the Todo list always carries, added back at app start and on every add), `addToTodoNote`, the unchecked item appended to the active block or to a section, written by the journal's per item button, and `findTodoNote`
-- `TodoReminders.kt`: the Todo list notifications, the unchecked items left (random, about every 6 h), those under `--- Attente` (random, about every 3 days), each drawn between half and one and a half times its mean and pushed out of the night, and those under `--- Week-end` (every Friday at 18:00); `todoItems`, `nextTodoReminder` and `nextWeekendReminder` are pure, covered by a JVM unit test
+- `TodoReminders.kt`: the Todo list notifications, the unchecked items left (daily, an hour after the workout slot whether or not the workout reminder fires, moved by `WorkoutReminder.setTimes`), those under `--- Attente` (random, about every 3 days, drawn between half and one and a half times its mean and pushed out of the night), and those under `--- Week-end` (every Friday at 18:00); `todoItems`, `nextDailyTodoReminder`, `nextTodoReminder` and `nextWeekendReminder` are pure, covered by a JVM unit test
 - `DjNote.kt`: `appendToDjNote`, the "Artiste - Titre" line appended to the DJ note (the tracks to download), written by the music tool, suffixed "(téléchargé)" once the app saved the MP3
 
 `reader/` (epub reader):
