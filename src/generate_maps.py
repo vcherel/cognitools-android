@@ -17,12 +17,14 @@ MAPS_DIR = ASSETS / "maps"
 FLAGS_SEED = ASSETS / "seed_flags.json"
 COUNTRY_SEED = ASSETS / "seed_maps.json"
 DEPT_SEED = ASSETS / "seed_dept_maps.json"
+REGION_SEED = ASSETS / "seed_region_maps.json"
 DATA = Path("data/maps")
 SHEET_PATH = Path("mockups/maps_sheet.png")
 SOURCES = {
     "ne_10m_admin_0_map_units.zip": "https://naciscdn.org/naturalearth/10m/cultural/ne_10m_admin_0_map_units.zip",
     "ne_50m_lakes.zip": "https://naciscdn.org/naturalearth/50m/physical/ne_50m_lakes.zip",
     "departements.geojson": "https://raw.githubusercontent.com/gregoiredavid/france-geojson/master/departements-avec-outre-mer.geojson",
+    "regions.geojson": "https://raw.githubusercontent.com/gregoiredavid/france-geojson/master/regions-avec-outre-mer.geojson",
 }
 
 R = 6371.0
@@ -30,7 +32,7 @@ W, H = 800, 600
 SS = 3
 SEA = (214, 230, 240)
 LAND = (228, 224, 214)
-BORDER = (255, 255, 255)
+BORDER = (130, 124, 114)
 TARGET = (214, 64, 46)
 TARGET_EDGE = (150, 36, 24)
 GLOBE_SEA = (176, 205, 226)
@@ -68,6 +70,7 @@ UNIT_CODES = {"CYN": "cy", "SOL": "so", "KNX": "kr", "KNZ": "kp", "SYU": "sy"}
 NAMES = {"af": "Afghanistan", "bq": "Pays-Bas caribéens"}
 SKIPPED_FLAGS = {"af-taliban"}
 OVERSEAS_DEPTS = {"971": "gp", "972": "mq", "973": "gf", "974": "re", "976": "yt"}
+OVERSEAS_REGIONS = {"01": "gp", "02": "mq", "03": "gf", "04": "re", "06": "yt"}
 PARIS = (2.35, 48.86)
 
 
@@ -230,8 +233,9 @@ def load_lakes():
     ]
 
 
-def load_depts():
-    data = json.loads(source("departements.geojson").read_text())
+def load_french(name):
+    """{code: (name, polygons)} of the departments or regions file."""
+    data = json.loads(source(name).read_text())
     return {
         f["properties"]["code"]: (f["properties"]["nom"], polygons(shape(f["geometry"])))
         for f in data["features"]
@@ -271,7 +275,7 @@ def draw_map(view, target, world, lakes, layers=()):
     for pts in lake_pts:
         draw.polygon(pts.ravel().tolist(), fill=SEA)
     for ring, pts in edges:
-        outline(draw, ring, pts, BORDER, round(1.2 * SS))
+        outline(draw, ring, pts, BORDER, 2 * SS)
 
     mask = Image.new("L", img.size, 0)
     mask_draw = ImageDraw.Draw(mask)
@@ -455,13 +459,13 @@ def metro_view(depts):
     return View(proj, (x0 + x1) / 2, (y0 + y1) / 2, s)
 
 
-def render_dept(code, data):
-    depts = data["depts"]
-    if code in OVERSEAS_DEPTS:
-        return render_country(data["world"][OVERSEAS_DEPTS[code]], data)
-    target = depts[code][1]
-    metro = {c: polys for c, (_, polys) in depts.items() if len(c) == 2}
-    view = metro_view(depts)
+def render_french(code, features, overseas, data):
+    """A department or region on the map of metropolitan France, an overseas one on its own map."""
+    if code in overseas:
+        return render_country(data["world"][overseas[code]], data)
+    target = features[code][1]
+    metro = {c: polys for c, (_, polys) in features.items() if c not in overseas}
+    view = metro_view(data["depts"])
     img = draw_map(view, target, data["world"], data["lakes"], [metro]).resize((W, H), Image.LANCZOS)
 
     paris = view.proj.forward(np.array([PARIS]))[0]
@@ -500,19 +504,38 @@ def country_names():
 def load_data():
     world = load_world()
     print("world loaded", flush=True)
-    return {"world": world, "lakes": load_lakes(), "depts": load_depts(), "globe": Globe(world)}
+    return {
+        "world": world,
+        "lakes": load_lakes(),
+        "depts": load_french("departements.geojson"),
+        "regions": load_french("regions.geojson"),
+        "globe": Globe(world),
+    }
 
 
 def is_dept(code):
     return code[:1].isdigit()
 
 
+def is_region(code):
+    """A region is asked for as r plus its code (r53 for Bretagne), its code alone being a department's."""
+    return code[:1] == "r" and code[1:].isdigit()
+
+
 def render(code, data):
-    return render_dept(code, data) if is_dept(code) else render_country(data["world"][code], data)
+    if is_dept(code):
+        return render_french(code, data["depts"], OVERSEAS_DEPTS, data)
+    if is_region(code):
+        return render_french(code[1:], data["regions"], OVERSEAS_REGIONS, data)
+    return render_country(data["world"][code], data)
 
 
 def image_name(code):
-    return f"dep-{code.lower()}" if is_dept(code) else code
+    if is_dept(code):
+        return f"dep-{code.lower()}"
+    if is_region(code):
+        return f"reg-{code[1:]}"
+    return code
 
 
 def save(img, code):
@@ -536,8 +559,9 @@ def sheet(codes, data):
 
 
 def card(prefix, list_id, code, name):
+    key = code[1:] if is_region(code) else code.lower()
     return {
-        "id": f"{prefix}-{code.lower()}",
+        "id": f"{prefix}-{key}",
         "listId": list_id,
         "name": "",
         "definition": name,
@@ -563,17 +587,23 @@ def build_all(data):
         print(f"no shape for {', '.join(missing)}", flush=True)
     codes = [c for c in names if c in data["world"]]
     depts = sorted(data["depts"])
-    total = len(codes) + len(depts)
-    for i, code in enumerate(codes + depts, 1):
+    regions = [f"r{c}" for c in sorted(data["regions"], key=lambda c: data["regions"][c][0])]
+    everything = codes + depts + regions
+    for i, code in enumerate(everything, 1):
         save(render(code, data), code)
-        print(f"{i}/{total} {code}", flush=True)
+        print(f"{i}/{len(everything)} {code}", flush=True)
     country_cards = sorted(
         (card("map", "builtin-maps-v1", c, names[c]) for c in codes), key=lambda c: c["definition"]
     )
     dept_cards = [card("deptmap", "builtin-dept-maps-v1", c, data["depts"][c][0]) for c in depts]
+    region_cards = [
+        card("regionmap", "builtin-region-maps-v1", c, data["regions"][c[1:]][0]) for c in regions
+    ]
     write_seed(COUNTRY_SEED, "builtin-maps-v1", "Cartes", 4, country_cards)
     write_seed(DEPT_SEED, "builtin-dept-maps-v1", "Départements (carte)", 5, dept_cards)
-    print(f"{len(country_cards)} countries and {len(dept_cards)} departments written", flush=True)
+    write_seed(REGION_SEED, "builtin-region-maps-v1", "Régions (carte)", 6, region_cards)
+    counts = f"{len(country_cards)} countries, {len(dept_cards)} departments, {len(region_cards)} regions"
+    print(f"{counts} written", flush=True)
 
 
 def main():

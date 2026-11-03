@@ -90,13 +90,13 @@ uv run python src/generate_flags.py
 
 `--sheet <codes>` only renders those flags next to the shipped ones, as one image, without writing anything.
 
-The Cartes and Départements (carte) lists, a locator map of every place in Drapeaux and of every French department, from Natural Earth and france-geojson (downloaded into `data/maps/`):
+The Cartes, Départements (carte) and Régions (carte) lists, a locator map of every place in Drapeaux and of every French department and region, from Natural Earth and france-geojson (downloaded into `data/maps/`):
 
 ```bash
 uv run --only-group maps src/generate_maps.py
 ```
 
-`--sheet <codes>` renders those maps (ISO codes, or department numbers like `35` or `2A`) into `mockups/maps_sheet.png`, `--write <codes>` writes only their pictures.
+`--sheet <codes>` renders those maps (ISO codes, department numbers like `35` or `2A`, or region codes after an `r` like `r53`) into `mockups/maps_sheet.png`, `--write <codes>` writes only their pictures.
 
 ## Development
 

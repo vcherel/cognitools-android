@@ -1,0 +1,175 @@
+{
+ "version": 1,
+ "lists": [
+  {
+   "id": "builtin-region-maps-v1",
+   "name": "Régions (carte)",
+   "order": 6,
+   "fixedSide": true
+  }
+ ],
+ "cards": [
+  {
+   "id": "regionmap-84",
+   "listId": "builtin-region-maps-v1",
+   "name": "",
+   "definition": "Auvergne-Rhône-Alpes",
+   "image": "asset:maps/reg-84.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "regionmap-27",
+   "listId": "builtin-region-maps-v1",
+   "name": "",
+   "definition": "Bourgogne-Franche-Comté",
+   "image": "asset:maps/reg-27.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "regionmap-53",
+   "listId": "builtin-region-maps-v1",
+   "name": "",
+   "definition": "Bretagne",
+   "image": "asset:maps/reg-53.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "regionmap-24",
+   "listId": "builtin-region-maps-v1",
+   "name": "",
+   "definition": "Centre-Val de Loire",
+   "image": "asset:maps/reg-24.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "regionmap-94",
+   "listId": "builtin-region-maps-v1",
+   "name": "",
+   "definition": "Corse",
+   "image": "asset:maps/reg-94.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "regionmap-44",
+   "listId": "builtin-region-maps-v1",
+   "name": "",
+   "definition": "Grand Est",
+   "image": "asset:maps/reg-44.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "regionmap-01",
+   "listId": "builtin-region-maps-v1",
+   "name": "",
+   "definition": "Guadeloupe",
+   "image": "asset:maps/reg-01.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "regionmap-03",
+   "listId": "builtin-region-maps-v1",
+   "name": "",
+   "definition": "Guyane",
+   "image": "asset:maps/reg-03.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "regionmap-32",
+   "listId": "builtin-region-maps-v1",
+   "name": "",
+   "definition": "Hauts-de-France",
+   "image": "asset:maps/reg-32.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "regionmap-04",
+   "listId": "builtin-region-maps-v1",
+   "name": "",
+   "definition": "La Réunion",
+   "image": "asset:maps/reg-04.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "regionmap-02",
+   "listId": "builtin-region-maps-v1",
+   "name": "",
+   "definition": "Martinique",
+   "image": "asset:maps/reg-02.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "regionmap-06",
+   "listId": "builtin-region-maps-v1",
+   "name": "",
+   "definition": "Mayotte",
+   "image": "asset:maps/reg-06.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "regionmap-28",
+   "listId": "builtin-region-maps-v1",
+   "name": "",
+   "definition": "Normandie",
+   "image": "asset:maps/reg-28.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "regionmap-75",
+   "listId": "builtin-region-maps-v1",
+   "name": "",
+   "definition": "Nouvelle-Aquitaine",
+   "image": "asset:maps/reg-75.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "regionmap-76",
+   "listId": "builtin-region-maps-v1",
+   "name": "",
+   "definition": "Occitanie",
+   "image": "asset:maps/reg-76.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "regionmap-52",
+   "listId": "builtin-region-maps-v1",
+   "name": "",
+   "definition": "Pays de la Loire",
+   "image": "asset:maps/reg-52.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "regionmap-93",
+   "listId": "builtin-region-maps-v1",
+   "name": "",
+   "definition": "Provence-Alpes-Côte d'Azur",
+   "image": "asset:maps/reg-93.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "regionmap-11",
+   "listId": "builtin-region-maps-v1",
+   "name": "",
+   "definition": "Île-de-France",
+   "image": "asset:maps/reg-11.webp",
+   "lastReview": 0,
+   "randomSide": false
+  }
+ ]
+}
