@@ -5,14 +5,22 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
@@ -80,6 +88,18 @@ fun StatsSheet(
                     )
                 }
 
+                if (s.totalCards > 0) {
+                    Spacer(Modifier.height(24.dp))
+                    Text("Coming up", style = MaterialTheme.typography.titleSmall)
+                    Spacer(Modifier.height(8.dp))
+                    ForecastChart(s.forecast)
+
+                    Spacer(Modifier.height(24.dp))
+                    Text("Maturity", style = MaterialTheme.typography.titleSmall)
+                    Spacer(Modifier.height(8.dp))
+                    MaturityBar(s.maturity)
+                }
+
                 Spacer(Modifier.height(24.dp))
                 Text("Score distribution", style = MaterialTheme.typography.titleSmall)
                 Spacer(Modifier.height(8.dp))
@@ -120,63 +140,127 @@ fun StatsSheet(
                         )
                     }
                 }
+            }
+        }
+    }
+}
 
-                if (s.waitTimeBuckets.isNotEmpty()) {
-                    Spacer(Modifier.height(24.dp))
-                    Text("Wait distribution", style = MaterialTheme.typography.titleSmall)
-                    Spacer(Modifier.height(8.dp))
+private val dayFormat = DateTimeFormatter.ofPattern("EEE", Locale.FRENCH)
 
-                    val maxWaitCount = s.waitTimeBuckets.maxOf { it.count }.coerceAtLeast(1)
-                    val waitColor = Color(0xFF2F86EB)
-
-                    Row(
+@Composable
+private fun ForecastChart(forecast: List<Int>) {
+    val maxCount = forecast.max().coerceAtLeast(1)
+    val today = LocalDate.now()
+    val barColor = Color(0xFF2F86EB)
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(130.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        forecast.forEachIndexed { day, count ->
+            val isToday = day == 0
+            val textColor =
+                if (isToday) MaterialTheme.colorScheme.onSurface
+                else MaterialTheme.colorScheme.onSurfaceVariant
+            val weight = if (isToday) FontWeight.SemiBold else FontWeight.Normal
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    "$count",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = textColor,
+                    fontWeight = weight,
+                    maxLines = 1
+                )
+                Spacer(Modifier.height(4.dp))
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth(),
+                    contentAlignment = Alignment.BottomCenter
+                ) {
+                    Box(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .height(140.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        s.waitTimeBuckets.forEach { bucket ->
-                            Column(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .fillMaxHeight(),
-                                horizontalAlignment = Alignment.CenterHorizontally
-                            ) {
-                                Text(
-                                    "${bucket.count}",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 1
-                                )
-                                Spacer(Modifier.height(4.dp))
-                                Box(
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .fillMaxWidth(),
-                                    contentAlignment = Alignment.BottomCenter
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxWidth(0.55f)
-                                            .fillMaxHeight(bucket.count.toFloat() / maxWaitCount)
-                                            .background(
-                                                waitColor.copy(alpha = 0.75f),
-                                                RoundedCornerShape(topStart = 6.dp, topEnd = 6.dp)
-                                            )
-                                    )
-                                }
-                                Spacer(Modifier.height(6.dp))
-                                Text(
-                                    bucket.label,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            }
-                        }
-                    }
+                            .fillMaxWidth(0.6f)
+                            .fillMaxHeight(count.toFloat() / maxCount)
+                            .background(
+                                if (isToday) barColor else barColor.copy(alpha = 0.75f),
+                                RoundedCornerShape(topStart = 6.dp, topEnd = 6.dp)
+                            )
+                    )
                 }
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    if (isToday) "Today" else today.plusDays(day.toLong()).format(dayFormat),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = textColor,
+                    fontWeight = weight,
+                    maxLines = 1,
+                    overflow = TextOverflow.Clip
+                )
+            }
+        }
+    }
+}
+
+private fun maturityColor(maturity: Maturity): Color = when (maturity) {
+    Maturity.New -> Color(0xFFB0BEC5)
+    Maturity.Learning -> Color(0xFFFF9900)
+    Maturity.Young -> Color(0xFFFFCC00)
+    Maturity.Mature -> Color(0xFF7CC63A)
+    Maturity.Mastered -> Color(0xFF2E9E2E)
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun MaturityBar(counts: Map<Maturity, Int>) {
+    val present = Maturity.entries.filter { (counts[it] ?: 0) > 0 }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(18.dp)
+            .clip(RoundedCornerShape(9.dp)),
+        horizontalArrangement = Arrangement.spacedBy(2.dp)
+    ) {
+        present.forEach { stage ->
+            Box(
+                modifier = Modifier
+                    .weight(counts.getValue(stage).toFloat())
+                    .fillMaxHeight()
+                    .background(maturityColor(stage))
+            )
+        }
+    }
+    Spacer(Modifier.height(10.dp))
+    FlowRow(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        Maturity.entries.forEach { stage ->
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    Modifier
+                        .size(10.dp)
+                        .background(maturityColor(stage), CircleShape)
+                )
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    stage.label,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.width(4.dp))
+                Text(
+                    "${counts[stage] ?: 0}",
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.SemiBold
+                )
             }
         }
     }

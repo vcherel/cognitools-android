@@ -154,7 +154,7 @@ Root package (shared/misc):
 - `DetailScreen.kt`: single list detail/edit screen
 - `GameScreen.kt`: the review/quiz screen
 - `ElementCard.kt`: flashcard flip card composable
-- `StatsSheet.kt`: stats bottom sheet (wait time buckets, scores)
+- `StatsSheet.kt`: stats bottom sheet (7 day due forecast, maturity bar, scores); the maturity stages and `dueForecast` live in `Models.kt`
 
 `gallery/` (photo/video gallery on top of MediaStore):
 - `Models.kt`: MediaItem, Album, MediaType

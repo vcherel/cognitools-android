@@ -5,11 +5,12 @@ import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
 import com.example.myapp.deaccented
-import com.example.myapp.formatDuration
 import org.json.JSONArray
 import org.json.JSONObject
+import java.time.Instant
+import java.time.ZoneId
+import java.time.temporal.ChronoUnit
 import java.util.UUID
-import kotlin.math.roundToLong
 
 
 @Entity(tableName = "lists")
@@ -123,32 +124,37 @@ fun FlashcardElement.resetProgress(now: Long = System.currentTimeMillis()): Flas
     score = 0.0
 )
 
-/** One bar of the wait time histogram: a contiguous range of remaining time and how many cards fall in it. */
-data class WaitTimeBucket(val label: String, val count: Int)
+/** Past this interval a card is mastered, and dropped at app start unless its list is builtin. */
+const val MASTERED_MINUTES = 6 * 30 * 24 * 60
 
-/**
- * Splits [waitTimesMs] into up to [maxBuckets] equal-width ranges spanning the actual min to max of the
- * data, so bin width adapts to whatever time scale the deck is currently at (all cards a few hours apart,
- * or spread over months) instead of assuming one fixed scale.
- */
-fun computeWaitTimeBuckets(waitTimesMs: List<Long>, maxBuckets: Int = 6): List<WaitTimeBucket> {
-    if (waitTimesMs.isEmpty()) return emptyList()
-    val min = waitTimesMs.min()
-    val max = waitTimesMs.max()
-    if (min == max) return listOf(WaitTimeBucket(formatDuration(min), waitTimesMs.size))
+enum class Maturity(val label: String) {
+    New("New"), Learning("Learning"), Young("Young"), Mature("Mature"), Mastered("Mastered")
+}
 
-    val width = (max - min).toDouble() / maxBuckets
-    val edges = (0..maxBuckets).map { i -> min + (width * i).roundToLong() }.distinct()
-    val bucketCount = edges.size - 1
-    if (bucketCount <= 0) return listOf(WaitTimeBucket(formatDuration(min), waitTimesMs.size))
-
-    return (0 until bucketCount).map { i ->
-        val low = edges[i]
-        val high = edges[i + 1]
-        val isLast = i == bucketCount - 1
-        val count = waitTimesMs.count { if (isLast) it in low..high else it in low until high }
-        WaitTimeBucket(formatDuration(low), count)
+val FlashcardElement.maturity: Maturity
+    get() = when {
+        totalWins + totalLosses == 0 -> Maturity.New
+        interval < 24 * 60 -> Maturity.Learning
+        interval < 21 * 24 * 60 -> Maturity.Young
+        interval <= MASTERED_MINUTES -> Maturity.Mature
+        else -> Maturity.Mastered
     }
+
+/** Cards coming due on each of the next [days] days, today first and holding the overdue ones too. */
+fun dueForecast(
+    cards: List<FlashcardElement>,
+    now: Long,
+    days: Int = 7,
+    zone: ZoneId = ZoneId.systemDefault()
+): List<Int> {
+    val today = Instant.ofEpochMilli(now).atZone(zone).toLocalDate()
+    val counts = IntArray(days)
+    cards.forEach { card ->
+        val day = Instant.ofEpochMilli(card.nextReviewAt).atZone(zone).toLocalDate()
+        val index = ChronoUnit.DAYS.between(today, day).coerceAtLeast(0)
+        if (index < days) counts[index.toInt()]++
+    }
+    return counts.toList()
 }
 
 fun FlashcardList.toJson(): JSONObject = JSONObject().also {
@@ -186,7 +192,9 @@ data class FlashcardStats(
     val scoreBuckets: List<Pair<Int, Int>>,
     /** Mean of the time remaining before each card is due again (due cards count as 0), -1 if no cards. */
     val meanTimeUntilNextReviewMs: Long,
-    val waitTimeBuckets: List<WaitTimeBucket>
+    val maturity: Map<Maturity, Int>,
+    /** See [dueForecast]. */
+    val forecast: List<Int>
 ) {
     val winRate: Float get() =
         if (totalWins + totalLosses > 0) totalWins.toFloat() / (totalWins + totalLosses) else -1f

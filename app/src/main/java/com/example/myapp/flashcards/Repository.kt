@@ -125,7 +125,8 @@ class FlashcardRepository(private val context: Context) {
                 score to elements.count { it.score.toInt().coerceIn(0, 10) == score }
             },
             meanTimeUntilNextReviewMs = if (waitTimes.isEmpty()) -1L else waitTimes.average().toLong(),
-            waitTimeBuckets = computeWaitTimeBuckets(waitTimes)
+            maturity = elements.groupingBy { it.maturity }.eachCount(),
+            forecast = dueForecast(elements, now)
         )
     }
 
@@ -203,7 +204,7 @@ class FlashcardRepository(private val context: Context) {
             dao.upsertElements(shipped)
             context.flashcardDataStore.edit { it[resetVersionKey] = RESETS.last().first }
         }
-        dao.purgeMasteredCards(SIX_MONTHS_MINUTES, builtinListIds)
+        dao.purgeMasteredCards(MASTERED_MINUTES, builtinListIds)
         context.sweepCardImages(dao.getImages())
     }
 
@@ -279,7 +280,6 @@ class FlashcardRepository(private val context: Context) {
             7 to "flag-yt",
             7 to "flag-gu"
         )
-        private const val SIX_MONTHS_MINUTES = 6 * 30 * 24 * 60
         private val builtinListIds = listOf(
             "builtin-capitals-v1", "builtin-prefectures-v1", "builtin-dept-numbers-v1",
             "builtin-flags-v1"
