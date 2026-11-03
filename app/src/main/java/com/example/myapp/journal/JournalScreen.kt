@@ -73,6 +73,7 @@ import com.example.myapp.LightIconButton
 import com.example.myapp.MyButton
 import com.example.myapp.ScreenTopBar
 import com.example.myapp.journalRepository
+import com.example.myapp.notes.formatInline
 import com.example.myapp.news.NewsArticle
 import com.example.myapp.newsRepository
 import com.example.myapp.notes.WEEKEND_SECTION
@@ -402,7 +403,7 @@ private fun JournalItemCard(
             }
             if (expanded && item.body.isNotBlank()) {
                 Spacer(Modifier.height(8.dp))
-                Text(item.body, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(end = 8.dp))
+                Text(remember(item.body) { item.body.formatInline() }, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(end = 8.dp))
             }
             Spacer(Modifier.height(8.dp))
             FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
