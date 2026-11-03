@@ -7,6 +7,8 @@ import androidx.room.Query
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.Upsert
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import com.example.myapp.calendar.CalendarDao
 import com.example.myapp.calendar.CalendarItem
 import com.example.myapp.gallery.PinnedMediaItem
@@ -88,7 +90,7 @@ interface FlashcardDao {
         PodcastDownload::class, Book::class, NewsRead::class, NewsSaved::class,
         NewsProgress::class, CalendarItem::class
     ],
-    version = 23
+    version = 24
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun calendarDao(): CalendarDao
@@ -108,7 +110,18 @@ abstract class AppDatabase : RoomDatabase() {
                     context.applicationContext,
                     AppDatabase::class.java,
                     "flashcards.db"
-                ).build().also { instance = it }
+                ).addMigrations(MIGRATION_23_24).build().also { instance = it }
             }
+    }
+}
+
+// Appel Mamie had already been pushed two days when the planned day started being kept.
+private val MIGRATION_23_24 = object : Migration(23, 24) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `calendar_items` ADD COLUMN `plannedDate` TEXT")
+        db.execSQL(
+            "UPDATE `calendar_items` SET `plannedDate` = date(`date`, '-2 day') " +
+                "WHERE `title` = 'Appel Mamie' AND `done` = 0"
+        )
     }
 }

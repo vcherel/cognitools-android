@@ -191,7 +191,9 @@ object WorkoutReminder {
             Intent(context, MainActivity::class.java).putExtra(MainActivity.EXTRA_OPEN_ROUTE, "workout?pickDay=true"),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-        val text = lastSessionText(lastDone?.toLocalDateTime(), LocalDate.now())
+        val last = lastDone?.toLocalDateTime()
+        val today = LocalDate.now()
+        val text = listOfNotNull(lastSessionText(last, today), pushedText(last, today)?.lowercase()).joinToString(", ").ifEmpty { null }
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_fitness)
             .setContentTitle("Workout time")

@@ -16,6 +16,7 @@ import com.example.myapp.AppSnackbar
 import com.example.myapp.MainActivity
 import com.example.myapp.R
 import com.example.myapp.deaccented
+import com.example.myapp.plural
 import com.example.myapp.flashcards.AppDatabase
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -123,7 +124,7 @@ object CalendarReminders {
         val changed = when (action) {
             ACTION_DONE -> item.completed(LocalDate.now())
             ACTION_LATER -> item.copy(snoozedUntil = LocalDateTime.now().plusMinutes(TASK_SNOOZE_MINUTES).withNano(0).toString())
-            ACTION_TOMORROW -> item.copy(date = LocalDate.now().plusDays(1).toString(), snoozedUntil = null)
+            ACTION_TOMORROW -> item.movedTo(LocalDate.now().plusDays(1)).copy(snoozedUntil = null)
             // Tapped on the eve, so the birthday is tomorrow's year (a 1 January one is next year's).
             ACTION_WISHED -> item.copy(wishedYear = LocalDate.now().plusDays(1).year)
             else -> return
@@ -217,8 +218,12 @@ fun itemSummary(item: CalendarItem, today: LocalDate): String {
         start != null -> "at $start"
         else -> null
     }
-    return listOfNotNull(day, time).joinToString(" ")
+    return listOfNotNull(day, time).joinToString(" ") + (pushedText(item)?.let { ", $it" } ?: "")
 }
+
+/** "pushed 2 days", null for a task still on the day it was set for. */
+fun pushedText(item: CalendarItem): String? =
+    item.daysPushed().takeIf { it > 0 }?.let { "pushed $it day${plural(it.toInt())}" }
 
 private fun Long.toLocalDateTime(): LocalDateTime =
     LocalDateTime.ofInstant(Instant.ofEpochMilli(this), ZoneId.systemDefault())

@@ -159,4 +159,14 @@ class CalendarScheduleTest {
         )
         assertEquals(LocalDateTime.of(2026, 11, 7, 20, 0), nextDigest(items, LocalDateTime.of(2026, 11, 4, 20, 0)))
     }
+
+    @Test
+    fun pushingATaskKeepsTheDayItWasFirstSetFor() {
+        val task = CalendarItem(kind = CalendarKind.TASK, title = "Appel", date = "2026-11-02")
+        val twice = task.movedTo(LocalDate.of(2026, 11, 3)).movedTo(LocalDate.of(2026, 11, 4))
+        assertEquals("2026-11-02", twice.plannedDate)
+        assertEquals(2L, twice.daysPushed())
+        assertEquals(null, twice.movedTo(LocalDate.of(2026, 11, 2)).plannedDate)
+        assertEquals(0L, task.daysPushed())
+    }
 }

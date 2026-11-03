@@ -67,4 +67,12 @@ class WorkoutScheduleTest {
         assertEquals(2, sessionsInMonth(sessions, at(30, 0).toLocalDate()))
         assertEquals(3, sessionsInYear(sessions, at(30, 0).toLocalDate()))
     }
+
+    @Test
+    fun `days pushed past the planned session`() {
+        assertEquals(0L, daysPushed(null, at(30, 0).toLocalDate()))
+        assertEquals(0L, daysPushed(at(20, 20), at(23, 0).toLocalDate()))
+        assertEquals(2L, daysPushed(at(20, 20), at(25, 0).toLocalDate()))
+        assertEquals(0L, daysPushed(at(20, 20), at(22, 0).toLocalDate()))
+    }
 }

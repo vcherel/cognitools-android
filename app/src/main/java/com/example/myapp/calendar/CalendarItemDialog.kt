@@ -154,15 +154,17 @@ fun CalendarItemDialog(
                     enabled = title.isNotBlank(),
                     onClick = {
                         val start = if (isBirthday) null else time
+                        val savedDate = when {
+                            isBirthday && !yearKnown -> date.withYear(UNKNOWN_BIRTH_YEAR)
+                            kind == CalendarKind.TASK && recurrence == Recurrence.MONTH_END -> date.endOfMonth()
+                            else -> date
+                        }
                         onSave(
                             initial.copy(
                                 kind = kind,
                                 title = title.trim(),
-                                date = when {
-                                    isBirthday && !yearKnown -> date.withYear(UNKNOWN_BIRTH_YEAR)
-                                    kind == CalendarKind.TASK && recurrence == Recurrence.MONTH_END -> date.endOfMonth()
-                                    else -> date
-                                }.toString(),
+                                date = savedDate.toString(),
+                                plannedDate = if (isNew || kind != CalendarKind.TASK) null else initial.movedTo(savedDate).plannedDate,
                                 endDate = if (isEvent) endDate?.takeIf { it.isAfter(date) }?.toString() else null,
                                 time = start?.let(timeFormat::format),
                                 endTime = if (isEvent && start != null) endTime?.let(timeFormat::format) else null,

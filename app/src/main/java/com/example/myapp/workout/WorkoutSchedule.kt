@@ -56,6 +56,13 @@ fun reminderWithNewTimes(remindAt: LocalDateTime, old: ReminderTimes, new: Remin
 fun daysSinceSession(lastDone: LocalDateTime?, today: LocalDate): Long? =
     lastDone?.let { ChronoUnit.DAYS.between(it.toLocalDate(), today) }
 
+/**
+ * The days the next session sits past the one planned after the last session ([RECOVERY_DAYS] off),
+ * by snoozes, a picked day or reminders left unanswered. 0 without any session.
+ */
+fun daysPushed(lastDone: LocalDateTime?, nextDay: LocalDate): Long =
+    lastDone?.let { ChronoUnit.DAYS.between(it.toLocalDate().plusDays(RECOVERY_DAYS + 1), nextDay) }?.coerceAtLeast(0) ?: 0
+
 fun sessionsInMonth(sessions: List<LocalDateTime>, today: LocalDate) =
     sessions.count { it.year == today.year && it.month == today.month }
 

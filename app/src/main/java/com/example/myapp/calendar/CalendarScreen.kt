@@ -434,13 +434,14 @@ private fun ItemRow(
                 color = if (item.done) muted else MaterialTheme.colorScheme.onSurface
             )
             val details = when {
-                daysLate != null -> "$daysLate day${plural(daysLate)} late"
-                item.kind == CalendarKind.BIRTHDAY -> null
+                daysLate != null -> listOfNotNull(pushedText(item), "$daysLate day${plural(daysLate)} late")
+                item.kind == CalendarKind.BIRTHDAY -> emptyList()
                 else -> listOfNotNull(
                     timeOn(item, day),
-                    item.recurrence.takeIf { it != Recurrence.NONE }?.label?.lowercase()
-                ).joinToString(", ").ifEmpty { null }?.replaceFirstChar { it.uppercase() }
-            }
+                    item.recurrence.takeIf { it != Recurrence.NONE }?.label?.lowercase(),
+                    pushedText(item)
+                )
+            }.joinToString(", ").ifEmpty { null }?.replaceFirstChar { it.uppercase() }
             details?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = muted) }
         }
     }

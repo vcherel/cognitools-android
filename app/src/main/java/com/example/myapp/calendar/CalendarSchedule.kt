@@ -36,6 +36,16 @@ fun CalendarItem.occursOn(day: LocalDate, today: LocalDate): Boolean = when {
 
 fun CalendarItem.daysLate(today: LocalDate): Long = ChronoUnit.DAYS.between(localDate(), today)
 
+/** The days a task has been pushed past the day it was first set for. */
+fun CalendarItem.daysPushed(): Long =
+    plannedDate?.let { ChronoUnit.DAYS.between(LocalDate.parse(it), localDate()) }?.coerceAtLeast(0) ?: 0
+
+/** The task moved to [newDate], keeping the day it was first set for unless it moves back to or before it. */
+fun CalendarItem.movedTo(newDate: LocalDate): CalendarItem {
+    val planned = plannedDate?.let(LocalDate::parse) ?: localDate()
+    return copy(date = newDate.toString(), plannedDate = planned.takeIf { newDate.isAfter(it) }?.toString())
+}
+
 fun LocalDate.endOfMonth(): LocalDate = withDayOfMonth(lengthOfMonth())
 
 /**
@@ -52,7 +62,7 @@ fun CalendarItem.completed(today: LocalDate): CalendarItem {
         Recurrence.MONTHLY_ON_DAY -> after { it.plusMonths(1) }
         Recurrence.MONTH_END -> after { it.plusMonths(1).endOfMonth() }
     }
-    return copy(date = next.toString(), snoozedUntil = null)
+    return copy(date = next.toString(), snoozedUntil = null, plannedDate = null)
 }
 
 /** How long a task's "Dans 1 h" puts its reminder off. */

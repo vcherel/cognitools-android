@@ -79,6 +79,10 @@ fun lastSessionText(lastDone: LocalDateTime?, today: LocalDate): String? {
     return if (days >= LONG_BREAK_DAYS) "$days days without a session" else "Last session: ${formatDay(lastDone!!)}"
 }
 
+/** "Pushed 2 days", null while the next session is still on its planned day. */
+fun pushedText(lastDone: LocalDateTime?, nextDay: LocalDate): String? =
+    daysPushed(lastDone, nextDay).takeIf { it > 0 }?.let { "Pushed $it day${plural(it.toInt())}" }
+
 @Composable
 fun WorkoutScreen(
     onBack: () -> Unit,
@@ -125,6 +129,10 @@ fun WorkoutScreen(
                     fontWeight = FontWeight.Bold,
                     textAlign = TextAlign.Center
                 )
+            }
+            val nextDay = if (current.due) today else remindAt?.toLocalDate()
+            nextDay?.let { pushedText(sessions.firstOrNull(), it) }?.let {
+                Text(it, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Text(
                 lastSessionText(sessions.firstOrNull(), today) ?: "No sessions logged",

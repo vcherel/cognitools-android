@@ -35,6 +35,7 @@ enum class Recurrence(val label: String) {
  * year's morning reminder.
  * A repeating task ([recurrence]) is never done: checking it moves [date] to its next time.
  * [snoozedUntil] is the ISO date time a task's "Dans 1 h" put its reminder off to, cleared by any edit.
+ * [plannedDate] is the day a task was first set for once it has been pushed later, null until then.
  */
 @Entity(tableName = "calendar_items")
 data class CalendarItem(
@@ -49,7 +50,8 @@ data class CalendarItem(
     val wishedYear: Int? = null,
     val recurrence: Recurrence = Recurrence.NONE,
     val snoozedUntil: String? = null,
-    val endDate: String? = null
+    val endDate: String? = null,
+    val plannedDate: String? = null
 )
 
 const val UNKNOWN_BIRTH_YEAR = 2000
@@ -97,6 +99,7 @@ fun calendarToJson(items: List<CalendarItem>): JSONArray = JSONArray().apply {
                 .put("done", item.done)
                 .put("wishedYear", item.wishedYear)
                 .put("recurrence", item.recurrence.name)
+                .put("plannedDate", item.plannedDate)
         )
     }
 }
