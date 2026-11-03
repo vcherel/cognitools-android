@@ -16,7 +16,7 @@ The UI is English, except the Undercover tool, which stays French on purpose: it
 
 A complaint about the Music tool's errors starts with `uv run --no-project src/deezer_logs.py`, which pulls every log the tool writes (errors, crossfade, offline sync, discoveries) from `/sdcard/Android/data/com.example.myapp/files/` and groups the error and crossfade lines by kind, with the tracks refused on several days.
 
-A flag complaint starts with `uv run --no-project --with pillow python src/generate_flags.py --sheet <codes>` from the repo root, opened for Valentin: it puts the shipped picture next to a fresh render and writes nothing to the assets, so the same command previews a generator change before the full run.
+A flag complaint starts with `uv run --no-project --with pillow python src/generate_flags.py --sheet <codes>` from the repo root, opened for Valentin: it puts the shipped picture next to a fresh render and writes nothing to the assets, so the same command previews a generator change before the full run. `--write <codes>` then writes only those pictures into the assets, without downloading the whole list again.
 
 The phone's screen is 360 x 825 dp (720 x 1650 px at density 2.0): size UI mockups and fit checks to that width. Mockups go in the gitignored `mockups/` folder and render with `uv run --no-project src/mockup.py <page.html>... --size W,H`, headless Firefox with Inter and Material Symbols cached locally. Build every tool screen mockup on `src/mockup_base.css` (the script copies it next to the page as `app.css`, link it): the real header, cards, raised buttons, dialog and type, with `--c` set to the tool's color. A first mockup in a look of its own was rejected for not matching the app.
 

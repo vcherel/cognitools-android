@@ -291,6 +291,10 @@ def render(code, image):
     return hide_name(image, code)
 
 
+def save(image, code):
+    image.save(FLAGS_DIR / f"{code}.webp", "WEBP", quality=88, method=6)
+
+
 def sheet(codes):
     """Shipped picture on the left, a fresh render on the right; nothing written to the assets."""
     tile_w, tile_h = 660, 470
@@ -316,9 +320,15 @@ def sheet(codes):
 def main():
     parser = argparse.ArgumentParser(description="Build the Drapeaux flashcards list from flagcdn.")
     parser.add_argument("--sheet", nargs="+", metavar="CODE", help="only render these flags side by side")
+    parser.add_argument("--write", nargs="+", metavar="CODE", help="only write these flags' pictures")
     args = parser.parse_args()
     if args.sheet:
         sheet(args.sheet)
+        return
+    if args.write:
+        for i, code in enumerate(args.write, 1):
+            save(render(code, None if code in EXTRA_FLAGS else flagcdn(code, 640)), code)
+            print(f"{i}/{len(args.write)} {code}", flush=True)
         return
 
     names = json.loads(fetch("https://flagcdn.com/fr/codes.json"))
@@ -336,11 +346,11 @@ def main():
             print(f"{i}/{len(codes)} {code} skipped, same flag as {seen[digest]}", flush=True)
             continue
         seen[digest] = code
-        render(code, image).save(FLAGS_DIR / f"{code}.webp", "WEBP", quality=88, method=6)
+        save(render(code, image), code)
         cards.append(card(code, name))
         print(f"{i}/{len(codes)} {code} {name}", flush=True)
     for code, (url, name) in EXTRA_FLAGS.items():
-        extra_flag(url).save(FLAGS_DIR / f"{code}.webp", "WEBP", quality=88, method=6)
+        save(extra_flag(url), code)
         cards.append(card(code, name))
         print(f"{code} {name}", flush=True)
 
