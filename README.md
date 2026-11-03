@@ -124,4 +124,10 @@ uv run --no-project src/deezer_logs.py
 uv run --no-project src/mockup.py mockups/page.html --size 360,825
 ```
 
+`workout_figures.py` draws every workout stick figure the way the app does, at the start, middle and end of its loop, into `mockups/workout_figures.png`:
+
+```bash
+uv run --no-project --with pillow python src/workout_figures.py
+```
+
 `CLAUDE.md` carries a one line per file map of the whole codebase, kept current as files are added or renamed.
