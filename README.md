@@ -93,7 +93,7 @@ uv run python src/generate_flags.py
 The Cartes and Départements (carte) lists, a locator map of every place in Drapeaux and of every French department, from Natural Earth and france-geojson (downloaded into `data/maps/`):
 
 ```bash
-uv run --no-project --with pillow --with numpy --with shapely --with pyshp python src/generate_maps.py
+uv run --only-group maps src/generate_maps.py
 ```
 
 `--sheet <codes>` renders those maps (ISO codes, or department numbers like `35` or `2A`) into `mockups/maps_sheet.png`, `--write <codes>` writes only their pictures.
