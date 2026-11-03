@@ -1,0 +1,922 @@
+{
+ "version": 1,
+ "lists": [
+  {
+   "id": "builtin-dept-maps-v1",
+   "name": "Départements (carte)",
+   "order": 5,
+   "fixedSide": true
+  }
+ ],
+ "cards": [
+  {
+   "id": "deptmap-01",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Ain",
+   "image": "asset:maps/dep-01.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-02",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Aisne",
+   "image": "asset:maps/dep-02.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-03",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Allier",
+   "image": "asset:maps/dep-03.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-04",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Alpes-de-Haute-Provence",
+   "image": "asset:maps/dep-04.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-05",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Hautes-Alpes",
+   "image": "asset:maps/dep-05.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-06",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Alpes-Maritimes",
+   "image": "asset:maps/dep-06.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-07",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Ardèche",
+   "image": "asset:maps/dep-07.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-08",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Ardennes",
+   "image": "asset:maps/dep-08.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-09",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Ariège",
+   "image": "asset:maps/dep-09.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-10",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Aube",
+   "image": "asset:maps/dep-10.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-11",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Aude",
+   "image": "asset:maps/dep-11.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-12",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Aveyron",
+   "image": "asset:maps/dep-12.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-13",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Bouches-du-Rhône",
+   "image": "asset:maps/dep-13.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-14",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Calvados",
+   "image": "asset:maps/dep-14.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-15",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Cantal",
+   "image": "asset:maps/dep-15.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-16",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Charente",
+   "image": "asset:maps/dep-16.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-17",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Charente-Maritime",
+   "image": "asset:maps/dep-17.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-18",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Cher",
+   "image": "asset:maps/dep-18.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-19",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Corrèze",
+   "image": "asset:maps/dep-19.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-21",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Côte-d'Or",
+   "image": "asset:maps/dep-21.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-22",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Côtes-d'Armor",
+   "image": "asset:maps/dep-22.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-23",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Creuse",
+   "image": "asset:maps/dep-23.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-24",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Dordogne",
+   "image": "asset:maps/dep-24.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-25",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Doubs",
+   "image": "asset:maps/dep-25.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-26",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Drôme",
+   "image": "asset:maps/dep-26.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-27",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Eure",
+   "image": "asset:maps/dep-27.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-28",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Eure-et-Loir",
+   "image": "asset:maps/dep-28.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-29",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Finistère",
+   "image": "asset:maps/dep-29.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-2a",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Corse-du-Sud",
+   "image": "asset:maps/dep-2a.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-2b",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Haute-Corse",
+   "image": "asset:maps/dep-2b.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-30",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Gard",
+   "image": "asset:maps/dep-30.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-31",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Haute-Garonne",
+   "image": "asset:maps/dep-31.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-32",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Gers",
+   "image": "asset:maps/dep-32.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-33",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Gironde",
+   "image": "asset:maps/dep-33.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-34",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Hérault",
+   "image": "asset:maps/dep-34.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-35",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Ille-et-Vilaine",
+   "image": "asset:maps/dep-35.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-36",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Indre",
+   "image": "asset:maps/dep-36.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-37",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Indre-et-Loire",
+   "image": "asset:maps/dep-37.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-38",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Isère",
+   "image": "asset:maps/dep-38.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-39",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Jura",
+   "image": "asset:maps/dep-39.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-40",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Landes",
+   "image": "asset:maps/dep-40.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-41",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Loir-et-Cher",
+   "image": "asset:maps/dep-41.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-42",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Loire",
+   "image": "asset:maps/dep-42.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-43",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Haute-Loire",
+   "image": "asset:maps/dep-43.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-44",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Loire-Atlantique",
+   "image": "asset:maps/dep-44.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-45",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Loiret",
+   "image": "asset:maps/dep-45.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-46",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Lot",
+   "image": "asset:maps/dep-46.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-47",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Lot-et-Garonne",
+   "image": "asset:maps/dep-47.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-48",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Lozère",
+   "image": "asset:maps/dep-48.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-49",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Maine-et-Loire",
+   "image": "asset:maps/dep-49.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-50",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Manche",
+   "image": "asset:maps/dep-50.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-51",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Marne",
+   "image": "asset:maps/dep-51.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-52",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Haute-Marne",
+   "image": "asset:maps/dep-52.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-53",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Mayenne",
+   "image": "asset:maps/dep-53.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-54",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Meurthe-et-Moselle",
+   "image": "asset:maps/dep-54.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-55",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Meuse",
+   "image": "asset:maps/dep-55.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-56",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Morbihan",
+   "image": "asset:maps/dep-56.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-57",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Moselle",
+   "image": "asset:maps/dep-57.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-58",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Nièvre",
+   "image": "asset:maps/dep-58.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-59",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Nord",
+   "image": "asset:maps/dep-59.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-60",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Oise",
+   "image": "asset:maps/dep-60.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-61",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Orne",
+   "image": "asset:maps/dep-61.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-62",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Pas-de-Calais",
+   "image": "asset:maps/dep-62.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-63",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Puy-de-Dôme",
+   "image": "asset:maps/dep-63.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-64",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Pyrénées-Atlantiques",
+   "image": "asset:maps/dep-64.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-65",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Hautes-Pyrénées",
+   "image": "asset:maps/dep-65.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-66",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Pyrénées-Orientales",
+   "image": "asset:maps/dep-66.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-67",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Bas-Rhin",
+   "image": "asset:maps/dep-67.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-68",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Haut-Rhin",
+   "image": "asset:maps/dep-68.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-69",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Rhône",
+   "image": "asset:maps/dep-69.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-70",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Haute-Saône",
+   "image": "asset:maps/dep-70.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-71",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Saône-et-Loire",
+   "image": "asset:maps/dep-71.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-72",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Sarthe",
+   "image": "asset:maps/dep-72.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-73",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Savoie",
+   "image": "asset:maps/dep-73.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-74",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Haute-Savoie",
+   "image": "asset:maps/dep-74.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-75",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Paris",
+   "image": "asset:maps/dep-75.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-76",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Seine-Maritime",
+   "image": "asset:maps/dep-76.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-77",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Seine-et-Marne",
+   "image": "asset:maps/dep-77.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-78",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Yvelines",
+   "image": "asset:maps/dep-78.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-79",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Deux-Sèvres",
+   "image": "asset:maps/dep-79.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-80",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Somme",
+   "image": "asset:maps/dep-80.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-81",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Tarn",
+   "image": "asset:maps/dep-81.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-82",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Tarn-et-Garonne",
+   "image": "asset:maps/dep-82.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-83",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Var",
+   "image": "asset:maps/dep-83.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-84",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Vaucluse",
+   "image": "asset:maps/dep-84.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-85",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Vendée",
+   "image": "asset:maps/dep-85.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-86",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Vienne",
+   "image": "asset:maps/dep-86.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-87",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Haute-Vienne",
+   "image": "asset:maps/dep-87.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-88",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Vosges",
+   "image": "asset:maps/dep-88.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-89",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Yonne",
+   "image": "asset:maps/dep-89.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-90",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Territoire de Belfort",
+   "image": "asset:maps/dep-90.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-91",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Essonne",
+   "image": "asset:maps/dep-91.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-92",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Hauts-de-Seine",
+   "image": "asset:maps/dep-92.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-93",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Seine-Saint-Denis",
+   "image": "asset:maps/dep-93.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-94",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Val-de-Marne",
+   "image": "asset:maps/dep-94.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-95",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Val-d'Oise",
+   "image": "asset:maps/dep-95.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-971",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Guadeloupe",
+   "image": "asset:maps/dep-971.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-972",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Martinique",
+   "image": "asset:maps/dep-972.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-973",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Guyane",
+   "image": "asset:maps/dep-973.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-974",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "La Réunion",
+   "image": "asset:maps/dep-974.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "deptmap-976",
+   "listId": "builtin-dept-maps-v1",
+   "name": "",
+   "definition": "Mayotte",
+   "image": "asset:maps/dep-976.webp",
+   "lastReview": 0,
+   "randomSide": false
+  }
+ ]
+}

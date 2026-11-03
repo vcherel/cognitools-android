@@ -1,0 +1,2218 @@
+{
+ "version": 1,
+ "lists": [
+  {
+   "id": "builtin-maps-v1",
+   "name": "Cartes",
+   "order": 4,
+   "fixedSide": true
+  }
+ ],
+ "cards": [
+  {
+   "id": "map-af",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Afghanistan",
+   "image": "asset:maps/af.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-za",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Afrique du Sud",
+   "image": "asset:maps/za.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-al",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Albanie",
+   "image": "asset:maps/al.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-dz",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Algérie",
+   "image": "asset:maps/dz.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-de",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Allemagne",
+   "image": "asset:maps/de.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-ad",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Andorre",
+   "image": "asset:maps/ad.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-ao",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Angola",
+   "image": "asset:maps/ao.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-ai",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Anguilla",
+   "image": "asset:maps/ai.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-aq",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Antarctique",
+   "image": "asset:maps/aq.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-ag",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Antigua-et-Barbuda",
+   "image": "asset:maps/ag.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-sa",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Arabie saoudite",
+   "image": "asset:maps/sa.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-ar",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Argentine",
+   "image": "asset:maps/ar.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-am",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Arménie",
+   "image": "asset:maps/am.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-aw",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Aruba",
+   "image": "asset:maps/aw.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-au",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Australie",
+   "image": "asset:maps/au.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-at",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Autriche",
+   "image": "asset:maps/at.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-az",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Azerbaïdjan",
+   "image": "asset:maps/az.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-bs",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Bahamas",
+   "image": "asset:maps/bs.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-bh",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Bahreïn",
+   "image": "asset:maps/bh.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-bd",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Bangladesh",
+   "image": "asset:maps/bd.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-bb",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Barbade",
+   "image": "asset:maps/bb.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-be",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Belgique",
+   "image": "asset:maps/be.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-bz",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Belize",
+   "image": "asset:maps/bz.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-bm",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Bermudes",
+   "image": "asset:maps/bm.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-bt",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Bhoutan",
+   "image": "asset:maps/bt.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-mm",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Birmanie",
+   "image": "asset:maps/mm.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-by",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Biélorussie",
+   "image": "asset:maps/by.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-bo",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Bolivie",
+   "image": "asset:maps/bo.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-ba",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Bosnie-Herzégovine",
+   "image": "asset:maps/ba.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-bw",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Botswana",
+   "image": "asset:maps/bw.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-bn",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Brunéi",
+   "image": "asset:maps/bn.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-br",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Brésil",
+   "image": "asset:maps/br.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-bg",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Bulgarie",
+   "image": "asset:maps/bg.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-bf",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Burkina Faso",
+   "image": "asset:maps/bf.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-bi",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Burundi",
+   "image": "asset:maps/bi.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-bj",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Bénin",
+   "image": "asset:maps/bj.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-kh",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Cambodge",
+   "image": "asset:maps/kh.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-cm",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Cameroun",
+   "image": "asset:maps/cm.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-ca",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Canada",
+   "image": "asset:maps/ca.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-cv",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Cap-Vert",
+   "image": "asset:maps/cv.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-cf",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Centrafrique",
+   "image": "asset:maps/cf.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-cl",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Chili",
+   "image": "asset:maps/cl.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-cn",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Chine",
+   "image": "asset:maps/cn.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-cy",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Chypre",
+   "image": "asset:maps/cy.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-co",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Colombie",
+   "image": "asset:maps/co.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-km",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Comores",
+   "image": "asset:maps/km.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-cg",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Congo",
+   "image": "asset:maps/cg.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-kp",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Corée du Nord",
+   "image": "asset:maps/kp.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-kr",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Corée du Sud",
+   "image": "asset:maps/kr.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-cr",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Costa Rica",
+   "image": "asset:maps/cr.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-hr",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Croatie",
+   "image": "asset:maps/hr.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-cu",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Cuba",
+   "image": "asset:maps/cu.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-cw",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Curaçao",
+   "image": "asset:maps/cw.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-ci",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Côte d'Ivoire",
+   "image": "asset:maps/ci.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-dk",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Danemark",
+   "image": "asset:maps/dk.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-dj",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Djibouti",
+   "image": "asset:maps/dj.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-dm",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Dominique",
+   "image": "asset:maps/dm.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-sv",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "El Salvador",
+   "image": "asset:maps/sv.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-es",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Espagne",
+   "image": "asset:maps/es.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-ee",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Estonie",
+   "image": "asset:maps/ee.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-fj",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Fidji",
+   "image": "asset:maps/fj.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-fi",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Finlande",
+   "image": "asset:maps/fi.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-fr",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "France",
+   "image": "asset:maps/fr.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-ga",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Gabon",
+   "image": "asset:maps/ga.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-gm",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Gambie",
+   "image": "asset:maps/gm.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-gh",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Ghana",
+   "image": "asset:maps/gh.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-gi",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Gibraltar",
+   "image": "asset:maps/gi.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-gd",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Grenade",
+   "image": "asset:maps/gd.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-gl",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Groenland",
+   "image": "asset:maps/gl.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-gr",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Grèce",
+   "image": "asset:maps/gr.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-gp",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Guadeloupe",
+   "image": "asset:maps/gp.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-gu",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Guam",
+   "image": "asset:maps/gu.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-gt",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Guatemala",
+   "image": "asset:maps/gt.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-gg",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Guernesey",
+   "image": "asset:maps/gg.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-gn",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Guinée",
+   "image": "asset:maps/gn.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-gq",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Guinée équatoriale",
+   "image": "asset:maps/gq.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-gw",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Guinée-Bissau",
+   "image": "asset:maps/gw.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-gy",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Guyana",
+   "image": "asset:maps/gy.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-gf",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Guyane",
+   "image": "asset:maps/gf.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-ge",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Géorgie",
+   "image": "asset:maps/ge.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-gs",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Géorgie du Sud-et-les Îles Sandwich du Sud",
+   "image": "asset:maps/gs.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-ht",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Haïti",
+   "image": "asset:maps/ht.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-hn",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Honduras",
+   "image": "asset:maps/hn.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-hk",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Hong Kong",
+   "image": "asset:maps/hk.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-hu",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Hongrie",
+   "image": "asset:maps/hu.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-in",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Inde",
+   "image": "asset:maps/in.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-id",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Indonésie",
+   "image": "asset:maps/id.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-iq",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Irak",
+   "image": "asset:maps/iq.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-ir",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Iran",
+   "image": "asset:maps/ir.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-ie",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Irlande",
+   "image": "asset:maps/ie.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-is",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Islande",
+   "image": "asset:maps/is.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-il",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Israël",
+   "image": "asset:maps/il.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-it",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Italie",
+   "image": "asset:maps/it.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-jm",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Jamaïque",
+   "image": "asset:maps/jm.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-jp",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Japon",
+   "image": "asset:maps/jp.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-je",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Jersey",
+   "image": "asset:maps/je.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-jo",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Jordanie",
+   "image": "asset:maps/jo.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-kz",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Kazakhstan",
+   "image": "asset:maps/kz.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-ke",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Kenya",
+   "image": "asset:maps/ke.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-kg",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Kirghizistan",
+   "image": "asset:maps/kg.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-ki",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Kiribati",
+   "image": "asset:maps/ki.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-xk",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Kosovo",
+   "image": "asset:maps/xk.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-kw",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Koweït",
+   "image": "asset:maps/kw.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-la",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Laos",
+   "image": "asset:maps/la.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-ls",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Lesotho",
+   "image": "asset:maps/ls.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-lv",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Lettonie",
+   "image": "asset:maps/lv.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-lb",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Liban",
+   "image": "asset:maps/lb.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-ly",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Libye",
+   "image": "asset:maps/ly.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-lr",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Libéria",
+   "image": "asset:maps/lr.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-li",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Liechtenstein",
+   "image": "asset:maps/li.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-lt",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Lituanie",
+   "image": "asset:maps/lt.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-lu",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Luxembourg",
+   "image": "asset:maps/lu.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-mo",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Macao",
+   "image": "asset:maps/mo.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-mk",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Macédoine du Nord",
+   "image": "asset:maps/mk.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-mg",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Madagascar",
+   "image": "asset:maps/mg.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-my",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Malaisie",
+   "image": "asset:maps/my.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-mw",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Malawi",
+   "image": "asset:maps/mw.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-mv",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Maldives",
+   "image": "asset:maps/mv.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-ml",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Mali",
+   "image": "asset:maps/ml.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-mt",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Malte",
+   "image": "asset:maps/mt.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-ma",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Maroc",
+   "image": "asset:maps/ma.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-mq",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Martinique",
+   "image": "asset:maps/mq.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-mu",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Maurice",
+   "image": "asset:maps/mu.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-mr",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Mauritanie",
+   "image": "asset:maps/mr.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-yt",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Mayotte",
+   "image": "asset:maps/yt.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-mx",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Mexique",
+   "image": "asset:maps/mx.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-fm",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Micronésie",
+   "image": "asset:maps/fm.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-md",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Moldavie",
+   "image": "asset:maps/md.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-mc",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Monaco",
+   "image": "asset:maps/mc.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-mn",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Mongolie",
+   "image": "asset:maps/mn.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-ms",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Montserrat",
+   "image": "asset:maps/ms.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-me",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Monténégro",
+   "image": "asset:maps/me.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-mz",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Mozambique",
+   "image": "asset:maps/mz.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-na",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Namibie",
+   "image": "asset:maps/na.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-nr",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Nauru",
+   "image": "asset:maps/nr.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-ni",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Nicaragua",
+   "image": "asset:maps/ni.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-ne",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Niger",
+   "image": "asset:maps/ne.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-ng",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Nigeria",
+   "image": "asset:maps/ng.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-nu",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Niue",
+   "image": "asset:maps/nu.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-no",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Norvège",
+   "image": "asset:maps/no.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-nc",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Nouvelle-Calédonie",
+   "image": "asset:maps/nc.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-nz",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Nouvelle-Zélande",
+   "image": "asset:maps/nz.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-np",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Népal",
+   "image": "asset:maps/np.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-om",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Oman",
+   "image": "asset:maps/om.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-ug",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Ouganda",
+   "image": "asset:maps/ug.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-uz",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Ouzbékistan",
+   "image": "asset:maps/uz.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-pk",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Pakistan",
+   "image": "asset:maps/pk.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-pw",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Palaos",
+   "image": "asset:maps/pw.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-ps",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Palestine",
+   "image": "asset:maps/ps.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-pa",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Panama",
+   "image": "asset:maps/pa.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-pg",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Papouasie-Nouvelle-Guinée",
+   "image": "asset:maps/pg.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-py",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Paraguay",
+   "image": "asset:maps/py.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-nl",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Pays-Bas",
+   "image": "asset:maps/nl.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-bq",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Pays-Bas caribéens",
+   "image": "asset:maps/bq.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-ph",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Philippines",
+   "image": "asset:maps/ph.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-pl",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Pologne",
+   "image": "asset:maps/pl.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-pf",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Polynésie française",
+   "image": "asset:maps/pf.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-pr",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Porto Rico",
+   "image": "asset:maps/pr.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-pt",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Portugal",
+   "image": "asset:maps/pt.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-pe",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Pérou",
+   "image": "asset:maps/pe.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-qa",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Qatar",
+   "image": "asset:maps/qa.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-cd",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "RD Congo",
+   "image": "asset:maps/cd.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-ro",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Roumanie",
+   "image": "asset:maps/ro.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-gb",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Royaume-Uni",
+   "image": "asset:maps/gb.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-ru",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Russie",
+   "image": "asset:maps/ru.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-rw",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Rwanda",
+   "image": "asset:maps/rw.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-do",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "République dominicaine",
+   "image": "asset:maps/do.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-cz",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "République tchèque",
+   "image": "asset:maps/cz.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-re",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Réunion",
+   "image": "asset:maps/re.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-eh",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Sahara occidental",
+   "image": "asset:maps/eh.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-bl",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Saint-Barthélemy",
+   "image": "asset:maps/bl.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-kn",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Saint-Christophe-et-Niévès",
+   "image": "asset:maps/kn.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-sm",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Saint-Marin",
+   "image": "asset:maps/sm.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-sx",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Saint-Martin (partie néerlandaise)",
+   "image": "asset:maps/sx.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-pm",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Saint-Pierre-et-Miquelon",
+   "image": "asset:maps/pm.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-vc",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Saint-Vincent-et-les-Grenadines",
+   "image": "asset:maps/vc.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-sh",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Sainte-Hélène, Ascension et Tristan da Cunha",
+   "image": "asset:maps/sh.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-lc",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Sainte-Lucie",
+   "image": "asset:maps/lc.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-ws",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Samoa",
+   "image": "asset:maps/ws.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-as",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Samoa américaines",
+   "image": "asset:maps/as.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-rs",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Serbie",
+   "image": "asset:maps/rs.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-sc",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Seychelles",
+   "image": "asset:maps/sc.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-sl",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Sierra Leone",
+   "image": "asset:maps/sl.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-sg",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Singapour",
+   "image": "asset:maps/sg.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-sk",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Slovaquie",
+   "image": "asset:maps/sk.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-si",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Slovénie",
+   "image": "asset:maps/si.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-so",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Somalie",
+   "image": "asset:maps/so.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-sd",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Soudan",
+   "image": "asset:maps/sd.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-ss",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Soudan du Sud",
+   "image": "asset:maps/ss.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-lk",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Sri Lanka",
+   "image": "asset:maps/lk.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-ch",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Suisse",
+   "image": "asset:maps/ch.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-sr",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Suriname",
+   "image": "asset:maps/sr.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-se",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Suède",
+   "image": "asset:maps/se.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-sy",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Syrie",
+   "image": "asset:maps/sy.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-st",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "São Tomé-et-Príncipe",
+   "image": "asset:maps/st.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-sn",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Sénégal",
+   "image": "asset:maps/sn.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-tj",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Tadjikistan",
+   "image": "asset:maps/tj.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-tz",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Tanzanie",
+   "image": "asset:maps/tz.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-tw",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Taïwan",
+   "image": "asset:maps/tw.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-td",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Tchad",
+   "image": "asset:maps/td.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-tf",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Terres australes et antarctiques françaises",
+   "image": "asset:maps/tf.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-io",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Territoire britannique de l'océan Indien",
+   "image": "asset:maps/io.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-th",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Thaïlande",
+   "image": "asset:maps/th.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-tl",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Timor oriental",
+   "image": "asset:maps/tl.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-tg",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Togo",
+   "image": "asset:maps/tg.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-tk",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Tokelau",
+   "image": "asset:maps/tk.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-to",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Tonga",
+   "image": "asset:maps/to.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-tt",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Trinité-et-Tobago",
+   "image": "asset:maps/tt.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-tn",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Tunisie",
+   "image": "asset:maps/tn.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-tm",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Turkménistan",
+   "image": "asset:maps/tm.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-tr",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Turquie",
+   "image": "asset:maps/tr.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-tv",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Tuvalu",
+   "image": "asset:maps/tv.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-ua",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Ukraine",
+   "image": "asset:maps/ua.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-uy",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Uruguay",
+   "image": "asset:maps/uy.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-vu",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Vanuatu",
+   "image": "asset:maps/vu.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-va",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Vatican",
+   "image": "asset:maps/va.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-ve",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Venezuela",
+   "image": "asset:maps/ve.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-vn",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Viêt Nam",
+   "image": "asset:maps/vn.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-wf",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Wallis-et-Futuna",
+   "image": "asset:maps/wf.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-ye",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Yémen",
+   "image": "asset:maps/ye.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-zm",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Zambie",
+   "image": "asset:maps/zm.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-zw",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Zimbabwe",
+   "image": "asset:maps/zw.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-ax",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Åland",
+   "image": "asset:maps/ax.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-eg",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Égypte",
+   "image": "asset:maps/eg.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-ae",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Émirats arabes unis",
+   "image": "asset:maps/ae.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-ec",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Équateur",
+   "image": "asset:maps/ec.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-er",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Érythrée",
+   "image": "asset:maps/er.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-sz",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Éswatini",
+   "image": "asset:maps/sz.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-us",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "États-Unis",
+   "image": "asset:maps/us.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-et",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Éthiopie",
+   "image": "asset:maps/et.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-cx",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Île Christmas",
+   "image": "asset:maps/cx.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-nf",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Île Norfolk",
+   "image": "asset:maps/nf.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-im",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Île de Man",
+   "image": "asset:maps/im.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-ky",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Îles Caïmans",
+   "image": "asset:maps/ky.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-cc",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Îles Cocos",
+   "image": "asset:maps/cc.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-ck",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Îles Cook",
+   "image": "asset:maps/ck.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-fo",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Îles Féroé",
+   "image": "asset:maps/fo.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-fk",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Îles Malouines",
+   "image": "asset:maps/fk.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-mp",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Îles Mariannes du Nord",
+   "image": "asset:maps/mp.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-mh",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Îles Marshall",
+   "image": "asset:maps/mh.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-pn",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Îles Pitcairn",
+   "image": "asset:maps/pn.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-sb",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Îles Salomon",
+   "image": "asset:maps/sb.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-tc",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Îles Turques-et-Caïques",
+   "image": "asset:maps/tc.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-vg",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Îles Vierges britanniques",
+   "image": "asset:maps/vg.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "map-vi",
+   "listId": "builtin-maps-v1",
+   "name": "",
+   "definition": "Îles Vierges des États-Unis",
+   "image": "asset:maps/vi.webp",
+   "lastReview": 0,
+   "randomSide": false
+  }
+ ]
+}
