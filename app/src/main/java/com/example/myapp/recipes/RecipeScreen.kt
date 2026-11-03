@@ -1,6 +1,8 @@
 package com.example.myapp.recipes
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,18 +18,25 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Timer
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -35,27 +44,36 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.myapp.AddItemRow
 import com.example.myapp.AppDialog
 import com.example.myapp.AppSnackbar
 import com.example.myapp.ErrorText
 import com.example.myapp.MyButton
 import com.example.myapp.ScreenTopBar
+import com.example.myapp.deaccented
+import com.example.myapp.notes.courseItemName
 import com.example.myapp.notes.itemKey
 import com.example.myapp.plural
 import com.example.myapp.recipeRepository
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
  * The latest recipe the laptop sent, as one scroll: its ingredients, the ones the Ingrédients note does
- * not list marked missing, then its steps to tick off. The screen stays on while it is open. Cooked
- * opens the dialog that takes what was used out of Ingrédients and, if wanted, onto Courses.
+ * not list marked missing, then its steps to tick off, a step naming a duration offering a timer for
+ * it. The screen stays on while it is open. Cooked opens the dialog that takes what was used out of
+ * Ingrédients (or marks it started) and, if wanted, onto Courses.
  */
 @Composable
 fun RecipeScreen(onBack: () -> Unit) {
@@ -66,8 +84,11 @@ fun RecipeScreen(onBack: () -> Unit) {
     val stock by repo.stock.collectAsState()
     val loading by repo.loading.collectAsState()
     val error by repo.error.collectAsState()
+    val pantry by repo.pantry.collectAsState()
+    val timers by repo.timers.timers.collectAsState()
     val scope = rememberCoroutineScope()
     var cooking by remember { mutableStateOf(false) }
+    var settingTimer by remember { mutableStateOf(false) }
 
     val view = LocalView.current
     DisposableEffect(view) {
@@ -82,6 +103,9 @@ fun RecipeScreen(onBack: () -> Unit) {
             titleStyle = MaterialTheme.typography.titleLarge,
             titleWeight = true
         ) {
+            IconButton(onClick = { settingTimer = true }) {
+                Icon(Icons.Filled.Timer, contentDescription = "Timer")
+            }
             if (loading) {
                 Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(Modifier.size(22.dp), strokeWidth = 2.dp)
@@ -95,6 +119,18 @@ fun RecipeScreen(onBack: () -> Unit) {
 
         error?.let {
             ErrorText(message = "Error: $it", onDismiss = repo::clearError, modifier = Modifier.padding(horizontal = 16.dp))
+        }
+
+        if (timers.isNotEmpty()) TimerRows(timers, onStop = repo.timers::stop)
+
+        if (settingTimer) {
+            TimerDialog(
+                onDismiss = { settingTimer = false },
+                onStart = { minutes ->
+                    settingTimer = false
+                    repo.timers.start("Timer", minutes * 60)
+                }
+            )
         }
 
         val shown = recipe
@@ -159,13 +195,26 @@ fun RecipeScreen(onBack: () -> Unit) {
                     verticalAlignment = Alignment.Top
                 ) {
                     Checkbox(checked = ticked, onCheckedChange = { repo.toggleStep(index) })
-                    Text(
-                        "${index + 1}. $step",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = if (ticked) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
-                        textDecoration = if (ticked) TextDecoration.LineThrough else null,
-                        modifier = Modifier.weight(1f).padding(top = 12.dp)
-                    )
+                    Column(Modifier.weight(1f).padding(top = 12.dp)) {
+                        Text(
+                            "${index + 1}. $step",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = if (ticked) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
+                            textDecoration = if (ticked) TextDecoration.LineThrough else null
+                        )
+                        val durations = remember(step) { stepDurations(step) }
+                        if (durations.isNotEmpty()) {
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                durations.forEach { seconds ->
+                                    AssistChip(
+                                        onClick = { repo.timers.start("Step ${index + 1}", seconds) },
+                                        label = { Text(formatTimerLength(seconds)) },
+                                        leadingIcon = { Icon(Icons.Filled.Timer, contentDescription = null, Modifier.size(18.dp)) }
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
             }
 
@@ -177,14 +226,16 @@ fun RecipeScreen(onBack: () -> Unit) {
         if (cooking) {
             CookedDialog(
                 recipe = shown,
-                used = shown.ingredients.filter { it.name.itemKey() in stock },
+                used = shown.ingredients.map { it.name }.filter { it.itemKey() in stock },
+                pantry = pantry.map { it.courseItemName() }.distinctBy { it.itemKey() },
                 onDismiss = { cooking = false },
-                onApply = { delete, groceries ->
+                onApply = { delete, started, groceries ->
                     cooking = false
                     scope.launch {
-                        val undo = repo.edit(delete, groceries) ?: return@launch
+                        val undo = repo.edit(delete, started, groceries) ?: return@launch
                         val parts = listOfNotNull(
                             "${delete.size} removed".takeIf { delete.isNotEmpty() },
+                            "${started.size} started".takeIf { started.isNotEmpty() },
                             "${groceries.size} added to Courses".takeIf { groceries.isNotEmpty() }
                         )
                         AppSnackbar.show(parts.joinToString(", ").replaceFirstChar { it.uppercase() }, "Undo") { repo.undo(undo) }
@@ -205,64 +256,190 @@ private fun SectionTitle(text: String) {
 private fun formatMinutes(minutes: Int): String =
     if (minutes < 60) "$minutes min" else "${minutes / 60} h" + (minutes % 60).takeIf { it > 0 }?.let { " %02d".format(it) }.orEmpty()
 
-/** One row per ingredient the recipe used: Delete takes it out of Ingrédients, Groceries also puts it on Courses. */
+/** The running and ringing timers, pinned under the header so they stay in view while scrolling. */
+@Composable
+private fun TimerRows(timers: List<CookingTimer>, onStop: (Int) -> Unit) {
+    var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            now = System.currentTimeMillis()
+            delay(250)
+        }
+    }
+    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+        timers.forEach { timer ->
+            val left = timer.endAt - now
+            val ringing = left <= 0
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Filled.Timer, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                Spacer(Modifier.width(12.dp))
+                Text(timer.label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+                Text(
+                    if (ringing) "Time is up" else formatCountdown(left),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = if (ringing) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
+                )
+                if (ringing) {
+                    TextButton(onClick = { onStop(timer.id) }) { Text("Stop") }
+                } else {
+                    IconButton(onClick = { onStop(timer.id) }) {
+                        Icon(Icons.Filled.Close, contentDescription = "Cancel")
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun formatCountdown(millis: Long): String {
+    val seconds = (millis + 999) / 1000
+    val h = seconds / 3600
+    val m = seconds % 3600 / 60
+    val s = seconds % 60
+    return if (h > 0) "%d:%02d:%02d".format(h, m, s) else "%d:%02d".format(m, s)
+}
+
+@Composable
+private fun TimerDialog(onDismiss: () -> Unit, onStart: (minutes: Int) -> Unit) {
+    var text by remember { mutableStateOf("") }
+    val minutes = text.toIntOrNull()?.takeIf { it > 0 }
+    val focus = remember { FocusRequester() }
+    LaunchedEffect(Unit) { focus.requestFocus() }
+    AppDialog(onDismiss = onDismiss) {
+        Text("Timer", style = MaterialTheme.typography.titleMedium)
+        Spacer(Modifier.height(12.dp))
+        OutlinedTextField(
+            value = text,
+            onValueChange = { value -> text = value.filter(Char::isDigit).take(3) },
+            label = { Text("Minutes") },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
+            keyboardActions = KeyboardActions(onDone = { minutes?.let(onStart) }),
+            modifier = Modifier.fillMaxWidth().focusRequester(focus)
+        )
+        Spacer(Modifier.height(12.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+            TextButton(onClick = { minutes?.let(onStart) }, enabled = minutes != null) { Text("Start") }
+        }
+    }
+}
+
+/**
+ * One row per ingredient used, the recipe's own plus any added from Ingrédients: Started marks it
+ * "(entamé)" there, Delete takes it out, Groceries also puts it on Courses (and implies Delete unless
+ * it is only started).
+ */
 @Composable
 private fun CookedDialog(
     recipe: Recipe,
-    used: List<RecipeIngredient>,
+    used: List<String>,
+    pantry: List<String>,
     onDismiss: () -> Unit,
-    onApply: (delete: List<String>, groceries: List<String>) -> Unit
+    onApply: (delete: List<String>, started: List<String>, groceries: List<String>) -> Unit
 ) {
+    val extras = remember { mutableStateListOf<String>() }
     val delete = remember { mutableStateMapOf<String, Boolean>() }
+    val started = remember { mutableStateMapOf<String, Boolean>() }
     val groceries = remember { mutableStateMapOf<String, Boolean>() }
+    var picking by remember { mutableStateOf(false) }
+    val rows = used + extras
     AppDialog(onDismiss = onDismiss) {
         Text("Cooked: ${recipe.title}", style = MaterialTheme.typography.titleMedium)
         Spacer(Modifier.height(12.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
             Spacer(Modifier.weight(1f))
+            ColumnLabel("Started")
             ColumnLabel("Delete")
             ColumnLabel("Groceries")
         }
         Column(Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState())) {
-            used.forEach { ingredient ->
-                val name = ingredient.name
+            rows.forEach { name ->
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(name, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
                     Box(Modifier.width(COLUMN_WIDTH), contentAlignment = Alignment.Center) {
+                        Checkbox(checked = started[name] == true, onCheckedChange = { checked ->
+                            started[name] = checked
+                            if (checked) delete[name] = false
+                            else if (groceries[name] == true) delete[name] = true
+                        })
+                    }
+                    Box(Modifier.width(COLUMN_WIDTH), contentAlignment = Alignment.Center) {
                         Checkbox(checked = delete[name] == true, onCheckedChange = { checked ->
                             delete[name] = checked
-                            if (!checked) groceries[name] = false
+                            if (checked) started[name] = false
+                            else if (started[name] != true) groceries[name] = false
                         })
                     }
                     Box(Modifier.width(COLUMN_WIDTH), contentAlignment = Alignment.Center) {
                         Checkbox(checked = groceries[name] == true, onCheckedChange = { checked ->
                             groceries[name] = checked
-                            if (checked) delete[name] = true
+                            if (checked && started[name] != true) delete[name] = true
                         })
                     }
                 }
             }
+            val addable = pantry.filter { candidate -> rows.none { it.itemKey() == candidate.itemKey() } }
+            if (addable.isNotEmpty()) AddItemRow(onClick = { picking = true }, label = "Add ingredient")
         }
         Spacer(Modifier.height(12.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
             TextButton(onClick = onDismiss) { Text("Cancel") }
             TextButton(onClick = {
                 onApply(
-                    used.map { it.name }.filter { delete[it] == true },
-                    used.map { it.name }.filter { groceries[it] == true }
+                    rows.filter { delete[it] == true },
+                    rows.filter { started[it] == true },
+                    rows.filter { groceries[it] == true }
                 )
             }) { Text("Apply") }
         }
     }
+    if (picking) {
+        PantryPicker(
+            names = pantry.filter { candidate -> rows.none { it.itemKey() == candidate.itemKey() } },
+            onDismiss = { picking = false },
+            onPick = { name ->
+                picking = false
+                extras.add(name)
+            }
+        )
+    }
 }
 
-private val COLUMN_WIDTH = 76.dp
+/** The Ingrédients note's items, filtered as typed, to add one the recipe did not list. */
+@Composable
+private fun PantryPicker(names: List<String>, onDismiss: () -> Unit, onPick: (String) -> Unit) {
+    var query by remember { mutableStateOf("") }
+    val shown = names.filter { it.deaccented().contains(query.trim().deaccented()) }
+    AppDialog(onDismiss = onDismiss) {
+        OutlinedTextField(
+            value = query,
+            onValueChange = { query = it },
+            label = { Text("Ingredient") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth()
+        )
+        Spacer(Modifier.height(8.dp))
+        Column(Modifier.heightIn(max = 360.dp).verticalScroll(rememberScrollState())) {
+            shown.forEach { name ->
+                Text(
+                    name,
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.fillMaxWidth().clickable { onPick(name) }.padding(vertical = 10.dp)
+                )
+            }
+        }
+    }
+}
+
+private val COLUMN_WIDTH = 60.dp
 
 @Composable
 private fun ColumnLabel(text: String) {
     Text(
         text,
-        style = MaterialTheme.typography.labelMedium,
+        style = MaterialTheme.typography.labelSmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         textAlign = TextAlign.Center,
         modifier = Modifier.width(COLUMN_WIDTH)

@@ -201,7 +201,8 @@ Root package (shared/misc):
 - `RecipeModels.kt`: the recipe shape and the notes snapshot, mirroring that repo's `recipe.py`
 - `RecipeRepository.kt`: the singleton, created at app start; uploads the Ingrédients and Modèle courses snapshot to the Journal folder a few seconds after either changes, fetches the latest recipe on refresh (only one kept), the ticked steps, and the undoable edits to Ingrédients and Courses
 - `RecipeNotes.kt`: the pure text side of those edits, on top of `notes/IngredientSync.kt`
-- `RecipeScreen.kt`: one scroll (ingredients with the missing ones marked live, Add missing to Courses, steps to tick, screen kept on) and the Cooked dialog (Delete and Groceries per ingredient, Groceries implying Delete)
+- `RecipeTimers.kt`: the cooking timers (`repo.timers`), each an exact alarm plus a countdown notification replaced by an insistent alarm stream one at the end, kept in `filesDir/recipes/timers.json`, RecipeTimerReceiver (end, Stop, reboot), and `stepDurations`, the durations a step's text names
+- `RecipeScreen.kt`: one scroll (ingredients with the missing ones marked live, Add missing to Courses, steps to tick with a timer chip per duration, screen kept on), the header timer button and the timer rows pinned under it, and the Cooked dialog (Started, Delete and Groceries per ingredient, Groceries implying Delete unless started, more ingredients added from Ingrédients)
 
 `news/` (news reader, French and world headlines from RSS):
 - `NewsModels.kt`: NewsArticle, the NewsRead/NewsSaved/NewsProgress Room entities and NewsDao, plus the 7 day retention shared by the read marks and the reading positions

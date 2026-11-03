@@ -8,6 +8,7 @@ import com.example.myapp.notes.COURSES_TITLE
 import com.example.myapp.notes.INGREDIENTS_TITLE
 import com.example.myapp.notes.Note
 import com.example.myapp.notes.parseCourseGroups
+import com.example.myapp.notes.presentIngredients
 import com.example.myapp.notesLists
 import com.example.myapp.userMessage
 import com.example.myapp.writeAtomically
@@ -54,10 +55,17 @@ class RecipeRepository(context: Context) {
     /** The steps of the current recipe ticked off. */
     val done: StateFlow<Set<Int>> = _done.asStateFlow()
 
+    /** The lines of the Ingrédients note, what the Cooked dialog can add beyond the recipe. */
+    val pantry: StateFlow<List<String>> = appContext.notesLists.notes.filterNotNull()
+        .map { notes -> notes.titled(INGREDIENTS_TITLE)?.let { presentIngredients(it.content) } ?: emptyList() }
+        .stateIn(scope, SharingStarted.Eagerly, emptyList())
+
     /** The keys of what the Ingrédients note lists, what a recipe ingredient is checked against. */
     val stock: StateFlow<Set<String>> = appContext.notesLists.notes.filterNotNull()
         .map { notes -> notes.titled(INGREDIENTS_TITLE)?.let { stockKeys(it.content) } ?: emptySet() }
         .stateIn(scope, SharingStarted.Eagerly, emptySet())
+
+    val timers = RecipeTimers(appContext, dir)
 
     private val _loading = MutableStateFlow(false)
     val loading: StateFlow<Boolean> = _loading.asStateFlow()
@@ -134,17 +142,22 @@ class RecipeRepository(context: Context) {
     class Undo(val contents: Map<String, String>)
 
     /** Puts [names] on the Courses note. Null when there was nothing to add or a note is missing. */
-    suspend fun addToCourses(names: List<String>): Undo? = edit(delete = emptyList(), groceries = names)
+    suspend fun addToCourses(names: List<String>): Undo? = edit(delete = emptyList(), started = emptyList(), groceries = names)
 
-    /** Removes [delete] from Ingrédients and puts [groceries] on Courses, in one undoable change. */
-    suspend fun edit(delete: List<String>, groceries: List<String>): Undo? {
+    /**
+     * Removes [delete] from Ingrédients, marks [started] as started there and puts [groceries] on
+     * Courses, in one undoable change.
+     */
+    suspend fun edit(delete: List<String>, started: List<String>, groceries: List<String>): Undo? {
         val notes = dao.getNotes()
         val ingredients = notes.titled(INGREDIENTS_TITLE) ?: return null
         val courses = notes.titled(COURSES_TITLE) ?: return null
         val groups = parseCourseGroups(notes.titled(COURSES_MODEL_TITLE)?.content.orEmpty())
         val before = mapOf(ingredients.id to ingredients.content, courses.id to courses.content)
+        val pantry = if (delete.isEmpty() && started.isEmpty()) ingredients.content
+        else withStartedIngredients(withoutIngredients(ingredients.content, groups, delete), groups, started)
         val changed = listOf(
-            ingredients to if (delete.isEmpty()) ingredients.content else withoutIngredients(ingredients.content, groups, delete),
+            ingredients to pantry,
             courses to withCourseItems(courses.content, groups, groceries)
         ).filter { (note, content) -> note.content != content }
         if (changed.isEmpty()) return null

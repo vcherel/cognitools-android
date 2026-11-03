@@ -8,4 +8,6 @@
     <string name="workout_channel">Workout reminder</string>
     <string name="todo_channel">Task reminders</string>
     <string name="calendar_channel">Calendar</string>
+    <string name="recipe_timer_channel">Cooking timer</string>
+    <string name="recipe_timer_running_channel">Cooking timer countdown</string>
 </resources>

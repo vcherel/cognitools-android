@@ -3,6 +3,7 @@ package com.example.myapp.recipes
 import com.example.myapp.notes.CourseGroup
 import com.example.myapp.notes.UNCHECKED_PREFIX
 import com.example.myapp.notes.courseGroupIndexOf
+import com.example.myapp.notes.courseItemName
 import com.example.myapp.notes.ingredientKey
 import com.example.myapp.notes.ingredientLineKey
 import com.example.myapp.notes.insertCourseLine
@@ -32,6 +33,18 @@ fun withCourseItems(courses: String, groups: List<CourseGroup>, names: List<Stri
     }
     return content
 }
+
+/** The Ingrédients note with the lines for [names] marked started, "Lait" becoming "Lait (entamé)". */
+fun withStartedIngredients(ingredientsNote: String, groups: List<CourseGroup>, names: List<String>): String {
+    if (names.isEmpty()) return ingredientsNote
+    val keys = names.map { it.itemKey() }.toSet()
+    val lines = presentIngredients(ingredientsNote).map { line ->
+        if (line.ingredientLineKey() in keys) "${line.courseItemName()} $STARTED_SUFFIX" else line
+    }
+    return renderIngredientsNote(lines, groups)
+}
+
+private const val STARTED_SUFFIX = "(entamé)"
 
 /** The Ingrédients note without the lines for [names], the rest re-sorted as the editor sorts it. */
 fun withoutIngredients(ingredientsNote: String, groups: List<CourseGroup>, names: List<String>): String {
