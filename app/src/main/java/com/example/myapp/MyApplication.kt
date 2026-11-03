@@ -22,6 +22,7 @@ import com.example.myapp.recipes.RecipeRepository
 import com.example.myapp.notes.TodoReminder
 import com.example.myapp.notes.ensureTodoSections
 import com.example.myapp.workout.WorkoutReminder
+import com.example.myapp.workout.WorkoutStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -50,6 +51,7 @@ class MyApplication : Application(), SingletonImageLoader.Factory {
                 NOTES_TRASH_RETENTION_DAYS * 24L * 60L * 60L * 1000L
             AppDatabase.get(this@MyApplication).noteDao().purgeExpiredTrashedNotes(cutoff)
             WorkoutReminder.reschedule(this@MyApplication)
+            WorkoutStore.resetProgressOnce(this@MyApplication)
             ensureTodoSections(this@MyApplication)
             TodoReminder.rescheduleAll(this@MyApplication)
             CalendarReminders.refresh(this@MyApplication)

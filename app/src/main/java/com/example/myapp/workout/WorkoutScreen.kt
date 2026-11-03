@@ -1,5 +1,6 @@
 package com.example.myapp.workout
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -12,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -40,6 +42,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.graphics.Color
@@ -117,6 +121,7 @@ fun WorkoutScreen(
                 Text(
                     "${formatDay(remindAt).replaceFirstChar { it.uppercase() }} at ${timeFormat.format(remindAt)}",
                     fontSize = 26.sp,
+                    lineHeight = 32.sp,
                     fontWeight = FontWeight.Bold,
                     textAlign = TextAlign.Center
                 )
@@ -206,6 +211,14 @@ fun WorkoutScreen(
             }
         }
 
+        val progressions = program.exercises.map { it to exerciseHistory(records, it) }.filter { it.second.isNotEmpty() }
+        if (progressions.isNotEmpty()) {
+            WorkoutCard {
+                Text("Progress", style = MaterialTheme.typography.titleMedium)
+                progressions.forEach { (exercise, history) -> ProgressRow(exercise, history) }
+            }
+        }
+
         WorkoutCard {
             Text("History", style = MaterialTheme.typography.titleMedium)
             val month = sessionsInMonth(sessions, today)
@@ -241,6 +254,37 @@ fun WorkoutScreen(
                 pickingDay = false
                 scope.launch { WorkoutReminder.snoozeUntil(context, date) }
             }
+        )
+    }
+}
+
+private const val CURVE_SESSIONS = 20
+
+/** One exercise: its name, the curve of its session totals (reps, or seconds held), and its best set. */
+@Composable
+private fun ProgressRow(exercise: Exercise, history: List<Pair<Long, List<Int>>>) {
+    val totals = history.takeLast(CURVE_SESSIONS).map { it.second.sum().toFloat() }
+    val best = history.flatMap { it.second }.max()
+    val color = ToolAccents.Workout.color
+    Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text(exercise.name, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+        Canvas(Modifier.size(90.dp, 28.dp)) {
+            val low = totals.min()
+            val span = (totals.max() - low).takeIf { it > 0f } ?: 1f
+            val dot = 3.dp.toPx()
+            fun at(i: Int) = Offset(
+                if (totals.size == 1) size.width / 2 else i * size.width / (totals.size - 1),
+                dot + (1f - (totals[i] - low) / span) * (size.height - 2 * dot)
+            )
+            for (i in 1 until totals.size) drawLine(color, at(i - 1), at(i), 2.dp.toPx(), StrokeCap.Round)
+            drawCircle(color, dot, at(totals.size - 1))
+        }
+        Text(
+            formatSet(best, exercise.type),
+            fontSize = 20.sp,
+            fontWeight = FontWeight.Bold,
+            textAlign = TextAlign.End,
+            modifier = Modifier.width(64.dp)
         )
     }
 }

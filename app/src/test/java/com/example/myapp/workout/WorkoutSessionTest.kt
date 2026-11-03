@@ -10,12 +10,12 @@ class WorkoutSessionTest {
     private val steps = sessionSteps(program)
 
     @Test
-    fun `three rounds of six exercises with a rest between each`() {
+    fun `three rounds of eight exercises with a rest between each`() {
         val work = steps.filterIsInstance<SessionStep.Work>()
         val rests = steps.filterIsInstance<SessionStep.Rest>()
-        assertEquals(18, work.size)
-        assertEquals(17, rests.size)
-        assertEquals((0 until 18).toList(), work.map { it.slot })
+        assertEquals(24, work.size)
+        assertEquals(23, rests.size)
+        assertEquals((0 until 24).toList(), work.map { it.slot })
         assertTrue(steps.first() is SessionStep.Work)
         assertTrue(steps.last() is SessionStep.Work)
     }
@@ -23,8 +23,8 @@ class WorkoutSessionTest {
     @Test
     fun `the rest between rounds is the long one`() {
         val rests = steps.filterIsInstance<SessionStep.Rest>()
-        assertEquals(listOf(6, 12), rests.filter { it.seconds == 120 }.map { it.nextSlot })
-        assertEquals(15, rests.count { it.seconds == 45 })
+        assertEquals(listOf(8, 16), rests.filter { it.seconds == 120 }.map { it.nextSlot })
+        assertEquals(21, rests.count { it.seconds == 45 })
     }
 
     @Test
@@ -34,8 +34,8 @@ class WorkoutSessionTest {
     }
 
     @Test
-    fun `a session is worth 120 XP with the boss doubled`() {
-        assertEquals(120, sessionXp(program))
+    fun `a session is worth 160 XP with the boss doubled`() {
+        assertEquals(160, sessionXp(program))
     }
 
     @Test
@@ -101,9 +101,41 @@ class WorkoutSessionTest {
     }
 
     @Test
+    fun `each set is logged in slot order and grouped by exercise`() {
+        var progress = SessionProgress(startedAt = 0, programKey = program.recordKey())
+        var now = 0L
+        while (progress.finishedAt == null) {
+            val step = steps[progress.step]
+            progress = progress.advance(steps, ++now, if (step is SessionStep.Work) step.slot + 1 else 0)
+        }
+        assertEquals((1..24).toList(), progress.sets)
+        val grouped = progress.exerciseSets(program)
+        assertEquals(ExerciseSets("Pull ups", ExerciseType.Reps, listOf(1, 9, 17)), grouped[0])
+        assertEquals(ExerciseType.Timed, grouped[4].type)
+        assertEquals(progress, sessionFromJson(progress.toJson()))
+    }
+
+    @Test
+    fun `suggestions and bests come from the sets of earlier sessions`() {
+        val pushUps = program.exercises[1]
+        val records = listOf(
+            SessionRecord(1, 900, "a", listOf(ExerciseSets("Push ups", ExerciseType.Reps, listOf(10, 9, 8)))),
+            SessionRecord(2, 900, "b", listOf(ExerciseSets("Push ups", ExerciseType.Reps, listOf(12, 11))))
+        )
+        assertEquals(11, lastSet(records, pushUps, 1))
+        assertEquals(11, lastSet(records, pushUps, 2))
+        assertEquals(12, bestSet(records, pushUps))
+        assertNull(lastSet(records, program.exercises[2], 0))
+        assertEquals(listOf(10, 11, 12, 13), repSuggestions(11, "Max minus 2"))
+        assertEquals(listOf(14, 15, 16, 17), repSuggestions(null, "15 to 20"))
+        assertEquals(listOf(1, 2, 3), repSuggestions(1, ""))
+        assertEquals(records, recordsFromJson(recordsToJson(records)))
+    }
+
+    @Test
     fun `a session with no rest has only work steps`() {
         val noRest = sessionSteps(program.copy(restSeconds = 0, roundRestSeconds = 0))
-        assertEquals(18, noRest.size)
+        assertEquals(24, noRest.size)
         assertNull(noRest.firstOrNull { it is SessionStep.Rest })
     }
 }

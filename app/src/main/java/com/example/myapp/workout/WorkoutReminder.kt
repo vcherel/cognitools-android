@@ -196,7 +196,6 @@ object WorkoutReminder {
             .setContentText(text)
             .setContentIntent(open)
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
-            .addAction(0, "Done", receiverIntent(context, ACTION_DONE, 1))
             .addAction(0, "In 1 h", receiverIntent(context, ACTION_SNOOZE_LATER, 2))
             .addAction(0, "Tomorrow", receiverIntent(context, ACTION_SNOOZE_DAY, 3))
             .build()
@@ -212,7 +211,6 @@ object WorkoutReminder {
 }
 
 private const val ACTION_REMIND = "com.example.myapp.workout.REMIND"
-private const val ACTION_DONE = "com.example.myapp.workout.DONE"
 private const val ACTION_SNOOZE_LATER = "com.example.myapp.workout.SNOOZE_LATER"
 private const val ACTION_SNOOZE_DAY = "com.example.myapp.workout.SNOOZE_DAY"
 
@@ -225,7 +223,6 @@ class WorkoutReceiver : BroadcastReceiver() {
             try {
                 when (intent.action) {
                     ACTION_REMIND -> WorkoutReminder.onAlarm(app)
-                    ACTION_DONE -> WorkoutReminder.markDone(app)
                     ACTION_SNOOZE_LATER -> WorkoutReminder.snoozeLater(app)
                     ACTION_SNOOZE_DAY -> WorkoutReminder.snoozeDay(app)
                     Intent.ACTION_BOOT_COMPLETED, Intent.ACTION_MY_PACKAGE_REPLACED -> WorkoutReminder.reschedule(app)

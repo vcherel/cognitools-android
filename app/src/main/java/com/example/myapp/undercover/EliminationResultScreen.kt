@@ -32,6 +32,7 @@ fun EliminationResultScreen(
         Text(
             text = "${player.name} est éliminé !",
             fontSize = 30.sp,
+            lineHeight = 36.sp,
             fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center
         )

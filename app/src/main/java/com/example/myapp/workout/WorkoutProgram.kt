@@ -24,10 +24,12 @@ data class WorkoutProgram(
             listOf(
                 Exercise("Pull ups", "2 pull ups, 3 slow negatives"),
                 Exercise("Push ups", "Max minus 2"),
-                Exercise("Squats", "15 to 20"),
-                Exercise("Single leg deadlift", "8 per leg"),
-                Exercise("Plank", "30 to 45 s", ExerciseType.Timed, seconds = 45),
-                Exercise("Bird dog", "10 per side")
+                Exercise("Scapular pull ups", "8 to 12, arms straight, shoulders down"),
+                Exercise("Pike push ups", "6 to 10, hips high"),
+                Exercise("Superman", "Face down, arms and legs lifted", ExerciseType.Timed, seconds = 20),
+                Exercise("Chair dips", "8 to 12, elbows back"),
+                Exercise("Dead bug", "8 per side, lower back on the floor"),
+                Exercise("Plank", "30 to 45 s", ExerciseType.Timed, seconds = 45)
             )
         )
     }

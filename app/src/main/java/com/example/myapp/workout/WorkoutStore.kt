@@ -1,6 +1,7 @@
 package com.example.myapp.workout
 
 import android.content.Context
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
@@ -14,6 +15,7 @@ import java.io.File
 private val PROGRAM = stringPreferencesKey("program")
 private val XP = intPreferencesKey("xp")
 private val RECORDS = stringPreferencesKey("records")
+private val PROGRESS_RESET = booleanPreferencesKey("progress_reset_1")
 
 /** The program, the XP and the session times in the workout DataStore, the session in progress in its own file. */
 object WorkoutStore {
@@ -40,6 +42,24 @@ object WorkoutStore {
         }
         WorkoutReminder.markDone(context)
         clearSession(context)
+    }
+
+    /**
+     * Wipes the XP, the records and the session in progress once, and puts the saved program back
+     * to the default, for the switch to logged sets and the upper body program (Nov 2026).
+     */
+    suspend fun resetProgressOnce(context: Context) {
+        var wiped = false
+        context.workoutDataStore.edit {
+            if (it[PROGRESS_RESET] != true) {
+                it.remove(PROGRAM)
+                it.remove(XP)
+                it.remove(RECORDS)
+                it[PROGRESS_RESET] = true
+                wiped = true
+            }
+        }
+        if (wiped) clearSession(context)
     }
 
     private fun sessionFile(context: Context) = File(context.filesDir, "workout_session.json")

@@ -1,11 +1,7 @@
 package com.example.myapp.workout
 
-import android.content.Context
-import android.media.AudioManager
-import android.media.ToneGenerator
-import android.os.VibrationEffect
-import android.os.VibratorManager
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -14,6 +10,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
@@ -26,8 +23,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Backspace
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Dialpad
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -39,6 +38,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
@@ -47,6 +47,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -59,6 +60,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.myapp.AppDialog
 import com.example.myapp.AppSnackbar
 import com.example.myapp.LocalToolAccent
 import com.example.myapp.MyButton
@@ -69,35 +71,22 @@ import com.example.myapp.ToolAccents
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.ceil
+import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.random.Random
 
 private val BossRed = Color(0xFFC94444)
 private val BossAccent = ToolAccent(BossRed, Icons.Default.LocalFireDepartment)
+private val Gold = Color(0xFFFFB300)
 
 /** The countdown before a timed exercise starts, to get into position. */
 private const val LEAD_IN_MS = 3000L
 
-/** Vibrations and beeps; the beeps go through the notification stream so music keeps playing. */
-private class Cues(context: Context) {
-    private val vibrator = context.getSystemService(VibratorManager::class.java).defaultVibrator
-    private val tone = runCatching { ToneGenerator(AudioManager.STREAM_NOTIFICATION, 90) }.getOrNull()
+/** What a set is measured against: the same round last session, and the best set ever (this session's included). */
+private data class SetContext(val last: Int?, val best: Int?)
 
-    fun tap() = vibrator.vibrate(VibrationEffect.createPredefined(VibrationEffect.EFFECT_HEAVY_CLICK))
-    fun tick() = vibrator.vibrate(VibrationEffect.createPredefined(VibrationEffect.EFFECT_TICK))
-
-    fun end() {
-        vibrator.vibrate(VibrationEffect.createWaveform(longArrayOf(0, 250, 120, 250), -1))
-        tone?.startTone(ToneGenerator.TONE_PROP_BEEP2, 400)
-    }
-
-    fun round() {
-        vibrator.vibrate(VibrationEffect.createWaveform(longArrayOf(0, 60, 60, 60, 60, 300), -1))
-        tone?.startTone(ToneGenerator.TONE_PROP_ACK, 500)
-    }
-
-    fun release() = tone?.release()
-}
+/** The pop shown over the screen when a set is logged; [id] restarts it. */
+private data class Burst(val id: Long, val label: String, val gold: Boolean)
 
 @Composable
 fun WorkoutSessionScreen(onBack: () -> Unit) {
@@ -107,6 +96,7 @@ fun WorkoutSessionScreen(onBack: () -> Unit) {
     val xp by remember(context) { WorkoutStore.xp(context) }.collectAsState(initial = null)
     val records by remember(context) { WorkoutStore.records(context) }.collectAsState(initial = null)
     var progress by remember { mutableStateOf<SessionProgress?>(null) }
+    var burst by remember { mutableStateOf<Burst?>(null) }
     val cues = remember(context) { Cues(context) }
     DisposableEffect(cues) { onDispose { cues.release() } }
     // A phone locked between exercises would otherwise come back on the menu.
@@ -148,10 +138,34 @@ fun WorkoutSessionScreen(onBack: () -> Unit) {
         scope.launch { WorkoutStore.saveSession(context, next) }
     }
 
-    fun advance() {
+    fun setContext(step: SessionStep.Work): SetContext {
+        val size = shownProgram.exercises.size
+        val index = step.slot % size
+        val earlier = (0 until step.round).mapNotNull { current.sets.getOrNull(it * size + index) }
+        val best = (listOfNotNull(bestSet(allRecords, step.exercise)) + earlier).maxOrNull()
+        return SetContext(lastSet(allRecords, step.exercise, step.round), best)
+    }
+
+    fun advance(value: Int = 0) {
         val before = current
-        val next = before.advance(steps, System.currentTimeMillis())
-        if (next.roundEnds.size > before.roundEnds.size) cues.round() else cues.tap()
+        val step = steps[before.step]
+        val next = before.advance(steps, System.currentTimeMillis(), value)
+        if (step is SessionStep.Work) {
+            val best = setContext(step).best
+            val newBest = best != null && value > best
+            val boss = isBossRound(step.round, shownProgram)
+            when {
+                newBest -> cues.best()
+                next.roundEnds.size > before.roundEnds.size -> cues.round()
+                boss -> cues.strike()
+                else -> cues.set()
+            }
+            burst = Burst(
+                System.nanoTime(),
+                if (newBest) "New best" else "+${xpFor(step.round, shownProgram)} XP",
+                gold = newBest
+            )
+        }
         update(next)
     }
 
@@ -167,9 +181,13 @@ fun WorkoutSessionScreen(onBack: () -> Unit) {
     if (finishedAt != null) {
         val best = recordProgression(allRecords, current.programKey).firstOrNull()?.totalMs
         val total = finishedAt - current.startedAt
-        VictoryContent(current, shownProgram, totalXp, newRecord = best != null && total < best, onBack = onBack) {
+        VictoryContent(current, shownProgram, totalXp, cues, newRecord = best != null && total < best, onBack = onBack) {
             scope.launch {
-                WorkoutStore.finish(context, sessionXp(shownProgram), SessionRecord(finishedAt, total, current.programKey))
+                WorkoutStore.finish(
+                    context,
+                    sessionXp(shownProgram),
+                    SessionRecord(finishedAt, total, current.programKey, current.exerciseSets(shownProgram))
+                )
                 onBack()
             }
         }
@@ -180,46 +198,51 @@ fun WorkoutSessionScreen(onBack: () -> Unit) {
     val boss = isBossRound(step.round, shownProgram)
     val accent = if (boss) BossAccent else LocalToolAccent.current
     CompositionLocalProvider(LocalToolAccent provides accent) {
-        Column(Modifier.fillMaxSize()) {
-            ScreenTopBar(
-                title = when {
-                    step is SessionStep.Rest -> "Rest"
-                    boss -> "Boss"
-                    else -> "Round ${step.round + 1}"
-                },
-                onBack = onBack,
-                titleWeight = true
-            ) {
-                Text(
-                    formatClock(now - current.startedAt),
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                IconButton(onClick = ::quit) { Icon(Icons.Default.Close, contentDescription = "End session") }
-            }
-            Column(
-                Modifier.fillMaxSize().padding(horizontal = 20.dp).padding(top = 8.dp, bottom = 28.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                val slot = when (step) {
-                    is SessionStep.Work -> step.slot
-                    is SessionStep.Rest -> step.nextSlot
+        Box(Modifier.fillMaxSize()) {
+            Column(Modifier.fillMaxSize()) {
+                ScreenTopBar(
+                    title = when {
+                        step is SessionStep.Rest -> "Rest"
+                        boss -> "Boss"
+                        else -> "Round ${step.round + 1}"
+                    },
+                    onBack = onBack,
+                    titleWeight = true
+                ) {
+                    Text(
+                        formatClock(now - current.startedAt),
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    IconButton(onClick = ::quit) { Icon(Icons.Default.Close, contentDescription = "End session") }
                 }
-                ProgressPath(shownProgram, slot)
-                when (step) {
-                    is SessionStep.Rest -> RestContent(step, current, now, cues, onExtend = {
-                        update(current.copy(extraRest = current.extraRest + 15))
-                    }, onDone = ::advance)
-                    is SessionStep.Work -> {
-                        if (boss) BossCard(shownProgram, step.slot, levelOf(totalXp).level)
-                        WorkContent(
-                            step.exercise, current, now, boss, cues,
-                            onStart = { update(current.copy(timerStartedAt = System.currentTimeMillis())) },
-                            onDone = ::advance
-                        )
+                Column(
+                    Modifier.fillMaxSize().padding(horizontal = 20.dp).padding(top = 8.dp, bottom = 28.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    val slot = when (step) {
+                        is SessionStep.Work -> step.slot
+                        is SessionStep.Rest -> step.nextSlot
+                    }
+                    ProgressPath(shownProgram, slot)
+                    when (step) {
+                        is SessionStep.Rest -> RestContent(step, current, now, cues, onExtend = {
+                            cues.tap()
+                            update(current.copy(extraRest = current.extraRest + 15))
+                        }, onDone = { advance() })
+                        is SessionStep.Work -> {
+                            if (boss) BossCard(shownProgram, step.slot, levelOf(totalXp).level)
+                            WorkContent(
+                                step.exercise, setContext(step), current, now, cues,
+                                onStart = { update(current.copy(timerStartedAt = System.currentTimeMillis())) },
+                                onReset = { update(current.copy(timerStartedAt = null)) },
+                                onDone = ::advance
+                            )
+                        }
                     }
                 }
             }
+            burst?.let { key(it.id) { BurstOverlay(it) } }
         }
     }
 }
@@ -228,6 +251,10 @@ internal fun formatClock(ms: Long): String {
     val seconds = (ms / 1000).coerceAtLeast(0)
     return "%d:%02d".format(seconds / 60, seconds % 60)
 }
+
+/** A set's value as text: the count, or the hold time for a timed exercise. */
+internal fun formatSet(value: Int, type: ExerciseType) =
+    if (type == ExerciseType.Timed) formatClock(value.toLong()) else "$value"
 
 /** One dot per exercise of the session, grouped by round, the boss round in red. */
 @Composable
@@ -317,64 +344,139 @@ private fun BossCard(program: WorkoutProgram, slot: Int, level: Int) {
     }
 }
 
+/**
+ * The exercise card: its name, target and drawing, last time and best. A reps exercise is logged
+ * by tapping its count; a timed one starts, counts up past its target and is logged by Stop.
+ */
 @Composable
 private fun ColumnScope.WorkContent(
     exercise: Exercise,
+    set: SetContext,
     progress: SessionProgress,
     now: Long,
-    boss: Boolean,
     cues: Cues,
     onStart: () -> Unit,
-    onDone: () -> Unit
+    onReset: () -> Unit,
+    onDone: (Int) -> Unit
 ) {
+    val accent = LocalToolAccent.current!!.color
+    val timed = exercise.type == ExerciseType.Timed
+    val started = progress.timerStartedAt
+    var padOpen by remember { mutableStateOf(false) }
+
     WorkoutCard(Modifier.weight(1f)) {
         Column(
             Modifier.fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterVertically)
+            verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterVertically)
         ) {
-            Text(exercise.name, fontSize = 34.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+            Text(
+                exercise.name,
+                fontSize = 34.sp,
+                lineHeight = 40.sp,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center
+            )
             Text(
                 exercise.target,
                 fontSize = 20.sp,
+                lineHeight = 26.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center
             )
-            if (exercise.type == ExerciseType.Timed) TimedRing(exercise, progress, now, cues)
+            if (timed && started != null) {
+                HoldRing(exercise, set.best, started, now, cues)
+            } else {
+                ExerciseFigure(exercise.name, accent, Modifier.fillMaxWidth().weight(1f, fill = false).height(170.dp))
+                SetLine(exercise.type, set)
+            }
         }
     }
 
     when {
-        exercise.type == ExerciseType.Timed && progress.timerStartedAt == null -> MyButton(text = "Start") {
+        timed && started == null -> MyButton(text = "Start") {
             cues.tap()
             onStart()
         }
-        boss -> MyButton(text = "Strike", onClick = onDone)
-        else -> MyButton(text = "Done", icon = Icons.Default.Check, onClick = onDone)
+        timed -> MyButton(text = "Stop", highlighted = true) {
+            val held = now - started!! - LEAD_IN_MS
+            if (held <= 0) onReset() else onDone(held.toInt())
+        }
+        else -> Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            repSuggestions(set.last, exercise.target).forEach { count ->
+                MyButton(
+                    text = "$count",
+                    modifier = Modifier.weight(1f),
+                    fontSize = 28.sp,
+                    highlighted = count == set.last
+                ) { onDone(count) }
+            }
+            MyButton(text = "Other", modifier = Modifier.weight(1f), icon = Icons.Default.Dialpad, secondary = true) {
+                cues.tap()
+                padOpen = true
+            }
+        }
+    }
+
+    if (padOpen) {
+        NumberPadDialog(
+            initial = set.last,
+            cues = cues,
+            onDismiss = { padOpen = false },
+            onConfirm = {
+                padOpen = false
+                onDone(it)
+            }
+        )
     }
 }
 
-/** The full ring until Start, then a get-ready count and the ring running down the exercise's seconds. */
+/** "Last 12    Best 14", whichever exist. */
 @Composable
-private fun TimedRing(exercise: Exercise, progress: SessionProgress, now: Long, cues: Cues) {
-    val total = exercise.seconds.coerceAtLeast(1) * 1000L
-    val started = progress.timerStartedAt
-    if (started == null) {
-        Ring(1f, LocalToolAccent.current!!.color, formatClock(total), null)
-        return
+private fun SetLine(type: ExerciseType, set: SetContext) {
+    if (set.last == null && set.best == null) return
+    Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+        set.last?.let { LabeledValue("Last", formatSet(it, type), MaterialTheme.colorScheme.onSurface) }
+        set.best?.let { LabeledValue("Best", formatSet(it, type), Gold) }
     }
+}
+
+@Composable
+private fun LabeledValue(label: String, value: String, color: Color) {
+    Row(verticalAlignment = Alignment.Bottom) {
+        Text(label, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Spacer(Modifier.size(6.dp))
+        Text(value, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = color)
+    }
+}
+
+/**
+ * The hold: a get-ready count, then the clock counting up while the ring fills toward the target.
+ * Reaching the target beeps, passing the best turns the ring gold.
+ */
+@Composable
+private fun HoldRing(exercise: Exercise, best: Int?, started: Long, now: Long, cues: Cues) {
+    val target = exercise.seconds.coerceAtLeast(1) * 1000L
     val sinceStart = now - started
     val leadIn = sinceStart < LEAD_IN_MS
-    val elapsed = (sinceStart - LEAD_IN_MS).coerceIn(0, total)
-    val left = total - elapsed
+    val held = (sinceStart - LEAD_IN_MS).coerceAtLeast(0)
     val leadSecond = ceil((LEAD_IN_MS - sinceStart) / 1000.0).toInt()
-    LaunchedEffect(started, leadIn, leadSecond) { if (leadIn) cues.tick() else if (sinceStart < LEAD_IN_MS + 500) cues.tap() }
-    LaunchedEffect(started, left == 0L) { if (left == 0L) cues.end() }
+    val reached = held >= target
+    val beaten = best != null && held > best
+    LaunchedEffect(started, leadIn, leadSecond) { if (leadIn) cues.tick() else if (sinceStart < LEAD_IN_MS + 500) cues.go() }
+    LaunchedEffect(started, reached) { if (reached) cues.end() }
+    LaunchedEffect(started, beaten) { if (beaten) cues.best() }
+    val color = if (beaten) Gold else LocalToolAccent.current!!.color
     Ring(
-        fraction = if (leadIn) 1f else left / total.toFloat(),
-        color = LocalToolAccent.current!!.color,
-        label = if (leadIn) "$leadSecond" else formatClock(left + 999),
-        sub = if (leadIn) "Get ready" else "of ${formatClock(total)}"
+        fraction = if (leadIn) 0f else (held / target.toFloat()).coerceAtMost(1f),
+        color = color,
+        label = if (leadIn) "$leadSecond" else formatClock(held),
+        sub = when {
+            leadIn -> "Get ready"
+            beaten -> "New best"
+            best != null -> "Best ${formatClock(best.toLong())}"
+            else -> "Goal ${formatClock(target)}"
+        }
     )
 }
 
@@ -392,6 +494,45 @@ private fun Ring(fraction: Float, color: Color, label: String, sub: String?) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(label, fontSize = 56.sp, fontWeight = FontWeight.Bold)
             sub?.let { Text(it, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        }
+    }
+}
+
+/** Any other count, typed on big digit keys. */
+@Composable
+private fun NumberPadDialog(initial: Int?, cues: Cues, onDismiss: () -> Unit, onConfirm: (Int) -> Unit) {
+    var digits by remember { mutableStateOf(initial?.toString().orEmpty()) }
+    val value = digits.toIntOrNull() ?: 0
+    AppDialog(onDismiss = onDismiss) {
+        Text(
+            digits.ifEmpty { "0" },
+            fontSize = 48.sp,
+            fontWeight = FontWeight.Bold,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)
+        )
+        val rows = listOf(listOf("1", "2", "3"), listOf("4", "5", "6"), listOf("7", "8", "9"), listOf("del", "0", "ok"))
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            rows.forEach { row ->
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    row.forEach { label ->
+                        val modifier = Modifier.weight(1f)
+                        when (label) {
+                            "del" -> MyButton(text = "Delete", modifier = modifier, height = 64.dp, secondary = true,
+                                icon = Icons.AutoMirrored.Filled.Backspace) {
+                                cues.tap()
+                                digits = digits.dropLast(1)
+                            }
+                            "ok" -> MyButton(text = "Ok", modifier = modifier, height = 64.dp, highlighted = true,
+                                enabled = value > 0, icon = Icons.Default.Check) { onConfirm(value) }
+                            else -> MyButton(text = label, modifier = modifier, height = 64.dp, fontSize = 26.sp) {
+                                cues.tap()
+                                if (digits.length < 3) digits = (digits + label).trimStart('0')
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -420,15 +561,64 @@ private fun ColumnScope.RestContent(
         }
     }
     WorkoutCard {
-        Column(Modifier.fillMaxWidth()) {
-            Text("Next", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text(step.next.name, fontSize = 22.sp, fontWeight = FontWeight.Medium)
-            Text(step.next.target, style = MaterialTheme.typography.bodyLarge)
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("Next", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(step.next.name, fontSize = 22.sp, lineHeight = 28.sp, fontWeight = FontWeight.Medium)
+                Text(step.next.target, style = MaterialTheme.typography.bodyLarge)
+            }
+            ExerciseFigure(step.next.name, LocalToolAccent.current!!.color, Modifier.size(96.dp, 70.dp))
         }
     }
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         MyButton(text = "+15 s", modifier = Modifier.weight(1f), secondary = true, onClick = onExtend)
-        MyButton(text = "Skip", modifier = Modifier.weight(1f), onClick = onDone)
+        MyButton(text = "Skip", modifier = Modifier.weight(1f)) {
+            cues.tap()
+            onDone()
+        }
+    }
+}
+
+/** Sparks flying out from the buttons and the label rising over them, once. */
+@Composable
+private fun BurstOverlay(burst: Burst) {
+    val time = remember { Animatable(0f) }
+    LaunchedEffect(Unit) { time.animateTo(1f, tween(if (burst.gold) 1400 else 900, easing = LinearEasing)) }
+    if (time.value >= 1f) return
+    val accent = LocalToolAccent.current!!.color
+    val colors = if (burst.gold) listOf(Gold, Color(0xFFFFD54F), Color(0xFFFF8F00)) else listOf(accent, Gold, accent)
+    val sparks = remember {
+        val random = Random(burst.id)
+        List(if (burst.gold) 36 else 20) {
+            Triple(random.nextFloat() * 2 * Math.PI.toFloat(), 0.5f + random.nextFloat() * 0.7f, colors[it % colors.size])
+        }
+    }
+    val t = time.value
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        val reach = maxWidth.value * 0.45f
+        Canvas(Modifier.fillMaxSize()) {
+            val origin = Offset(size.width / 2, size.height - 80.dp.toPx())
+            val spread = reach * density
+            sparks.forEach { (angle, speed, color) ->
+                val distance = spread * speed * FastOutSlowInEasing.transform(t)
+                val fall = t * t * 120.dp.toPx()
+                val center = Offset(origin.x + cos(angle) * distance, origin.y + sin(angle) * distance * 0.7f + fall)
+                drawCircle(color.copy(alpha = 1f - t), radius = (1f - t * 0.5f) * 5.dp.toPx(), center = center)
+            }
+        }
+        val rise = FastOutSlowInEasing.transform((t * 1.6f).coerceAtMost(1f))
+        Text(
+            burst.label,
+            fontSize = if (burst.gold) 40.sp else 32.sp,
+            fontWeight = FontWeight.Black,
+            color = if (burst.gold) Gold else accent,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 130.dp)
+                .offset(y = (-90 * rise).dp)
+                .scale(0.6f + 0.6f * rise)
+                .alpha(if (t < 0.6f) 1f else (1f - t) / 0.4f)
+        )
     }
 }
 
@@ -438,6 +628,7 @@ private fun VictoryContent(
     progress: SessionProgress,
     program: WorkoutProgram,
     totalXp: Int,
+    cues: Cues,
     newRecord: Boolean,
     onBack: () -> Unit,
     onFinish: () -> Unit
@@ -448,8 +639,10 @@ private fun VictoryContent(
     val levelUp = after.level > before.level
     val bar = remember { Animatable(if (levelUp) 0f else before.into / before.needed.toFloat()) }
     LaunchedEffect(Unit) {
+        cues.victory()
         delay(400)
         bar.animateTo(after.into / after.needed.toFloat(), tween(1400))
+        if (levelUp) cues.best()
     }
     val accent = LocalToolAccent.current!!.color
     val rounds = progress.roundDurations()
