@@ -438,7 +438,7 @@ private fun ItemRow(
                 item.kind == CalendarKind.BIRTHDAY -> emptyList()
                 else -> listOfNotNull(
                     timeOn(item, day),
-                    item.recurrence.takeIf { it != Recurrence.NONE }?.label?.lowercase(),
+                    item.repeatText(),
                     pushedText(item)
                 )
             }.joinToString(", ").ifEmpty { null }?.replaceFirstChar { it.uppercase() }

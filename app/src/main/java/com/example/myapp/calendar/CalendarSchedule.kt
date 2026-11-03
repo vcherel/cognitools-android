@@ -54,12 +54,13 @@ fun LocalDate.endOfMonth(): LocalDate = withDayOfMonth(lengthOfMonth())
  */
 fun CalendarItem.completed(today: LocalDate): CalendarItem {
     fun after(step: (LocalDate) -> LocalDate) = generateSequence(step(localDate()), step).first { it.isAfter(today) }
+    val every = repeatEvery.coerceAtLeast(1).toLong()
     val next = when (recurrence) {
         Recurrence.NONE -> return copy(done = true, snoozedUntil = null)
-        Recurrence.WEEKLY -> today.plusWeeks(1)
-        Recurrence.MONTHLY -> today.plusMonths(1)
-        Recurrence.WEEKLY_ON_DAY -> after { it.plusWeeks(1) }
-        Recurrence.MONTHLY_ON_DAY -> after { it.plusMonths(1) }
+        Recurrence.WEEKLY -> today.plusWeeks(every)
+        Recurrence.MONTHLY -> today.plusMonths(every)
+        Recurrence.WEEKLY_ON_DAY -> after { it.plusWeeks(every) }
+        Recurrence.MONTHLY_ON_DAY -> after { it.plusMonths(every) }
         Recurrence.MONTH_END -> after { it.plusMonths(1).endOfMonth() }
     }
     return copy(date = next.toString(), snoozedUntil = null, plannedDate = null)

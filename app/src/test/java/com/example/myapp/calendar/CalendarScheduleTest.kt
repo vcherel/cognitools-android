@@ -89,6 +89,15 @@ class CalendarScheduleTest {
     }
 
     @Test
+    fun repeatEveryStepsSeveralWeeksOrMonths() {
+        val task = CalendarItem(kind = CalendarKind.TASK, title = "Draps", date = "2026-11-02", recurrence = Recurrence.WEEKLY, repeatEvery = 2)
+        assertEquals("2026-11-18", task.completed(LocalDate.of(2026, 11, 4)).date)
+        assertEquals("2026-11-16", task.copy(recurrence = Recurrence.WEEKLY_ON_DAY).completed(LocalDate.of(2026, 11, 4)).date)
+        assertEquals("2027-02-04", task.copy(recurrence = Recurrence.MONTHLY, repeatEvery = 3).completed(LocalDate.of(2026, 11, 4)).date)
+        assertEquals("every 2 weeks after checking it", task.repeatText())
+    }
+
+    @Test
     fun onDayRepeatsKeepTheirDayAndSkipMissedTimes() {
         val task = CalendarItem(kind = CalendarKind.TASK, title = "Poubelles", date = "2026-11-02", recurrence = Recurrence.WEEKLY_ON_DAY)
         assertEquals("2026-11-09", task.completed(LocalDate.of(2026, 11, 4)).date)

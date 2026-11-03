@@ -39,6 +39,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import com.example.myapp.AppDialog
+import com.example.myapp.plural
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
@@ -60,7 +61,17 @@ private val KIND_LABELS = listOf(
     CalendarKind.EVENT to "Event"
 )
 
-private val REPEAT_OPTIONS = Recurrence.entries.map { it to it.label }
+private enum class RepeatUnit(val label: String) {
+    NONE("Never"), WEEK("Week"), MONTH("Month"), MONTH_END("Month end")
+}
+
+private val REPEAT_COUNTS = (1..6).toList()
+
+private fun Recurrence.unit(): RepeatUnit = when (this) {
+    Recurrence.NONE -> RepeatUnit.NONE
+    Recurrence.MONTH_END -> RepeatUnit.MONTH_END
+    else -> if (isWeekly) RepeatUnit.WEEK else RepeatUnit.MONTH
+}
 
 private enum class Picking { DATE, END_DATE, START, END }
 
@@ -84,7 +95,15 @@ fun CalendarItemDialog(
     var endTime by remember { mutableStateOf(initial.localEndTime()) }
     // A new birthday starts without its year, the usual case.
     var yearKnown by remember { mutableStateOf(!isNew && initial.yearKnown) }
-    var recurrence by remember { mutableStateOf(initial.recurrence) }
+    var repeatUnit by remember { mutableStateOf(initial.recurrence.unit()) }
+    var repeatEvery by remember { mutableStateOf(initial.repeatEvery) }
+    var afterCheck by remember { mutableStateOf(initial.recurrence.afterCheck) }
+    val recurrence = when (repeatUnit) {
+        RepeatUnit.NONE -> Recurrence.NONE
+        RepeatUnit.MONTH_END -> Recurrence.MONTH_END
+        RepeatUnit.WEEK -> repeatOf(weekly = true, afterCheck = afterCheck)
+        RepeatUnit.MONTH -> repeatOf(weekly = false, afterCheck = afterCheck)
+    }
     var picking by remember { mutableStateOf<Picking?>(null) }
     val isEvent = kind == CalendarKind.EVENT
     val isBirthday = kind == CalendarKind.BIRTHDAY
@@ -141,7 +160,14 @@ fun CalendarItemDialog(
             }
 
             if (kind == CalendarKind.TASK) {
-                ChoiceRow("Repeat", REPEAT_OPTIONS, recurrence) { recurrence = it }
+                RepeatRow(
+                    unit = repeatUnit,
+                    every = repeatEvery,
+                    afterCheck = afterCheck,
+                    onUnit = { repeatUnit = it },
+                    onEvery = { repeatEvery = it },
+                    onAfterCheck = { afterCheck = it }
+                )
             }
 
             Row(modifier = Modifier.fillMaxWidth().padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -170,6 +196,7 @@ fun CalendarItemDialog(
                                 endTime = if (isEvent && start != null) endTime?.let(timeFormat::format) else null,
                                 yearKnown = !isBirthday || yearKnown,
                                 recurrence = if (kind == CalendarKind.TASK) recurrence else Recurrence.NONE,
+                                repeatEvery = if (repeatUnit == RepeatUnit.WEEK || repeatUnit == RepeatUnit.MONTH) repeatEvery else 1,
                                 done = initial.done && !(kind == CalendarKind.TASK && recurrence != Recurrence.NONE),
                                 snoozedUntil = null
                             )
@@ -251,24 +278,49 @@ private fun RangeRow(
     }
 }
 
-/** A label and the chosen option, the options in a menu opened by tapping the row. */
+/**
+ * "Repeat  2  weeks  after check": the count, the unit and the anchor each a value of their own,
+ * the count and the anchor shown only for a weekly or monthly repeat.
+ */
 @Composable
-private fun <T> ChoiceRow(label: String, options: List<Pair<T, String>>, selected: T, onSelect: (T) -> Unit) {
+private fun RepeatRow(
+    unit: RepeatUnit,
+    every: Int,
+    afterCheck: Boolean,
+    onUnit: (RepeatUnit) -> Unit,
+    onEvery: (Int) -> Unit,
+    onAfterCheck: (Boolean) -> Unit
+) {
+    val counted = unit == RepeatUnit.WEEK || unit == RepeatUnit.MONTH
+    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Text("Repeat", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+        if (counted) {
+            MenuValue(every.toString(), REPEAT_COUNTS, { it.toString() }, onEvery)
+        }
+        val unitText = when {
+            !counted -> unit.label
+            unit == RepeatUnit.WEEK -> "week" + plural(every)
+            else -> "month" + plural(every)
+        }
+        MenuValue(unitText, RepeatUnit.entries, { it.label }, onUnit)
+        if (counted) {
+            ValueText(if (afterCheck) "after check" else "on its day", onClick = { onAfterCheck(!afterCheck) })
+        }
+    }
+}
+
+/** A value whose options open in a menu when it is tapped. */
+@Composable
+private fun <T> MenuValue(text: String, options: List<T>, label: (T) -> String, onSelect: (T) -> Unit) {
     var open by remember { mutableStateOf(false) }
-    Row(
-        modifier = Modifier.fillMaxWidth().clickable { open = true },
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
-        Box {
-            ValueText(options.firstOrNull { it.first == selected }?.second ?: options.first().second, onClick = { open = true })
-            DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
-                options.forEach { (value, text) ->
-                    DropdownMenuItem(text = { Text(text) }, onClick = {
-                        onSelect(value)
-                        open = false
-                    })
-                }
+    Box {
+        ValueText(text, onClick = { open = true })
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            options.forEach { option ->
+                DropdownMenuItem(text = { Text(label(option)) }, onClick = {
+                    onSelect(option)
+                    open = false
+                })
             }
         }
     }
