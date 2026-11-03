@@ -3,11 +3,13 @@ import hashlib
 import io
 import json
 import math
+import random
+import string
 import tempfile
 import urllib.request
 from pathlib import Path
 
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFont
 
 ASSETS = Path("app/src/main/assets")
 FLAGS_DIR = ASSETS / "flags"
@@ -35,17 +37,28 @@ RENAMES = {
 }
 # Territories flying their sovereign's flag would be the same card with two answers.
 SOVEREIGN_FIRST = ["fr", "no", "us", "au", "gb", "nl"]
-# Flags that print their own name, painted over (boxes in the w640 image, with the background they
-# sit on) so the card isn't given away. Guam's letters are split around the palm trunk.
+# Flags that print their own name, painted over and written again in random letters, so the card
+# isn't given away but the flag still looks like itself. Boxes in the w640 image (after reshape),
+# with the background they sit on, the ink and the letter height. Guam's letters are split around
+# the palm trunk.
 NAME_BOXES = {
-    "yt": [((145, 32, 495, 102), "white")],
-    "gu": [((283, 159, 314, 178), "#94dbfc"), ((323, 159, 358, 178), "#94dbfc")],
+    "yt": [((145, 32, 495, 102), "white", "#d42e12", 48)],
+    "gu": [
+        ((283, 159, 314, 182), "#94dbfc", "#bd0728", 12),
+        ((323, 159, 358, 182), "#94dbfc", "#bd0728", 12),
+    ],
 }
-# Same for names written around a seal: a ring (center, inner and outer radius) painted over.
+# Same for names written around a seal: center, inner and outer radius of the ring, background, ink,
+# letter height, and the arcs the text ran along (from and to angle, in degrees clockwise from
+# 3 o'clock; read clockwise the letters stand outward, read anticlockwise they stand inward).
 NAME_RINGS = {
-    "ni": ((320, 212), 54.5, 68, "white"),
-    "py": ((320.5, 175.5), 28.6, 36.4, "white"),
+    "ni": ((319.5, 213), 54.5, 67, "white", "#cfb022", 7, [(180, 375), (150, 35)]),
+    "py": ((319.5, 176), 28.6, 36.4, "white", "black", 5, [(145, 395)]),
+    "sv": ((319, 216), 57, 69, "white", "#ffc900", 9, [(112, 428)]),
 }
+FONT = "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf"
+# Drawn this many times bigger, then scaled down, so the small letters keep smooth edges.
+SUPERSAMPLE = 4
 # Look-alikes whose official proportions would give the answer away, all brought to 3:2 so only
 # their colors and emblems tell them apart. Indonesia and Monaco keep theirs: it is their only
 # difference.
@@ -98,21 +111,87 @@ def card(code, name):
     }
 
 
+def font_for(height):
+    """The font whose capitals stand [height] pixels tall, with that cap height."""
+    probe = ImageFont.truetype(FONT, 100)
+    top, bottom = probe.getbbox("H", anchor="ls")[1::2]
+    return ImageFont.truetype(FONT, round(100 * height / (bottom - top))), height
+
+
+def gibberish(rng, font, width, spaced):
+    """Random capitals filling [width], in words of a few letters when [spaced]."""
+    text, word = "", rng.randint(2, 8)
+    while True:
+        if spaced and word == 0:
+            char, word = " ", rng.randint(2, 8)
+        else:
+            char, word = rng.choice(string.ascii_uppercase), word - 1
+        if font.getlength(text + char) > width:
+            return text.strip()
+        text += char
+
+
+def write_on_arc(layer, rng, center, radius, arc, height, ink):
+    font, cap = font_for(height * SUPERSAMPLE)
+    start, end = arc
+    clockwise = end > start
+    text = gibberish(rng, font, math.radians(abs(end - start)) * radius * SUPERSAMPLE, spaced=True)
+    total = font.getlength(text)
+    middle = (start + end) / 2
+    side = 2 * font.size
+    for i, char in enumerate(text):
+        offset = font.getlength(text[:i]) + font.getlength(char) / 2 - total / 2
+        angle = middle + math.degrees(offset / (radius * SUPERSAMPLE)) * (1 if clockwise else -1)
+        glyph = Image.new("RGBA", (side, side))
+        ImageDraw.Draw(glyph).text((side / 2, side / 2 + cap / 2), char, font=font, fill=ink, anchor="ms")
+        glyph = glyph.rotate((270 if clockwise else 90) - angle, Image.BICUBIC)
+        x = SUPERSAMPLE * (center[0] + radius * math.cos(math.radians(angle)))
+        y = SUPERSAMPLE * (center[1] + radius * math.sin(math.radians(angle)))
+        layer.alpha_composite(glyph, (round(x - side / 2), round(y - side / 2)))
+
+
 def hide_name(image, code):
-    for box, fill in NAME_BOXES.get(code, []):
+    """Paints over the name a flag prints and writes random letters in its place."""
+    if code not in NAME_BOXES and code not in NAME_RINGS:
+        return image
+    rng = random.Random(code)
+    layer = Image.new("RGBA", (image.width * SUPERSAMPLE, image.height * SUPERSAMPLE))
+    for box, fill, ink, height in NAME_BOXES.get(code, []):
         ImageDraw.Draw(image).rectangle(box, fill=fill)
+        font, cap = font_for(height * SUPERSAMPLE)
+        text = gibberish(rng, font, 0.92 * (box[2] - box[0]) * SUPERSAMPLE, spaced=False)
+        middle = (SUPERSAMPLE * (box[0] + box[2]) / 2, SUPERSAMPLE * (box[1] + box[3]) / 2 + cap / 2)
+        ImageDraw.Draw(layer).text(middle, text, font=font, fill=ink, anchor="ms")
     if code in NAME_RINGS:
-        (cx, cy), inner, outer, fill = NAME_RINGS[code]
-        scale = 4
-        mask = Image.new("L", (image.width * scale, image.height * scale), 0)
+        (cx, cy), inner, outer, fill, ink, height, arcs = NAME_RINGS[code]
+        mask = Image.new("L", layer.size, 0)
         draw = ImageDraw.Draw(mask)
-        for radius, value in [(outer, 255), (inner, 0)]:
-            draw.ellipse(
-                [scale * (cx - radius), scale * (cy - radius), scale * (cx + radius), scale * (cy + radius)],
-                fill=value,
+        for start, end in arcs:
+            low, high = min(start, end) - 4, max(start, end) + 4
+            draw.pieslice(
+                [
+                    SUPERSAMPLE * (cx - outer),
+                    SUPERSAMPLE * (cy - outer),
+                    SUPERSAMPLE * (cx + outer),
+                    SUPERSAMPLE * (cy + outer),
+                ],
+                low,
+                high,
+                fill=255,
             )
+        draw.ellipse(
+            [
+                SUPERSAMPLE * (cx - inner),
+                SUPERSAMPLE * (cy - inner),
+                SUPERSAMPLE * (cx + inner),
+                SUPERSAMPLE * (cy + inner),
+            ],
+            fill=0,
+        )
         image.paste(fill, (0, 0, image.width, image.height), mask.resize(image.size, Image.LANCZOS))
-    return image
+        for arc in arcs:
+            write_on_arc(layer, rng, (cx, cy), (inner + outer) / 2, arc, height, ink)
+    return Image.alpha_composite(image, layer.resize(image.size, Image.LANCZOS))
 
 
 def plain_lines(image, axis):
