@@ -90,7 +90,7 @@ uv run python src/generate_flags.py
 
 `--sheet <codes>` only renders those flags next to the shipped ones, as one image, without writing anything.
 
-The Cartes, Départements (carte) and Régions (carte) lists, a locator map of every place in Drapeaux and of every French department and region, from Natural Earth and france-geojson (downloaded into `data/maps/`):
+The Pays (carte), Départements (carte) and Régions (carte) lists, a locator map of every place in Drapeaux and of every French department and region, from Natural Earth and france-geojson (downloaded into `data/maps/`):
 
 ```bash
 uv run --only-group maps src/generate_maps.py

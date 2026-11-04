@@ -3,7 +3,7 @@
  "lists": [
   {
    "id": "builtin-maps-v1",
-   "name": "Cartes",
+   "name": "Pays (carte)",
    "order": 4,
    "fixedSide": true
   }

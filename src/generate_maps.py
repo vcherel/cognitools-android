@@ -610,7 +610,7 @@ def build_all(data):
     region_cards = [
         card("regionmap", "builtin-region-maps-v1", c, data["regions"][c[1:]][0]) for c in regions
     ]
-    write_seed(COUNTRY_SEED, "builtin-maps-v1", "Cartes", 4, country_cards)
+    write_seed(COUNTRY_SEED, "builtin-maps-v1", "Pays (carte)", 4, country_cards)
     write_seed(DEPT_SEED, "builtin-dept-maps-v1", "Départements (carte)", 5, dept_cards)
     write_seed(REGION_SEED, "builtin-region-maps-v1", "Régions (carte)", 6, region_cards)
     counts = f"{len(country_cards)} countries, {len(dept_cards)} departments, {len(region_cards)} regions"
@@ -618,7 +618,7 @@ def build_all(data):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Build the Cartes flashcards lists from Natural Earth.")
+    parser = argparse.ArgumentParser(description="Build the map flashcards lists from Natural Earth.")
     parser.add_argument("--sheet", nargs="+", metavar="CODE", help="only render these maps side by side")
     parser.add_argument("--write", nargs="+", metavar="CODE", help="only write these maps' pictures")
     args = parser.parse_args()
