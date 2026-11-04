@@ -140,12 +140,6 @@ class JournalRepository(context: Context) {
         p.copy(byDate = p.byDate + (date to position.copy(index = index, offset = offset)))
     }
 
-    fun toggleExpanded(date: String, itemId: String) = editPositions { p ->
-        val position = p.byDate[date] ?: JournalPosition()
-        val expanded = if (itemId in position.expanded) position.expanded - itemId else position.expanded + itemId
-        p.copy(byDate = p.byDate + (date to position.copy(expanded = expanded)))
-    }
-
     /** Writes the latest value under the lock, so writes landing out of order still leave the newest on disk. */
     private fun editPositions(change: (JournalPositions) -> JournalPositions) {
         val before = _positions.value

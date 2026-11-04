@@ -103,7 +103,7 @@ private data class TodoTarget(val itemId: String, val text: String)
  * whose full text opens on tap, with its rating, its note and its sources always on it. The arrows
  * around the date walk back through the older issues, which can still be rated; the button at the
  * end marks the one shown as read. Opening the screen fetches nothing, only the refresh button does. It reopens on the
- * issue left last, scrolled and expanded as it was, unless a newer unread issue has arrived since.
+ * issue left last, scrolled as it was with every card collapsed, unless a newer unread issue has arrived since.
  */
 @Composable
 fun JournalScreen(onBack: () -> Unit, onOpenArticle: (String) -> Unit, onOpenNews: () -> Unit) {
@@ -169,15 +169,38 @@ fun JournalScreen(onBack: () -> Unit, onOpenArticle: (String) -> Unit, onOpenNew
 
         val position = positions.byDate[issue.date] ?: JournalPosition()
         val listState = remember(issue.date) { LazyListState(position.index, position.offset) }
+        var expanded by remember(issue.date) { mutableStateOf(emptySet<String>()) }
+        // Cards reopen collapsed, so a row left halfway through an open card is saved at its top.
+        fun saveScroll() {
+            val first = listState.layoutInfo.visibleItemsInfo.firstOrNull()
+            val open = first != null && expanded.any { first.key == "${issue.date}-$it" }
+            repo.saveScroll(issue.date, listState.firstVisibleItemIndex, if (open) 0 else listState.firstVisibleItemScrollOffset)
+        }
         LaunchedEffect(listState) {
             snapshotFlow { listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset }
-                .collectLatest { (first, offset) ->
+                .collectLatest {
                     delay(SCROLL_SAVE_DELAY_MS)
-                    repo.saveScroll(issue.date, first, offset)
+                    saveScroll()
                 }
         }
         DisposableEffect(listState) {
-            onDispose { repo.saveScroll(issue.date, listState.firstVisibleItemIndex, listState.firstVisibleItemScrollOffset) }
+            onDispose { saveScroll() }
+        }
+        // Collapsing a card read past its top brings that top back first, or the rows below jump up past the finger.
+        fun toggle(itemId: String) {
+            if (itemId !in expanded) {
+                expanded = expanded + itemId
+                return
+            }
+            val info = listState.layoutInfo.visibleItemsInfo.firstOrNull { it.key == "${issue.date}-$itemId" }
+            if (info == null || info.offset >= 0) {
+                expanded = expanded - itemId
+                return
+            }
+            scope.launch {
+                listState.scrollToItem(info.index)
+                expanded = expanded - itemId
+            }
         }
 
         LazyColumn(Modifier.fillMaxSize().padding(horizontal = 12.dp), state = listState) {
@@ -210,8 +233,8 @@ fun JournalScreen(onBack: () -> Unit, onOpenArticle: (String) -> Unit, onOpenNew
                     JournalItemCard(
                         item = item,
                         explore = section.kind == SectionKind.EXPLORE,
-                        expanded = item.id in position.expanded,
-                        onToggle = { repo.toggleExpanded(issue.date, item.id) },
+                        expanded = item.id in expanded,
+                        onToggle = { toggle(item.id) },
                         rating = feedback.ratings[item.id] ?: 0,
                         note = feedback.notes[item.id],
                         onRate = { repo.rate(issue.date, item.id, it) },
