@@ -228,14 +228,18 @@ fun RecipeScreen(onBack: () -> Unit) {
                 recipe = shown,
                 used = shown.ingredients.map { it.name }.filter { it.itemKey() in stock },
                 pantry = pantry.map { it.courseItemName() }.distinctBy { it.itemKey() },
+                currentComments = pantry.associate { it.courseItemName().itemKey() to ingredientComment(it) },
                 onDismiss = { cooking = false },
-                onApply = { delete, started, groceries ->
+                onApply = { delete, comments, groceries ->
                     cooking = false
                     scope.launch {
-                        val undo = repo.edit(delete, started, groceries) ?: return@launch
+                        val undo = repo.edit(delete, comments, groceries) ?: return@launch
+                        val started = comments.count { it.value == STARTED_COMMENT }
+                        val commented = comments.size - started
                         val parts = listOfNotNull(
                             "${delete.size} removed".takeIf { delete.isNotEmpty() },
-                            "${started.size} started".takeIf { started.isNotEmpty() },
+                            "$started started".takeIf { started > 0 },
+                            "$commented commented".takeIf { commented > 0 },
                             "${groceries.size} added to Courses".takeIf { groceries.isNotEmpty() }
                         )
                         AppSnackbar.show(parts.joinToString(", ").replaceFirstChar { it.uppercase() }, "Undo") { repo.undo(undo) }
@@ -326,25 +330,54 @@ private fun TimerDialog(onDismiss: () -> Unit, onStart: (minutes: Int) -> Unit) 
     }
 }
 
+@Composable
+private fun CommentDialog(name: String, initial: String, onDismiss: () -> Unit, onSave: (String) -> Unit) {
+    var text by remember { mutableStateOf(initial) }
+    val focus = remember { FocusRequester() }
+    LaunchedEffect(Unit) { focus.requestFocus() }
+    AppDialog(onDismiss = onDismiss) {
+        Text(name, style = MaterialTheme.typography.titleMedium)
+        Spacer(Modifier.height(12.dp))
+        OutlinedTextField(
+            value = text,
+            onValueChange = { value -> text = value.filter { it != '(' && it != ')' && it != '\n' } },
+            label = { Text("Comment") },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+            keyboardActions = KeyboardActions(onDone = { onSave(text.trim()) }),
+            modifier = Modifier.fillMaxWidth().focusRequester(focus)
+        )
+        Spacer(Modifier.height(12.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+            TextButton(onClick = { onSave(text.trim()) }) { Text("Save") }
+        }
+    }
+}
+
 /**
  * One row per ingredient used, the recipe's own plus any added from Ingrédients: Started marks it
- * "(entamé)" there, Delete takes it out, Groceries also puts it on Courses (and implies Delete unless
- * it is only started).
+ * "(entamé)" there, a tap on its name gives it a comment of its own in parentheses, Delete takes it
+ * out, Groceries also puts it on Courses (and implies Delete unless it is kept with a comment).
  */
 @Composable
 private fun CookedDialog(
     recipe: Recipe,
     used: List<String>,
     pantry: List<String>,
+    currentComments: Map<String, String>,
     onDismiss: () -> Unit,
-    onApply: (delete: List<String>, started: List<String>, groceries: List<String>) -> Unit
+    onApply: (delete: List<String>, comments: Map<String, String>, groceries: List<String>) -> Unit
 ) {
     val extras = remember { mutableStateListOf<String>() }
     val delete = remember { mutableStateMapOf<String, Boolean>() }
     val started = remember { mutableStateMapOf<String, Boolean>() }
+    val comments = remember { mutableStateMapOf<String, String>() }
     val groceries = remember { mutableStateMapOf<String, Boolean>() }
     var picking by remember { mutableStateOf(false) }
+    var commenting by remember { mutableStateOf<String?>(null) }
     val rows = used + extras
+    fun kept(name: String) = started[name] == true || name in comments
     AppDialog(onDismiss = onDismiss) {
         Text("Cooked: ${recipe.title}", style = MaterialTheme.typography.titleMedium)
         Spacer(Modifier.height(12.dp))
@@ -357,25 +390,34 @@ private fun CookedDialog(
         Column(Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState())) {
             rows.forEach { name ->
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(name, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+                    Column(Modifier.weight(1f).clickable { commenting = name }.padding(vertical = 4.dp)) {
+                        Text(name, style = MaterialTheme.typography.bodyLarge)
+                        comments[name]?.takeIf { it.isNotBlank() }?.let { comment ->
+                            Text("($comment)", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
                     Box(Modifier.width(COLUMN_WIDTH), contentAlignment = Alignment.Center) {
                         Checkbox(checked = started[name] == true, onCheckedChange = { checked ->
                             started[name] = checked
-                            if (checked) delete[name] = false
-                            else if (groceries[name] == true) delete[name] = true
+                            if (checked) {
+                                delete[name] = false
+                                comments.remove(name)
+                            } else if (groceries[name] == true) delete[name] = true
                         })
                     }
                     Box(Modifier.width(COLUMN_WIDTH), contentAlignment = Alignment.Center) {
                         Checkbox(checked = delete[name] == true, onCheckedChange = { checked ->
                             delete[name] = checked
-                            if (checked) started[name] = false
-                            else if (started[name] != true) groceries[name] = false
+                            if (checked) {
+                                started[name] = false
+                                comments.remove(name)
+                            } else if (!kept(name)) groceries[name] = false
                         })
                     }
                     Box(Modifier.width(COLUMN_WIDTH), contentAlignment = Alignment.Center) {
                         Checkbox(checked = groceries[name] == true, onCheckedChange = { checked ->
                             groceries[name] = checked
-                            if (checked && started[name] != true) delete[name] = true
+                            if (checked && !kept(name)) delete[name] = true
                         })
                     }
                 }
@@ -389,11 +431,24 @@ private fun CookedDialog(
             TextButton(onClick = {
                 onApply(
                     rows.filter { delete[it] == true },
-                    rows.filter { started[it] == true },
+                    rows.filter { started[it] == true }.associateWith { STARTED_COMMENT } + comments.filterKeys { it in rows },
                     rows.filter { groceries[it] == true }
                 )
             }) { Text("Apply") }
         }
+    }
+    commenting?.let { name ->
+        CommentDialog(
+            name = name,
+            initial = comments[name] ?: currentComments[name.itemKey()].orEmpty(),
+            onDismiss = { commenting = null },
+            onSave = { comment ->
+                commenting = null
+                comments[name] = comment
+                started[name] = false
+                delete[name] = false
+            }
+        )
     }
     if (picking) {
         PantryPicker(

@@ -19,8 +19,11 @@ class RecipeNotesTest {
     }
 
     @Test
-    fun startedMarksTheLineOnce() {
-        assertEquals("Carottes (entamé)\n\nLait (entamé)\n\nPâtes", withStartedIngredients(note, groups, listOf("carottes", "Lait")))
+    fun commentsReplaceTheOldOne() {
+        val comments = mapOf("carottes" to STARTED_COMMENT, "Lait" to "half left", "Pâtes" to "")
+        assertEquals("Carottes (entamé)\n\nLait (half left)\n\nPâtes", withCommentedIngredients(note, groups, comments))
+        assertEquals("Carottes\n\nLait\n\nPâtes", withCommentedIngredients(note, groups, mapOf("Lait" to " ")))
+        assertEquals("entamé", ingredientComment("Lait (entamé)"))
     }
 
     @Test

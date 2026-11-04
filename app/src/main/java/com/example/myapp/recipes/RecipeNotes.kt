@@ -34,17 +34,26 @@ fun withCourseItems(courses: String, groups: List<CourseGroup>, names: List<Stri
     return content
 }
 
-/** The Ingrédients note with the lines for [names] marked started, "Lait" becoming "Lait (entamé)". */
-fun withStartedIngredients(ingredientsNote: String, groups: List<CourseGroup>, names: List<String>): String {
-    if (names.isEmpty()) return ingredientsNote
-    val keys = names.map { it.itemKey() }.toSet()
+/**
+ * The Ingrédients note with the comment of each line named in [comments] replaced, "Lait" becoming
+ * "Lait (entamé)". A blank comment leaves the bare name.
+ */
+fun withCommentedIngredients(ingredientsNote: String, groups: List<CourseGroup>, comments: Map<String, String>): String {
+    if (comments.isEmpty()) return ingredientsNote
+    val byKey = comments.mapKeys { it.key.itemKey() }
     val lines = presentIngredients(ingredientsNote).map { line ->
-        if (line.ingredientLineKey() in keys) "${line.courseItemName()} $STARTED_SUFFIX" else line
+        val comment = byKey[line.ingredientLineKey()]?.trim() ?: return@map line
+        if (comment.isEmpty()) line.courseItemName() else "${line.courseItemName()} ($comment)"
     }
     return renderIngredientsNote(lines, groups)
 }
 
-private const val STARTED_SUFFIX = "(entamé)"
+/** The comment an Ingrédients line carries in parentheses, "entamé" for "Lait (entamé)". */
+fun ingredientComment(line: String): String = COMMENT.find(line)?.groupValues?.get(1)?.trim().orEmpty()
+
+private val COMMENT = Regex("""\(([^)]*)\)""")
+
+const val STARTED_COMMENT = "entamé"
 
 /** The Ingrédients note without the lines for [names], the rest re-sorted as the editor sorts it. */
 fun withoutIngredients(ingredientsNote: String, groups: List<CourseGroup>, names: List<String>): String {
