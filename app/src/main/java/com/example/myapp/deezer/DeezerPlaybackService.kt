@@ -53,18 +53,18 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 
-/**
- * Background playback for the Deezer tool. A MediaSessionService owns the single ExoPlayer and its
- * MediaSession; Media3 provides the media notification and lockscreen controls for free. The UI
- * drives it through a MediaController (see DeezerScreen).
- *
- * Plays `dzr://` URIs, resolved to a fresh CDN URL and decrypted on the fly by DeezerDataSource,
- * with a disk cache in front of it.
- */
 /** True when [TrackUnavailableException] is anywhere in the cause chain (Media3 wraps load errors). */
 private fun Throwable?.isTrackUnavailable(): Boolean =
     generateSequence(this) { it.cause }.take(10).any { it is TrackUnavailableException }
 
+/**
+ * Background playback for the Deezer tool. A MediaSessionService owns the single ExoPlayer and its
+ * MediaSession; Media3 provides the media notification and lockscreen controls for free. The UI
+ * drives it through a MediaController (see DeezerPlayer).
+ *
+ * Plays `dzr://` URIs, resolved to a fresh CDN URL and decrypted on the fly by DeezerDataSource,
+ * with a disk cache in front of it.
+ */
 class DeezerPlaybackService : MediaSessionService() {
 
     private var mediaSession: MediaSession? = null
@@ -603,8 +603,8 @@ class DeezerPlaybackService : MediaSessionService() {
         private const val NOTIFICATION_ID = 1001
         private const val CHANNEL_ID = "music_playback"
 
-        // Not private: DeezerRepository sends this from the UI (the "stop everything" button), so it
-        // needs the same action string the session was told to accept above.
+        // Not private: DeezerPlayer sends these from the UI, so it needs the same action strings the
+        // session was told to accept above.
         const val CMD_STOP_ALL = "com.example.myapp.deezer.STOP_ALL"
         const val CMD_FADE_TO_NEXT = "com.example.myapp.deezer.FADE_TO_NEXT"
     }

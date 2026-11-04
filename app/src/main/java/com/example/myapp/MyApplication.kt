@@ -22,11 +22,11 @@ import com.example.myapp.recipes.RecipeRepository
 import com.example.myapp.notes.TodoReminder
 import com.example.myapp.notes.ensureTodoSections
 import com.example.myapp.workout.WorkoutReminder
-import com.example.myapp.workout.WorkoutStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import java.util.concurrent.TimeUnit
 
 class MyApplication : Application(), SingletonImageLoader.Factory {
     val flashcardRepository: FlashcardRepository by lazy { FlashcardRepository(this) }
@@ -39,19 +39,16 @@ class MyApplication : Application(), SingletonImageLoader.Factory {
     lateinit var notesLists: NotesLists
         private set
 
-    // The notes trash keeps its own retention window; the gallery trash is MediaStore's, which
-    // Android empties on its own.
     override fun onCreate() {
         super.onCreate()
         notesLists = NotesLists(AppDatabase.get(this).noteDao(), CoroutineScope(SupervisorJob() + Dispatchers.IO))
         // Created now so it starts watching the notes the laptop proposes recipes from.
         recipeRepository
         CoroutineScope(Dispatchers.IO).launch {
-            val cutoff = System.currentTimeMillis() -
-                NOTES_TRASH_RETENTION_DAYS * 24L * 60L * 60L * 1000L
+            // The gallery trash is MediaStore's, which Android empties on its own.
+            val cutoff = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(NOTES_TRASH_RETENTION_DAYS.toLong())
             AppDatabase.get(this@MyApplication).noteDao().purgeExpiredTrashedNotes(cutoff)
             WorkoutReminder.reschedule(this@MyApplication)
-            WorkoutStore.resetProgressOnce(this@MyApplication)
             ensureTodoSections(this@MyApplication)
             TodoReminder.rescheduleAll(this@MyApplication)
             CalendarReminders.refresh(this@MyApplication)
@@ -64,8 +61,7 @@ class MyApplication : Application(), SingletonImageLoader.Factory {
             runCatching { podcastRepository.purgeHeardFromCache() }
             // Read news articles, and the position an unfinished one was left at, are only
             // remembered long enough for the feeds to move past them.
-            val newsCutoff = System.currentTimeMillis() -
-                NEWS_READ_RETENTION_DAYS * 24L * 60L * 60L * 1000L
+            val newsCutoff = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(NEWS_READ_RETENTION_DAYS.toLong())
             AppDatabase.get(this@MyApplication).newsDao().run {
                 purgeReadBefore(newsCutoff)
                 purgeProgressBefore(newsCutoff)

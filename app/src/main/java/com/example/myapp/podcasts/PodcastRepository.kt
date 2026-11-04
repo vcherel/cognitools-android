@@ -10,6 +10,7 @@ import androidx.media3.common.Player
 import androidx.media3.session.MediaController
 import com.example.myapp.AppSnackbar
 import com.example.myapp.MediaControllerHolder
+import com.example.myapp.deezer.DeezerPodcastShow
 import com.example.myapp.deezerRepository
 import com.example.myapp.flashcards.AppDatabase
 import com.example.myapp.httpGet
@@ -50,6 +51,9 @@ private const val PROGRESS_MIN_MS = 15_000L
 private const val PROGRESS_FINISHED_MARGIN_MS = 30_000L
 /** How long a heard episode keeps its download and cached bytes, long enough to undo the mark. */
 private const val STORAGE_CLEANUP_GRACE_MS = 30_000L
+
+private fun DeezerPodcastShow.toCatalogItem() =
+    PodcastCatalogItem(id = id, source = PodcastSource.DEEZER, title = title, author = author, artworkUrl = artworkUrl)
 
 data class PodcastPlayerUiState(
     val hasItem: Boolean = false,
@@ -154,16 +158,12 @@ class PodcastRepository(private val appContext: Context) {
         val deezerDeferred = async {
             runCatching { appContext.deezerRepository.searchPodcastShows(query) }.getOrDefault(emptyList())
         }
-        rssDeferred.await() + deezerDeferred.await().map {
-            PodcastCatalogItem(id = it.id, source = PodcastSource.DEEZER, title = it.title, author = it.author, artworkUrl = it.artworkUrl)
-        }
+        rssDeferred.await() + deezerDeferred.await().map { it.toCatalogItem() }
     }
 
     /** Deezer's trending podcasts, for the "recommendations" surface on an empty podcast search. */
     suspend fun recommendations(): List<PodcastCatalogItem> = withContext(Dispatchers.IO) {
-        runCatching { appContext.deezerRepository.podcastChart() }.getOrDefault(emptyList()).map {
-            PodcastCatalogItem(id = it.id, source = PodcastSource.DEEZER, title = it.title, author = it.author, artworkUrl = it.artworkUrl)
-        }
+        runCatching { appContext.deezerRepository.podcastChart() }.getOrDefault(emptyList()).map { it.toCatalogItem() }
     }
 
     /**

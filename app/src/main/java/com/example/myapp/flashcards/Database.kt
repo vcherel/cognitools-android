@@ -110,19 +110,8 @@ abstract class AppDatabase : RoomDatabase() {
                     context.applicationContext,
                     AppDatabase::class.java,
                     "flashcards.db"
-                ).addMigrations(MIGRATION_23_24, MIGRATION_24_25).build().also { instance = it }
+                ).addMigrations(MIGRATION_24_25).build().also { instance = it }
             }
-    }
-}
-
-// Appel Mamie had already been pushed two days when the planned day started being kept.
-private val MIGRATION_23_24 = object : Migration(23, 24) {
-    override fun migrate(db: SupportSQLiteDatabase) {
-        db.execSQL("ALTER TABLE `calendar_items` ADD COLUMN `plannedDate` TEXT")
-        db.execSQL(
-            "UPDATE `calendar_items` SET `plannedDate` = date(`date`, '-2 day') " +
-                "WHERE `title` = 'Appel Mamie' AND `done` = 0"
-        )
     }
 }
 

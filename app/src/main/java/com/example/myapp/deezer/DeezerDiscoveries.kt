@@ -129,7 +129,7 @@ class DeezerDiscoveries(private val appContext: Context, private val repo: Deeze
     private val pendingRemoval: MutableSet<String> = ConcurrentHashMap.newKeySet()
 
     // Everything here is fire and forget on [scope] rather than suspending on the caller: a scan walks
-    // a few hundred artists and a "tout ajouter" sends twenty likes, and neither should die because
+    // a few hundred artists and an "Add all" sends twenty likes, and neither should die because
     // the screen that asked for it went away. [mutex] keeps the queued work in order.
 
     /** Reads the saved batch off disk and publishes it. No network. Called once at app start. */

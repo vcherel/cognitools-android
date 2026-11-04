@@ -73,15 +73,13 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
     private val api = DeezerApi()
     val settings = DeezerSettings(appContext)
 
-    private val pendingFavorites = DeezerPendingFavorites(appContext, hasNetwork = ::hasNetwork) { sngId, add ->
-        withTokenRetry { if (add) api.addFavorite(it, sngId) else api.removeFavorite(it, sngId) }
-    }
+    private val pendingFavorites = DeezerPendingFavorites(appContext, hasNetwork = ::hasNetwork, send = ::sendFavorite)
 
     private val sessionMutex = Mutex()
     private var session: DeezerSession? = null
 
     /**
-     * Every Deezer failure with its full cause chain, what the "Journal d'erreurs" screen shows and
+     * Every Deezer failure with its full cause chain, what the "Error log" screen shows and
      * what gets copied from it: a release build's on-screen message is often an obfuscated class
      * name, useless for finding out what the API changed.
      */
@@ -243,7 +241,7 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
     /** Shuffles [artist]'s most popular tracks. Untagged: not a favorites/playlist source. */
     suspend fun shuffleArtist(artist: DeezerArtist) = player.shuffleTracks(api.artistTopTracks(artist.id))
 
-    /** [artistId]'s most popular tracks, for the artist screen's "Titres populaires" section. */
+    /** [artistId]'s most popular tracks, for the artist screen's "Top tracks" section. */
     suspend fun artistTopTracks(artistId: String): List<DeezerTrack> = api.artistTopTracks(artistId)
 
     // Browsing Deezer's podcast catalog needs no session at all.
@@ -417,12 +415,11 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
     fun isFavorite(sngId: String): Boolean = _favoriteIds.value.contains(sngId)
 
     /**
-     * Marks a stream-failure replacement (see [DeezerPlaybackService.findAndApplyReplacement]) as
-     * liked without touching the real favorites list, so the Now Playing heart and the media
-     * notification still read "liked" for what is, in spirit, still the user's favorite song until
-     * they either unlike it or make the swap permanent via "Corriger". Any subsequent real favorites
-     * write (a toggle, a fresh fetch) recomputes [favoriteIds] from the authoritative list and drops
-     * this override on its own.
+     * Marks a stream-failure replacement whose write to the favorites failed (see
+     * [DeezerPlaybackService]'s swapIn) as liked without touching the real favorites list, so the
+     * Now Playing heart and the media notification still read "liked" for what is still the user's
+     * favorite song. Any later real favorites write (a toggle, a fresh fetch) recomputes
+     * [favoriteIds] from the authoritative list and drops this override on its own.
      */
     fun markTemporaryFavorite(sngId: String) {
         _favoriteIds.update { it + sngId }
@@ -446,7 +443,7 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
         pendingFavorites.queue(listOf(track.sngId), add)
         if (!hasNetwork()) return
         try {
-            withTokenRetry { if (add) api.addFavorite(it, track.sngId) else api.removeFavorite(it, track.sngId) }
+            sendFavorite(track.sngId, add)
             pendingFavorites.clear(track.sngId)
         } catch (e: Exception) {
             Log.w(TAG, "Favorite ${if (add) "add" else "remove"} for ${track.sngId} left queued", e)
@@ -462,9 +459,13 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
         }
     }
 
+    private suspend fun sendFavorite(sngId: String, add: Boolean) {
+        withTokenRetry { if (add) api.addFavorite(it, sngId) else api.removeFavorite(it, sngId) }
+    }
+
     /**
      * Likes every track in [tracks] at once. Every like is written to the local list and to the
-     * durable queue in one pass up front, before a single request goes out, so "tout ajouter" holds
+     * durable queue in one pass up front, before a single request goes out, so "Add all" holds
      * even offline or with the app left straight away; the queue is then drained here, and whatever
      * it doesn't manage waits for [DeezerPendingFavorites.flush] on the next connection.
      */
@@ -554,7 +555,7 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
     // Favorites and playlists pin a specific sngId at the time a track was liked/added. An artist who
     // re-released the same song under a different sngId can leave that pinned release unstreamable
     // (get_url refuses it) while a fresh catalog search turns up a working one. This is what lets
-    // playback swap in a working release live, and what the "Corriger" snackbar action applies for real.
+    // playback swap in a working release live and write the swap back to its source.
 
     /**
      * Searches the catalog for a different release of [track] (same normalized title and artist, a
