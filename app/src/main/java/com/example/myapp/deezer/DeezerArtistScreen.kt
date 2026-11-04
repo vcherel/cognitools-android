@@ -153,7 +153,7 @@ fun DeezerArtistScreen(
                             scope.launch { Toast.makeText(context, addToQueueMessage(repo, track), Toast.LENGTH_SHORT).show() }
                         },
                         onToggleBestPepites = {
-                            scope.launch { Toast.makeText(context, bestPepitesMessage(context, repo, track), Toast.LENGTH_SHORT).show() }
+                            scope.launch { Toast.makeText(context, bestPepitesMessage(repo, track), Toast.LENGTH_SHORT).show() }
                         },
                         onAddToPlaylist = { pickerTrack = track }
                     )

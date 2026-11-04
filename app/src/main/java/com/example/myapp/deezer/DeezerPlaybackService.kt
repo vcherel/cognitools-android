@@ -296,7 +296,7 @@ class DeezerPlaybackService : MediaSessionService() {
                     refreshActionButtons()
                 }
                 CMD_TOGGLE_PEPITES -> scope.launch {
-                    toast(bestPepitesMessage(applicationContext, repo, track, repo.player.playerState.value.source))
+                    toast(bestPepitesMessage(repo, track, repo.player.playerState.value.source))
                     refreshActionButtons()
                 }
                 else -> return Futures.immediateFuture(SessionResult(SessionResult.RESULT_ERROR_NOT_SUPPORTED))

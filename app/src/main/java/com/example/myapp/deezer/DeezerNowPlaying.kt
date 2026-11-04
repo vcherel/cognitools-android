@@ -58,8 +58,6 @@ import com.example.myapp.MediaArt
 import com.example.myapp.PlayPauseButton
 import com.example.myapp.PlayerSeekBar
 import com.example.myapp.runIgnoringErrors
-import com.example.myapp.notes.appendToDjNote
-import com.example.myapp.notes.isDownloadedInDjNote
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -128,15 +126,12 @@ fun FullPlayerSheet(
     var showInfo by remember { mutableStateOf(false) }
     if (showInfo && state.sngId != null) TrackInfoSheet(repo = repo, sngId = state.sngId, onDismiss = { showInfo = false })
 
-    // The download button's three shapes: to save, being saved, already downloaded (in Download,
-    // or marked so in the DJ note).
+    // The download button's three shapes: to save, being saved, already in Download.
     val saving by repo.saver.saving.collectAsState()
     val isSaving = state.sngId != null && state.sngId in saving
     val isSaved by produceState(false, state.sngId, isSaving) {
         val track = currentTrack(repo, state)
-        value = track != null && withContext(Dispatchers.IO) {
-            repo.saver.isSaved(track) || isDownloadedInDjNote(context, track.artist, track.title)
-        }
+        value = track != null && withContext(Dispatchers.IO) { repo.saver.isSaved(track) }
     }
 
     Box(
@@ -200,7 +195,7 @@ fun FullPlayerSheet(
                 IconButton(onClick = {
                     val track = currentTrack(repo, state) ?: return@IconButton
                     scope.launch {
-                        Toast.makeText(context, bestPepitesMessage(context, repo, track, state.source), Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, bestPepitesMessage(repo, track, state.source), Toast.LENGTH_SHORT).show()
                         pepitesTick++
                     }
                 }) {
@@ -210,16 +205,13 @@ fun FullPlayerSheet(
                         tint = if (inPepites) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-                // Saves the track as an MP3 in Download, which lists it in the DJ note marked as
-                // downloaded. The diamond does the same on top of its Best pépites add (see bestPepitesMessage).
+                // Saves the track as an MP3 in Download. The diamond does the same on top of its
+                // Best pépites add (see bestPepitesMessage).
                 IconButton(onClick = {
                     val track = currentTrack(repo, state) ?: return@IconButton
                     when {
                         isSaving -> Unit
-                        isSaved -> {
-                            scope.launch { runCatching { appendToDjNote(context, track.artist, track.title, downloaded = true) } }
-                            Toast.makeText(context, "Already downloaded", Toast.LENGTH_SHORT).show()
-                        }
+                        isSaved -> Toast.makeText(context, "Already downloaded", Toast.LENGTH_SHORT).show()
                         else -> repo.saver.save(track)
                     }
                 }) {

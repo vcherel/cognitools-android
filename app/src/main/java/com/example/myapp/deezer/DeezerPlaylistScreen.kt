@@ -140,7 +140,7 @@ fun DeezerTrackListScreen(
                             onToggleBestPepites = if (isBestPepites) null else {
                                 {
                                     scope.launch {
-                                        Toast.makeText(context, bestPepitesMessage(context, repo, track), Toast.LENGTH_SHORT).show()
+                                        Toast.makeText(context, bestPepitesMessage(repo, track), Toast.LENGTH_SHORT).show()
                                     }
                                 }
                             },

@@ -144,7 +144,7 @@ fun DeezerDiscoveriesScreen(repo: DeezerRepository, onBack: () -> Unit) {
                         },
                         onToggleBestPepites = {
                             scope.launch {
-                                Toast.makeText(context, bestPepitesMessage(context, repo, item.track), Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, bestPepitesMessage(repo, item.track), Toast.LENGTH_SHORT).show()
                             }
                         },
                         onDismiss = { discoveries.dismiss(item) }

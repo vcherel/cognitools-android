@@ -8,7 +8,6 @@ import android.provider.MediaStore
 import android.widget.Toast
 import androidx.media3.common.C
 import androidx.media3.datasource.DataSpec
-import com.example.myapp.notes.appendToDjNote
 import com.example.myapp.userMessage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -63,7 +62,6 @@ class DeezerTrackSaver(private val appContext: Context, private val repo: Deezer
                     ?.let { listOf(track.artist) + (it - track.artist) }
                     ?: listOf(track.artist)
                 writeToDownloads(fileName(artists, track.title), tag, audio)
-                runCatching { appendToDjNote(appContext, track.artist, track.title, downloaded = true) }
                 "Saved to Download"
             } catch (e: Exception) {
                 repo.logError("save ${track.sngId}", e)

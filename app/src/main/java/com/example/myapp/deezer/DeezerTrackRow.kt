@@ -57,7 +57,6 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
-import com.example.myapp.notes.appendToDjNote
 import com.example.myapp.MediaArt
 import com.example.myapp.MediaListRow
 import com.example.myapp.MediaRowSubtitle
@@ -254,10 +253,8 @@ suspend fun addToQueueMessage(repo: DeezerRepository, track: DeezerTrack): Strin
  * Shared: runs the diamond action and returns the toast to show. Every entry point (row menu, now
  * playing sheet, notification) adds to Best pépites; only a track played from Best pépites itself
  * ([playingFrom]) comes back out of it, so a tap elsewhere never removes one by surprise.
- * Adding one also files it in the DJ note, since putting a track there means wanting it downloaded.
  */
 suspend fun bestPepitesMessage(
-    context: Context,
     repo: DeezerRepository,
     track: DeezerTrack,
     playingFrom: TrackSource? = null
@@ -272,11 +269,7 @@ suspend fun bestPepitesMessage(
             PlaylistAddResult.NO_PLAYLIST -> "Best pépites playlist not found"
             else -> {
                 // Best pépites is what the DJ set is drawn from, so the file goes to Download with it.
-                if (withContext(Dispatchers.IO) { repo.saver.isSaved(track) }) {
-                    runCatching { appendToDjNote(context, track.artist, track.title, downloaded = true) }
-                } else {
-                    repo.saver.save(track)
-                }
+                if (!withContext(Dispatchers.IO) { repo.saver.isSaved(track) }) repo.saver.save(track)
                 if (result == PlaylistAddResult.ADDED) "Added to Best pépites" else "Already in Best pépites"
             }
         }
