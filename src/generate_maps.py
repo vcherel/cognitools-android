@@ -38,8 +38,11 @@ TARGET_EDGE = (150, 36, 24)
 GLOBE_SEA = (176, 205, 226)
 GLOBE_LAND = (204, 198, 184)
 INSET_EDGE = (110, 110, 110)
-# The smallest stretch of ground a card shows, so a tiny country comes with its neighbours.
-MIN_FRAME_KM = 1500
+# Frame width in km by the square root of the target's area: a speck of an island zoomed in
+# until its coast shows, a middle size country zoomed out until its neighbours do.
+FRAME_CURVE = ((4, 35), (20, 200), (600, 2600), (3000, 6000))
+# The share of the card a target spread wide (a big country, a long archipelago) may fill.
+MAX_FILL = 0.7
 # Past this width the map already shows where it is on Earth, the globe would only hide some of it.
 GLOBE_MAX_FRAME_KM = 7000
 GLOBE_DIAMETER = 170
@@ -399,6 +402,11 @@ def target_box(view, target):
     return (*allpts.min(0), *allpts.max(0))
 
 
+def polygon_km2(ext, holes):
+    km_per_degree = math.pi * R / 180
+    return (ext.area - sum(h.area for h in holes)) * km_per_degree**2
+
+
 def country_view(target):
     """Centered on the country's biggest piece and the pieces near it, with room for its neighbours."""
     main = max((ext for ext, _ in target), key=lambda r: r.area)
@@ -409,7 +417,10 @@ def country_view(target):
     near = [p for p in near if np.hypot(*p.mean(0)) <= reach]
     pts = np.concatenate(near)
     (x0, y0), (x1, y1) = pts.min(0), pts.max(0)
-    s = max((x1 - x0) / (0.6 * W), (y1 - y0) / (0.6 * H), MIN_FRAME_KM / W)
+    size, frame = np.log(np.array(FRAME_CURVE, dtype=float)).T
+    side = math.sqrt(sum(polygon_km2(ext, holes) for ext, holes in target))
+    frame_km = math.exp(np.interp(math.log(max(side, 1e-3)), size, frame))
+    s = max((x1 - x0) / (MAX_FILL * W), (y1 - y0) / (MAX_FILL * H), frame_km / W)
     return View(proj, (x0 + x1) / 2, (y0 + y1) / 2, s), (x0, y0, x1, y1)
 
 
@@ -455,7 +466,7 @@ def metro_view(depts):
         [proj.forward(ext.lonlat) for code, (_, polys) in depts.items() if len(code) == 2 for ext, _ in polys]
     )
     (x0, y0), (x1, y1) = pts.min(0), pts.max(0)
-    s = max((x1 - x0) / (0.86 * W), (y1 - y0) / (0.86 * H))
+    s = max((x1 - x0) / (0.96 * W), (y1 - y0) / (0.96 * H))
     return View(proj, (x0 + x1) / 2, (y0 + y1) / 2, s)
 
 
