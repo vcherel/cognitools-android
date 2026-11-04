@@ -70,6 +70,7 @@ class MyApplication : Application(), SingletonImageLoader.Factory {
                 purgeReadBefore(newsCutoff)
                 purgeProgressBefore(newsCutoff)
             }
+            flashcardRepository.followBirthdays()
         }
     }
 

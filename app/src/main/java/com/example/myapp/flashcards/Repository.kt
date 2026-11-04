@@ -7,13 +7,19 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
+import com.example.myapp.calendar.CalendarItem
+import com.example.myapp.calendar.CalendarKind
+import com.example.myapp.calendar.localDate
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import org.json.JSONArray
 import org.json.JSONObject
 import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 class FlashcardRepository(private val context: Context) {
 
@@ -208,6 +214,40 @@ class FlashcardRepository(private val context: Context) {
         context.sweepCardImages(dao.getImages())
     }
 
+    /**
+     * Keeps the Birthdays list matched to the calendar's birthdays for as long as the app runs: one
+     * card per birthday, name on one side and day on the other. A birthday whose name or day changed
+     * starts over, one removed from the calendar leaves the list.
+     */
+    suspend fun followBirthdays() {
+        AppDatabase.get(context).calendarDao().observeAll()
+            .map { items -> items.filter { it.kind == CalendarKind.BIRTHDAY } }
+            .distinctUntilChanged()
+            .collect { syncBirthdays(it) }
+    }
+
+    private suspend fun syncBirthdays(birthdays: List<CalendarItem>) {
+        if (dao.getList(BIRTHDAYS_LIST_ID) == null) {
+            addList(FlashcardList(id = BIRTHDAYS_LIST_ID, name = "Birthdays"))
+        }
+        val existing = dao.getElements(BIRTHDAYS_LIST_ID).associateBy { it.id }
+        val wanted = birthdays.map { item ->
+            FlashcardElement(
+                id = "birthday-${item.id}",
+                listId = BIRTHDAYS_LIST_ID,
+                name = item.title,
+                definition = item.localDate().format(birthdayFormat)
+            )
+        }
+        val changed = wanted.filter { card ->
+            val old = existing[card.id]
+            old == null || old.name != card.name || old.definition != card.definition
+        }
+        if (changed.isNotEmpty()) dao.upsertElements(changed)
+        val wantedIds = wanted.map { it.id }.toSet()
+        existing.keys.filter { it !in wantedIds }.forEach { dao.deleteElement(it) }
+    }
+
     private suspend fun seedAssets(filename: String) {
         try {
             val json = context.assets.open(filename).bufferedReader().readText()
@@ -283,9 +323,12 @@ class FlashcardRepository(private val context: Context) {
             7 to "flag-yt",
             7 to "flag-gu"
         )
+        private const val BIRTHDAYS_LIST_ID = "builtin-birthdays-v1"
+        private val birthdayFormat = DateTimeFormatter.ofPattern("d MMMM", Locale.FRENCH)
         private val builtinListIds = listOf(
             "builtin-capitals-v1", "builtin-prefectures-v1", "builtin-dept-numbers-v1",
-            "builtin-flags-v1", "builtin-maps-v1", "builtin-dept-maps-v1", "builtin-region-maps-v1"
+            "builtin-flags-v1", "builtin-maps-v1", "builtin-dept-maps-v1", "builtin-region-maps-v1",
+            BIRTHDAYS_LIST_ID
         )
     }
 }

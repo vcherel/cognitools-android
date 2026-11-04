@@ -147,7 +147,7 @@ Root package (shared/misc):
 - `CardImage.kt`: a card's optional front picture, `asset:` (shipped, the Drapeaux flags) or `user:` (picked, copied downscaled into filesDir, carried in backups as base64), the CardImage composable and the start-up sweep of unreferenced copies
 - `AddToFlashcards.kt`: the shared filing dialog (list picker + editable card) the translator and the mots fleches clue bar both open
 - `Database.kt`: Room FlashcardDao
-- `Repository.kt`: FlashcardRepository, mediates between DB and UI
+- `Repository.kt`: FlashcardRepository, mediates between DB and UI; also keeps the builtin Birthdays list matched to the calendar's birthdays (`followBirthdays`, collected from app start)
 - `FlashcardImportReceiver.kt`: upserts a bundle pushed into the app's external files dir; exported but guarded by DUMP, so only `adb shell am broadcast` reaches it
 - `SpacedRepetition.kt`: reviewCard, the spaced repetition scheduling algorithm
 - `ListsScreen.kt`: list of flashcard lists, bulk import dialog
