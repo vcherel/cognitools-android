@@ -13,6 +13,7 @@ import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.example.myapp.MainActivity
 import com.example.myapp.R
+import com.example.myapp.calendar.pendingTasksOn
 import com.example.myapp.flashcards.AppDatabase
 import com.example.myapp.plural
 import com.example.myapp.workout.ReminderTimes
@@ -24,6 +25,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.time.DayOfWeek
 import java.time.Duration
+import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.ZoneId
@@ -134,12 +136,19 @@ enum class TodoReminder(val notificationId: Int, val action: String) {
         /** Moves the daily reminder after the workout times change. */
         suspend fun rescheduleDaily(context: Context) = TO_DO.scheduleNext(context)
 
+        /** The daily one also lists the calendar tasks still to do today. */
         internal suspend fun onAlarm(context: Context, action: String?) {
             val kind = entries.firstOrNull { it.action == action } ?: return
             kind.scheduleNext(context)
-            val note = findTodoNote(AppDatabase.get(context).noteDao()) ?: return
-            val items = kind.items(todoItems(note.content))
-            if (items.isNotEmpty()) kind.notify(context, note.id, items)
+            val db = AppDatabase.get(context)
+            val note = findTodoNote(db.noteDao())
+            val listed = note?.let { kind.items(todoItems(it.content)) }.orEmpty()
+            val today = LocalDate.now()
+            val tasks = if (kind == TO_DO) pendingTasksOn(db.calendarDao().getAll(), today).map { it.title } else emptyList()
+            val items = (listed + tasks).distinct()
+            if (items.isEmpty()) return
+            val route = if (note != null && listed.isNotEmpty()) "note/${note.id}" else "calendar?day=$today"
+            kind.notify(context, route, items)
         }
     }
 
@@ -155,18 +164,22 @@ enum class TodoReminder(val notificationId: Int, val action: String) {
             Intent(context, TodoReminderReceiver::class.java).setAction(action),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-        context.getSystemService(AlarmManager::class.java)
-            .setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, atMillis, intent)
+        val alarms = context.getSystemService(AlarmManager::class.java)
+        if (this == TO_DO && alarms.canScheduleExactAlarms()) {
+            alarms.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, atMillis, intent)
+        } else {
+            alarms.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, atMillis, intent)
+        }
     }
 
-    private fun notify(context: Context, noteId: String, items: List<String>) {
+    private fun notify(context: Context, route: String, items: List<String>) {
         val manager = context.getSystemService(NotificationManager::class.java)
         manager.createNotificationChannel(
             NotificationChannel(CHANNEL_ID, context.getString(R.string.todo_channel), NotificationManager.IMPORTANCE_DEFAULT)
         )
         val open = PendingIntent.getActivity(
             context, notificationId,
-            Intent(context, MainActivity::class.java).putExtra(MainActivity.EXTRA_OPEN_ROUTE, "note/$noteId"),
+            Intent(context, MainActivity::class.java).putExtra(MainActivity.EXTRA_OPEN_ROUTE, route),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         val text = items.joinToString(", ")

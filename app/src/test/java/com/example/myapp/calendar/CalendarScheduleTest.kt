@@ -151,7 +151,7 @@ class CalendarScheduleTest {
     }
 
     @Test
-    fun digestListsTomorrowsPendingTasksAndEventsAt20() {
+    fun digestListsTomorrowsPendingTasksAndEventsAt23() {
         val items = listOf(
             CalendarItem(id = "t", kind = CalendarKind.TASK, title = "Dentiste", date = "2026-11-05", time = "10:00"),
             CalendarItem(id = "e", kind = CalendarKind.EVENT, title = "Concert", date = "2026-11-05", time = "08:00"),
@@ -161,12 +161,25 @@ class CalendarScheduleTest {
         )
         assertEquals(listOf("e", "t"), digestItems(items, LocalDate.of(2026, 11, 5)).map { it.id })
         val now = LocalDateTime.of(2026, 11, 4, 12, 0)
-        assertEquals(LocalDateTime.of(2026, 11, 4, 20, 0), nextDigest(items, now))
+        assertEquals(LocalDateTime.of(2026, 11, 4, 23, 0), nextDigest(items, now))
         assertEquals(
             listOf(LocalDate.of(2026, 11, 5)),
             digestsBetween(items, now, LocalDateTime.of(2026, 11, 6, 0, 0))
         )
-        assertEquals(LocalDateTime.of(2026, 11, 7, 20, 0), nextDigest(items, LocalDateTime.of(2026, 11, 4, 20, 0)))
+        assertEquals(LocalDateTime.of(2026, 11, 7, 23, 0), nextDigest(items, LocalDateTime.of(2026, 11, 4, 23, 0)))
+    }
+
+    @Test
+    fun pendingTasksOfTodayIncludeLateOnesOnly() {
+        val today = LocalDate.of(2026, 11, 4)
+        val items = listOf(
+            CalendarItem(id = "t", kind = CalendarKind.TASK, title = "Dentiste", date = "2026-11-04", time = "10:00"),
+            CalendarItem(id = "l", kind = CalendarKind.TASK, title = "Garage", date = "2026-11-02"),
+            CalendarItem(id = "d", kind = CalendarKind.TASK, title = "Fait", date = "2026-11-04", done = true),
+            CalendarItem(id = "n", kind = CalendarKind.TASK, title = "Demain", date = "2026-11-05"),
+            CalendarItem(id = "e", kind = CalendarKind.EVENT, title = "Concert", date = "2026-11-04")
+        )
+        assertEquals(listOf("l", "t"), pendingTasksOn(items, today).map { it.id })
     }
 
     @Test

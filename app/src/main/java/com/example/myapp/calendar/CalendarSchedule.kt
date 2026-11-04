@@ -104,8 +104,12 @@ fun remindersBetween(item: CalendarItem, from: LocalDateTime, to: LocalDateTime)
 fun nextReminder(items: List<CalendarItem>, now: LocalDateTime): Reminder? =
     items.flatMap { remindersBetween(it, now, now.plusYears(2)) }.minByOrNull { it.at }
 
-/** When the evening digest announces the next day's tasks and events. */
-val DIGEST: LocalTime = LocalTime.of(20, 0)
+/** When the late evening digest announces the next day's tasks and events. */
+val DIGEST: LocalTime = LocalTime.of(23, 0)
+
+/** The tasks still to do on [today], the late ones included, by time. */
+fun pendingTasksOn(items: List<CalendarItem>, today: LocalDate): List<CalendarItem> =
+    items.filter { it.kind == CalendarKind.TASK && !it.done && it.occursOn(today, today) }.sortedBy { it.time ?: "" }
 
 /** What the digest on the eve of [day] lists: its pending tasks and the events starting on it, by time. */
 fun digestItems(items: List<CalendarItem>, day: LocalDate): List<CalendarItem> =
