@@ -11,10 +11,12 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.audio.TeeAudioProcessor
 import androidx.media3.exoplayer.source.MediaSource
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import kotlin.math.PI
@@ -120,17 +122,24 @@ class LevelMeter : TeeAudioProcessor.AudioBufferSink {
  * until the next track is actually heard, so a lead in silence never opens a hole in the middle of
  * the blend. Only automatic transitions and [fadeToNext] (an unlike) are touched:
  * any skip, seek or pause from the user cancels a blend in progress and restores the volume.
- * An unlike whose blend could not be set up says why through [log].
+ * A blend that could not be set up says why through [log].
+ *
+ * The two copies are lined up on what they actually decode ([mainTap], [faderTap]), not on the
+ * positions the players report: a seek through an MP3's seek table can land hundreds of ms away from
+ * the time it reports, and that was heard as a repeated bit. A handoff that finds no match never
+ * happens: the track fades out alone and the next one fades in.
  */
 class Crossfader(
     context: Context,
     private val player: ExoPlayer,
     private val meter: LevelMeter,
+    private val mainTap: PcmTap,
     faderSourceFactory: MediaSource.Factory,
     private val scope: CoroutineScope,
     private val log: (String) -> Unit
 ) {
-    private val fader: ExoPlayer = ExoPlayer.Builder(context)
+    private val faderTap = PcmTap()
+    private val fader: ExoPlayer = ExoPlayer.Builder(context, PcmTapRenderersFactory(context, faderTap))
         .setMediaSourceFactory(faderSourceFactory)
         // No audio focus: requesting it would make the main player pause for its own fader.
         .setAudioAttributes(
@@ -143,6 +152,10 @@ class Crossfader(
     private var fadeJob: Job? = null
     private var faderItemId: String? = null
     private var faderError: String? = null
+    private var faderPlayingSince = 0L
+    private var faderMatch: PcmMatch? = null
+    private var blendFailed = false
+    private var retryBlendAt = 0L
     private var ownSeek = false
     private var lowSince = 0L
     private var silentSince = 0L
@@ -174,6 +187,8 @@ class Crossfader(
                 meter.resetTrack()
                 lowSince = 0L
                 silentSince = 0L
+                blendFailed = false
+                retryBlendAt = 0L
                 if (fadeJob?.isActive != true) unloadFader()
             }
 
@@ -218,6 +233,8 @@ class Crossfader(
 
         val item = player.currentMediaItem ?: return null
         if (faderItemId != item.mediaId) loadFader(item)
+        if (fader.playbackState == Player.STATE_READY && !fader.playWhenReady) startFader()
+        noteFaderPlaying()
 
         val now = SystemClock.elapsedRealtime()
         val trackLevel = meter.trackLevel
@@ -232,6 +249,7 @@ class Crossfader(
                 log("silence jump on ${item.mediaId}, ${remaining / 1000} s left, level ${meter.fastLevel / trackLevel!!} of the track's")
                 jumpOverSilence()
             }
+            blendFailed && remaining <= FALLBACK_FADE_MS + FALLBACK_MARGIN_MS -> fadeOutInstead(item.mediaId)
             remaining <= FADE_MS + HANDOFF_MS -> crossfade(FADE_MS)
             inWindow && lowSince > 0 && now - lowSince >= OUTRO_HOLD_MS ->
                 crossfade((remaining - HANDOFF_MS).coerceIn(FADE_MS, MAX_FADE_MS))
@@ -243,16 +261,36 @@ class Crossfader(
     private fun loadFader(item: MediaItem) {
         faderItemId = item.mediaId
         faderError = null
+        forgetFaderPlayback()
         fader.volume = 0f
         fader.playWhenReady = false
         fader.setMediaItem(item, player.currentPosition)
         fader.prepare()
     }
 
+    /** Plays the fader muted from the main player's position, well ahead of the blend so it can settle. */
+    private fun startFader() {
+        forgetFaderPlayback()
+        fader.seekTo(player.currentPosition)
+        fader.play()
+    }
+
+    private fun forgetFaderPlayback() {
+        faderPlayingSince = 0L
+        faderMatch = null
+        faderTap.clear()
+    }
+
+    private fun noteFaderPlaying() {
+        if (!fader.isPlaying) faderPlayingSince = 0L
+        else if (faderPlayingSince == 0L) faderPlayingSince = SystemClock.elapsedRealtime()
+    }
+
     private fun unloadFader() {
         faderItemId = null
         fader.stop()
         fader.clearMediaItems()
+        forgetFaderPlayback()
     }
 
     /** The outgoing track has nothing left to hear: go straight to the next one, no blend needed. */
@@ -275,17 +313,21 @@ class Crossfader(
             // Not buffered in time: the track just ends and the next one starts, as before.
             return
         }
+        if (SystemClock.elapsedRealtime() < retryBlendAt) return
         fadeJob = scope.launch {
             var failure: String? = null
             try {
-                // Not aligned in time: the next tick tries again.
-                failure = blend(fadeMs)?.also { log("crossfade gave up, will retry: $it") }
+                // Not aligned in time: a later tick tries again, then falls back on a plain fade.
+                failure = blend(fadeMs)?.also {
+                    log("crossfade gave up, will retry: $it")
+                    blendFailed = true
+                    retryBlendAt = SystemClock.elapsedRealtime() + BLEND_RETRY_MS
+                }
             } finally {
                 player.volume = 1f
-                // A fader still on the same track keeps its buffer for that retry, paused and muted:
-                // unloaded, it buffered the tail all over again and the track often ended first.
+                // A fader still on the same track keeps playing muted for that retry: unloaded, it
+                // buffered the tail all over again and the track often ended first.
                 if (failure != null && fader.playbackState == Player.STATE_READY && faderItemId == player.currentMediaItem?.mediaId) {
-                    fader.playWhenReady = false
                     fader.volume = 0f
                 } else {
                     unloadFader()
@@ -294,11 +336,24 @@ class Crossfader(
         }
     }
 
+    /** No handoff could be lined up before the end: better no blend than a repeated bit. */
+    private fun fadeOutInstead(itemId: String) {
+        log("no blend on $itemId, fading out alone")
+        fadeJob = scope.launch {
+            try {
+                unloadFader()
+                fadeOutToNext(itemId)
+            } finally {
+                player.volume = 1f
+            }
+        }
+    }
+
     /**
-     * Blends into the next track right now, for an unlike. The main player keeps playing the current
-     * track untouched while the fader buffers and aligns, so the wait costs nothing audible. Mid track
-     * the fader often streams from the network (the main player still holds the cache lock on the rest
-     * of the file), so it gets [UNLIKE_SETUP_MS] to buffer and keep retrying the alignment; only past
+     * Blends into the next track soon, for an unlike. The main player keeps playing the current
+     * track untouched while the fader buffers, settles and aligns, so the wait costs nothing audible. Mid
+     * track the fader often streams from the network (the main player still holds the cache lock on the
+     * rest of the file), so it gets [UNLIKE_SETUP_MS] to buffer and keep retrying the alignment; only past
      * that does it give up, logging why, and fade the track out alone before the next one fades in.
      * Close to the end the outgoing tail
      * may run out mid blend: the next track still fades in over the full length, from a moment of
@@ -346,42 +401,39 @@ class Crossfader(
      * Hands the outgoing track over to the buffered fader and blends; null once blended, otherwise why
      * it never got aligned. [fitToTail] shortens the blend to what is left of the outgoing track;
      * without it the next track fades in over the whole [fadeMs] even after the tail ran out.
-     * Alignment gets [ALIGN_TRIES], or keeps trying until the [alignUntil] uptime when that is later.
+     * Alignment gets [ALIGN_BUDGET_MS], or keeps trying until the [alignUntil] uptime when that is later.
      */
     private suspend fun blend(fadeMs: Long, fitToTail: Boolean = true, alignUntil: Long = 0L): String? {
-        // 1. The fader joins the outgoing track muted, and only takes over once its settled position
-        // matches: a swap between two copies a few tens of ms apart is heard as a stutter. A seek
-        // restarts the fader after a delay that varies by hundreds of ms from one seek to the next,
-        // so seeking again never converges; the gap is closed by playing the muted fader a little
+        // 1. The fader joins the outgoing track muted, and only takes over once the two line up on
+        // the audio itself: a swap between two copies a few tens of ms apart is heard as a stutter. A
+        // seek restarts the fader after a delay that varies by hundreds of ms from one seek to the
+        // next, so seeking again never converges; the gap is closed by playing the muted fader a little
         // faster or slower instead, and a seek only happens first or when the gap is far too wide.
-        var drift = Long.MAX_VALUE
-        val drifts = ArrayList<Long>()
-        var aligned = false
-        var attempt = 0
+        val deadline = maxOf(alignUntil, SystemClock.elapsedRealtime() + ALIGN_BUDGET_MS)
+        val gaps = ArrayList<Long>()
+        val reported = player.currentPosition - fader.currentPosition
         try {
-            while (++attempt <= ALIGN_TRIES || SystemClock.elapsedRealtime() < alignUntil) {
+            while (true) {
                 if (player.currentMediaItem?.mediaId != faderItemId) return "track changed"
-                if (abs(drift) > MAX_NUDGE_MS) {
-                    fader.seekTo(player.currentPosition)
-                    fader.play()
-                    val playTimeout = maxOf(HANDOFF_TIMEOUT_MS, alignUntil - SystemClock.elapsedRealtime())
-                    if (!awaitPlaying(fader, playTimeout)) return "fader stalled on try $attempt (${faderError ?: "timeout"})"
+                if (!fader.playWhenReady) startFader()
+                if (!awaitFaderSettled(deadline)) return "fader not settled (${faderError ?: "timeout"})"
+                val match = faderMatch ?: matchFader() ?: return "no audio match"
+                faderMatch = match
+                val gap = measureGap(match.offsetUs) ?: return "no output position"
+                gaps += gap
+                if (abs(gap) <= MAX_GAP_MS) break
+                if (SystemClock.elapsedRealtime() > deadline) return "not aligned, gaps ${gaps.joinToString()} ms"
+                if (abs(gap) > MAX_NUDGE_MS) {
+                    startFader()
                 } else {
-                    nudge(drift)
-                }
-                delay(SETTLE_MS)
-                drift = measureDrift()
-                drifts += drift
-                if (abs(drift) <= MAX_DRIFT_MS) {
-                    aligned = true
-                    break
+                    nudge(gap)
+                    delay(NUDGE_SETTLE_MS)
                 }
             }
         } finally {
             fader.setPlaybackSpeed(1f)
         }
-        if (!aligned) return "not aligned after ${attempt - 1} tries, drifts ${drifts.joinToString()} ms"
-        if (drifts.size > 1) log("aligned after ${drifts.size} tries, drifts ${drifts.joinToString()} ms")
+        log("aligned on ${faderItemId}: gaps ${gaps.joinToString()} ms, reported drift $reported ms, match ${"%.3f".format(faderMatch?.score)}")
 
         // 2. A quick swap over the same audio hands the outgoing track to the fader.
         ramp(SWAP_MS) { t ->
@@ -419,14 +471,37 @@ class Crossfader(
         fader.setPlaybackSpeed(1f)
     }
 
-    /** Main minus fader position, averaged over a few reads since each one jitters by some ms. */
-    private suspend fun measureDrift(): Long {
+    /** Where the fader's audio sits in what the main player decoded lately; the slow part runs off the main thread. */
+    private suspend fun matchFader(): PcmMatch? = withContext(Dispatchers.Default) {
+        val main = mainTap.clip() ?: return@withContext null
+        val tail = faderTap.clip() ?: return@withContext null
+        findPcmOffset(main, tail)
+    }
+
+    /**
+     * How far the fader's output is behind the main player's for the same audio, in ms, averaged over a
+     * few reads since each one jitters a little. [offsetUs] relates their presentation times.
+     */
+    private suspend fun measureGap(offsetUs: Long): Long? {
         var sum = 0L
-        repeat(DRIFT_SAMPLES) {
-            sum += player.currentPosition - fader.currentPosition
-            delay(DRIFT_SAMPLE_MS)
+        repeat(GAP_SAMPLES) {
+            val main = mainTap.positionNowUs() ?: return null
+            val tail = faderTap.positionNowUs() ?: return null
+            sum += main - tail + offsetUs
+            delay(GAP_SAMPLE_MS)
         }
-        return sum / DRIFT_SAMPLES
+        return sum / GAP_SAMPLES / 1_000
+    }
+
+    /** Until the fader has played long enough for its position to be real, or false past [deadline]. */
+    private suspend fun awaitFaderSettled(deadline: Long): Boolean {
+        while (true) {
+            noteFaderPlaying()
+            val now = SystemClock.elapsedRealtime()
+            if (faderPlayingSince > 0 && now - faderPlayingSince >= FADER_SETTLE_MS) return true
+            if (now > deadline || fader.playbackState == Player.STATE_IDLE) return false
+            delay(FINE_POLL_MS)
+        }
     }
 
     /** Time left in the outgoing tail the fader plays, 0 once it ended or failed. */
@@ -501,19 +576,27 @@ class Crossfader(
          * gets its full length out of the tail that is left.
          */
         const val HANDOFF_MS = 5_500L
-        const val HANDOFF_TIMEOUT_MS = 1_500L
         const val MIN_FADE_MS = 1_500L
-        const val ALIGN_TRIES = 4
+        const val ALIGN_BUDGET_MS = 5_000L
+        /** After a failed blend, the wait before the next try, and the margin the plain fade starts with. */
+        const val BLEND_RETRY_MS = 1_000L
+        const val FALLBACK_MARGIN_MS = 500L
         /** How long a nudge takes when its speed stays in range, and the furthest it bends the speed. */
         const val NUDGE_MS = 400L
         const val MAX_NUDGE_RATE = 0.5
         /** A gap wider than this is closed by seeking again rather than by a nudge. */
         const val MAX_NUDGE_MS = 1_000L
-        /** Lets a freshly started audio track's position estimate settle before trusting it. */
-        const val SETTLE_MS = 400L
-        const val DRIFT_SAMPLES = 5
-        const val DRIFT_SAMPLE_MS = 10L
-        const val MAX_DRIFT_MS = 10L
+        /** Lets the audio already in the sink play out at the speed it was written with. */
+        const val NUDGE_SETTLE_MS = 500L
+        /**
+         * A new audio track reports an estimate at first, then moves to the output's timestamps and
+         * closes the difference slowly. Over Bluetooth that difference is large, so 400 ms here lined
+         * the copies up on a position that kept moving. It also leaves enough audio for the match.
+         */
+        const val FADER_SETTLE_MS = 3_000L
+        const val GAP_SAMPLES = 5
+        const val GAP_SAMPLE_MS = 10L
+        const val MAX_GAP_MS = 10L
         const val SWAP_MS = 80L
         const val RAMP_STEP_MS = 30L
         const val COARSE_POLL_MS = 500L

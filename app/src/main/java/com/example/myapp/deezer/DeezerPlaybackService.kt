@@ -18,16 +18,11 @@ import androidx.media3.datasource.DataSpec
 import androidx.media3.datasource.cache.Cache
 import androidx.media3.datasource.cache.CacheDataSink
 import androidx.media3.datasource.cache.CacheDataSource
-import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.exoplayer.audio.AudioSink
-import androidx.media3.exoplayer.audio.DefaultAudioSink
 import androidx.media3.exoplayer.audio.TeeAudioProcessor
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.upstream.DefaultLoadErrorHandlingPolicy
 import androidx.media3.exoplayer.upstream.LoadErrorHandlingPolicy
-import androidx.media3.extractor.DefaultExtractorsFactory
-import androidx.media3.extractor.mp3.Mp3Extractor
 import androidx.media3.session.CommandButton
 import androidx.media3.session.DefaultMediaNotificationProvider
 import androidx.media3.session.MediaSession
@@ -107,26 +102,12 @@ class DeezerPlaybackService : MediaSessionService() {
                 else super.getRetryDelayMsFor(loadErrorInfo)
         }
 
-        // Deezer's MP3s are constant bitrate, but their Info header makes the default extractor seek
-        // through a 100 point table, landing hundreds of ms off the position it reports. The crossfade
-        // aligns its two players on those positions, so an inexact seek was heard as a repeated bit.
-        val extractors = DefaultExtractorsFactory()
-            .setMp3ExtractorFlags(Mp3Extractor.FLAG_ENABLE_CONSTANT_BITRATE_SEEKING_ALWAYS)
         val meter = LevelMeter()
-        val renderers = object : DefaultRenderersFactory(this) {
-            override fun buildAudioSink(
-                context: Context,
-                enableFloatOutput: Boolean,
-                enableAudioOutputPlaybackParameters: Boolean
-            ): AudioSink = DefaultAudioSink.Builder(context)
-                .setEnableFloatOutput(enableFloatOutput)
-                .setEnableAudioOutputPlaybackParameters(enableAudioOutputPlaybackParameters)
-                .setAudioProcessors(arrayOf(TeeAudioProcessor(meter)))
-                .build()
-        }
+        val pcmTap = PcmTap()
+        val renderers = PcmTapRenderersFactory(this, pcmTap, arrayOf(TeeAudioProcessor(meter)))
         val player = ExoPlayer.Builder(this, renderers)
             .setMediaSourceFactory(
-                DefaultMediaSourceFactory(cacheFactory(writesStreamCache = true), extractors).setLoadErrorHandlingPolicy(loadErrorPolicy)
+                DefaultMediaSourceFactory(cacheFactory(writesStreamCache = true)).setLoadErrorHandlingPolicy(loadErrorPolicy)
             )
             .setAudioAttributes(
                 AudioAttributes.Builder()
@@ -138,7 +119,7 @@ class DeezerPlaybackService : MediaSessionService() {
             .setHandleAudioBecomingNoisy(true)
             .build()
         player.addListener(ErrorRecovery(player))
-        crossfader = Crossfader(this, player, meter, DefaultMediaSourceFactory(cacheFactory(writesStreamCache = false), extractors), scope, repo.crossfadeLog::log)
+        crossfader = Crossfader(this, player, meter, pcmTap, DefaultMediaSourceFactory(cacheFactory(writesStreamCache = false)), scope, repo.crossfadeLog::log)
         player.addListener(TrackWatcher(player))
         stopOutputWatch = pauseOnOutputLost(this, player)
         mediaSession = MediaSession.Builder(this, player)
