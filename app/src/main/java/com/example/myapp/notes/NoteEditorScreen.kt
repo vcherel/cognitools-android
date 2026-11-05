@@ -44,7 +44,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
+import com.example.myapp.AppSnackbar
 import com.example.myapp.BackIconButton
+import com.example.myapp.copyToClipboard
 import com.example.myapp.flashcards.AppDatabase
 import com.example.myapp.normalizeForSearch
 import com.example.myapp.plural
@@ -208,6 +210,10 @@ fun NoteEditorScreen(
                         onRemoveChecked = {
                             val stripped = removeCheckedCheckboxes(content)
                             state.saveContent(if (isCoursesNote) dropEmptyCourseSections(stripped) else stripped)
+                        },
+                        onCopyContent = {
+                            copyToClipboard(context, content)
+                            AppSnackbar.show("Copied")
                         },
                         onClearContent = { state.saveContent("") },
                         onToggleInlineMarker = { textFieldState.toggleInlineMarker(it) },
