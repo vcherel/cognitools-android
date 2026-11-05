@@ -40,7 +40,7 @@ Always install the release build: performance on device matters, and debug build
 - **News**: French and world headlines merged from a fixed set of RSS feeds, readable in the app with the boilerplate stripped out, saved articles kept offline.
 - **Crosswords**: arrow word grids (mots fléchés) generated on the phone, French or English, with a per word check and reveal. The dictionaries are built offline (see below).
 - **Translate**: live translation with dictionary entries, text to speech, and a one tap "add to flashcards".
-- **Reader**: an epub reader written against the format directly, no library. Long press a word to open the translator's lookup sheet.
+- **Reader**: an epub reader written against the format directly, no library. Long press a word to open the translator's lookup sheet. PDFs import here too and also open from the Files tool or any other app, drawn by the platform's PdfRenderer.
 - **Weather**: forecast for your GPS location or a searched city, with temperature, conditions and rain amount.
 - **Undercover**: the social deduction party game. Most players share a secret word, the *Undercover* have a different one and *Mr. White* has none. The ~80,000 word pairs were generated with NLP and FastText embeddings (see below).
 - **Mail**: the Yahoo inbox over IMAP, fetched only when the screen opens. Read and delete, with the one time login code of a mail shown on its row and copied in one tap.

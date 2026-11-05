@@ -1,6 +1,5 @@
 package com.example.myapp.reader
 
-import com.example.myapp.userMessage
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -70,7 +69,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /** How long the scrolling has to settle before the position is written back. */
-private const val PROGRESS_SAVE_DELAY_MS = 500L
+internal const val PROGRESS_SAVE_DELAY_MS = 500L
 
 /**
  * One chapter scrolls continuously; the position is written back as soon as the scrolling settles,
@@ -113,7 +112,7 @@ fun ReaderScreen(bookId: String, onBack: () -> Unit) {
                 chapters = it.chapters
                 chapterIndex = loaded.chapterIndex.coerceIn(0, it.chapters.lastIndex)
             }
-            .onFailure { error = userMessage(it, "Unreadable book") }
+            .onFailure { error = bookError(it, "Unreadable book") }
     }
 
     LaunchedEffect(chapterIndex, chapters) {
@@ -124,7 +123,7 @@ fun ReaderScreen(bookId: String, onBack: () -> Unit) {
         val parsed = runCatching {
             withContext(Dispatchers.IO) { Epub.chapter(bookFile(context, loaded), chapters[chapterIndex].href) }
         }.getOrElse {
-            error = userMessage(it, "Unreadable chapter")
+            error = bookError(it, "Unreadable chapter")
             emptyList()
         }
         blocks = parsed

@@ -1,6 +1,7 @@
 package com.example.myapp.reader
 
 import android.content.Context
+import android.graphics.Bitmap
 import android.net.Uri
 import androidx.room.Dao
 import androidx.room.Entity
@@ -8,16 +9,19 @@ import androidx.room.PrimaryKey
 import androidx.room.Query
 import androidx.room.Upsert
 import com.example.myapp.flashcards.AppDatabase
+import com.example.myapp.userMessage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.io.IOException
 import java.util.UUID
 
 /**
- * A book in the library. The epub itself is copied into the app's files, so the picked document
+ * A book in the library. The epub or PDF itself is copied into the app's files, so the picked document
  * doesn't have to stay where it was, and the reading position lives here rather than in a separate
  * progress file: it is written on every scroll pause and the row is the smallest thing to write.
+ * For a PDF the chapters are its pages, and blockOffset how far the page is scrolled at 1x.
  */
 @Entity(tableName = "books")
 data class Book(
@@ -53,8 +57,12 @@ interface BookDao {
     suspend fun saveProgress(id: String, chapter: Int, block: Int, offset: Int, now: Long)
 }
 
+private const val PDF_COVER_WIDTH = 450
+
 private fun booksDir(context: Context): File =
     File(context.filesDir, "books").also { it.mkdirs() }
+
+val Book.isPdf: Boolean get() = fileName.endsWith(".pdf")
 
 fun bookFile(context: Context, book: Book): File = File(booksDir(context), book.fileName)
 
@@ -62,36 +70,73 @@ fun coverFile(context: Context, book: Book): File? =
     book.coverFileName?.let { File(booksDir(context), it) }
 
 /**
- * Copies the picked epub in, reads what it says about itself, and files it. Anything that turns out
- * not to be an epub leaves nothing behind.
+ * Copies the picked file in, reads what it says about itself, and files it. Anything that turns out
+ * to be neither a PDF nor an epub leaves nothing behind.
  */
-suspend fun importEpub(context: Context, uri: Uri): Result<Book> = withContext(Dispatchers.IO) {
+suspend fun importBook(context: Context, uri: Uri): Result<Book> = withContext(Dispatchers.IO) {
     val id = UUID.randomUUID().toString()
-    val target = File(booksDir(context), "$id.epub")
+    var target: File? = null
     runCatching {
+        val pdf = isPdf(context, uri)
+        val file = File(booksDir(context), if (pdf) "$id.pdf" else "$id.epub").also { target = it }
         context.contentResolver.openInputStream(uri)?.use { input ->
-            target.outputStream().use { input.copyTo(it) }
+            file.outputStream().use { input.copyTo(it) }
         } ?: error("Unreadable file")
 
-        val metadata = Epub.metadata(target)
-        val coverName = metadata.coverHref?.let { href ->
-            Epub.entry(target, href)?.let { bytes ->
-                File(booksDir(context), "$id-cover").also { it.writeBytes(bytes) }.name
-            }
-        }
-
-        Book(
-            id = id,
-            title = metadata.title,
-            author = metadata.author,
-            fileName = target.name,
-            coverFileName = coverName,
-            chapterCount = metadata.chapters.size
-        ).also { AppDatabase.get(context).bookDao().upsert(it) }
-    }.onFailure { target.delete() }
+        val book = if (pdf) pdfBook(context, id, file, documentTitle(context, uri)) else epubBook(context, id, file)
+        book.also { AppDatabase.get(context).bookDao().upsert(it) }
+    }.onFailure {
+        target?.delete()
+        File(booksDir(context), "$id-cover").delete()
+    }
 }
 
-/** Permanent: the epub was copied in, so nothing else holds it. */
+/**
+ * What a failed book read says on screen. A book is a local file, so an IOException is a bad file
+ * (a zip that isn't one, a missing entry), where userMessage would blame the network.
+ */
+internal fun bookError(e: Throwable, fallback: String): String =
+    if (e is IOException) fallback else userMessage(e, fallback)
+
+private fun epubBook(context: Context, id: String, file: File): Book {
+    val metadata = Epub.metadata(file)
+    val coverName = metadata.coverHref?.let { href ->
+        Epub.entry(file, href)?.let { bytes ->
+            File(booksDir(context), "$id-cover").also { it.writeBytes(bytes) }.name
+        }
+    }
+    return Book(
+        id = id,
+        title = metadata.title,
+        author = metadata.author,
+        fileName = file.name,
+        coverFileName = coverName,
+        chapterCount = metadata.chapters.size
+    )
+}
+
+/** A PDF says little about itself: the title is the file's name, the cover its first page. */
+private suspend fun pdfBook(context: Context, id: String, file: File, title: String): Book {
+    val document = openPdf(context, Uri.fromFile(file))
+    try {
+        val cover = File(booksDir(context), "$id-cover")
+        document.render(0, PDF_COVER_WIDTH)?.let { bitmap ->
+            cover.outputStream().use { bitmap.compress(Bitmap.CompressFormat.JPEG, 85, it) }
+        }
+        return Book(
+            id = id,
+            title = title,
+            author = "",
+            fileName = file.name,
+            coverFileName = cover.name.takeIf { cover.exists() },
+            chapterCount = document.pageAspects.size
+        )
+    } finally {
+        document.close()
+    }
+}
+
+/** Permanent: the file was copied in, so nothing else holds it. */
 suspend fun deleteBook(context: Context, book: Book) = withContext(Dispatchers.IO) {
     bookFile(context, book).delete()
     coverFile(context, book)?.delete()

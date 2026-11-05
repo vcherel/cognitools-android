@@ -56,7 +56,11 @@ import com.example.myapp.notes.NotesListScreen
 import com.example.myapp.notes.NotesTrashScreen
 import com.example.myapp.notes.findTodoNote
 import com.example.myapp.reader.BookLibraryScreen
+import com.example.myapp.reader.PdfBookScreen
+import com.example.myapp.reader.PdfFileScreen
 import com.example.myapp.reader.ReaderScreen
+import com.example.myapp.reader.isPdf
+import com.example.myapp.reader.pdfFileRoute
 import com.example.myapp.translate.TranslateScreen
 import com.example.myapp.undercover.UndercoverScreen
 import com.example.myapp.workout.WorkoutProgramScreen
@@ -107,7 +111,10 @@ fun MainScreen(
 
         LaunchedEffect(pendingRoute) {
             val route = pendingRoute ?: return@LaunchedEffect
-            navController.navigate(route) { launchSingleTop = true }
+            // Single top keeps the screen's state, which would leave a viewer already open on the
+            // previous picture or PDF instead of the one just asked for.
+            val opensDocument = route.startsWith("gallery/viewer/") || route.startsWith("reader/file/")
+            navController.navigate(route) { launchSingleTop = !opensDocument }
             onPendingRouteConsumed()
         }
 
@@ -152,7 +159,11 @@ fun MainScreen(
                     screen("undercover") { UndercoverScreen(onBack = back) }
                     screen("wikipedia") { WikipediaScreen(onBack = back) }
                     screen("files") {
-                        FilesScreen(onBack = back, onOpenMedia = { id -> navController.navigate("gallery/item/$id") })
+                        FilesScreen(
+                            onBack = back,
+                            onOpenMedia = { id -> navController.navigate("gallery/item/$id") },
+                            onOpenPdf = { file -> navController.navigate(pdfFileRoute(Uri.fromFile(file))) }
+                        )
                     }
                     screen("weather") { WeatherScreen(onBack = back) }
                     screen("news") {
@@ -206,8 +217,18 @@ fun MainScreen(
                     screen("reader") {
                         BookLibraryScreen(
                             onBack = back,
-                            onOpenBook = { bookId -> navController.navigate("reader/book/$bookId") }
+                            onOpenBook = { book ->
+                                navController.navigate(if (book.isPdf) "reader/pdf/${book.id}" else "reader/book/${book.id}")
+                            }
                         )
+                    }
+                    screen("reader/pdf/{bookId}") { backStackEntry ->
+                        val bookId = backStackEntry.arguments?.getString("bookId").orEmpty()
+                        PdfBookScreen(bookId = bookId, onBack = back)
+                    }
+                    screen("reader/file/{uri}") { backStackEntry ->
+                        val uri = backStackEntry.arguments?.getString("uri").orEmpty()
+                        PdfFileScreen(uri = Uri.parse(uri), onBack = back)
                     }
                     screen("reader/book/{bookId}") { backStackEntry ->
                         val bookId = backStackEntry.arguments?.getString("bookId").orEmpty()

@@ -55,7 +55,7 @@
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-            <!-- Lets the app show up as an "Open with" / default handler for pictures and videos. -->
+            <!-- Lets the app show up as an "Open with" / default handler for pictures, videos and PDFs. -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
 
@@ -63,6 +63,7 @@
 
                 <data android:mimeType="image/*" />
                 <data android:mimeType="video/*" />
+                <data android:mimeType="application/pdf" />
             </intent-filter>
         </activity>
         <service

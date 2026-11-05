@@ -80,6 +80,7 @@ import com.example.myapp.gallery.hasAllFilesAccess
 import com.example.myapp.gallery.queryMediaIdByPath
 import com.example.myapp.gallery.rememberAllFilesAccessRequester
 import com.example.myapp.plural
+import com.example.myapp.reader.PDF_MIME
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -96,7 +97,7 @@ private data class FileClipboard(val files: List<File>, val move: Boolean)
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun FilesScreen(onBack: () -> Unit, onOpenMedia: (Long) -> Unit) {
+fun FilesScreen(onBack: () -> Unit, onOpenMedia: (Long) -> Unit, onOpenPdf: (File) -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
@@ -132,10 +133,14 @@ fun FilesScreen(onBack: () -> Unit, onOpenMedia: (Long) -> Unit) {
         if (hasAccess) scope.launch { entries = withContext(Dispatchers.IO) { listFolder(currentDir) } }
     }
 
-    /** Pictures and videos open in the gallery viewer; anything else, or one MediaStore refuses, goes to another app. */
+    /** Pictures, videos and PDFs open in the app; anything else, or a media file MediaStore refuses, goes to another app. */
     fun open(file: File) {
         scope.launch {
             val mime = mimeTypeOf(file)
+            if (mime == PDF_MIME) {
+                onOpenPdf(file)
+                return@launch
+            }
             val mediaId = if (mime.startsWith("image/") || mime.startsWith("video/")) {
                 withContext(Dispatchers.IO) { queryMediaIdByPath(context, file) }
             } else null

@@ -1,6 +1,5 @@
 package com.example.myapp.reader
 
-import com.example.myapp.userMessage
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -53,7 +52,7 @@ import kotlinx.coroutines.launch
 /** The books already imported, newest read first. Tapping one opens it where it was left. */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun BookLibraryScreen(onBack: () -> Unit, onOpenBook: (String) -> Unit) {
+fun BookLibraryScreen(onBack: () -> Unit, onOpenBook: (Book) -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val dao = remember { AppDatabase.get(context).bookDao() }
@@ -65,9 +64,9 @@ fun BookLibraryScreen(onBack: () -> Unit, onOpenBook: (String) -> Unit) {
         if (uri == null) return@rememberLauncherForActivityResult
         importing = true
         scope.launch {
-            importEpub(context, uri)
+            importBook(context, uri)
                 .onSuccess { AppSnackbar.show("“${it.title}” added") }
-                .onFailure { AppSnackbar.show(userMessage(it, "Import failed")) }
+                .onFailure { AppSnackbar.show(bookError(it, "Not a readable book")) }
             importing = false
         }
     }
@@ -108,7 +107,7 @@ fun BookLibraryScreen(onBack: () -> Unit, onOpenBook: (String) -> Unit) {
             items(books, key = { it.id }) { book ->
                 Column(
                     Modifier.combinedClickable(
-                        onClick = { onOpenBook(book.id) },
+                        onClick = { onOpenBook(book) },
                         onLongClick = { toDelete = book }
                     )
                 ) {
@@ -131,7 +130,7 @@ fun BookLibraryScreen(onBack: () -> Unit, onOpenBook: (String) -> Unit) {
                         )
                     }
                     Text(
-                        text = "Chapter ${book.chapterIndex + 1} / ${book.chapterCount}",
+                        text = "${if (book.isPdf) "Page" else "Chapter"} ${book.chapterIndex + 1} / ${book.chapterCount}",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.primary
                     )

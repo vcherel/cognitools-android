@@ -23,6 +23,8 @@ import com.example.myapp.gallery.MediaItem
 import com.example.myapp.gallery.hasReadMediaPermission
 import com.example.myapp.gallery.queryMediaItemById
 import com.example.myapp.gallery.resolveMediaTarget
+import com.example.myapp.reader.PDF_MIME
+import com.example.myapp.reader.pdfFileRoute
 
 class MainActivity : ComponentActivity() {
     private val requestPermissionLauncher = registerForActivityResult(
@@ -82,8 +84,9 @@ class MainActivity : ComponentActivity() {
         // the first frame so the menu is never the destination Compose actually starts on (which
         // would otherwise flash on screen for the frame or two before a post-composition navigate
         // could react to it). Skipped entirely for a locked session: that route opens the item's
-        // whole album, which must not be sitting there ready to fire behind the quick view.
-        val initialRoute = if (lockedSession) null else {
+        // whole album, which must not be sitting there ready to fire behind the quick view. Skipped
+        // too when recreated: the back stack comes back with the screen already on it.
+        val initialRoute = if (lockedSession || savedInstanceState != null) null else {
             resolveInitialGalleryRoute(this, viewMediaUriFrom(intent))
                 ?: routeFromIntent(intent)?.let { it to null }
         }
@@ -143,7 +146,9 @@ class MainActivity : ComponentActivity() {
         }
         lockedQuickViewItem.value = null
         applyShowWhenLocked(false)
-        routeFromIntent(intent)?.let { pendingRoute.value = it }
+        val galleryRoute = resolveInitialGalleryRoute(this, viewMediaUriFrom(intent))
+        (galleryRoute?.first ?: routeFromIntent(intent))?.let { pendingRoute.value = it }
+        galleryRoute?.second?.let { AppSnackbar.show(it) }
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -182,15 +187,22 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private fun routeFromIntent(intent: Intent): String? =
-    intent.getStringExtra(MainActivity.EXTRA_OPEN_ROUTE)
+private fun Context.routeFromIntent(intent: Intent): String? =
+    intent.getStringExtra(MainActivity.EXTRA_OPEN_ROUTE) ?: pdfRouteFrom(intent)
+
+// Set when the app was launched to open a PDF from another app.
+private fun Context.pdfRouteFrom(intent: Intent): String? {
+    if (intent.action != Intent.ACTION_VIEW) return null
+    val uri = intent.data ?: return null
+    return if (intent.resolveType(contentResolver) == PDF_MIME) pdfFileRoute(uri) else null
+}
 
 // Set when the app was launched to open a picture or video from another app ("Open with" /
-// default handler).
-private fun viewMediaUriFrom(intent: Intent): Uri? {
-    val type = intent.type ?: return null
-    val isMedia = type.startsWith("image/") || type.startsWith("video/")
-    return if (intent.action == Intent.ACTION_VIEW && isMedia) intent.data else null
+// default handler). A sender may give only the uri, so the type can have to come from its provider.
+private fun Context.viewMediaUriFrom(intent: Intent): Uri? {
+    if (intent.action != Intent.ACTION_VIEW) return null
+    val type = intent.resolveType(contentResolver) ?: return null
+    return if (type.startsWith("image/") || type.startsWith("video/")) intent.data else null
 }
 
 // The nav route to jump to once the app starts, plus an optional snackbar to explain a fallback,
