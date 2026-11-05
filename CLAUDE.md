@@ -34,6 +34,8 @@ adb shell am broadcast -a androidx.profileinstaller.action.INSTALL_PROFILE com.e
 adb shell cmd package compile -m speed-profile -f com.example.myapp
 ```
 
+It writes the commit it installed to `build/deployed_commit` (suffixed "dirty" when the tree had uncommitted changes): read it to know whether a one-shot shim has been installed on the phone before deleting it. Installed is not run: a shim inside a screen also needs that screen opened.
+
 The last two lines matter: `adb install` leaves the app uncompiled (`status=verify`) until the phone's overnight idle job, which costs about 25% on cold start and makes everything run on the JIT. The broadcast installs the baseline profile shipped in the APK, the compile applies it; compiling without the broadcast first compiles an empty profile. Full `-m speed` measured slower than `speed-profile`. Neither touches app data.
 
 Regenerate the baseline profile with `uv run --no-project src/regenerate_profile.py`, run in the background: it builds the APKs first, then needs the phone unlocked for about 5 minutes (notify Valentin when it waits on the unlock), keeps MIUI awake with a SHIFT keypress every 10 s (KEYCODE_WAKEUP does not reset the timeout), fails if a screen the journey opens is missing from `baseline-prof.txt` (a step that misses its label is skipped silently), and trashes any test note the journey left behind. It runs on the real data; backing the data dir up first is optional and slow, the stream caches make it about 6 GB (install the debug APK over the release, `adb exec-out run-as com.example.myapp tar cf - .`). Then build and deploy the release as above.
