@@ -2,7 +2,6 @@ package com.example.myapp
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.interaction.InteractionSource
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -44,9 +43,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.takeOrElse
 import androidx.compose.ui.semantics.Role
@@ -256,7 +253,6 @@ fun MyButton(
     chipColor: Color = Color.Gray,
     /** Keeps the button gray inside a tool, whose buttons otherwise take its color (Cancel, steppers). */
     secondary: Boolean = false,
-    onLongClick: (() -> Unit)? = null,
     onClick: () -> Unit
 ) {
     RaisedButton(
@@ -265,7 +261,6 @@ fun MyButton(
         enabled = enabled,
         highlighted = highlighted,
         tint = if (secondary) null else LocalToolAccent.current?.color,
-        onLongClick = onLongClick,
         onClick = onClick
     ) { textColor ->
         if (icon != null) {
@@ -299,7 +294,6 @@ fun SplitMyButton(
     chipIcon: ImageVector? = null,
     chipColor: Color = Color.Gray,
     rightTint: Color? = null,
-    onMainLongClick: (() -> Unit)? = null,
     onMainClick: () -> Unit,
     onRightClick: () -> Unit
 ) {
@@ -310,7 +304,6 @@ fun SplitMyButton(
         RaisedButton(
             modifier = Modifier.weight(1f),
             height = height,
-            onLongClick = onMainLongClick,
             onClick = onMainClick
         ) { textColor ->
             ButtonLabel(text, textColor, fontSize, chipIcon, chipColor, highlighted = false)
@@ -357,14 +350,12 @@ private fun RaisedButton(
     enabled: Boolean = true,
     highlighted: Boolean = false,
     tint: Color? = null,
-    onLongClick: (() -> Unit)? = null,
     onClick: () -> Unit,
     content: @Composable (textColor: Color) -> Unit
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by rememberHeldPressed(interactionSource)
     val isDarkMode = LocalIsDarkMode.current
-    val haptics = LocalHapticFeedback.current
     val style = remember(isPressed, enabled, isDarkMode, highlighted, tint) {
         buttonStyle(isPressed, enabled = enabled, isDarkMode = isDarkMode, highlighted = highlighted, tint = tint)
     }
@@ -373,15 +364,9 @@ private fun RaisedButton(
         style = style,
         isPressed = isPressed,
         modifier = modifier.then(if (height.isSpecified) Modifier.height(height) else Modifier.fillMaxHeight()),
-        clickModifier = if (enabled) Modifier.combinedClickable(
+        clickModifier = if (enabled) Modifier.clickable(
             interactionSource = interactionSource,
             indication = null,
-            onLongClick = onLongClick?.let { longClick ->
-                {
-                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                    longClick()
-                }
-            },
             onClick = onClick
         ) else Modifier
     ) {

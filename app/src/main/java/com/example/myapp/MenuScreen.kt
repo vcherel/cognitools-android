@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBalanceWallet
+import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.LightMode
@@ -117,21 +118,35 @@ fun MenuScreen(
     val usageStore = remember(context) { MenuUsageStore(context) }
     val usage by usageStore.counts.collectAsState(initial = emptyMap())
 
+    var showClicks by remember { mutableStateOf(false) }
+
     // Big and small tools ranked together, most used first, A to Z between equal counts.
-    val rows = menuRows(
-        (BigTools + SmallTools).sortedWith(
-            compareByDescending<MenuTool> { usage[it.id] ?: 0 }.thenBy { it.label.deaccented() }
-        )
+    val ranked = (BigTools + SmallTools).sortedWith(
+        compareByDescending<MenuTool> { usage[it.id] ?: 0 }.thenBy { it.label.deaccented() }
     )
+    val rows = menuRows(ranked)
 
     fun open(id: String, action: () -> Unit) {
         scope.launch { usageStore.recordClick(id) }
         action()
     }
-    fun showOpens(id: String, label: String) {
-        val count = usage[id] ?: 0
-        val text = if (count == 0) "$label: never opened" else "$label: opened $count time${plural(count)}"
-        Toast.makeText(context, text, Toast.LENGTH_SHORT).show()
+
+    if (showClicks) {
+        ShowAlertDialog(
+            onDismiss = { showClicks = false },
+            title = "Clicks",
+            textContent = {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    ranked.forEach { tool ->
+                        Row(modifier = Modifier.fillMaxWidth()) {
+                            Text(tool.label, modifier = Modifier.weight(1f))
+                            Text((usage[tool.id] ?: 0).toString(), fontWeight = FontWeight.SemiBold)
+                        }
+                    }
+                }
+            },
+            onConfirm = { showClicks = false }
+        )
     }
 
     // The right half shows how many cards are due right now instead of a play icon.
@@ -171,6 +186,9 @@ fun MenuScreen(
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.weight(1f).padding(start = 4.dp)
             )
+            IconButton(onClick = { showClicks = true }) {
+                Icon(Icons.Default.BarChart, contentDescription = "Clicks")
+            }
             BackupMenuButton()
             IconButton(onClick = onToggleDarkMode) {
                 Icon(
@@ -196,7 +214,6 @@ fun MenuScreen(
                             highlighted = tool.id == "journal" && journalUnread,
                             chipIcon = tool.accent.icon,
                             chipColor = tool.accent.color,
-                            onLongClick = { showOpens(tool.id, tool.label) },
                             onClick = { open(tool.id) { onOpenTool(tool.id) } }
                         )
                     }
@@ -212,14 +229,12 @@ fun MenuScreen(
                         chipIcon = lead.accent.icon,
                         chipColor = lead.accent.color,
                         rightTint = lead.accent.color,
-                        onMainLongClick = { showOpens(id, lead.label) },
                         onMainClick = { open(id, onOpenNotes) },
                         onRightClick = { open(id, onOpenTodoNote) }
                     )
                     "music" -> DeezerMenuButton(
                         tool = lead,
                         modifier = Modifier.weight(BIG_ROW_WEIGHT),
-                        onLongClick = { showOpens(id, lead.label) },
                         onRightTap = { scope.launch { usageStore.recordClick(id) } },
                         onOpenDeezer = { open(id, onOpenDeezer) }
                     )
@@ -234,7 +249,6 @@ fun MenuScreen(
                         chipIcon = lead.accent.icon,
                         chipColor = lead.accent.color,
                         rightTint = lead.accent.color,
-                        onMainLongClick = { showOpens(id, lead.label) },
                         onMainClick = { open(id, onOpenFlashcards) },
                         onRightClick = { open(id, onPlayFlashcards) }
                     )
@@ -248,7 +262,6 @@ fun MenuScreen(
                         chipIcon = lead.accent.icon,
                         chipColor = lead.accent.color,
                         rightTint = lead.accent.color,
-                        onMainLongClick = { showOpens(id, lead.label) },
                         onMainClick = { open(id, onOpenGallery) },
                         onRightClick = { open(id, if (somethingPinned) onOpenPinnedPictures else onOpenWallet) }
                     )
@@ -265,7 +278,6 @@ fun MenuScreen(
 private fun DeezerMenuButton(
     tool: MenuTool,
     modifier: Modifier,
-    onLongClick: () -> Unit,
     onRightTap: () -> Unit,
     onOpenDeezer: () -> Unit
 ) {
@@ -300,7 +312,6 @@ private fun DeezerMenuButton(
         chipColor = tool.accent.color,
         rightTint = tool.accent.color,
         rightLoading = isShuffleLoading,
-        onMainLongClick = onLongClick,
         onMainClick = onOpenDeezer,
         onRightClick = {
             onRightTap()
