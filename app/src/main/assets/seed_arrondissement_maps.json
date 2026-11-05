@@ -1,0 +1,193 @@
+{
+ "version": 1,
+ "lists": [
+  {
+   "id": "builtin-arrondissement-maps-v1",
+   "name": "Arrondissements (carte)",
+   "order": 7,
+   "fixedSide": true
+  }
+ ],
+ "cards": [
+  {
+   "id": "arrmap-1",
+   "listId": "builtin-arrondissement-maps-v1",
+   "name": "",
+   "definition": "1er",
+   "image": "asset:maps/arr-1.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "arrmap-2",
+   "listId": "builtin-arrondissement-maps-v1",
+   "name": "",
+   "definition": "2e",
+   "image": "asset:maps/arr-2.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "arrmap-3",
+   "listId": "builtin-arrondissement-maps-v1",
+   "name": "",
+   "definition": "3e",
+   "image": "asset:maps/arr-3.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "arrmap-4",
+   "listId": "builtin-arrondissement-maps-v1",
+   "name": "",
+   "definition": "4e",
+   "image": "asset:maps/arr-4.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "arrmap-5",
+   "listId": "builtin-arrondissement-maps-v1",
+   "name": "",
+   "definition": "5e",
+   "image": "asset:maps/arr-5.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "arrmap-6",
+   "listId": "builtin-arrondissement-maps-v1",
+   "name": "",
+   "definition": "6e",
+   "image": "asset:maps/arr-6.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "arrmap-7",
+   "listId": "builtin-arrondissement-maps-v1",
+   "name": "",
+   "definition": "7e",
+   "image": "asset:maps/arr-7.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "arrmap-8",
+   "listId": "builtin-arrondissement-maps-v1",
+   "name": "",
+   "definition": "8e",
+   "image": "asset:maps/arr-8.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "arrmap-9",
+   "listId": "builtin-arrondissement-maps-v1",
+   "name": "",
+   "definition": "9e",
+   "image": "asset:maps/arr-9.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "arrmap-10",
+   "listId": "builtin-arrondissement-maps-v1",
+   "name": "",
+   "definition": "10e",
+   "image": "asset:maps/arr-10.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "arrmap-11",
+   "listId": "builtin-arrondissement-maps-v1",
+   "name": "",
+   "definition": "11e",
+   "image": "asset:maps/arr-11.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "arrmap-12",
+   "listId": "builtin-arrondissement-maps-v1",
+   "name": "",
+   "definition": "12e",
+   "image": "asset:maps/arr-12.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "arrmap-13",
+   "listId": "builtin-arrondissement-maps-v1",
+   "name": "",
+   "definition": "13e",
+   "image": "asset:maps/arr-13.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "arrmap-14",
+   "listId": "builtin-arrondissement-maps-v1",
+   "name": "",
+   "definition": "14e",
+   "image": "asset:maps/arr-14.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "arrmap-15",
+   "listId": "builtin-arrondissement-maps-v1",
+   "name": "",
+   "definition": "15e",
+   "image": "asset:maps/arr-15.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "arrmap-16",
+   "listId": "builtin-arrondissement-maps-v1",
+   "name": "",
+   "definition": "16e",
+   "image": "asset:maps/arr-16.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "arrmap-17",
+   "listId": "builtin-arrondissement-maps-v1",
+   "name": "",
+   "definition": "17e",
+   "image": "asset:maps/arr-17.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "arrmap-18",
+   "listId": "builtin-arrondissement-maps-v1",
+   "name": "",
+   "definition": "18e",
+   "image": "asset:maps/arr-18.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "arrmap-19",
+   "listId": "builtin-arrondissement-maps-v1",
+   "name": "",
+   "definition": "19e",
+   "image": "asset:maps/arr-19.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "arrmap-20",
+   "listId": "builtin-arrondissement-maps-v1",
+   "name": "",
+   "definition": "20e",
+   "image": "asset:maps/arr-20.webp",
+   "lastReview": 0,
+   "randomSide": false
+  }
+ ]
+}

@@ -274,7 +274,8 @@ class FlashcardRepository(private val context: Context) {
             5 to "seed_flags.json",
             6 to "seed_maps.json",
             6 to "seed_dept_maps.json",
-            7 to "seed_region_maps.json"
+            7 to "seed_region_maps.json",
+            8 to "seed_arrondissement_maps.json"
         )
         private val lotteryDayKey = stringPreferencesKey("lottery_day")
         private const val DAY_MS = 24 * 60 * 60_000L
@@ -307,7 +308,7 @@ class FlashcardRepository(private val context: Context) {
         private val builtinListIds = listOf(
             "builtin-capitals-v1", "builtin-prefectures-v1", "builtin-dept-numbers-v1",
             "builtin-flags-v1", "builtin-maps-v1", "builtin-dept-maps-v1", "builtin-region-maps-v1",
-            BIRTHDAYS_LIST_ID
+            "builtin-arrondissement-maps-v1", BIRTHDAYS_LIST_ID
         )
     }
 }

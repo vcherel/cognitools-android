@@ -1,7 +1,9 @@
 import argparse
+import gzip
 import io
 import json
 import math
+import urllib.parse
 import urllib.request
 import zipfile
 from pathlib import Path
@@ -9,8 +11,8 @@ from pathlib import Path
 import numpy as np
 import shapefile
 from PIL import Image, ImageDraw
-from shapely.geometry import shape
-from shapely.ops import unary_union
+from shapely.geometry import LineString, Polygon, shape
+from shapely.ops import polygonize, unary_union
 
 ASSETS = Path("app/src/main/assets")
 MAPS_DIR = ASSETS / "maps"
@@ -18,6 +20,7 @@ FLAGS_SEED = ASSETS / "seed_flags.json"
 COUNTRY_SEED = ASSETS / "seed_maps.json"
 DEPT_SEED = ASSETS / "seed_dept_maps.json"
 REGION_SEED = ASSETS / "seed_region_maps.json"
+ARRONDISSEMENT_SEED = ASSETS / "seed_arrondissement_maps.json"
 DATA = Path("data/maps")
 SHEET_PATH = Path("mockups/maps_sheet.png")
 SOURCES = {
@@ -25,6 +28,12 @@ SOURCES = {
     "ne_50m_lakes.zip": "https://naciscdn.org/naturalearth/50m/physical/ne_50m_lakes.zip",
     "departements.geojson": "https://raw.githubusercontent.com/gregoiredavid/france-geojson/master/departements-avec-outre-mer.geojson",
     "regions.geojson": "https://raw.githubusercontent.com/gregoiredavid/france-geojson/master/regions-avec-outre-mer.geojson",
+    "arrondissements.geojson": "https://opendata.paris.fr/api/explore/v2.1/catalog/datasets/arrondissements/exports/geojson",
+    "paris_water.json": "https://overpass-api.de/api/interpreter?data="
+    + urllib.parse.quote(
+        '[out:json][timeout:60];(way["natural"="water"]["water"="river"](48.65,2.05,49.05,2.68);'
+        'relation["natural"="water"]["water"="river"](48.65,2.05,49.05,2.68););out geom;'
+    ),
 }
 
 R = 6371.0
@@ -36,6 +45,10 @@ BORDER = (130, 124, 114)
 TARGET = (214, 64, 46)
 TARGET_EDGE = (150, 36, 24)
 INSET_EDGE = (110, 110, 110)
+SUBURBS = (244, 242, 237)
+PARIS_BORDER = (176, 169, 156)
+PARIS_EDGE = (120, 113, 102)
+RIVER = (140, 188, 222)
 # The fixed map a place is shown on, (lat, lon, width in km): the first holding all of it, so every
 # country of a continent sits on the same page of the atlas.
 FRAMES = (
@@ -90,6 +103,7 @@ SKIPPED_FLAGS = {"af-taliban"}
 OVERSEAS_DEPTS = {"971": "gp", "972": "mq", "973": "gf", "974": "re", "976": "yt"}
 OVERSEAS_REGIONS = {"01": "gp", "02": "mq", "03": "gf", "04": "re", "06": "yt"}
 PARIS = (2.35, 48.86)
+PARIS_HEIGHT = 540
 
 
 def to_xyz(lonlat):
@@ -189,7 +203,9 @@ class View:
 def fetch(url):
     request = urllib.request.Request(url, headers={"User-Agent": "cognitools-maps"})
     with urllib.request.urlopen(request) as response:
-        return response.read()
+        body = response.read()
+    # Paris open data gzips its export even to a client that never asked for it.
+    return gzip.decompress(body) if body[:2] == b"\x1f\x8b" else body
 
 
 def source(name):
@@ -258,6 +274,35 @@ def load_french(name):
         f["properties"]["code"]: (f["properties"]["nom"], polygons(shape(f["geometry"])))
         for f in data["features"]
     }
+
+
+def load_arrondissements():
+    """{number: polygons} of the Paris arrondissements, and the polygons of Paris as a whole."""
+    data = json.loads(source("arrondissements.geojson").read_text())
+    shapes = {f["properties"]["c_ar"]: shape(f["geometry"]) for f in data["features"]}
+    # The buffer closes the slivers between neighbours, which would draw as an inner edge.
+    whole = unary_union([s.buffer(1e-5) for s in shapes.values()])
+    return {n: polygons(s) for n, s in shapes.items()}, polygons(whole)
+
+
+def load_paris_water():
+    """The polygons of the rivers around Paris, from OpenStreetMap's ways and multipolygons."""
+    shapes = []
+    for element in json.loads(source("paris_water.json").read_text())["elements"]:
+        if element["type"] == "way":
+            coords = [(p["lon"], p["lat"]) for p in element["geometry"]]
+            if len(coords) > 3 and coords[0] == coords[-1]:
+                shapes.append(Polygon(coords).buffer(0))
+            continue
+        rings = {"outer": [], "inner": []}
+        for member in element["members"]:
+            if member["type"] == "way" and member.get("role") in rings and "geometry" in member:
+                rings[member["role"]].append(LineString([(p["lon"], p["lat"]) for p in member["geometry"]]))
+        outer = unary_union(list(polygonize(rings["outer"])))
+        shapes.append(outer.difference(unary_union(list(polygonize(rings["inner"])))))
+    # Shrunk then grown back, which drops the canals: thin stray lines at this scale.
+    water = polygons(unary_union(shapes).buffer(-2e-4).buffer(2e-4))
+    return [(ext, holes) for ext, holes in water if ext.area > 2e-6]
 
 
 def outline(draw, ring, pts, color, width):
@@ -464,6 +509,50 @@ def metro_view(depts):
     return View(proj, (x0 + x1) / 2, (y0 + y1) / 2, s)
 
 
+def paris_view(outline_polys):
+    """Paris large enough to read its arrondissements, the departments around it cut by the frame."""
+    proj = Laea(PARIS[1], PARIS[0])
+    pts = np.concatenate([proj.forward(ext.lonlat) for ext, _ in outline_polys])
+    (x0, y0), (x1, y1) = pts.min(0), pts.max(0)
+    s = (x1 - x0) / (0.76 * W)
+    return View(proj, (x0 + x1) / 2, (y0 + y1) / 2, s, W, PARIS_HEIGHT)
+
+
+def fill(draw, view, polys, color):
+    for ext, _ in polys:
+        draw.polygon(view.px(ext).ravel().tolist(), fill=color)
+
+
+def render_arrondissement(number, data):
+    """An arrondissement on the map of Paris, the river over everything so it cuts the shapes."""
+    features, paris = data["arrondissements"], data["paris"]
+    target = features[number]
+    view = paris_view(paris)
+    img = Image.new("RGB", (view.w * SS, view.h * SS), SUBURBS)
+    draw = ImageDraw.Draw(img)
+    for code, (_, polys) in data["depts"].items():
+        if code not in OVERSEAS_DEPTS:
+            for ext, _ in polys:
+                outline(draw, ext, view.px(ext), PARIS_BORDER, 5)
+    fill(draw, view, paris, LAND)
+    fill(draw, view, target, TARGET)
+    for polys in features.values():
+        for ext, _ in polys:
+            outline(draw, ext, view.px(ext), PARIS_BORDER, 5)
+    for ext, _ in paris:
+        outline(draw, ext, view.px(ext), PARIS_EDGE, 10)
+    for ext, _ in target:
+        outline(draw, ext, view.px(ext), TARGET_EDGE, 7)
+    water = Image.new("L", img.size, 0)
+    water_draw = ImageDraw.Draw(water)
+    for ext, holes in data["paris_water"]:
+        water_draw.polygon(view.px(ext).ravel().tolist(), fill=255)
+        for hole in holes:
+            water_draw.polygon(view.px(hole).ravel().tolist(), fill=0)
+    img.paste(RIVER, (0, 0, *img.size), water)
+    return img.resize((view.w, view.h), Image.LANCZOS)
+
+
 def render_french(code, features, overseas, data):
     """A department or region on the map of metropolitan France, an overseas one on its own map."""
     if code in overseas:
@@ -512,11 +601,15 @@ def country_names():
 def load_data():
     world = load_world()
     print("world loaded", flush=True)
+    arrondissements, paris = load_arrondissements()
     return {
         "world": world,
         "lakes": load_lakes(),
         "depts": load_french("departements.geojson"),
         "regions": load_french("regions.geojson"),
+        "arrondissements": arrondissements,
+        "paris": paris,
+        "paris_water": load_paris_water(),
     }
 
 
@@ -529,7 +622,18 @@ def is_region(code):
     return code[:1] == "r" and code[1:].isdigit()
 
 
+def is_arrondissement(code):
+    """An arrondissement is asked for as a plus its number (a7 for the 7th)."""
+    return code[:1] == "a" and code[1:].isdigit()
+
+
+def arrondissement_name(number):
+    return "1er" if number == 1 else f"{number}e"
+
+
 def render(code, data):
+    if is_arrondissement(code):
+        return render_arrondissement(int(code[1:]), data)
     if is_dept(code):
         return render_french(code, data["depts"], OVERSEAS_DEPTS, data)
     if is_region(code):
@@ -542,6 +646,8 @@ def image_name(code):
         return f"dep-{code.lower()}"
     if is_region(code):
         return f"reg-{code[1:]}"
+    if is_arrondissement(code):
+        return f"arr-{code[1:]}"
     return code
 
 
@@ -583,7 +689,7 @@ def list_pages(data):
 
 
 def card(prefix, list_id, code, name):
-    key = code[1:] if is_region(code) else code.lower()
+    key = code[1:] if is_region(code) or is_arrondissement(code) else code.lower()
     return {
         "id": f"{prefix}-{key}",
         "listId": list_id,
@@ -604,7 +710,8 @@ def write_seed(path, list_id, list_name, order, cards):
     path.write_text(json.dumps(bundle, ensure_ascii=False, indent=1) + "\n")
 
 
-def build_all(data):
+def list_codes(data):
+    """The codes of the countries, departments, regions and arrondissements, in their lists' order."""
     names = country_names()
     missing = sorted(code for code in names if code not in data["world"])
     if missing:
@@ -612,10 +719,21 @@ def build_all(data):
     codes = [c for c in names if c in data["world"]]
     depts = sorted(data["depts"])
     regions = [f"r{c}" for c in sorted(data["regions"], key=lambda c: data["regions"][c][0])]
-    everything = codes + depts + regions
+    arrondissements = [f"a{n}" for n in sorted(data["arrondissements"])]
+    return codes, depts, regions, arrondissements
+
+
+def build_all(data):
+    everything = [code for codes in list_codes(data) for code in codes]
     for i, code in enumerate(everything, 1):
         save(render(code, data), code)
         print(f"{i}/{len(everything)} {code}", flush=True)
+    write_seeds(data)
+
+
+def write_seeds(data):
+    names = country_names()
+    codes, depts, regions, arrondissements = list_codes(data)
     country_cards = sorted(
         (card("map", "builtin-maps-v1", c, names[c]) for c in codes), key=lambda c: c["definition"]
     )
@@ -623,10 +741,24 @@ def build_all(data):
     region_cards = [
         card("regionmap", "builtin-region-maps-v1", c, data["regions"][c[1:]][0]) for c in regions
     ]
+    arrondissement_cards = [
+        card("arrmap", "builtin-arrondissement-maps-v1", c, arrondissement_name(int(c[1:])))
+        for c in arrondissements
+    ]
     write_seed(COUNTRY_SEED, "builtin-maps-v1", "Pays (carte)", 4, country_cards)
     write_seed(DEPT_SEED, "builtin-dept-maps-v1", "Départements (carte)", 5, dept_cards)
     write_seed(REGION_SEED, "builtin-region-maps-v1", "Régions (carte)", 6, region_cards)
-    counts = f"{len(country_cards)} countries, {len(dept_cards)} departments, {len(region_cards)} regions"
+    write_seed(
+        ARRONDISSEMENT_SEED,
+        "builtin-arrondissement-maps-v1",
+        "Arrondissements (carte)",
+        7,
+        arrondissement_cards,
+    )
+    counts = (
+        f"{len(country_cards)} countries, {len(dept_cards)} departments, "
+        f"{len(region_cards)} regions, {len(arrondissement_cards)} arrondissements"
+    )
     print(f"{counts} written", flush=True)
 
 
@@ -635,10 +767,13 @@ def main():
     parser.add_argument("--sheet", nargs="+", metavar="CODE", help="only render these maps side by side")
     parser.add_argument("--write", nargs="+", metavar="CODE", help="only write these maps' pictures")
     parser.add_argument("--pages", action="store_true", help="only list the page each country lands on")
+    parser.add_argument("--seeds", action="store_true", help="only write the seed files")
     args = parser.parse_args()
     data = load_data()
     if args.pages:
         list_pages(data)
+    elif args.seeds:
+        write_seeds(data)
     elif args.sheet:
         sheet(args.sheet, data)
     elif args.write:
