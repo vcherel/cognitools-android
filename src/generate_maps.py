@@ -28,26 +28,41 @@ SOURCES = {
 }
 
 R = 6371.0
-W, H = 800, 600
+W, H = 800, 800
 SS = 3
 SEA = (214, 230, 240)
 LAND = (228, 224, 214)
 BORDER = (130, 124, 114)
 TARGET = (214, 64, 46)
 TARGET_EDGE = (150, 36, 24)
-GLOBE_SEA = (176, 205, 226)
-GLOBE_LAND = (204, 198, 184)
 INSET_EDGE = (110, 110, 110)
-# Frame width in km by the square root of the target's area: a speck of an island zoomed in
-# until its coast shows, a middle size country zoomed out until its neighbours do.
-FRAME_CURVE = ((4, 35), (20, 200), (600, 2600), (3000, 6000))
-# The share of the card a target spread wide (a big country, a long archipelago) may fill.
+# The fixed map a place is shown on, (lat, lon, width in km): the first holding all of it, so every
+# country of a continent sits on the same page of the atlas.
+FRAMES = (
+    (17, -74, 4600),  # Caribbean
+    (18, 80, 5000),  # South Asia
+    (54, 8, 5000),  # Europe
+    (34, 52, 6000),  # Middle East
+    (22, 110, 8400),  # East Asia
+    (-22, -60, 8800),  # South America
+    (50, -98, 9000),  # North America
+    (0, 18, 10000),  # Africa
+    (-20, 75, 8000),  # Indian Ocean
+    (-42, -45, 8000),  # South Atlantic
+    (-10, -178, 12000),  # Pacific
+)
+# A place no page holds gets its own map, its extent filling this share of it, never narrower.
 MAX_FILL = 0.7
-# Past this width the map already shows where it is on Earth, the globe would only hide some of it.
-GLOBE_MAX_FRAME_KM = 7000
-GLOBE_DIAMETER = 170
-# A target smaller than this many pixels gets a circle around it.
+OWN_FRAME_MIN_KM = 3000
+# A target at least this many pixels across reads on the page, a smaller one gets a lens.
+READS_PX = 90
+LENS = 280
+# The lens never spans less, so it holds a coast or a border and not a lone blob.
+LENS_MIN_KM = 220
+LENS_FILL = 0.55
+# Pixels across under which a target gets a circle around it, a Paris department the zoom inset.
 TINY_PX = 16
+PARIS_INSET_PX = 22
 
 # Map units not drawn as anyone's: disputed spots, bases, reefs. They stay plain land.
 PLAIN_UNITS = {
@@ -257,7 +272,7 @@ def outline(draw, ring, pts, color, width):
         start = i + 1
 
 
-def draw_map(view, target, world, lakes, layers=()):
+def draw_map(view, target, world, lakes, layers=(), border=2 * SS):
     """The view supersampled, every land gray, [target] red."""
     img = Image.new("RGB", (view.w * SS, view.h * SS), SEA)
     draw = ImageDraw.Draw(img)
@@ -278,7 +293,7 @@ def draw_map(view, target, world, lakes, layers=()):
     for pts in lake_pts:
         draw.polygon(pts.ravel().tolist(), fill=SEA)
     for ring, pts in edges:
-        outline(draw, ring, pts, BORDER, 2 * SS)
+        outline(draw, ring, pts, BORDER, border)
 
     mask = Image.new("L", img.size, 0)
     mask_draw = ImageDraw.Draw(mask)
@@ -299,129 +314,86 @@ def draw_map(view, target, world, lakes, layers=()):
     return img
 
 
-class Globe:
-    """The small orthographic globe in a card's corner, sampled from an equirectangular raster."""
-
-    EQ_W, EQ_H = 4096, 2048
-
-    def __init__(self, world):
-        self.land = self.raster([p for polys in world.values() for p in polys])
-
-    def raster(self, polys):
-        img = Image.new("L", (self.EQ_W, self.EQ_H), 0)
-        draw = ImageDraw.Draw(img)
-        for ext, _ in polys:
-            draw.polygon(self.eq_px(ext.lonlat).ravel().tolist(), fill=255)
-        return np.asarray(img) > 0
-
-    def eq_px(self, lonlat):
-        return np.column_stack(
-            [(lonlat[:, 0] + 180) / 360 * self.EQ_W, (90 - lonlat[:, 1]) / 180 * self.EQ_H]
-        )
-
-    def render(self, lat0, lon0, target, frame_lonlat, diameter=GLOBE_DIAMETER):
-        n = diameter * SS
-        half = n / 2
-        yy, xx = np.mgrid[0:n, 0:n]
-        u, v = (xx + 0.5 - half) / half, (half - yy - 0.5) / half
-        rho = np.hypot(u, v)
-        inside = rho <= 1
-        c = np.arcsin(np.clip(rho, 0, 1))
-        sin1, cos1 = math.sin(math.radians(lat0)), math.cos(math.radians(lat0))
-        safe = np.where(rho > 0, rho, 1)
-        lat = np.arcsin(np.clip(np.cos(c) * sin1 + np.where(rho > 0, v * np.sin(c) * cos1 / safe, 0), -1, 1))
-        lon = math.radians(lon0) + np.arctan2(u * np.sin(c), rho * cos1 * np.cos(c) - v * sin1 * np.sin(c))
-        col = (((np.degrees(lon) + 180) % 360) / 360 * self.EQ_W).astype(int) % self.EQ_W
-        row = np.clip(((90 - np.degrees(lat)) / 180 * self.EQ_H).astype(int), 0, self.EQ_H - 1)
-        hit = self.raster(target)[row, col]
-        land = self.land[row, col]
-        rgb = np.empty((n, n, 3))
-        rgb[:] = GLOBE_SEA
-        rgb[land] = GLOBE_LAND
-        rgb[hit] = TARGET
-        rgb *= (0.78 + 0.22 * np.cos(c))[..., None]
-        alpha = np.where(inside, 255, 0)
-        img = Image.fromarray(np.dstack([rgb, alpha]).astype(np.uint8), "RGBA")
-
-        draw = ImageDraw.Draw(img)
-        lam = np.radians(frame_lonlat[:, 0] - lon0)
-        phi = np.radians(frame_lonlat[:, 1])
-        visible = sin1 * np.sin(phi) + cos1 * np.cos(phi) * np.cos(lam) >= 0
-        fx = half + half * np.cos(phi) * np.sin(lam)
-        fy = half - half * (cos1 * np.sin(phi) - sin1 * np.cos(phi) * np.cos(lam))
-        pts = np.column_stack([fx, fy])[visible]
-        if len(pts) > 1:
-            draw.line(pts.ravel().tolist(), fill=TARGET_EDGE, width=2 * SS, joint="curve")
-        draw.ellipse((SS, SS, n - SS, n - SS), outline=INSET_EDGE, width=SS)
-        return img.resize((diameter, diameter), Image.LANCZOS)
+def target_pts(target, proj):
+    """The km points of the target's biggest piece and the pieces near it, far territories left out."""
+    main = max((ext for ext, _ in target), key=lambda r: r.area)
+    main_pts = proj.forward(main.lonlat)
+    origin = main_pts.mean(0)
+    reach = max(800.0, 2 * np.hypot(*(main_pts - origin).T).max())
+    pts = [proj.forward(ext.lonlat) for ext, _ in target]
+    return np.concatenate([p for p in pts if np.hypot(*(p.mean(0) - origin)) <= reach])
 
 
-def frame_lonlat(view):
-    """The view's border as lon/lat points, for the globe's locator outline."""
-    half_w, half_h = view.w / 2 * view.s, view.h / 2 * view.s
-    t = np.linspace(-1, 1, 40)
-    xs = np.concatenate([t * half_w, np.full(40, half_w), -t * half_w, np.full(40, -half_w)])
-    ys = np.concatenate([np.full(40, half_h), -t * half_h, np.full(40, -half_h), t * half_h])
-    return view.proj.inverse(np.column_stack([xs + view.cx, ys + view.cy]))
+def box_km(pts):
+    (x0, y0), (x1, y1) = pts.min(0), pts.max(0)
+    return x0, y0, x1, y1
 
 
-def corner(img, size, avoid, margin=12):
-    """The corner of [img] where an inset of [size] hides the least land, never over [avoid]."""
-    pixels = np.asarray(img)
-    land = np.any(np.abs(pixels.astype(int) - SEA) > 6, axis=2)
-    w, h = size
+def box_px(view, pts):
+    px = view.km_to_px(pts) / SS
+    return (*px.min(0), *px.max(0))
+
+
+def page_view(target):
+    """The first page of the atlas holding the target, else a map of its own."""
+    for lat, lon, width in FRAMES:
+        proj = Laea(lat, lon)
+        if np.abs(target_pts(target, proj)).max() <= width * 0.47:
+            return View(proj, 0, 0, width / W)
+    main = max((ext for ext, _ in target), key=lambda r: r.area)
+    proj = Laea(*main.latlon())
+    x0, y0, x1, y1 = box_km(target_pts(target, proj))
+    s = max((x1 - x0) / (MAX_FILL * W), (y1 - y0) / (MAX_FILL * H), OWN_FRAME_MIN_KM / W)
+    return View(proj, (x0 + x1) / 2, (y0 + y1) / 2, s)
+
+
+def lens_spot(img, center, radius):
+    """Where the lens hides the least land, clear of the target, out of the score badge's corner."""
+    land = np.any(np.abs(np.asarray(img).astype(int) - SEA) > 6, axis=2)
+    pad = 14
+    near, mid, far = LENS // 2 + pad, W // 2, W - LENS // 2 - pad
+    yy, xx = np.ogrid[0:H, 0:W]
     best = None
-    for x in (margin, img.width - w - margin):
-        for y in (margin, img.height - h - margin):
-            score = land[y : y + h, x : x + w].sum()
-            ax0, ay0, ax1, ay1 = avoid
-            if x < ax1 + 8 and ax0 - 8 < x + w and y < ay1 + 8 and ay0 - 8 < y + h:
-                score += 10**9
-            if best is None or score < best[0]:
-                best = (score, x, y)
+    for x, y in ((near, near), (near, far), (far, far), (mid, far), (near, mid), (far, mid), (mid, near)):
+        gap = math.hypot(x - center[0], y - center[1]) - LENS / 2 - radius
+        covered = (xx - x) ** 2 + (yy - y) ** 2 <= (LENS / 2) ** 2
+        # The leaders cross the map, so the nearer of two equal spots wins.
+        score = land[covered].mean() + gap / W * 0.25 + (100 if gap < 40 else 0)
+        if best is None or score < best[0]:
+            best = (score, x, y)
     return best[1], best[2]
 
 
-def paste_globe(img, globe, view, target, avoid):
-    lat, lon = view.proj.lat, view.proj.lon
-    disc = globe.render(lat, lon, target, frame_lonlat(view))
-    x, y = corner(img, disc.size, avoid)
-    backing = Image.new("L", (disc.width + 8, disc.height + 8), 0)
-    ImageDraw.Draw(backing).ellipse((0, 0, backing.width - 1, backing.height - 1), fill=255)
-    img.paste((255, 255, 255), (x - 4, y - 4, x - 4 + backing.width, y - 4 + backing.height), backing)
-    img.paste(disc, (x, y), disc)
+def draw_leaders(draw, a, ra, b, rb):
+    """The two outer tangents between the circles around [a] and [b]."""
+    base = math.atan2(b[1] - a[1], b[0] - a[0])
+    offset = math.acos(max(-1, min(1, (ra - rb) / math.dist(a, b))))
+    for sign in (1, -1):
+        t = base + sign * offset
+        cos, sin = math.cos(t), math.sin(t)
+        draw.line(
+            (a[0] + ra * cos, a[1] + ra * sin, b[0] + rb * cos, b[1] + rb * sin), fill=TARGET_EDGE, width=SS
+        )
 
 
-def target_box(view, target):
-    """The target's pixel bounding box on the final image."""
-    pts = [view.px(ext) / SS for ext, _ in target if view.shows(ext)]
-    pts = [p for p in pts if view.on_canvas(p * SS)]
-    if not pts:
-        return (view.w / 2, view.h / 2, view.w / 2, view.h / 2)
-    allpts = np.concatenate(pts)
-    return (*allpts.min(0), *allpts.max(0))
-
-
-def polygon_km2(ext, holes):
-    km_per_degree = math.pi * R / 180
-    return (ext.area - sum(h.area for h in holes)) * km_per_degree**2
-
-
-def country_view(target):
-    """Centered on the country's biggest piece and the pieces near it, with room for its neighbours."""
+def render_lens(target, data):
     main = max((ext for ext, _ in target), key=lambda r: r.area)
     proj = Laea(*main.latlon())
-    main_pts = proj.forward(main.lonlat)
-    reach = max(800.0, 2 * np.hypot(main_pts[:, 0], main_pts[:, 1]).max())
-    near = [proj.forward(ext.lonlat) for ext, _ in target]
-    near = [p for p in near if np.hypot(*p.mean(0)) <= reach]
-    pts = np.concatenate(near)
-    (x0, y0), (x1, y1) = pts.min(0), pts.max(0)
-    size, frame = np.log(np.array(FRAME_CURVE, dtype=float)).T
-    side = math.sqrt(sum(polygon_km2(ext, holes) for ext, holes in target))
-    frame_km = math.exp(np.interp(math.log(max(side, 1e-3)), size, frame))
-    s = max((x1 - x0) / (MAX_FILL * W), (y1 - y0) / (MAX_FILL * H), frame_km / W)
-    return View(proj, (x0 + x1) / 2, (y0 + y1) / 2, s), (x0, y0, x1, y1)
+    pts = target_pts(target, proj)
+    box = box_km(pts)
+    x0, y0, x1, y1 = box
+    span = max(max(x1 - x0, y1 - y0) / LENS_FILL, LENS_MIN_KM)
+    view = View(proj, (x0 + x1) / 2, (y0 + y1) / 2, span / LENS, LENS, LENS)
+    img = draw_map(view, target, data["world"], data["lakes"]).resize((LENS, LENS), Image.LANCZOS)
+    dot_specks(img, view, target)
+    ring_circle(img, view, box)
+    return img
+
+
+def disc_mask(diameter):
+    mask = Image.new("L", (diameter * SS, diameter * SS), 0)
+    ImageDraw.Draw(mask).ellipse((0, 0, diameter * SS - 1, diameter * SS - 1), fill=255)
+    return mask.resize((diameter, diameter), Image.LANCZOS)
 
 
 def ring_circle(img, view, box_km):
@@ -450,13 +422,35 @@ def dot_specks(img, view, target):
 
 
 def render_country(target, data):
-    world, lakes, globe = data["world"], data["lakes"], data["globe"]
-    view, box_km = country_view(target)
-    img = draw_map(view, target, world, lakes).resize((W, H), Image.LANCZOS)
+    """The target on its page of the atlas, with a lens on it when it is too small to read there."""
+    view = page_view(target)
+    big = draw_map(view, target, data["world"], data["lakes"], border=SS)
+    img = big.resize((W, H), Image.LANCZOS)
+    x0, y0, x1, y1 = box_px(view, target_pts(target, view.proj))
+    size = max(x1 - x0, y1 - y0)
+    if size >= READS_PX:
+        dot_specks(img, view, target)
+        return img
+
+    center = ((x0 + x1) / 2, (y0 + y1) / 2)
+    radius = size / 2 + 11
+    x, y = lens_spot(img, center, radius)
+    draw = ImageDraw.Draw(big)
+    scaled = (center[0] * SS, center[1] * SS)
+    draw_leaders(draw, scaled, radius * SS, (x * SS, y * SS), LENS / 2 * SS)
+    rx0, ry0 = scaled[0] - radius * SS, scaled[1] - radius * SS
+    draw.ellipse((rx0, ry0, rx0 + 2 * radius * SS, ry0 + 2 * radius * SS), outline=TARGET_EDGE, width=SS)
+    img = big.resize((W, H), Image.LANCZOS)
     dot_specks(img, view, target)
-    ring_circle(img, view, box_km)
-    if view.w * view.s < GLOBE_MAX_FRAME_KM:
-        paste_globe(img, globe, view, target, target_box(view, target))
+
+    left, top = x - LENS // 2, y - LENS // 2
+    edge = 5
+    img.paste(
+        (255, 255, 255),
+        (left - edge, top - edge, left + LENS + edge, top + LENS + edge),
+        disc_mask(LENS + 2 * edge),
+    )
+    img.paste(render_lens(target, data), (left, top), disc_mask(LENS))
     return img
 
 
@@ -480,11 +474,14 @@ def render_french(code, features, overseas, data):
     img = draw_map(view, target, data["world"], data["lakes"], [metro]).resize((W, H), Image.LANCZOS)
 
     paris = view.proj.forward(np.array([PARIS]))[0]
-    tx0, ty0, tx1, ty1 = target_box(view, target)
+    tx0, ty0, tx1, ty1 = box_px(view, target_pts(target, view.proj))
     ((px, py),) = view.km_to_px(np.array([paris])) / SS
-    if max(tx1 - tx0, ty1 - ty0) >= TINY_PX or math.hypot((tx0 + tx1) / 2 - px, (ty0 + ty1) / 2 - py) > 40:
+    if (
+        max(tx1 - tx0, ty1 - ty0) >= PARIS_INSET_PX
+        or math.hypot((tx0 + tx1) / 2 - px, (ty0 + ty1) / 2 - py) > 50
+    ):
         return img
-    zoom = View(view.proj, paris[0], paris[1], 0.95, 190, 190)
+    zoom = View(view.proj, paris[0], paris[1], 0.95, 170, 170)
     inset = draw_map(zoom, target, data["world"], data["lakes"], [metro]).resize(
         (zoom.w, zoom.h), Image.LANCZOS
     )
@@ -520,7 +517,6 @@ def load_data():
         "lakes": load_lakes(),
         "depts": load_french("departements.geojson"),
         "regions": load_french("regions.geojson"),
-        "globe": Globe(world),
     }
 
 
@@ -555,7 +551,7 @@ def save(img, code):
 
 
 def sheet(codes, data):
-    cols = 2
+    cols = 3
     rows = math.ceil(len(codes) / cols)
     out = Image.new("RGB", (cols * (W + 20), rows * (H + 40)), "#888888")
     draw = ImageDraw.Draw(out)
@@ -567,6 +563,23 @@ def sheet(codes, data):
     SHEET_PATH.parent.mkdir(exist_ok=True)
     out.save(SHEET_PATH)
     print(SHEET_PATH.resolve(), flush=True)
+
+
+def list_pages(data):
+    """Every country by the page it lands on, in capitals when it reads there without a lens."""
+    pages = {}
+    for code in country_names():
+        target = data["world"].get(code)
+        if target is None:
+            continue
+        view = page_view(target)
+        x0, y0, x1, y1 = box_px(view, target_pts(target, view.proj))
+        label = code.upper() if max(x1 - x0, y1 - y0) >= READS_PX else code
+        is_page = any((view.proj.lat, view.proj.lon) == frame[:2] for frame in FRAMES)
+        key = f"{view.proj.lat:.0f},{view.proj.lon:.0f}" if is_page else "own map"
+        pages.setdefault(key, []).append(label)
+    for key, codes in pages.items():
+        print(f"{key}: {len(codes)}: {' '.join(codes)}", flush=True)
 
 
 def card(prefix, list_id, code, name):
@@ -621,9 +634,12 @@ def main():
     parser = argparse.ArgumentParser(description="Build the map flashcards lists from Natural Earth.")
     parser.add_argument("--sheet", nargs="+", metavar="CODE", help="only render these maps side by side")
     parser.add_argument("--write", nargs="+", metavar="CODE", help="only write these maps' pictures")
+    parser.add_argument("--pages", action="store_true", help="only list the page each country lands on")
     args = parser.parse_args()
     data = load_data()
-    if args.sheet:
+    if args.pages:
+        list_pages(data)
+    elif args.sheet:
         sheet(args.sheet, data)
     elif args.write:
         for i, code in enumerate(args.write, 1):

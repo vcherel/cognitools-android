@@ -206,7 +206,8 @@ class FlashcardRepository(private val context: Context) {
         val reset = context.flashcardDataStore.data.first()[resetVersionKey] ?: 0
         if (reset < RESETS.last().first) {
             val ids = RESETS.filter { (version, _) -> version > reset }.map { it.second }.toSet()
-            val shipped = SEEDS.flatMap { (_, file) -> seedCards(file) }.filter { it.id in ids }
+            val shipped = SEEDS.flatMap { (_, file) -> seedCards(file) }
+                .filter { it.id in ids || it.listId in ids }
             dao.upsertElements(shipped)
             context.flashcardDataStore.edit { it[resetVersionKey] = RESETS.last().first }
         }
@@ -281,13 +282,25 @@ class FlashcardRepository(private val context: Context) {
         // Builtin cards whose text or picture was edited, with the version that shipped the edit:
         // they are replaced once by their shipped version, which also wipes their progress since
         // they may have been learned from the old one. A card added to an already seeded list is
-        // listed here too, which inserts it. Entries of a version the phone already applied are dropped.
+        // listed here too, which inserts it. A list id stands for all its cards. Entries of a version
+        // the phone already applied are dropped.
         private val RESETS = listOf(
             7 to "flag-sv",
             7 to "flag-ni",
             7 to "flag-py",
             7 to "flag-yt",
-            7 to "flag-gu"
+            7 to "flag-gu",
+            8 to "builtin-maps-v1",
+            8 to "deptmap-971",
+            8 to "deptmap-972",
+            8 to "deptmap-973",
+            8 to "deptmap-974",
+            8 to "deptmap-976",
+            8 to "regionmap-01",
+            8 to "regionmap-02",
+            8 to "regionmap-03",
+            8 to "regionmap-04",
+            8 to "regionmap-06"
         )
         private const val BIRTHDAYS_LIST_ID = "builtin-birthdays-v1"
         private val birthdayFormat = DateTimeFormatter.ofPattern("d MMMM", Locale.FRENCH)

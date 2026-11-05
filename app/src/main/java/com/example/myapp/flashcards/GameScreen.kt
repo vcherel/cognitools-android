@@ -436,31 +436,48 @@ private fun CardFace(
 ) {
     val score = card.score.toInt()
     val scoreColor = scoreColor(score)
+    val isMap = card.image != null && isMapImage(card.image)
+    val onPicture = if (isMap) {
+        Modifier.background(MaterialTheme.colorScheme.surface.copy(alpha = 0.85f), CircleShape)
+    } else {
+        Modifier
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
+            verticalArrangement = if (isMap) Arrangement.Top else Arrangement.Center,
             modifier = Modifier
-                .align(Alignment.Center)
-                .padding(horizontal = 24.dp)
+                .align(if (isMap) Alignment.TopCenter else Alignment.Center)
+                .padding(horizontal = if (isMap) 8.dp else 24.dp)
+                .padding(top = if (isMap) 8.dp else 0.dp)
         ) {
             // The picture belongs to the front, so it shows whenever the front side is visible.
             if (card.image != null && (showFront || showDefinition)) {
-                // A fixed height, so the card never lays out again once the picture arrives.
+                // A fixed height, so the card never lays out again once the picture arrives. A map
+                // sits at the top so it stays put on reveal, smaller when the list name needs the
+                // bottom of the card.
                 FullSizeCardImage(
                     image = card.image,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(200.dp)
+                    modifier = if (isMap) {
+                        Modifier.size(if (listName == null) 328.dp else 304.dp)
+                    } else {
+                        Modifier
+                            .fillMaxWidth()
+                            .height(200.dp)
+                    }
                 )
-                Spacer(Modifier.height(24.dp))
+                Spacer(Modifier.height(if (isMap) 6.dp else 24.dp))
             }
             val asked = if (showFront != showDefinition) card.name else card.definition
             if (asked.isNotBlank()) {
                 Text(
                     text = asked,
-                    style = MaterialTheme.typography.headlineMedium,
+                    style = if (isMap) {
+                        MaterialTheme.typography.headlineSmall
+                    } else {
+                        MaterialTheme.typography.headlineMedium
+                    },
                     textAlign = TextAlign.Center,
                     fontWeight = FontWeight.Bold
                 )
@@ -482,6 +499,7 @@ private fun CardFace(
                 .align(Alignment.TopEnd)
                 .padding(16.dp)
                 .size(36.dp)
+                .then(onPicture)
                 .border(width = 3.dp, color = scoreColor, shape = CircleShape)
         ) {
             Text(
@@ -505,6 +523,18 @@ private fun CardFace(
                 modifier = Modifier
                     .align(Alignment.TopStart)
                     .padding(16.dp)
+                    .then(
+                        if (isMap) {
+                            Modifier
+                                .background(
+                                    MaterialTheme.colorScheme.surface.copy(alpha = 0.85f),
+                                    RoundedCornerShape(8.dp)
+                                )
+                                .padding(horizontal = 8.dp, vertical = 2.dp)
+                        } else {
+                            Modifier
+                        }
+                    )
             )
         }
 

@@ -28,6 +28,9 @@ private const val ASSET_PREFIX = "asset:"
 private const val USER_PREFIX = "user:"
 private const val MAX_DIMENSION = 1024
 
+/** A map list's picture, square and drawn as big as the review card allows. */
+fun isMapImage(image: String): Boolean = image.startsWith("${ASSET_PREFIX}maps/")
+
 private fun Context.cardImagesDir() = File(filesDir, "flashcard_images")
 
 private fun Context.userImageFile(image: String): File? =
