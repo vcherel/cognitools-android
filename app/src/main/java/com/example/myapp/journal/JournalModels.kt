@@ -14,6 +14,8 @@ data class JournalItem(
     val summary: String,
     val body: String,
     val meta: String,
+    /** Set on events and exhibitions: the line the Todo list gets, blank to build it from the title and meta. */
+    val todoLine: String,
     /** Set on the exploration items: the subject being tried. */
     val subject: String,
     /** An https picture URL, blank when the item has none. */
@@ -98,6 +100,7 @@ fun parseIssue(raw: String): JournalIssue {
                         summary = item.optString("summary"),
                         body = item.optString("body"),
                         meta = item.optString("meta"),
+                        todoLine = item.optString("todo_line"),
                         subject = item.optString("subject"),
                         image = item.optString("image"),
                         sources = item.getJSONArray("sources").objects().map {

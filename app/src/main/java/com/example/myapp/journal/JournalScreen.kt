@@ -240,7 +240,8 @@ fun JournalScreen(onBack: () -> Unit, onOpenArticle: (String) -> Unit, onOpenNew
                         onRate = { repo.rate(issue.date, item.id, it) },
                         onEditNote = { noteTarget = NoteTarget(item.id, item.title, feedback.notes[item.id].orEmpty()) },
                         onSaveTodo = {
-                            todoTarget = TodoTarget(item.id, if (item.meta.isBlank()) item.title else "${item.title} (${item.meta})")
+                            val fallback = if (item.meta.isBlank()) item.title else "${item.title} (${item.meta})"
+                            todoTarget = TodoTarget(item.id, item.todoLine.ifBlank { fallback })
                         },
                         onOpenSource = { source ->
                             repo.markOpened(issue.date, item.id)
