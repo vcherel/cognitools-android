@@ -1,7 +1,5 @@
 # Records the baseline profile on the phone and checks the result. The APKs are built first, so the
 # phone is only needed for the recording itself (about 5 minutes); the release build is not deployed.
-import shutil
-import subprocess
 import sys
 import threading
 import time
@@ -27,11 +25,6 @@ SCREENS = [
 ]
 
 
-def turbo(state):
-    if shutil.which("turbo-toggle"):
-        subprocess.run(["turbo-toggle", state])
-
-
 # MIUI locks the phone mid run otherwise; a harmless keypress resets the screen timeout, WAKEUP does not.
 def keep_awake(stop):
     while not stop.wait(10):
@@ -39,27 +32,23 @@ def keep_awake(stop):
 
 
 def record():
-    turbo("off")
+    gradle(
+        "building the APKs",
+        ":app:assembleNonMinifiedRelease",
+        ":baselineprofile:assembleNonMinifiedRelease",
+    )
+    wait_until_unlocked()
+    print("recording on the phone, leave it alone for about 5 minutes", flush=True)
+    stop = threading.Event()
+    threading.Thread(target=keep_awake, args=(stop,), daemon=True).start()
     try:
         gradle(
-            "building the APKs",
-            ":app:assembleNonMinifiedRelease",
-            ":baselineprofile:assembleNonMinifiedRelease",
+            "recording",
+            ":app:generateReleaseBaselineProfile",
+            "-Pandroid.injected.androidTest.leaveApksInstalledAfterRun=true",
         )
-        wait_until_unlocked()
-        print("recording on the phone, leave it alone for about 5 minutes", flush=True)
-        stop = threading.Event()
-        threading.Thread(target=keep_awake, args=(stop,), daemon=True).start()
-        try:
-            gradle(
-                "recording",
-                ":app:generateReleaseBaselineProfile",
-                "-Pandroid.injected.androidTest.leaveApksInstalledAfterRun=true",
-            )
-        finally:
-            stop.set()
     finally:
-        turbo("on")
+        stop.set()
 
 
 def missing_screens():

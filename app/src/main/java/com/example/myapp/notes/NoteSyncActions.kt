@@ -37,6 +37,10 @@ class NoteSyncActions(
 
     private val content: String get() = textFieldState.text.toString()
 
+    /** This note's text, from the live text field when it is the one open, which may be ahead of the database. */
+    private val Note.liveContent: String
+        get() = if (id == noteId) this@NoteSyncActions.content else content
+
     /**
      * Moves every checked Courses item into the Ingrédients note. Items found in the model note
      * are spliced in at their canonical spot and removed from Courses right away (a non food item
@@ -203,8 +207,8 @@ class NoteSyncActions(
             val ingredientsNote = notes.findOrReport(INGREDIENTS_TITLE) ?: return@launch
             val modelNote = notes.findOrReport(COURSES_MODEL_TITLE) ?: return@launch
 
-            val ingredientsContent = if (ingredientsNote.id == noteId) content else ingredientsNote.content
-            val modelContent = if (modelNote.id == noteId) content else modelNote.content
+            val ingredientsContent = ingredientsNote.liveContent
+            val modelContent = modelNote.liveContent
 
             val groups = parseCourseGroups(modelContent)
             val modelKeys = groups.allItems().map { it.itemKey() }
@@ -281,8 +285,8 @@ class NoteSyncActions(
             val coursesNote = notes.findOrReport(COURSES_TITLE) ?: return@launch
             val modelNote = notes.findOrReport(COURSES_MODEL_TITLE) ?: return@launch
 
-            val coursesContent = if (coursesNote.id == noteId) content else coursesNote.content
-            val modelContent = if (modelNote.id == noteId) content else modelNote.content
+            val coursesContent = coursesNote.liveContent
+            val modelContent = modelNote.liveContent
 
             val groups = parseCourseGroups(modelContent)
             val modelKeys = groups.allItems().map { it.itemKey() }.toSet()
@@ -329,11 +333,11 @@ class NoteSyncActions(
                 advancePending(moved = false)
                 return@launch
             }
-            val modelContent = if (currentBatch.modelId == noteId) content else modelNote.content
+            val modelContent = modelNote.liveContent
             val newModelContent = addNameToModelGroup(modelContent, groupIndex, current.name)
             updateNoteContent(currentBatch.modelId, newModelContent)
 
-            val targetContent = if (currentBatch.targetId == noteId) content else targetNote.content
+            val targetContent = targetNote.liveContent
             val newGroups = parseCourseGroups(newModelContent)
             when (currentBatch.kind) {
                 SyncKind.INGREDIENT -> {
@@ -375,12 +379,12 @@ class NoteSyncActions(
                 advancePending(moved = false)
                 return@launch
             }
-            val modelContent = if (currentBatch.modelId == noteId) content else modelNote.content
+            val modelContent = modelNote.liveContent
             val newModelContent = addCourseGroupToModel(modelContent, beforeIndex, groupName, current.name)
             updateNoteContent(currentBatch.modelId, newModelContent)
 
             val newGroups = parseCourseGroups(newModelContent)
-            val targetContent = if (currentBatch.targetId == noteId) content else targetNote.content
+            val targetContent = targetNote.liveContent
             val newTargetContent = when (currentBatch.kind) {
                 SyncKind.INGREDIENT -> {
                     val present = presentIngredients(targetContent)
@@ -422,7 +426,7 @@ class NoteSyncActions(
                 advancePending(moved = false)
                 return@launch
             }
-            val targetContent = if (currentBatch.targetId == noteId) content else targetNote.content
+            val targetContent = targetNote.liveContent
             when (currentBatch.kind) {
                 SyncKind.INGREDIENT -> {
                     val present = presentIngredients(targetContent)

@@ -1,9 +1,7 @@
 *.iml
 .gradle
 /.idea/
-/local.properties
 .DS_Store
-/build
 # every module's generated output, not just the root one
 build/
 /captures

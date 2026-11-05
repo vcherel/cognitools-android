@@ -208,7 +208,6 @@ fun PlayScreen(
         )
     }
 
-    // Confirmation dialog
     if (showConfirmDialog && selectedPlayer != null) {
         AlertDialog(
             onDismissRequest = {

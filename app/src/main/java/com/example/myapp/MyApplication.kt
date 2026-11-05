@@ -66,6 +66,7 @@ class MyApplication : Application(), SingletonImageLoader.Factory {
                 purgeReadBefore(newsCutoff)
                 purgeProgressBefore(newsCutoff)
             }
+            // Collects for as long as the process lives, so nothing placed after it would ever run.
             flashcardRepository.followBirthdays()
         }
     }

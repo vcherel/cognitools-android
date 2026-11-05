@@ -65,15 +65,15 @@ data class DiscoveryState(
  * before, each of which he can push into his favorites one by one or all at once. A handled track
  * leaves the batch, and once the batch is empty nothing shows until the next day brings a new one.
  *
- * Two sources feed it:
- *  - new releases from the artists on his Deezer profile and from every artist in his favorites or
- *    in Best pépites, found by diffing each artist's public discography against the album ids we
- *    have already seen. They take up to seven of the ten slots, the artists he has the most tracks from
- *    first; what doesn't fit queues up in a backlog for the following days. The scan itself runs
- *    once the day's batch is out, so what it finds is offered from the next day on.
- *  - discoveries from Deezer's own personalized recommendations: Flow ([DeezerApi.flowTracks]), topped
- *    up with the track mix of a few random favorites when Flow runs thin after filtering. They fill
- *    whatever the releases left, which is three tracks at the very least.
+ * Two sources feed it. First, new releases from the artists on his Deezer profile and from every
+ * artist in his favorites or in Best pépites, found by diffing each artist's public discography
+ * against the album ids we have already seen. They take up to seven of the ten slots, the artists he
+ * has the most tracks from first; what doesn't fit queues up in a backlog for the following days. The
+ * scan itself runs once the day's batch is out, so what it finds is offered from the next day on.
+ *
+ * Second, discoveries from Deezer's own personalized recommendations: Flow ([DeezerApi.flowTracks]),
+ * topped up with the track mix of a few random favorites when Flow runs thin after filtering. They
+ * fill whatever the releases left, which is three tracks at the very least.
  *
  * Nothing already in his favorites, in Best pépites, or ever proposed before can appear. There is
  * deliberately no play tracking: Deezer's own listening history is a rolling window of 100 plays,

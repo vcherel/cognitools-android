@@ -49,11 +49,9 @@ internal fun sngIdFromCacheKey(key: String): String? =
     key.takeIf { it.startsWith("dzr://") }?.removePrefix("dzr://")?.substringBefore("?")?.ifBlank { null }
 
 /**
- * Singleton (held by MyApplication, like FlashcardRepository). Owns:
- *  - the Deezer session lifecycle (token refresh on error),
- *  - the decrypted-stream disk cache and the permanent offline mirror,
- *  - library data access (favorites, playlists, search).
- * Playback itself is [player].
+ * Singleton (held by MyApplication, like FlashcardRepository). Owns the Deezer session lifecycle
+ * (token refresh on error), the decrypted stream disk cache and the permanent offline mirror, and
+ * library data access (favorites, playlists, search). Playback itself is [player].
  */
 class DeezerRepository(private val appContext: Context) : CdnResolver {
 
@@ -64,7 +62,7 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
         // also means the offline mirror and live playback always share the same cache key, so a
         // downloaded track is always a guaranteed cache hit, never a silent miss.
         val DEFAULT_QUALITY = DeezerQuality.MP3_128
-        const val CACHE_LIMIT_BYTES = 5L * 1024 * 1024 * 1024
+        private const val CACHE_LIMIT_BYTES = 5L * 1024 * 1024 * 1024
         private const val RESOLVE_ATTEMPTS = 3
         private const val REPLACEMENT_CANDIDATES = 3
         private const val TAG = "DeezerRepository"
@@ -327,7 +325,7 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
         writeSnapshot(favs, pls)
     }
 
-    // Loaded once (all of them, paged past the old 200 cap) and kept in memory. This single list
+    // Loaded once (all of them, paged) and kept in memory. This single list
     // powers the total count, shuffle-all, and the filled/empty heart state on every row.
 
     private val _favorites = MutableStateFlow<List<DeezerTrack>?>(null)
@@ -574,17 +572,7 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
         // Probed together, not one after the other: this runs with the music stopped, and a candidate
         // that fails still costs a round trip. The search order is kept, the first one that resolves wins.
         return coroutineScope {
-            val probes = matches.map { candidate ->
-                candidate to async {
-                    try {
-                        resolveStream(candidate.sngId, DEFAULT_QUALITY)
-                        true
-                    } catch (e: Exception) {
-                        if (e is CancellationException) throw e
-                        false
-                    }
-                }
-            }
+            val probes = matches.map { candidate -> candidate to async { isStreamable(candidate.sngId) == true } }
             probes.firstOrNull { it.second.await() }?.first
         }
     }

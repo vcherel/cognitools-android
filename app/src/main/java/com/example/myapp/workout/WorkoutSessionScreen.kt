@@ -1,8 +1,6 @@
 package com.example.myapp.workout
 
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
@@ -10,7 +8,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
@@ -47,13 +44,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
@@ -71,22 +66,15 @@ import com.example.myapp.ToolAccents
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.ceil
-import kotlin.math.cos
-import kotlin.math.sin
-import kotlin.random.Random
 
 private val BossRed = Color(0xFFC94444)
 private val BossAccent = ToolAccent(BossRed, Icons.Default.LocalFireDepartment)
-private val Gold = Color(0xFFFFB300)
 
 /** The countdown before a timed exercise starts, to get into position. */
 private const val LEAD_IN_MS = 3000L
 
 /** What a set is measured against: the same round last session, and the best set ever (this session's included). */
 private data class SetContext(val last: Int?, val best: Int?)
-
-/** The pop shown over the screen when a set is logged; [id] restarts it. */
-private data class Burst(val id: Long, val label: String, val gold: Boolean)
 
 @Composable
 fun WorkoutSessionScreen(onBack: () -> Unit) {
@@ -108,12 +96,14 @@ fun WorkoutSessionScreen(onBack: () -> Unit) {
         onDispose { view.keepScreenOn = false }
     }
 
-    val now by produceState(System.currentTimeMillis()) {
+    // Read through a lambda by whatever draws it, so the tick redraws the clock and the rings, not the whole screen.
+    val clock = produceState(System.currentTimeMillis()) {
         while (true) {
             value = System.currentTimeMillis()
             delay(100)
         }
     }
+    val now = { clock.value }
 
     val shownProgram = program ?: return
     val totalXp = xp ?: return
@@ -209,11 +199,7 @@ fun WorkoutSessionScreen(onBack: () -> Unit) {
                     onBack = onBack,
                     titleWeight = true
                 ) {
-                    Text(
-                        formatClock(now - current.startedAt),
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold
-                    )
+                    SessionClock(current.startedAt, now)
                     IconButton(onClick = ::quit) { Icon(Icons.Default.Close, contentDescription = "End session") }
                 }
                 Column(
@@ -245,6 +231,11 @@ fun WorkoutSessionScreen(onBack: () -> Unit) {
             burst?.let { key(it.id) { BurstOverlay(it) } }
         }
     }
+}
+
+@Composable
+private fun SessionClock(startedAt: Long, now: () -> Long) {
+    Text(formatClock(now() - startedAt), fontSize = 20.sp, fontWeight = FontWeight.Bold)
 }
 
 internal fun formatClock(ms: Long): String {
@@ -353,7 +344,7 @@ private fun ColumnScope.WorkContent(
     exercise: Exercise,
     set: SetContext,
     progress: SessionProgress,
-    now: Long,
+    now: () -> Long,
     cues: Cues,
     onStart: () -> Unit,
     onReset: () -> Unit,
@@ -399,7 +390,7 @@ private fun ColumnScope.WorkContent(
             onStart()
         }
         timed -> MyButton(text = "Stop", highlighted = true) {
-            val held = now - started!! - LEAD_IN_MS
+            val held = now() - started!! - LEAD_IN_MS
             if (held <= 0) onReset() else onDone(held.toInt())
         }
         else -> Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -455,9 +446,9 @@ private fun LabeledValue(label: String, value: String, color: Color) {
  * Reaching the target beeps, passing the best turns the ring gold.
  */
 @Composable
-private fun HoldRing(exercise: Exercise, best: Int?, started: Long, now: Long, cues: Cues) {
+private fun HoldRing(exercise: Exercise, best: Int?, started: Long, now: () -> Long, cues: Cues) {
     val target = exercise.seconds.coerceAtLeast(1) * 1000L
-    val sinceStart = now - started
+    val sinceStart = now() - started
     val leadIn = sinceStart < LEAD_IN_MS
     val held = (sinceStart - LEAD_IN_MS).coerceAtLeast(0)
     val leadSecond = ceil((LEAD_IN_MS - sinceStart) / 1000.0).toInt()
@@ -541,13 +532,13 @@ private fun NumberPadDialog(initial: Int?, cues: Cues, onDismiss: () -> Unit, on
 private fun ColumnScope.RestContent(
     step: SessionStep.Rest,
     progress: SessionProgress,
-    now: Long,
+    now: () -> Long,
     cues: Cues,
     onExtend: () -> Unit,
     onDone: () -> Unit
 ) {
     val total = (step.seconds + progress.extraRest) * 1000L
-    val left = (total - (now - progress.stepStartedAt)).coerceAtLeast(0)
+    val left = (total - (now() - progress.stepStartedAt)).coerceAtLeast(0)
     val secondsLeft = ceil(left / 1000.0).toInt()
     LaunchedEffect(progress.step, secondsLeft) {
         when (secondsLeft) {
@@ -576,49 +567,6 @@ private fun ColumnScope.RestContent(
             cues.tap()
             onDone()
         }
-    }
-}
-
-/** Sparks flying out from the buttons and the label rising over them, once. */
-@Composable
-private fun BurstOverlay(burst: Burst) {
-    val time = remember { Animatable(0f) }
-    LaunchedEffect(Unit) { time.animateTo(1f, tween(if (burst.gold) 1400 else 900, easing = LinearEasing)) }
-    if (time.value >= 1f) return
-    val accent = LocalToolAccent.current!!.color
-    val colors = if (burst.gold) listOf(Gold, Color(0xFFFFD54F), Color(0xFFFF8F00)) else listOf(accent, Gold, accent)
-    val sparks = remember {
-        val random = Random(burst.id)
-        List(if (burst.gold) 36 else 20) {
-            Triple(random.nextFloat() * 2 * Math.PI.toFloat(), 0.5f + random.nextFloat() * 0.7f, colors[it % colors.size])
-        }
-    }
-    val t = time.value
-    BoxWithConstraints(Modifier.fillMaxSize()) {
-        val reach = maxWidth.value * 0.45f
-        Canvas(Modifier.fillMaxSize()) {
-            val origin = Offset(size.width / 2, size.height - 80.dp.toPx())
-            val spread = reach * density
-            sparks.forEach { (angle, speed, color) ->
-                val distance = spread * speed * FastOutSlowInEasing.transform(t)
-                val fall = t * t * 120.dp.toPx()
-                val center = Offset(origin.x + cos(angle) * distance, origin.y + sin(angle) * distance * 0.7f + fall)
-                drawCircle(color.copy(alpha = 1f - t), radius = (1f - t * 0.5f) * 5.dp.toPx(), center = center)
-            }
-        }
-        val rise = FastOutSlowInEasing.transform((t * 1.6f).coerceAtMost(1f))
-        Text(
-            burst.label,
-            fontSize = if (burst.gold) 40.sp else 32.sp,
-            fontWeight = FontWeight.Black,
-            color = if (burst.gold) Gold else accent,
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = 130.dp)
-                .offset(y = (-90 * rise).dp)
-                .scale(0.6f + 0.6f * rise)
-                .alpha(if (t < 0.6f) 1f else (1f - t) / 0.4f)
-        )
     }
 }
 
@@ -704,43 +652,3 @@ private fun VictoryContent(
     }
 }
 
-private class Piece(val x: Float, val delay: Float, val speed: Float, val spin: Float, val color: Color, val w: Float, val h: Float)
-
-private val CONFETTI_COLORS = listOf(
-    Color(0xFFFFB300), Color(0xFF2E9E6A), Color(0xFFC94444), Color(0xFF3F74D6), Color(0xFFE58A2B)
-)
-
-/** A burst of falling confetti, once, when the victory screen opens. */
-@Composable
-private fun Confetti() {
-    val pieces = remember {
-        val random = Random(System.nanoTime())
-        List(60) {
-            Piece(
-                x = random.nextFloat(),
-                delay = random.nextFloat() * 0.3f,
-                speed = 0.6f + random.nextFloat() * 0.6f,
-                spin = random.nextFloat() * 720f - 360f,
-                color = CONFETTI_COLORS[random.nextInt(CONFETTI_COLORS.size)],
-                w = 6f + random.nextFloat() * 6f,
-                h = 4f + random.nextFloat() * 8f
-            )
-        }
-    }
-    val time = remember { Animatable(0f) }
-    LaunchedEffect(Unit) { time.animateTo(1f, tween(3200, easing = LinearEasing)) }
-    if (time.value >= 1f) return
-    Canvas(Modifier.fillMaxSize()) {
-        pieces.forEach { p ->
-            val t = ((time.value - p.delay) / (1f - p.delay)).coerceIn(0f, 1f)
-            if (t <= 0f || t >= 1f) return@forEach
-            val y = -20f + t * p.speed * size.height * 1.3f
-            val x = p.x * size.width + sin(t * 12f + p.spin) * 18f
-            val w = p.w * density
-            val h = p.h * density
-            rotate(p.spin * t, Offset(x, y)) {
-                drawRect(p.color.copy(alpha = 1f - t * 0.6f), Offset(x - w / 2, y - h / 2), Size(w, h))
-            }
-        }
-    }
-}

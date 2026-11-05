@@ -394,7 +394,6 @@ private fun FlashcardListItem(
                     )
                 }
 
-                // Buttons on the right in 2 rows
                 Column(
                     verticalArrangement = Arrangement.spacedBy(4.dp),
                     horizontalAlignment = Alignment.CenterHorizontally

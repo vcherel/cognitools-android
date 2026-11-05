@@ -1,20 +1,19 @@
-# Pulls the Musique tool's logs off the phone and groups the error and crossfade logs by kind of line.
+# Pulls the Music tool's logs off the phone and groups the error and crossfade logs by kind of line.
 import re
 import sys
 import tempfile
 from collections import Counter, defaultdict
 from pathlib import Path
 
-from phone import adb
+from phone import FILES_DIR, adb
 
-LOG_DIR = "/sdcard/Android/data/com.example.myapp/files/"
 LINE = re.compile(r"(\d\d-\d\d) (\d\d:\d\d:\d\d) (\S+) ?(.*)")
 TRACK_ID = re.compile(r"\b\d{5,}\b")
 NUMBER = re.compile(r"-?\b\d+\b")
 
 
 def pull(out: Path) -> Path:
-    adb("pull", LOG_DIR, str(out))
+    adb("pull", FILES_DIR, str(out))
     files = out / "files"
     return files if files.is_dir() else out
 

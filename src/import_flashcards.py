@@ -4,10 +4,8 @@
 import sys
 from pathlib import Path
 
-from phone import adb
+from phone import FILES_DIR, PACKAGE, adb
 
-PACKAGE = "com.example.myapp"
-FILES_DIR = f"/sdcard/Android/data/{PACKAGE}/files/"
 INCLUDE_STOPPED_PACKAGES = "32"
 
 

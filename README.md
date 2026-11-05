@@ -36,7 +36,8 @@ Always install the release build: performance on device matters, and debug build
 
 - **Calendar**: tasks, birthdays and events with their reminders, repeating tasks, the French public holidays and the Rennes school holidays.
 - **Journal**: the daily newsletter written on the laptop by the daily-journal project, read and rated here, the ratings mailed back.
-- **Workout**: a reminder two days after the last session, snoozable from its notification, with the session history.
+- **Workout**: guided sessions with rests, a boss round, XP levels and progress curves, an editable program, and a reminder two days after the last session, snoozable from its notification.
+- **Recipes**: the recipe picked on the laptop from the Ingrédients note, with the missing ingredients marked, steps to tick, cooking timers, and the notes updated once cooked.
 - **News**: French and world headlines merged from a fixed set of RSS feeds, readable in the app with the boilerplate stripped out, saved articles kept offline.
 - **Crosswords**: arrow word grids (mots fléchés) generated on the phone, French or English, with a per word check and reveal. The dictionaries are built offline (see below).
 - **Translate**: live translation with dictionary entries, text to speech, and a one tap "add to flashcards".
@@ -90,13 +91,13 @@ uv run python src/generate_flags.py
 
 `--sheet <codes>` only renders those flags next to the shipped ones, as one image, without writing anything.
 
-The Pays (carte), Départements (carte) and Régions (carte) lists, a locator map of every place in Drapeaux and of every French department and region, from Natural Earth and france-geojson (downloaded into `data/maps/`):
+The Pays (carte), Départements (carte), Régions (carte) and Arrondissements (carte) lists, a locator map of every place in Drapeaux, of every French department and region and of every Paris arrondissement, from Natural Earth, france-geojson, Paris open data and OpenStreetMap (downloaded into `data/maps/`):
 
 ```bash
 uv run --only-group maps src/generate_maps.py
 ```
 
-`--sheet <codes>` renders those maps (ISO codes, department numbers like `35` or `2A`, or region codes after an `r` like `r53`) into `mockups/maps_sheet.png`, `--write <codes>` writes only their pictures.
+`--sheet <codes>` renders those maps (ISO codes, department numbers like `35` or `2A`, region codes after an `r` like `r53`, or arrondissements after an `a` like `a7`) into `mockups/maps_sheet.png`, `--write <codes>` writes only their pictures, `--seeds` only the seed files, and `--pages` lists the atlas page each country lands on.
 
 ## Development
 

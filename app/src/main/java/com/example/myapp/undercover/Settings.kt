@@ -42,73 +42,54 @@ enum class SwapDirection {
     INCREASE_MR_WHITE
 }
 
+/** The impostor and Mr. White counts that fit [playerCount]; [swapDirection] says which one gives way to the other. */
 fun validateGameSettings(
     playerCount: Int,
     impostorCount: Int,
     mrWhiteCount: Int,
-    allowSwap: Boolean = false,
     swapDirection: SwapDirection = SwapDirection.NONE
-): Triple<Int, Int, Int> {
-    // 3 players minimum
+): Pair<Int, Int> {
     val validPlayerCount = playerCount.coerceAtLeast(3)
-
-    // At least one impostor or Mr. White must exist
     val maxPossibleImpostors = (validPlayerCount - 1) / 2
-
-    // First, ensure impostors are within absolute bounds
     var validImpostorCount = impostorCount.coerceIn(0, maxPossibleImpostors)
-
-    // Calculate max Mr. White given current impostors
     val maxPossibleMrWhite = validPlayerCount - 2 * validImpostorCount - 1
     var validMrWhiteCount = mrWhiteCount.coerceIn(0, maxPossibleMrWhite.coerceAtLeast(0))
 
-    // Handle swap scenarios
-    if (allowSwap) {
-        when (swapDirection) {
-            SwapDirection.DECREASE_IMPOSTOR -> {
-                // If trying to decrease impostor below 0, but it's already 0
-                if (impostorCount <= 0 && validImpostorCount == 0 && validMrWhiteCount < maxPossibleMrWhite) {
-                    // Increase Mr. White instead
-                    validMrWhiteCount = (validMrWhiteCount + 1).coerceAtMost(maxPossibleMrWhite)
-                }
+    when (swapDirection) {
+        SwapDirection.DECREASE_IMPOSTOR -> {
+            if (impostorCount <= 0 && validImpostorCount == 0 && validMrWhiteCount < maxPossibleMrWhite) {
+                validMrWhiteCount = (validMrWhiteCount + 1).coerceAtMost(maxPossibleMrWhite)
             }
-            SwapDirection.INCREASE_IMPOSTOR -> {
-                // If trying to increase impostor but at max, and Mr. White > 0
-                if (impostorCount >= maxPossibleImpostors && validMrWhiteCount > 0) {
-                    // Decrease Mr. White to make room
-                    validMrWhiteCount = (validMrWhiteCount - 1).coerceAtLeast(0)
-                    val newMax = (validPlayerCount - 2 * validImpostorCount - 1).coerceAtLeast(0)
-                    if (validMrWhiteCount < newMax) {
-                        validImpostorCount = (validImpostorCount + 1).coerceAtMost(maxPossibleImpostors)
-                    }
-                }
-            }
-            SwapDirection.DECREASE_MR_WHITE -> {
-                // If trying to decrease Mr. White below 0, but it's already 0
-                if (mrWhiteCount <= 0 && validMrWhiteCount == 0 && validImpostorCount < maxPossibleImpostors) {
-                    // Increase Impostor instead
+        }
+        SwapDirection.INCREASE_IMPOSTOR -> {
+            if (impostorCount >= maxPossibleImpostors && validMrWhiteCount > 0) {
+                validMrWhiteCount = (validMrWhiteCount - 1).coerceAtLeast(0)
+                val newMax = (validPlayerCount - 2 * validImpostorCount - 1).coerceAtLeast(0)
+                if (validMrWhiteCount < newMax) {
                     validImpostorCount = (validImpostorCount + 1).coerceAtMost(maxPossibleImpostors)
                 }
             }
-            SwapDirection.INCREASE_MR_WHITE -> {
-                // If trying to increase Mr. White but at max, and Impostor > 0
-                if (mrWhiteCount >= maxPossibleMrWhite && validImpostorCount > 0) {
-                    // Decrease Impostor to make room
-                    validImpostorCount = (validImpostorCount - 1).coerceAtLeast(0)
-                    val newMax = (validPlayerCount - 2 * validImpostorCount - 1).coerceAtLeast(0)
-                    validMrWhiteCount = (validMrWhiteCount + 1).coerceAtMost(newMax)
-                }
-            }
-            SwapDirection.NONE -> { /* No swap */ }
         }
+        SwapDirection.DECREASE_MR_WHITE -> {
+            if (mrWhiteCount <= 0 && validMrWhiteCount == 0 && validImpostorCount < maxPossibleImpostors) {
+                validImpostorCount = (validImpostorCount + 1).coerceAtMost(maxPossibleImpostors)
+            }
+        }
+        SwapDirection.INCREASE_MR_WHITE -> {
+            if (mrWhiteCount >= maxPossibleMrWhite && validImpostorCount > 0) {
+                validImpostorCount = (validImpostorCount - 1).coerceAtLeast(0)
+                val newMax = (validPlayerCount - 2 * validImpostorCount - 1).coerceAtLeast(0)
+                validMrWhiteCount = (validMrWhiteCount + 1).coerceAtMost(newMax)
+            }
+        }
+        SwapDirection.NONE -> Unit
     }
 
-    // Ensure at least one impostor or Mr. White exists
     if (validImpostorCount == 0 && validMrWhiteCount == 0) {
         validImpostorCount = 1
     }
 
-    return Triple(validPlayerCount, validImpostorCount, validMrWhiteCount)
+    return validImpostorCount to validMrWhiteCount
 }
 
 val FONT_SIZE = 22.sp
@@ -123,11 +104,10 @@ fun SettingsScreen(
     var showDeleteDialog by remember { mutableStateOf(false) }
 
     val maxImpostors = (state.players.size - 1) / 2
-    val (_, _, maxMrWhite) = validateGameSettings(
+    val (_, maxMrWhite) = validateGameSettings(
         playerCount = state.players.size,
         impostorCount = state.settings.impostorCount,
         mrWhiteCount = state.settings.mrWhiteCount + 1,
-        allowSwap = true,
         swapDirection = SwapDirection.INCREASE_MR_WHITE
     )
 
@@ -135,7 +115,6 @@ fun SettingsScreen(
         modifier = Modifier.fillMaxSize().padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Nombre de joueurs
         NumberSetting(
             label = "Nombre de joueurs",
             value = state.players.size,
@@ -149,7 +128,7 @@ fun SettingsScreen(
                     return@NumberSetting
                 }
 
-                val (_, validImpostors, validMrWhite) = validateGameSettings(
+                val (validImpostors, validMrWhite) =validateGameSettings(
                     playerCount = newPlayerCount,
                     impostorCount = state.settings.impostorCount,
                     mrWhiteCount = state.settings.mrWhiteCount
@@ -177,7 +156,6 @@ fun SettingsScreen(
         HorizontalDivider(thickness = 1.dp, color = Color.LightGray)
         Spacer(modifier = Modifier.height(7.dp))
 
-        // Rôles aléatoires toggle
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
@@ -200,7 +178,6 @@ fun SettingsScreen(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Nombre d'Undercover
         NumberSetting(
             label = "Nombre d'Undercover",
             value = state.settings.impostorCount,
@@ -214,11 +191,10 @@ fun SettingsScreen(
                     else -> SwapDirection.NONE
                 }
 
-                val (_, validImpostors, validMrWhite) = validateGameSettings(
+                val (validImpostors, validMrWhite) =validateGameSettings(
                     playerCount = state.players.size,
                     impostorCount = newImpostorCount,
                     mrWhiteCount = state.settings.mrWhiteCount,
-                    allowSwap = true,
                     swapDirection = swapDirection
                 )
 
@@ -231,7 +207,6 @@ fun SettingsScreen(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Nombre de M. Whites
         NumberSetting(
             label = "Nombre de M. Whites",
             value = state.settings.mrWhiteCount,
@@ -245,11 +220,10 @@ fun SettingsScreen(
                     else -> SwapDirection.NONE
                 }
 
-                val (_, validImpostors, validMrWhite) = validateGameSettings(
+                val (validImpostors, validMrWhite) =validateGameSettings(
                     playerCount = state.players.size,
                     impostorCount = state.settings.impostorCount,
                     mrWhiteCount = newMrWhiteCount,
-                    allowSwap = true,
                     swapDirection = swapDirection
                 )
 
@@ -264,7 +238,6 @@ fun SettingsScreen(
         HorizontalDivider(thickness = 1.dp, color = Color.LightGray)
         Spacer(modifier = Modifier.height(7.dp))
 
-        // Impostors know role toggle
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
@@ -311,7 +284,7 @@ fun SettingsScreen(
                             .padding(vertical = 4.dp)
                             .clickable {
                                 val updatedPlayers = state.players.filterIndexed { i, _ -> i != index }
-                                val (_, validImpostors, validMrWhite) = validateGameSettings(
+                                val (validImpostors, validMrWhite) =validateGameSettings(
                                     playerCount = updatedPlayers.size,
                                     impostorCount = state.settings.impostorCount,
                                     mrWhiteCount = state.settings.mrWhiteCount

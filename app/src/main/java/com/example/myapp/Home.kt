@@ -35,13 +35,14 @@ import androidx.navigation.NavController
 val LocalGoHome = compositionLocalOf<() -> Unit> { {} }
 
 /**
- * Goes back one screen, unless that would empty the back stack. A plain popBackStack() on the last
- * remaining destination leaves the NavHost with nothing to render: a blank screen with no way out.
- * That is reachable by double tapping a back arrow, where the second tap lands while the screen is
- * still on its way out and pops the main menu underneath it. Every back arrow goes through this.
+ * Goes back one screen. A double tap on a back arrow lands its second tap while the first pop is
+ * still animating, when the destination underneath is not resumed yet, and that tap is ignored:
+ * it would leave two screens at once, or pop the main menu and leave the NavHost blank.
+ * Every back arrow goes through this.
  */
 fun NavController.popBackStackOnce() {
-    if (previousBackStackEntry != null) popBackStack()
+    val settled = currentBackStackEntry?.lifecycle?.currentState == Lifecycle.State.RESUMED
+    if (settled && previousBackStackEntry != null) popBackStack()
 }
 
 // Tap goes back, long press goes straight to the main menu.

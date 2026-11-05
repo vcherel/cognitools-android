@@ -14,6 +14,8 @@ from PIL import Image, ImageDraw
 from shapely.geometry import LineString, Polygon, shape
 from shapely.ops import polygonize, unary_union
 
+from map_geometry import SUPERSAMPLE, H, Laea, Ring, View, W, main_ring, polygons
+
 ASSETS = Path("app/src/main/assets")
 MAPS_DIR = ASSETS / "maps"
 FLAGS_SEED = ASSETS / "seed_flags.json"
@@ -36,9 +38,6 @@ SOURCES = {
     ),
 }
 
-R = 6371.0
-W, H = 800, 800
-SS = 3
 SEA = (214, 230, 240)
 LAND = (228, 224, 214)
 BORDER = (130, 124, 114)
@@ -104,100 +103,6 @@ OVERSEAS_DEPTS = {"971": "gp", "972": "mq", "973": "gf", "974": "re", "976": "yt
 OVERSEAS_REGIONS = {"01": "gp", "02": "mq", "03": "gf", "04": "re", "06": "yt"}
 PARIS = (2.35, 48.86)
 PARIS_HEIGHT = 540
-
-
-def to_xyz(lonlat):
-    lon, lat = np.radians(lonlat[:, 0]), np.radians(lonlat[:, 1])
-    return np.column_stack([np.cos(lat) * np.cos(lon), np.cos(lat) * np.sin(lon), np.sin(lat)])
-
-
-class Ring:
-    def __init__(self, coords):
-        self.lonlat = np.asarray(coords, dtype=float)[:, :2]
-        xyz = to_xyz(self.lonlat)
-        center = xyz.mean(0)
-        norm = np.linalg.norm(center)
-        self.center = center / norm if norm > 1e-9 else xyz[0]
-        self.radius = np.arccos(np.clip(xyz @ self.center, -1, 1)).max()
-        lat = np.radians(self.lonlat[:, 1].mean())
-        x, y = self.lonlat[:, 0] * math.cos(lat), self.lonlat[:, 1]
-        self.area = abs(np.dot(x, np.roll(y, 1)) - np.dot(y, np.roll(x, 1))) / 2
-
-    def latlon(self):
-        x, y, z = self.center
-        return math.degrees(math.asin(z)), math.degrees(math.atan2(y, x))
-
-
-def polygons(geom):
-    """[(exterior, holes)] of a shapely (multi)polygon, as Rings."""
-    parts = (
-        [geom]
-        if geom.geom_type == "Polygon"
-        else [g for g in getattr(geom, "geoms", []) if g.geom_type == "Polygon"]
-    )
-    return [(Ring(p.exterior.coords), [Ring(i.coords) for i in p.interiors]) for p in parts if not p.is_empty]
-
-
-class Laea:
-    """Lambert azimuthal equal area centered on (lat, lon), in km."""
-
-    def __init__(self, lat, lon):
-        self.lat, self.lon = lat, lon
-        self.sin1, self.cos1 = math.sin(math.radians(lat)), math.cos(math.radians(lat))
-        self.center = to_xyz(np.array([[lon, lat]]))[0]
-
-    def forward(self, lonlat):
-        lam = np.radians(lonlat[:, 0] - self.lon)
-        phi = np.radians(lonlat[:, 1])
-        cosc = self.sin1 * np.sin(phi) + self.cos1 * np.cos(phi) * np.cos(lam)
-        k = np.sqrt(2 / np.maximum(1 + cosc, 1e-9))
-        x = R * k * np.cos(phi) * np.sin(lam)
-        y = R * k * (self.cos1 * np.sin(phi) - self.sin1 * np.cos(phi) * np.cos(lam))
-        return np.column_stack([x, y])
-
-    def inverse(self, xy):
-        x, y = xy[:, 0], xy[:, 1]
-        rho = np.hypot(x, y)
-        c = 2 * np.arcsin(np.clip(rho / (2 * R), 0, 1))
-        sinc, cosc = np.sin(c), np.cos(c)
-        safe = np.where(rho > 0, rho, 1)
-        lat = np.arcsin(np.clip(cosc * self.sin1 + np.where(rho > 0, y * sinc * self.cos1 / safe, 0), -1, 1))
-        lon = math.radians(self.lon) + np.arctan2(x * sinc, rho * self.cos1 * cosc - y * self.sin1 * sinc)
-        return np.column_stack([(np.degrees(lon) + 180) % 360 - 180, np.degrees(lat)])
-
-
-class View:
-    """A [w] x [h] pixel window on [proj], centered on (cx, cy) km, [s] km per pixel."""
-
-    def __init__(self, proj, cx, cy, s, w=W, h=H):
-        self.proj, self.cx, self.cy, self.s, self.w, self.h = proj, cx, cy, s, w, h
-        center = proj.inverse(np.array([[cx, cy]]))
-        self.center = to_xyz(center)[0]
-        self.reach = math.hypot(w, h) / 2 * s / R + 0.02
-
-    def shows(self, ring):
-        angle = math.acos(max(-1.0, min(1.0, float(ring.center @ self.center))))
-        far = math.acos(max(-1.0, min(1.0, float(ring.center @ self.proj.center))))
-        return angle - ring.radius < self.reach and far + ring.radius < math.radians(150)
-
-    def km_to_px(self, xy):
-        return np.column_stack(
-            [
-                ((xy[:, 0] - self.cx) / self.s + self.w / 2) * SS,
-                (self.h / 2 - (xy[:, 1] - self.cy) / self.s) * SS,
-            ]
-        )
-
-    def px(self, ring):
-        return self.km_to_px(self.proj.forward(ring.lonlat))
-
-    def on_canvas(self, pts):
-        return (
-            pts[:, 0].max() >= 0
-            and pts[:, 1].max() >= 0
-            and pts[:, 0].min() <= self.w * SS
-            and pts[:, 1].min() <= self.h * SS
-        )
 
 
 def fetch(url):
@@ -317,9 +222,9 @@ def outline(draw, ring, pts, color, width):
         start = i + 1
 
 
-def draw_map(view, target, world, lakes, layers=(), border=2 * SS):
+def draw_map(view, target, world, lakes, layers=(), border=2 * SUPERSAMPLE):
     """The view supersampled, every land gray, [target] red."""
-    img = Image.new("RGB", (view.w * SS, view.h * SS), SEA)
+    img = Image.new("RGB", (view.w * SUPERSAMPLE, view.h * SUPERSAMPLE), SEA)
     draw = ImageDraw.Draw(img)
     edges = []
     for features in [world, *layers]:
@@ -355,14 +260,13 @@ def draw_map(view, target, world, lakes, layers=(), border=2 * SS):
         mask_draw.polygon(pts.ravel().tolist(), fill=0)
     img.paste(TARGET, (0, 0, *img.size), mask)
     for ring, pts in target_edges:
-        outline(draw, ring, pts, TARGET_EDGE, SS)
+        outline(draw, ring, pts, TARGET_EDGE, SUPERSAMPLE)
     return img
 
 
 def target_pts(target, proj):
     """The km points of the target's biggest piece and the pieces near it, far territories left out."""
-    main = max((ext for ext, _ in target), key=lambda r: r.area)
-    main_pts = proj.forward(main.lonlat)
+    main_pts = proj.forward(main_ring(target).lonlat)
     origin = main_pts.mean(0)
     reach = max(800.0, 2 * np.hypot(*(main_pts - origin).T).max())
     pts = [proj.forward(ext.lonlat) for ext, _ in target]
@@ -375,7 +279,7 @@ def box_km(pts):
 
 
 def box_px(view, pts):
-    px = view.km_to_px(pts) / SS
+    px = view.km_to_px(pts) / SUPERSAMPLE
     return (*px.min(0), *px.max(0))
 
 
@@ -385,8 +289,7 @@ def page_view(target):
         proj = Laea(lat, lon)
         if np.abs(target_pts(target, proj)).max() <= width * 0.47:
             return View(proj, 0, 0, width / W)
-    main = max((ext for ext, _ in target), key=lambda r: r.area)
-    proj = Laea(*main.latlon())
+    proj = Laea(*main_ring(target).latlon())
     x0, y0, x1, y1 = box_km(target_pts(target, proj))
     s = max((x1 - x0) / (MAX_FILL * W), (y1 - y0) / (MAX_FILL * H), OWN_FRAME_MIN_KM / W)
     return View(proj, (x0 + x1) / 2, (y0 + y1) / 2, s)
@@ -417,13 +320,14 @@ def draw_leaders(draw, a, ra, b, rb):
         t = base + sign * offset
         cos, sin = math.cos(t), math.sin(t)
         draw.line(
-            (a[0] + ra * cos, a[1] + ra * sin, b[0] + rb * cos, b[1] + rb * sin), fill=TARGET_EDGE, width=SS
+            (a[0] + ra * cos, a[1] + ra * sin, b[0] + rb * cos, b[1] + rb * sin),
+            fill=TARGET_EDGE,
+            width=SUPERSAMPLE,
         )
 
 
 def render_lens(target, data):
-    main = max((ext for ext, _ in target), key=lambda r: r.area)
-    proj = Laea(*main.latlon())
+    proj = Laea(*main_ring(target).latlon())
     pts = target_pts(target, proj)
     box = box_km(pts)
     x0, y0, x1, y1 = box
@@ -436,17 +340,17 @@ def render_lens(target, data):
 
 
 def disc_mask(diameter):
-    mask = Image.new("L", (diameter * SS, diameter * SS), 0)
-    ImageDraw.Draw(mask).ellipse((0, 0, diameter * SS - 1, diameter * SS - 1), fill=255)
+    mask = Image.new("L", (diameter * SUPERSAMPLE, diameter * SUPERSAMPLE), 0)
+    ImageDraw.Draw(mask).ellipse((0, 0, diameter * SUPERSAMPLE - 1, diameter * SUPERSAMPLE - 1), fill=255)
     return mask.resize((diameter, diameter), Image.LANCZOS)
 
 
-def ring_circle(img, view, box_km):
-    x0, y0, x1, y1 = box_km
+def ring_circle(img, view, box):
+    x0, y0, x1, y1 = box
     size = max(x1 - x0, y1 - y0) / view.s
     if size >= TINY_PX:
         return
-    cx, cy = view.km_to_px(np.array([[(x0 + x1) / 2, (y0 + y1) / 2]]))[0] / SS
+    cx, cy = view.km_to_px(np.array([[(x0 + x1) / 2, (y0 + y1) / 2]]))[0] / SUPERSAMPLE
     r = size / 2 + 14
     ImageDraw.Draw(img).ellipse((cx - r, cy - r, cx + r, cy + r), outline=TARGET_EDGE, width=3)
 
@@ -454,8 +358,8 @@ def ring_circle(img, view, box_km):
 def dot_specks(img, view, target):
     """A dot on every island of the target too small to see, so an archipelago shows up."""
     draw = ImageDraw.Draw(img)
-    shown = [view.px(ext) / SS for ext, _ in target if view.shows(ext)]
-    shown = [pts for pts in shown if view.on_canvas(pts * SS)]
+    shown = [view.px(ext) / SUPERSAMPLE for ext, _ in target if view.shows(ext)]
+    shown = [pts for pts in shown if view.on_canvas(pts * SUPERSAMPLE)]
     big = [(pts.min(0) - 20, pts.max(0) + 20) for pts in shown if (pts.max(0) - pts.min(0)).max() >= 6]
     for pts in shown:
         if (pts.max(0) - pts.min(0)).max() >= 6:
@@ -469,7 +373,7 @@ def dot_specks(img, view, target):
 def render_country(target, data):
     """The target on its page of the atlas, with a lens on it when it is too small to read there."""
     view = page_view(target)
-    big = draw_map(view, target, data["world"], data["lakes"], border=SS)
+    big = draw_map(view, target, data["world"], data["lakes"], border=SUPERSAMPLE)
     img = big.resize((W, H), Image.LANCZOS)
     x0, y0, x1, y1 = box_px(view, target_pts(target, view.proj))
     size = max(x1 - x0, y1 - y0)
@@ -481,10 +385,16 @@ def render_country(target, data):
     radius = size / 2 + 11
     x, y = lens_spot(img, center, radius)
     draw = ImageDraw.Draw(big)
-    scaled = (center[0] * SS, center[1] * SS)
-    draw_leaders(draw, scaled, radius * SS, (x * SS, y * SS), LENS / 2 * SS)
-    rx0, ry0 = scaled[0] - radius * SS, scaled[1] - radius * SS
-    draw.ellipse((rx0, ry0, rx0 + 2 * radius * SS, ry0 + 2 * radius * SS), outline=TARGET_EDGE, width=SS)
+    scaled = (center[0] * SUPERSAMPLE, center[1] * SUPERSAMPLE)
+    draw_leaders(
+        draw, scaled, radius * SUPERSAMPLE, (x * SUPERSAMPLE, y * SUPERSAMPLE), LENS / 2 * SUPERSAMPLE
+    )
+    rx0, ry0 = scaled[0] - radius * SUPERSAMPLE, scaled[1] - radius * SUPERSAMPLE
+    draw.ellipse(
+        (rx0, ry0, rx0 + 2 * radius * SUPERSAMPLE, ry0 + 2 * radius * SUPERSAMPLE),
+        outline=TARGET_EDGE,
+        width=SUPERSAMPLE,
+    )
     img = big.resize((W, H), Image.LANCZOS)
     dot_specks(img, view, target)
 
@@ -528,7 +438,7 @@ def render_arrondissement(number, data):
     features, paris = data["arrondissements"], data["paris"]
     target = features[number]
     view = paris_view(paris)
-    img = Image.new("RGB", (view.w * SS, view.h * SS), SUBURBS)
+    img = Image.new("RGB", (view.w * SUPERSAMPLE, view.h * SUPERSAMPLE), SUBURBS)
     draw = ImageDraw.Draw(img)
     for code, (_, polys) in data["depts"].items():
         if code not in OVERSEAS_DEPTS:
@@ -564,7 +474,7 @@ def render_french(code, features, overseas, data):
 
     paris = view.proj.forward(np.array([PARIS]))[0]
     tx0, ty0, tx1, ty1 = box_px(view, target_pts(target, view.proj))
-    ((px, py),) = view.km_to_px(np.array([paris])) / SS
+    ((px, py),) = view.km_to_px(np.array([paris])) / SUPERSAMPLE
     if (
         max(tx1 - tx0, ty1 - ty0) >= PARIS_INSET_PX
         or math.hypot((tx0 + tx1) / 2 - px, (ty0 + ty1) / 2 - py) > 50
@@ -576,7 +486,8 @@ def render_french(code, features, overseas, data):
     )
     half = zoom.w * zoom.s / 2
     (ax, ay), (bx, by) = (
-        view.km_to_px(np.array([[paris[0] - half, paris[1] + half], [paris[0] + half, paris[1] - half]])) / SS
+        view.km_to_px(np.array([[paris[0] - half, paris[1] + half], [paris[0] + half, paris[1] - half]]))
+        / SUPERSAMPLE
     )
     draw = ImageDraw.Draw(img)
     draw.rectangle((ax, ay, bx, by), outline=INSET_EDGE, width=2)
@@ -656,6 +567,12 @@ def save(img, code):
     img.convert("RGB").save(MAPS_DIR / f"{image_name(code)}.webp", "WEBP", quality=82, method=6)
 
 
+def write_maps(codes, data):
+    for i, code in enumerate(codes, 1):
+        save(render(code, data), code)
+        print(f"{i}/{len(codes)} {code}", flush=True)
+
+
 def sheet(codes, data):
     cols = 3
     rows = math.ceil(len(codes) / cols)
@@ -724,10 +641,7 @@ def list_codes(data):
 
 
 def build_all(data):
-    everything = [code for codes in list_codes(data) for code in codes]
-    for i, code in enumerate(everything, 1):
-        save(render(code, data), code)
-        print(f"{i}/{len(everything)} {code}", flush=True)
+    write_maps([code for codes in list_codes(data) for code in codes], data)
     write_seeds(data)
 
 
@@ -777,9 +691,7 @@ def main():
     elif args.sheet:
         sheet(args.sheet, data)
     elif args.write:
-        for i, code in enumerate(args.write, 1):
-            save(render(code, data), code)
-            print(f"{i}/{len(args.write)} {code}", flush=True)
+        write_maps(args.write, data)
     else:
         build_all(data)
 

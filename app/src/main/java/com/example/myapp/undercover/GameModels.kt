@@ -12,7 +12,6 @@ enum class PlayerRole {
     CIVILIAN, IMPOSTOR, MR_WHITE
 }
 
-// Game settings
 data class GameSettings(
     val impostorCount: Int = 1,
     val mrWhiteCount: Int = 0,

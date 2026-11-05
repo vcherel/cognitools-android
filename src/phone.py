@@ -5,6 +5,7 @@ import time
 import xml.etree.ElementTree as ET
 
 PACKAGE = "com.example.myapp"
+FILES_DIR = f"/sdcard/Android/data/{PACKAGE}/files/"
 MENU_TITLE = "CogniTools"
 
 

@@ -52,7 +52,6 @@ fun UndercoverScreen(onBack: () -> Unit) {
     )
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-        // Top bar
         ScreenTopBar(
             title = "Undercover",
             onBack = {
