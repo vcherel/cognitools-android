@@ -52,7 +52,7 @@ Outside that package: `src/` holds the Python asset generators (see the README):
 Root package (shared/misc):
 - `MainActivity.kt`: app entry point; the window, the intents it is launched with, and the locked-over-the-keyguard quick view
 - `AppNavHost.kt`: MainScreen, the whole app's nav graph plus the composition locals and the snackbar host every screen reads
-- `MenuScreen.kt`: the main menu, sized to fill the screen without scrolling; every tool ranked by use in one order, a big tool (with its own callbacks and color tinted quick action, both halves counting) on a full row, the small ones in pairs opened through one `onOpenTool(route)`; each tile's corner badge shows its click count
+- `MenuScreen.kt`: the main menu, sized to fill the screen without scrolling; every tool ranked by use in one order, a big tool (with its own callbacks and color tinted quick action, both halves counting) on a full row, the small ones in pairs opened through one `onOpenTool(route)`; the header's chart button shows or hides each tile's click count badge
 - `MenuUsage.kt`: MenuUsageStore, the per-tool open counters that order the menu
 - `Theme.kt`: ThemeManager (dark mode DataStore), AppTheme, LocalIsDarkMode
 - `MyApplication.kt`: Application class, holds the FlashcardRepository / DeezerRepository / PodcastRepository singletons plus their `Context.<name>Repository` extensions, and the app start housekeeping

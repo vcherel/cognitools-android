@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBalanceWallet
+import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.LightMode
@@ -17,6 +18,7 @@ import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Shuffle
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -116,6 +118,8 @@ fun MenuScreen(
     val scope = rememberCoroutineScope()
     val usageStore = remember(context) { MenuUsageStore(context) }
     val usage by usageStore.counts.collectAsState(initial = emptyMap())
+    var showClicks by remember { mutableStateOf(false) }
+    fun badge(id: String) = if (showClicks) usage[id] else null
 
     // Big and small tools ranked together, most used first, A to Z between equal counts.
     val rows = menuRows(
@@ -166,6 +170,12 @@ fun MenuScreen(
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.weight(1f).padding(start = 4.dp)
             )
+            IconButton(onClick = { showClicks = !showClicks }) {
+                Icon(
+                    imageVector = if (showClicks) Icons.Default.VisibilityOff else Icons.Default.BarChart,
+                    contentDescription = if (showClicks) "Hide clicks" else "Show clicks"
+                )
+            }
             BackupMenuButton()
             IconButton(onClick = onToggleDarkMode) {
                 Icon(
@@ -191,7 +201,7 @@ fun MenuScreen(
                             highlighted = tool.id == "journal" && journalUnread,
                             chipIcon = tool.accent.icon,
                             chipColor = tool.accent.color,
-                            badge = usage[tool.id],
+                            badge = badge(tool.id),
                             onClick = { open(tool.id) { onOpenTool(tool.id) } }
                         )
                     }
@@ -207,14 +217,14 @@ fun MenuScreen(
                         chipIcon = lead.accent.icon,
                         chipColor = lead.accent.color,
                         rightTint = lead.accent.color,
-                        badge = usage[id],
+                        badge = badge(id),
                         onMainClick = { open(id, onOpenNotes) },
                         onRightClick = { open(id, onOpenTodoNote) }
                     )
                     "music" -> DeezerMenuButton(
                         tool = lead,
                         modifier = Modifier.weight(BIG_ROW_WEIGHT),
-                        badge = usage[id],
+                        badge = badge(id),
                         onRightTap = { scope.launch { usageStore.recordClick(id) } },
                         onOpenDeezer = { open(id, onOpenDeezer) }
                     )
@@ -229,7 +239,7 @@ fun MenuScreen(
                         chipIcon = lead.accent.icon,
                         chipColor = lead.accent.color,
                         rightTint = lead.accent.color,
-                        badge = usage[id],
+                        badge = badge(id),
                         onMainClick = { open(id, onOpenFlashcards) },
                         onRightClick = { open(id, onPlayFlashcards) }
                     )
@@ -243,7 +253,7 @@ fun MenuScreen(
                         chipIcon = lead.accent.icon,
                         chipColor = lead.accent.color,
                         rightTint = lead.accent.color,
-                        badge = usage[id],
+                        badge = badge(id),
                         onMainClick = { open(id, onOpenGallery) },
                         onRightClick = { open(id, if (somethingPinned) onOpenPinnedPictures else onOpenWallet) }
                     )
