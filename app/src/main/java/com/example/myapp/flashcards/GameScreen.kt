@@ -168,7 +168,7 @@ fun FlashcardGameScreen(listId: String, navController: NavController) {
                     modifier = Modifier
                         .padding(horizontal = 8.dp)
                         .fillMaxWidth()
-                        .height(420.dp)
+                        .height(510.dp)
                         .graphicsLayer {
                             translationX = cardOffset
                         }
@@ -323,6 +323,18 @@ private fun CardFace(
                     )
                 }
             }
+            if (listName != null) {
+                Text(
+                    text = listName,
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        color = Color.Gray,
+                        fontStyle = FontStyle.Italic
+                    ),
+                    modifier = Modifier
+                        .align(Alignment.Start)
+                        .padding(start = 12.dp, end = 12.dp, bottom = 12.dp)
+                )
+            }
         }
 
         Box(
@@ -367,19 +379,6 @@ private fun CardFace(
                             Modifier
                         }
                     )
-            )
-        }
-
-        if (listName != null) {
-            Text(
-                text = listName,
-                style = MaterialTheme.typography.bodyMedium.copy(
-                    color = Color.Gray,
-                    fontStyle = FontStyle.Italic
-                ),
-                modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .padding(12.dp)
             )
         }
     }

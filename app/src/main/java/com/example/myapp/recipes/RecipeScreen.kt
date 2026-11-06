@@ -6,6 +6,8 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -18,12 +20,15 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ChatBubble
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Timer
+import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -73,7 +78,7 @@ import kotlinx.coroutines.launch
  * The latest recipe the laptop sent, as one scroll: its ingredients, the ones the Ingrédients note does
  * not list marked missing, then its steps to tick off, a step naming a duration offering a timer for
  * it. The screen stays on while it is open. Cooked opens the dialog that takes what was used out of
- * Ingrédients (or marks it started) and, if wanted, onto Courses.
+ * Ingrédients (or comments it there) and, if wanted, onto Courses.
  */
 @Composable
 fun RecipeScreen(onBack: () -> Unit) {
@@ -234,12 +239,9 @@ fun RecipeScreen(onBack: () -> Unit) {
                     cooking = false
                     scope.launch {
                         val undo = repo.edit(delete, comments, groceries) ?: return@launch
-                        val started = comments.count { it.value == STARTED_COMMENT }
-                        val commented = comments.size - started
                         val parts = listOfNotNull(
                             "${delete.size} removed".takeIf { delete.isNotEmpty() },
-                            "$started started".takeIf { started > 0 },
-                            "$commented commented".takeIf { commented > 0 },
+                            "${comments.size} commented".takeIf { comments.isNotEmpty() },
                             "${groceries.size} added to Courses".takeIf { groceries.isNotEmpty() }
                         )
                         AppSnackbar.show(parts.joinToString(", ").replaceFirstChar { it.uppercase() }, "Undo") { repo.undo(undo) }
@@ -330,14 +332,23 @@ private fun TimerDialog(onDismiss: () -> Unit, onStart: (minutes: Int) -> Unit) 
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun CommentDialog(name: String, initial: String, onDismiss: () -> Unit, onSave: (String) -> Unit) {
     var text by remember { mutableStateOf(initial) }
-    val focus = remember { FocusRequester() }
-    LaunchedEffect(Unit) { focus.requestFocus() }
     AppDialog(onDismiss = onDismiss) {
         Text(name, style = MaterialTheme.typography.titleMedium)
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(8.dp))
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            COMMENT_CHOICES.forEach { choice ->
+                FilterChip(
+                    selected = choice in commentParts(text),
+                    onClick = { text = toggledComment(text, choice) },
+                    label = { Text(choice) }
+                )
+            }
+        }
+        Spacer(Modifier.height(8.dp))
         OutlinedTextField(
             value = text,
             onValueChange = { value -> text = value.filter { it != '(' && it != ')' && it != '\n' } },
@@ -345,7 +356,7 @@ private fun CommentDialog(name: String, initial: String, onDismiss: () -> Unit, 
             singleLine = true,
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
             keyboardActions = KeyboardActions(onDone = { onSave(text.trim()) }),
-            modifier = Modifier.fillMaxWidth().focusRequester(focus)
+            modifier = Modifier.fillMaxWidth()
         )
         Spacer(Modifier.height(12.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
@@ -356,9 +367,9 @@ private fun CommentDialog(name: String, initial: String, onDismiss: () -> Unit, 
 }
 
 /**
- * One row per ingredient used, the recipe's own plus any added from Ingrédients: Started marks it
- * "(entamé)" there, a tap on its name gives it a comment of its own in parentheses, Delete takes it
- * out, Groceries also puts it on Courses (and implies Delete unless it is kept with a comment).
+ * One row per ingredient used, the recipe's own plus any added from Ingrédients: its name or Comment
+ * opens the comment it gets in parentheses there, Delete takes it out, Groceries also puts it on
+ * Courses (and implies Delete unless it is kept with a comment).
  */
 @Composable
 private fun CookedDialog(
@@ -371,19 +382,17 @@ private fun CookedDialog(
 ) {
     val extras = remember { mutableStateListOf<String>() }
     val delete = remember { mutableStateMapOf<String, Boolean>() }
-    val started = remember { mutableStateMapOf<String, Boolean>() }
     val comments = remember { mutableStateMapOf<String, String>() }
     val groceries = remember { mutableStateMapOf<String, Boolean>() }
     var picking by remember { mutableStateOf(false) }
     var commenting by remember { mutableStateOf<String?>(null) }
     val rows = used + extras
-    fun kept(name: String) = started[name] == true || name in comments
     AppDialog(onDismiss = onDismiss) {
         Text("Cooked: ${recipe.title}", style = MaterialTheme.typography.titleMedium)
         Spacer(Modifier.height(12.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
             Spacer(Modifier.weight(1f))
-            ColumnLabel("Started")
+            ColumnLabel("Comment")
             ColumnLabel("Delete")
             ColumnLabel("Groceries")
         }
@@ -397,27 +406,25 @@ private fun CookedDialog(
                         }
                     }
                     Box(Modifier.width(COLUMN_WIDTH), contentAlignment = Alignment.Center) {
-                        Checkbox(checked = started[name] == true, onCheckedChange = { checked ->
-                            started[name] = checked
-                            if (checked) {
-                                delete[name] = false
-                                comments.remove(name)
-                            } else if (groceries[name] == true) delete[name] = true
-                        })
+                        IconButton(onClick = { commenting = name }) {
+                            if (comments[name].isNullOrBlank()) {
+                                Icon(Icons.Outlined.ChatBubbleOutline, contentDescription = "Comment")
+                            } else {
+                                Icon(Icons.Filled.ChatBubble, contentDescription = "Comment", tint = MaterialTheme.colorScheme.primary)
+                            }
+                        }
                     }
                     Box(Modifier.width(COLUMN_WIDTH), contentAlignment = Alignment.Center) {
                         Checkbox(checked = delete[name] == true, onCheckedChange = { checked ->
                             delete[name] = checked
-                            if (checked) {
-                                started[name] = false
-                                comments.remove(name)
-                            } else if (!kept(name)) groceries[name] = false
+                            if (checked) comments.remove(name)
+                            else if (name !in comments) groceries[name] = false
                         })
                     }
                     Box(Modifier.width(COLUMN_WIDTH), contentAlignment = Alignment.Center) {
                         Checkbox(checked = groceries[name] == true, onCheckedChange = { checked ->
                             groceries[name] = checked
-                            if (checked && !kept(name)) delete[name] = true
+                            if (checked && name !in comments) delete[name] = true
                         })
                     }
                 }
@@ -431,7 +438,7 @@ private fun CookedDialog(
             TextButton(onClick = {
                 onApply(
                     rows.filter { delete[it] == true },
-                    rows.filter { started[it] == true }.associateWith { STARTED_COMMENT } + comments.filterKeys { it in rows },
+                    comments.filterKeys { it in rows },
                     rows.filter { groceries[it] == true }
                 )
             }) { Text("Apply") }
@@ -445,7 +452,6 @@ private fun CookedDialog(
             onSave = { comment ->
                 commenting = null
                 comments[name] = comment
-                started[name] = false
                 delete[name] = false
             }
         )

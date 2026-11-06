@@ -20,10 +20,21 @@ class RecipeNotesTest {
 
     @Test
     fun commentsReplaceTheOldOne() {
-        val comments = mapOf("carottes" to STARTED_COMMENT, "Lait" to "half left", "Pâtes" to "")
+        val comments = mapOf("carottes" to "entamé", "Lait" to "half left", "Pâtes" to "")
         assertEquals("Carottes (entamé)\n\nLait (half left)\n\nPâtes", withCommentedIngredients(note, groups, comments))
         assertEquals("Carottes\n\nLait\n\nPâtes", withCommentedIngredients(note, groups, mapOf("Lait" to " ")))
         assertEquals("entamé", ingredientComment("Lait (entamé)"))
+    }
+
+    @Test
+    fun commentChoicesToggleBesideFreeText() {
+        assertEquals("entamé", toggledComment("", "entamé"))
+        assertEquals("half left, entamé", toggledComment("half left", "entamé"))
+        assertEquals("half left", toggledComment("half left, entamé", "entamé"))
+        assertEquals(
+            "Carottes\n\nLait (entamé, au congélateur)\n\nPâtes",
+            withCommentedIngredients(note, groups, mapOf("Lait" to "entamé, au congélateur"))
+        )
     }
 
     @Test

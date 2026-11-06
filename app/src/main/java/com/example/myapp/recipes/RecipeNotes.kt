@@ -53,7 +53,16 @@ fun ingredientComment(line: String): String = COMMENT.find(line)?.groupValues?.g
 
 private val COMMENT = Regex("""\(([^)]*)\)""")
 
-const val STARTED_COMMENT = "entamé"
+val COMMENT_CHOICES = listOf("entamé", "presque fini", "à finir vite", "au congélateur")
+
+/** The comma separated parts of a comment, "entamé" and "au congélateur" for "entamé, au congélateur". */
+fun commentParts(comment: String): List<String> = comment.split(',').map { it.trim() }.filter { it.isNotEmpty() }
+
+/** [comment] with [choice] added, or taken out when it already holds it. */
+fun toggledComment(comment: String, choice: String): String {
+    val parts = commentParts(comment)
+    return (if (choice in parts) parts - choice else parts + choice).joinToString(", ")
+}
 
 /** The Ingrédients note without the lines for [names], the rest re-sorted as the editor sorts it. */
 fun withoutIngredients(ingredientsNote: String, groups: List<CourseGroup>, names: List<String>): String {
