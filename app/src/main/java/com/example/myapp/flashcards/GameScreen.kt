@@ -9,6 +9,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -270,50 +271,57 @@ private fun CardFace(
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = if (isMap) Arrangement.Top else Arrangement.Center,
-            modifier = Modifier
-                .align(if (isMap) Alignment.TopCenter else Alignment.Center)
-                .padding(horizontal = if (isMap) 8.dp else 24.dp)
-                .padding(top = if (isMap) 8.dp else 0.dp)
+            modifier = Modifier.fillMaxSize()
         ) {
             // The picture belongs to the front, so it shows whenever the front side is visible.
             if (card.image != null && (showFront || showDefinition)) {
-                // A fixed height, so the card never lays out again once the picture arrives. A map
-                // sits at the top so it stays put on reveal, smaller when the list name needs the
-                // bottom of the card.
+                // Pinned to the top at a fixed size, so it stays put on reveal and when it loads.
+                // A map runs under the score, anything else starts below it.
                 FullSizeCardImage(
                     image = card.image,
                     modifier = if (isMap) {
-                        Modifier.size(if (listName == null) 328.dp else 304.dp)
+                        Modifier
+                            .padding(start = 8.dp, end = 8.dp, top = 24.dp)
+                            .fillMaxWidth()
+                            .aspectRatio(1f)
                     } else {
                         Modifier
+                            .padding(start = 8.dp, end = 8.dp, top = 60.dp)
                             .fillMaxWidth()
                             .height(200.dp)
                     }
                 )
-                Spacer(Modifier.height(if (isMap) 6.dp else 24.dp))
             }
-            val asked = if (showFront != showDefinition) card.name else card.definition
-            if (asked.isNotBlank()) {
-                Text(
-                    text = asked,
-                    style = if (isMap) {
-                        MaterialTheme.typography.headlineSmall
-                    } else {
-                        MaterialTheme.typography.headlineMedium
-                    },
-                    textAlign = TextAlign.Center,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-            val revealed = if (showFront) card.name else card.definition
-            if (showDefinition && revealed.isNotBlank()) {
-                Spacer(Modifier.height(24.dp))
-                Text(
-                    text = revealed,
-                    style = MaterialTheme.typography.bodyLarge,
-                    textAlign = TextAlign.Center
-                )
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .padding(horizontal = if (isMap) 8.dp else 24.dp)
+            ) {
+                val asked = if (showFront != showDefinition) card.name else card.definition
+                if (asked.isNotBlank()) {
+                    Text(
+                        text = asked,
+                        style = if (isMap) {
+                            MaterialTheme.typography.headlineSmall
+                        } else {
+                            MaterialTheme.typography.headlineMedium
+                        },
+                        textAlign = TextAlign.Center,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                val revealed = if (showFront) card.name else card.definition
+                if (showDefinition && revealed.isNotBlank()) {
+                    Spacer(Modifier.height(24.dp))
+                    Text(
+                        text = revealed,
+                        style = MaterialTheme.typography.bodyLarge,
+                        textAlign = TextAlign.Center
+                    )
+                }
             }
         }
 
