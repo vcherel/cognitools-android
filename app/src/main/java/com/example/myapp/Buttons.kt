@@ -1,6 +1,7 @@
 package com.example.myapp
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.interaction.InteractionSource
@@ -11,6 +12,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -19,6 +21,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -253,6 +256,8 @@ fun MyButton(
     chipColor: Color = Color.Gray,
     /** Keeps the button gray inside a tool, whose buttons otherwise take its color (Cancel, steppers). */
     secondary: Boolean = false,
+    /** A count in a circle of [chipColor] on the top right corner. */
+    badge: Int? = null,
     onClick: () -> Unit
 ) {
     RaisedButton(
@@ -261,6 +266,8 @@ fun MyButton(
         enabled = enabled,
         highlighted = highlighted,
         tint = if (secondary) null else LocalToolAccent.current?.color,
+        badge = badge,
+        badgeColor = chipColor,
         onClick = onClick
     ) { textColor ->
         if (icon != null) {
@@ -294,6 +301,8 @@ fun SplitMyButton(
     chipIcon: ImageVector? = null,
     chipColor: Color = Color.Gray,
     rightTint: Color? = null,
+    /** A count in a circle of [chipColor] on the main button's top right corner. */
+    badge: Int? = null,
     onMainClick: () -> Unit,
     onRightClick: () -> Unit
 ) {
@@ -304,6 +313,8 @@ fun SplitMyButton(
         RaisedButton(
             modifier = Modifier.weight(1f),
             height = height,
+            badge = badge,
+            badgeColor = chipColor,
             onClick = onMainClick
         ) { textColor ->
             ButtonLabel(text, textColor, fontSize, chipIcon, chipColor, highlighted = false)
@@ -350,6 +361,8 @@ private fun RaisedButton(
     enabled: Boolean = true,
     highlighted: Boolean = false,
     tint: Color? = null,
+    badge: Int? = null,
+    badgeColor: Color = Color.Gray,
     onClick: () -> Unit,
     content: @Composable (textColor: Color) -> Unit
 ) {
@@ -371,6 +384,21 @@ private fun RaisedButton(
         ) else Modifier
     ) {
         content(style.text)
+        if (badge != null) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .offset(x = 5.dp, y = (-7).dp)
+                    .height(22.dp)
+                    .defaultMinSize(minWidth = 22.dp)
+                    .background(badgeColor, CircleShape)
+                    .border(2.dp, MaterialTheme.colorScheme.background, CircleShape)
+                    .padding(horizontal = 5.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(badge.toString(), color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+            }
+        }
     }
 }
 
