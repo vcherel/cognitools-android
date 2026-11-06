@@ -1,5 +1,6 @@
 # Records the baseline profile on the phone and checks the result. The APKs are built first, so the
-# phone is only needed for the recording itself (about 5 minutes); the release build is not deployed.
+# phone is only needed for the recording itself; the whole run takes about 10 to 15 minutes. The
+# release build is not deployed.
 import sys
 import threading
 import time
@@ -38,7 +39,7 @@ def record():
         ":baselineprofile:assembleNonMinifiedRelease",
     )
     wait_until_unlocked()
-    print("recording on the phone, leave it alone for about 5 minutes", flush=True)
+    print("recording on the phone, leave it alone until this script ends, about 10 minutes", flush=True)
     stop = threading.Event()
     threading.Thread(target=keep_awake, args=(stop,), daemon=True).start()
     try:

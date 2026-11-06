@@ -113,7 +113,7 @@ The JVM unit tests cover the pure logic (the Deezer stream decryption, the puzzl
 ./gradlew :app:testReleaseUnitTest -PskipPuzzleTests
 ```
 
-Three scripts drive the app on the connected phone. `frame_stats.py` runs a fixed navigation journey and prints the janky frames per step, to compare two builds. `regenerate_profile.py` records the baseline profile (about 5 minutes with the phone unlocked), checks that every screen the journey opens made it into the profile, and sends any test note the journey left behind to the notes trash. `import_flashcards.py` pushes a flashcards JSON bundle to the app's external files folder and imports it through a broadcast only the adb shell can send, which replaces the cards it holds by id:
+Three scripts drive the app on the connected phone. `frame_stats.py` runs a fixed navigation journey and prints the janky frames per step, to compare two builds. `regenerate_profile.py` records the baseline profile (about 10 to 15 minutes, with the phone unlocked once the APKs are built), checks that every screen the journey opens made it into the profile, and sends any test note the journey left behind to the notes trash. `import_flashcards.py` pushes a flashcards JSON bundle to the app's external files folder and imports it through a broadcast only the adb shell can send, which replaces the cards it holds by id:
 
 ```bash
 uv run --no-project src/frame_stats.py 3
