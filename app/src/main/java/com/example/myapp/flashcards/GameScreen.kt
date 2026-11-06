@@ -262,11 +262,6 @@ private fun CardFace(
     val score = card.score.toInt()
     val scoreColor = scoreColor(score)
     val isMap = card.image != null && isMapImage(card.image)
-    val onPicture = if (isMap) {
-        Modifier.background(MaterialTheme.colorScheme.surface.copy(alpha = 0.85f), CircleShape)
-    } else {
-        Modifier
-    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
@@ -275,18 +270,17 @@ private fun CardFace(
         ) {
             // The picture belongs to the front, so it shows whenever the front side is visible.
             if (card.image != null && (showFront || showDefinition)) {
-                // Pinned to the top at a fixed size, so it stays put on reveal and when it loads.
-                // A map runs under the score, anything else starts below it.
+                // Pinned below the score at a fixed size, so it stays put on reveal and when it loads.
                 FullSizeCardImage(
                     image = card.image,
                     modifier = if (isMap) {
                         Modifier
-                            .padding(start = 8.dp, end = 8.dp, top = 24.dp)
+                            .padding(start = 8.dp, end = 8.dp, top = 56.dp)
                             .fillMaxWidth()
                             .aspectRatio(1f)
                     } else {
                         Modifier
-                            .padding(start = 8.dp, end = 8.dp, top = 60.dp)
+                            .padding(start = 8.dp, end = 8.dp, top = 90.dp)
                             .fillMaxWidth()
                             .height(200.dp)
                     }
@@ -343,7 +337,6 @@ private fun CardFace(
                 .align(Alignment.TopEnd)
                 .padding(16.dp)
                 .size(36.dp)
-                .then(onPicture)
                 .border(width = 3.dp, color = scoreColor, shape = CircleShape)
         ) {
             Text(
@@ -367,18 +360,6 @@ private fun CardFace(
                 modifier = Modifier
                     .align(Alignment.TopStart)
                     .padding(16.dp)
-                    .then(
-                        if (isMap) {
-                            Modifier
-                                .background(
-                                    MaterialTheme.colorScheme.surface.copy(alpha = 0.85f),
-                                    RoundedCornerShape(8.dp)
-                                )
-                                .padding(horizontal = 8.dp, vertical = 2.dp)
-                        } else {
-                            Modifier
-                        }
-                    )
             )
         }
     }
