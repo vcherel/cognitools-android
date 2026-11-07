@@ -26,11 +26,6 @@ import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Bookmark
-import androidx.compose.material.icons.filled.BookmarkBorder
-import androidx.compose.material.icons.filled.Code
-import androidx.compose.material.icons.filled.CodeOff
-import androidx.compose.material.icons.filled.ContentCut
 import androidx.compose.material.icons.filled.AddShoppingCart
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.EventBusy
@@ -93,9 +88,6 @@ data class NoteLineActions(
     val onRemoveDateSuffix: (Int) -> Unit,
     val onToggleLineMarker: (index: Int, marker: String) -> Unit,
     val onToggleTitleLine: (Int) -> Unit,
-    val onToggleResume: (Int) -> Unit,
-    val onToggleEnhance: (Int) -> Unit,
-    val onCutCategory: (Int) -> Unit,
     val onEnterEditAt: (offset: Int) -> Unit,
     val onReorder: (newContent: String) -> Unit,
     /** Inserts a blank item at that line and starts editing it. */
@@ -130,21 +122,11 @@ fun NoteViewMode(
     val isIngredientsNote = title.equals(INGREDIENTS_TITLE, ignoreCase = true)
     val isCoursesNote = title.equals(COURSES_TITLE, ignoreCase = true)
     val isTodoListNote = title.equals(TODO_LIST_TITLE, ignoreCase = true)
-    val isClaudeNote = title.equals(CLAUDE_NOTE_TITLE, ignoreCase = true)
     val isMoviesNote = title.equals(MOVIES_TITLE, ignoreCase = true)
     // Split once per text change and reused below, instead of re-converting the whole note's text
     // to a String for every line, or re-splitting it every time a selection or a drag recomposes.
     val fullText = textFieldState.text.toString()
     val lines = remember(fullText) { fullText.split("\n") }
-
-    // The title lines whose category holds an "Enhance code" marker. Only the Claude note has any,
-    // and scanning the category of every line of every note was quadratic.
-    val enhanceTitles = remember(fullText, isClaudeNote) {
-        if (!isClaudeNote) emptySet()
-        else lines.indices.filterTo(mutableSetOf()) { index ->
-            lines[index].isTitleLine() && lines.categoryAfter(index).any { it.isMarkerLine(ENHANCE_LINE) }
-        }
-    }
 
     // The Todo list's add placeholders: one closing each block, keyed by the separator it sits above
     // (the line count for the last block) and holding where its item goes. A non empty active block
@@ -301,10 +283,7 @@ fun NoteViewMode(
                     isIngredientsNote = isIngredientsNote,
                     isCoursesNote = isCoursesNote,
                     isTodoListNote = isTodoListNote,
-                    isClaudeNote = isClaudeNote,
                     isMoviesNote = isMoviesNote,
-                    hasResumeAfter = lines.getOrNull(lineIndex + 1)?.isMarkerLine(RESUME_LINE) == true,
-                    hasEnhanceAfter = lineIndex in enhanceTitles,
                     actions = actions,
                     searchTerms = searchTerms,
                     onSizeChanged = { lineHeights[lineIndex] = it },
@@ -345,10 +324,7 @@ private fun NoteLine(
     isIngredientsNote: Boolean,
     isCoursesNote: Boolean,
     isTodoListNote: Boolean,
-    isClaudeNote: Boolean,
     isMoviesNote: Boolean,
-    hasResumeAfter: Boolean,
-    hasEnhanceAfter: Boolean,
     actions: NoteLineActions,
     searchTerms: List<String>,
     onSizeChanged: (Int) -> Unit,
@@ -483,7 +459,6 @@ private fun NoteLine(
                 }
             }
         } else {
-            val isTitle = isClaudeNote && line.isTitleLine()
             Column(modifier = Modifier.fillMaxWidth()) {
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                     Text(
@@ -511,19 +486,6 @@ private fun NoteLine(
                     if (isMoviesNote && line.hasEpisode()) {
                         LineTextButton("S+", "Next season") { actions.onBumpEpisode(lineIndex, true) }
                         LineTextButton("E+", "Next episode") { actions.onBumpEpisode(lineIndex, false) }
-                    }
-                    if (isTitle) {
-                        LineIconButton(
-                            if (hasResumeAfter) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
-                            if (hasResumeAfter) "Unmark resume" else "Mark to resume"
-                        ) { actions.onToggleResume(lineIndex) }
-                        LineIconButton(
-                            if (hasEnhanceAfter) Icons.Default.Code else Icons.Default.CodeOff,
-                            if (hasEnhanceAfter) "Remove Enhance code" else "Add Enhance code"
-                        ) { actions.onToggleEnhance(lineIndex) }
-                        LineIconButton(Icons.Default.ContentCut, "Cut the lines") {
-                            actions.onCutCategory(lineIndex)
-                        }
                     }
                 }
                 if (selected) {

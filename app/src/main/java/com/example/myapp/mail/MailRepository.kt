@@ -208,6 +208,20 @@ class MailRepository(context: Context) {
             }
         }
 
+    /** Deletes the files named [names] from [folderName], the laptop's answers once applied. */
+    suspend fun deleteFiles(folderName: String, names: Set<String>) = withContext(Dispatchers.IO) {
+        withAccount { store, _ ->
+            val folder = store.getFolder(folderName)
+            if (!folder.exists()) return@withAccount
+            folder.open(Folder.READ_WRITE)
+            val messages = folder.messages
+            folder.fetch(messages, FetchProfile().apply { add(FetchProfile.Item.ENVELOPE) })
+            val doomed = messages.filter { it.subject in names }
+            if (doomed.isNotEmpty()) folder.setFlags(doomed.toTypedArray(), Flags(Flags.Flag.DELETED), true)
+            folder.close(true)
+        }
+    }
+
     private fun attachment(part: Part, name: String): String? = when {
         part.isMimeType("multipart/*") -> (part.content as Multipart).let { mp ->
             (0 until mp.count).firstNotNullOfOrNull { attachment(mp.getBodyPart(it), name) }

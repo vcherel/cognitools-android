@@ -21,22 +21,8 @@ const val TODO_LIST_TITLE = "Todo list"
 const val CLAUDE_NOTE_TITLE = "Claude"
 const val MOVIES_TITLE = "Movies"
 
-// The marker line right after a category title in the Claude note, flagging that
-// category as having an unfinished Claude session to resume.
-const val RESUME_LINE = "Resume"
-
-// The marker line closing a Claude note category, asking for a code quality pass.
-const val ENHANCE_LINE = "Enhance code"
-
-/** True for a marker line, trailing or leading spaces included. */
-fun String.isMarkerLine(marker: String): Boolean = trim() == marker
-
 /** True for a line wrapped in the bold+underline markers the /titre slash command inserts. */
 fun String.isTitleLine(): Boolean = startsWith("**__") && endsWith("__**") && length > 8
-
-/** The lines of the Claude note category a title at [index] opens, up to the next title. */
-fun List<String>.categoryAfter(index: Int): List<String> =
-    drop(index + 1).takeWhile { !it.isTitleLine() }
 
 // A line starting with one of these prefixes renders as a checkbox.
 const val UNCHECKED_PREFIX = "[ ] "

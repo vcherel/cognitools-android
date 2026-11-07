@@ -46,10 +46,13 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import com.example.myapp.AppSnackbar
 import com.example.myapp.BackIconButton
+import com.example.myapp.claudeNoteSync
 import com.example.myapp.copyToClipboard
 import com.example.myapp.flashcards.AppDatabase
 import com.example.myapp.normalizeForSearch
 import com.example.myapp.plural
+import com.example.myapp.showUndoSnackbar
+import com.example.myapp.userMessage
 import kotlinx.coroutines.launch
 
 private enum class AddItemTarget { INGREDIENT, COURSE }
@@ -89,6 +92,7 @@ fun NoteEditorScreen(
     var titleFocused by remember { mutableStateOf(false) }
     var showCreatePin by remember { mutableStateOf(false) }
     var addItemTarget by remember { mutableStateOf<AddItemTarget?>(null) }
+    var claudeRefreshing by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
 
     val lineEdits = rememberNoteLineEdits(
@@ -131,6 +135,7 @@ fun NoteEditorScreen(
             val isCoursesNote = !isEditing && title.equals(COURSES_TITLE, ignoreCase = true)
             val isIngredientsNote = !isEditing && title.equals(INGREDIENTS_TITLE, ignoreCase = true)
             val isCoursesModelNote = !isEditing && title.equals(COURSES_MODEL_TITLE, ignoreCase = true)
+            val isClaudeNote = !isEditing && title.equals(CLAUDE_NOTE_TITLE, ignoreCase = true)
 
             val searchTerms = if (searchOpen) remember(noteQuery) { searchTermsOf(noteQuery) } else listSearchTerms
             // The lines holding any of the searched words, in order: what the arrows step through.
@@ -184,7 +189,9 @@ fun NoteEditorScreen(
                         hasContent = content.isNotEmpty(),
                         isCoursesNote = isCoursesNote,
                         isIngredientsNote = isIngredientsNote,
-                        isCoursesModelNote = isCoursesModelNote
+                        isCoursesModelNote = isCoursesModelNote,
+                        isClaudeNote = isClaudeNote,
+                        claudeRefreshing = claudeRefreshing
                     ),
                     actions = NoteEditorBarActions(
                         onBack = { state.goBack(onBack) },
@@ -217,7 +224,29 @@ fun NoteEditorScreen(
                         },
                         onClearContent = { state.saveContent("") },
                         onToggleInlineMarker = { textFieldState.toggleInlineMarker(it) },
-                        onToggleTitle = { textFieldState.toggleTitleLine() }
+                        onToggleTitle = { textFieldState.toggleTitleLine() },
+                        onRefreshClaudeNote = {
+                            claudeRefreshing = true
+                            scope.launch {
+                                try {
+                                    val claude = context.claudeNoteSync
+                                    val solved = claude.fetchSolved()
+                                    val before = textFieldState.text.toString()
+                                    val (after, removed) = withSolvedRemoved(before, solved.lines)
+                                    if (removed > 0) state.saveContent(after)
+                                    claude.clearSolved(solved.files)
+                                    claude.upload(after)
+                                    if (removed == 0) AppSnackbar.show("Nothing solved yet")
+                                    else if (snackbarHostState.showUndoSnackbar("$removed line${plural(removed)} removed")) {
+                                        state.saveContent(before)
+                                    }
+                                } catch (e: Exception) {
+                                    AppSnackbar.show(userMessage(e))
+                                } finally {
+                                    claudeRefreshing = false
+                                }
+                            }
+                        }
                     )
                 )
 
@@ -285,9 +314,6 @@ fun NoteEditorScreen(
                             onRemoveDateSuffix = lineEdits::removeDateSuffix,
                             onToggleLineMarker = lineEdits::toggleLineMarker,
                             onToggleTitleLine = lineEdits::toggleTitleLine,
-                            onToggleResume = lineEdits::toggleResumeAfter,
-                            onToggleEnhance = lineEdits::toggleEnhanceAtEnd,
-                            onCutCategory = lineEdits::cutCategory,
                             onEnterEditAt = { state.enterEditAt(it) },
                             onReorder = { state.saveContent(it) },
                             onAddItemAt = { index ->

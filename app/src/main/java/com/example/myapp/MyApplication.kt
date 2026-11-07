@@ -15,6 +15,7 @@ import com.example.myapp.journal.JournalRepository
 import com.example.myapp.mail.MailRepository
 import com.example.myapp.news.NEWS_READ_RETENTION_DAYS
 import com.example.myapp.news.NewsRepository
+import com.example.myapp.notes.ClaudeNoteSync
 import com.example.myapp.notes.NOTES_TRASH_RETENTION_DAYS
 import com.example.myapp.notes.NotesLists
 import com.example.myapp.podcasts.PodcastRepository
@@ -36,14 +37,16 @@ class MyApplication : Application(), SingletonImageLoader.Factory {
     val mailRepository: MailRepository by lazy { MailRepository(this) }
     val journalRepository: JournalRepository by lazy { JournalRepository(this) }
     val recipeRepository: RecipeRepository by lazy { RecipeRepository(this) }
+    val claudeNoteSync: ClaudeNoteSync by lazy { ClaudeNoteSync(this) }
     lateinit var notesLists: NotesLists
         private set
 
     override fun onCreate() {
         super.onCreate()
         notesLists = NotesLists(AppDatabase.get(this).noteDao(), CoroutineScope(SupervisorJob() + Dispatchers.IO))
-        // Created now so it starts watching the notes the laptop proposes recipes from.
+        // Created now so they start watching the notes the laptop reads.
         recipeRepository
+        claudeNoteSync
         CoroutineScope(Dispatchers.IO).launch {
             // The gallery trash is MediaStore's, which Android empties on its own.
             val cutoff = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(NOTES_TRASH_RETENTION_DAYS.toLong())
@@ -106,3 +109,6 @@ val Context.journalRepository: JournalRepository
 
 val Context.recipeRepository: RecipeRepository
     get() = (applicationContext as MyApplication).recipeRepository
+
+val Context.claudeNoteSync: ClaudeNoteSync
+    get() = (applicationContext as MyApplication).claudeNoteSync

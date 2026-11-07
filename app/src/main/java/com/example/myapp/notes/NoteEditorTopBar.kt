@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.filled.Title
 import androidx.compose.material.icons.filled.VerticalAlignCenter
 import androidx.compose.material3.DropdownMenu
@@ -73,7 +74,9 @@ data class NoteEditorBarState(
     val hasContent: Boolean,
     val isCoursesNote: Boolean,
     val isIngredientsNote: Boolean,
-    val isCoursesModelNote: Boolean
+    val isCoursesModelNote: Boolean,
+    val isClaudeNote: Boolean,
+    val claudeRefreshing: Boolean
 )
 
 /** What the bar's buttons and menu entries do. All of them act on the note the editor holds. */
@@ -94,7 +97,8 @@ data class NoteEditorBarActions(
     val onCopyContent: () -> Unit,
     val onClearContent: () -> Unit,
     val onToggleInlineMarker: (String) -> Unit,
-    val onToggleTitle: () -> Unit
+    val onToggleTitle: () -> Unit,
+    val onRefreshClaudeNote: () -> Unit
 )
 
 /**
@@ -182,6 +186,11 @@ fun NoteEditorTopBar(
             if (state.isCoursesNote) {
                 IconButton(onClick = actions.onAddCourseItem) {
                     Icon(Icons.Default.Add, contentDescription = "Add an item")
+                }
+            }
+            if (state.isClaudeNote) {
+                IconButton(onClick = actions.onRefreshClaudeNote, enabled = !state.claudeRefreshing) {
+                    Icon(Icons.Default.Sync, contentDescription = "Remove the solved lines")
                 }
             }
             IconButton(onClick = actions.onToggleSearch) {

@@ -1,12 +1,9 @@
 package com.example.myapp.notes
 
-import android.content.Context
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
-import androidx.compose.ui.platform.LocalContext
-import com.example.myapp.copyToClipboard
 import com.example.myapp.showUndoSnackbar
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -19,7 +16,6 @@ import kotlinx.coroutines.launch
  * Built by the editor and handed to NoteViewMode as part of a [NoteLineActions].
  */
 class NoteLineEdits(
-    private val context: Context,
     private val textFieldState: TextFieldState,
     private val saveContent: (String) -> Unit,
     private val snackbar: SnackbarHostState,
@@ -71,48 +67,6 @@ class NoteLineEdits(
         saveContent(textFieldState.text.toString().withTitleLineToggled(index))
     }
 
-    /** Adds/removes the "Resume" marker right after a category title, in the Claude note. */
-    fun toggleResumeAfter(index: Int) = editLines { lines ->
-        if (lines.getOrNull(index + 1)?.isMarkerLine(RESUME_LINE) == true) lines.removeAt(index + 1)
-        else lines.add(index + 1, RESUME_LINE)
-    }
-
-    /**
-     * Adds/removes the "Enhance code" marker at the end of a category, in the Claude note:
-     * after the category's last non-empty line, before the blank line and the next title.
-     */
-    fun toggleEnhanceAtEnd(index: Int) = editLines { lines ->
-        val existing = (index + 1 until lines.size)
-            .takeWhile { !lines[it].isTitleLine() }
-            .firstOrNull { lines[it].isMarkerLine(ENHANCE_LINE) }
-        if (existing != null) {
-            lines.removeAt(existing)
-            return@editLines
-        }
-        var end = index + 1 + lines.categoryAfter(index).size
-        while (end > index + 1 && lines[end - 1].isBlank()) end--
-        lines.add(end, ENHANCE_LINE)
-    }
-
-    /**
-     * Cuts the lines of the Claude note category a title at [index] opens: copied to the clipboard
-     * and removed, the title and the blank lines before the next title left in place.
-     */
-    fun cutCategory(index: Int) {
-        val before = textFieldState.text.toString()
-        val lines = before.split("\n").toMutableList()
-        var end = index + 1 + lines.categoryAfter(index).size
-        while (end > index + 1 && lines[end - 1].isBlank()) end--
-        if (end == index + 1) return
-        val cut = lines.subList(index + 1, end)
-        copyToClipboard(context, cut.joinToString("\n"))
-        cut.clear()
-        saveContent(lines.joinToString("\n"))
-        scope.launch {
-            if (snackbar.showUndoSnackbar("Lines cut")) saveContent(before)
-        }
-    }
-
     fun deleteLine(index: Int) {
         val before = textFieldState.text.toString()
         val lines = before.split("\n").toMutableList()
@@ -134,8 +88,7 @@ fun rememberNoteLineEdits(
     saveContent: (String) -> Unit,
     isCoursesNote: () -> Boolean
 ): NoteLineEdits {
-    val context = LocalContext.current
     return remember(textFieldState, snackbar) {
-        NoteLineEdits(context, textFieldState, saveContent, snackbar, scope, isCoursesNote)
+        NoteLineEdits(textFieldState, saveContent, snackbar, scope, isCoursesNote)
     }
 }
