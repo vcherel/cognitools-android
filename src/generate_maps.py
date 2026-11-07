@@ -74,6 +74,7 @@ LENS_MIN_KM = 220
 LENS_FILL = 0.55
 # Pieces this close to a kept one belong to the same archipelago, farther ones are other territories.
 ARCHIPELAGO_GAP_KM = 1600
+ARCHIPELAGO_MAX_ISLAND_KM = 300
 # Pixels across under which a target gets a circle around it, a Paris department the zoom inset.
 TINY_PX = 16
 PARIS_INSET_PX = 22
@@ -270,12 +271,14 @@ def target_pts(target, proj):
     """The km points of the target's biggest piece and the pieces near it, far territories left out."""
     main_pts = proj.forward(main_ring(target).lonlat)
     origin = main_pts.mean(0)
-    reach = max(800.0, 2 * np.hypot(*(main_pts - origin).T).max())
+    span = 2 * np.hypot(*(main_pts - origin).T).max()
+    reach = max(800.0, span)
     pts = [proj.forward(ext.lonlat) for ext, _ in target]
     centers = np.array([p.mean(0) for p in pts])
     kept = np.hypot(*(centers - origin).T) <= reach
-    # An archipelago chains on island by island, so Kiribati keeps its three groups.
-    while True:
+    # An archipelago chains on island by island, so Kiribati keeps its three groups. A country with
+    # a mainland does not, or Portugal would drag the Azores onto its page.
+    while span < ARCHIPELAGO_MAX_ISLAND_KM:
         gaps = np.hypot(*(centers[:, None] - centers[kept][None]).transpose(2, 0, 1)).min(1)
         grown = kept | (gaps <= ARCHIPELAGO_GAP_KM)
         if (grown == kept).all():
@@ -582,9 +585,31 @@ def image_name(code):
     return code
 
 
+def encode(img):
+    out = io.BytesIO()
+    img.convert("RGB").save(out, "WEBP", quality=82, method=6)
+    return out.getvalue()
+
+
 def save(img, code):
     MAPS_DIR.mkdir(parents=True, exist_ok=True)
-    img.convert("RGB").save(MAPS_DIR / f"{image_name(code)}.webp", "WEBP", quality=82, method=6)
+    (MAPS_DIR / f"{image_name(code)}.webp").write_bytes(encode(img))
+
+
+def list_changed(data):
+    """The cards whose fresh render differs from the shipped picture, the ids RESETS needs."""
+    codes = [code for codes in list_codes(data) for code in codes]
+    prefixes = (("deptmap", is_dept), ("regionmap", is_region), ("arrmap", is_arrondissement))
+    changed = []
+    for i, code in enumerate(codes, 1):
+        shipped = MAPS_DIR / f"{image_name(code)}.webp"
+        differs = not shipped.exists() or shipped.read_bytes() != encode(render(code, data))
+        if differs:
+            prefix = next((p for p, test in prefixes if test(code)), "map")
+            key = code[1:] if is_region(code) or is_arrondissement(code) else code.lower()
+            changed.append(f"{prefix}-{key}")
+        print(f"{i}/{len(codes)} {code}{' changed' if differs else ''}", flush=True)
+    print(" ".join(changed) or "nothing changed", flush=True)
 
 
 def write_maps(codes, data):
@@ -702,10 +727,15 @@ def main():
     parser.add_argument("--write", nargs="+", metavar="CODE", help="only write these maps' pictures")
     parser.add_argument("--pages", action="store_true", help="only list the page each country lands on")
     parser.add_argument("--seeds", action="store_true", help="only write the seed files")
+    parser.add_argument(
+        "--changed", action="store_true", help="only list the cards whose picture would change"
+    )
     args = parser.parse_args()
     data = load_data()
     if args.pages:
         list_pages(data)
+    elif args.changed:
+        list_changed(data)
     elif args.seeds:
         write_seeds(data)
     elif args.sheet:
