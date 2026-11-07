@@ -331,10 +331,12 @@ class DeezerPlaybackService : MediaSessionService() {
             Log.w(TAG, "Playback error on $mediaId (${error.errorCodeName})", error)
             // A decoder choking on the bytes says nothing of where they came from: a bad cache span
             // and a bad decryption of the live stream look the same.
-            val where = if (error.errorCode == PlaybackException.ERROR_CODE_DECODING_FAILED && mediaId != null) {
-                ", ${repo.player.audioSource(mediaId)} at ${player.currentPosition / 1000} s"
-            } else ""
+            val audioSource = mediaId?.takeIf { error.errorCode == PlaybackException.ERROR_CODE_DECODING_FAILED }
+                ?.let { repo.player.audioSource(it) }
+            val where = audioSource?.let { ", $it at ${player.currentPosition / 1000} s" }.orEmpty()
             lastErrorLine = repo.logError("playback $mediaId (${error.errorCodeName}$where)", error)
+            // Retried from the same cached bytes, a bad copy fails again, and again on every later play.
+            if (audioSource == "stream cache" || audioSource == "partly cached") repo.player.dropStreamCache(mediaId!!)
 
             // Nothing to retry when Deezer itself says the track is gone: go looking for another
             // release of the same song right away.

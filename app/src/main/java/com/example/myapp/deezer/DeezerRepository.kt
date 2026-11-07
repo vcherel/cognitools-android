@@ -88,13 +88,14 @@ class DeezerRepository(private val appContext: Context) : CdnResolver {
 
     /**
      * Records [e] under [what] and hands back the line, for a snackbar's copy action. A network
-     * failure while the phone is offline is only returned: it says nothing about the app.
+     * failure while the phone is offline is only returned: it says nothing about the app. Neither does a
+     * DNS failure, which also happens on a network still reported as validated (a wifi handover).
      */
     fun logError(what: String, e: Throwable): String {
         val line = "$what: ${errorLog.describe(e)}"
-        val offlineNoise = !hasNetwork() && generateSequence(e) { it.cause }.take(10).any {
-            it is UnknownHostException || it is SocketException || it is SocketTimeoutException
-        }
+        val causes = generateSequence(e) { it.cause }.take(10)
+        val offlineNoise = causes.any { it is UnknownHostException } ||
+            !hasNetwork() && causes.any { it is SocketException || it is SocketTimeoutException }
         if (!offlineNoise) errorLog.log(line)
         return line
     }

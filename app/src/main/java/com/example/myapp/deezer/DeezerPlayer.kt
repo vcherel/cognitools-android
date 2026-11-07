@@ -262,6 +262,9 @@ class DeezerPlayer(private val appContext: Context, private val repo: DeezerRepo
         }
     }
 
+    /** Forgets [sngId]'s stream cache copy, so the next read fetches it again. */
+    fun dropStreamCache(sngId: String) = repo.streamCache.removeResource(deezerCacheKey(sngId))
+
     private fun isWhole(cache: SimpleCache, key: String): Boolean {
         val length = ContentMetadata.getContentLength(cache.getContentMetadata(key))
         return length > 0 && cache.isCached(key, 0, length)

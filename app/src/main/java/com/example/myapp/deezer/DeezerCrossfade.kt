@@ -419,7 +419,7 @@ class Crossfader(
                 if (!awaitFaderSettled(deadline)) return "fader not settled (${faderError ?: "timeout"})"
                 val match = faderMatch ?: matchFader() ?: return "no audio match"
                 faderMatch = match
-                val gap = measureGap(match.offsetUs) ?: return "no output position"
+                val gap = measureSteadyGap(match.offsetUs, deadline) ?: return "no output position"
                 gaps += gap
                 if (abs(gap) <= MAX_GAP_MS) break
                 if (SystemClock.elapsedRealtime() > deadline) return "not aligned, gaps ${gaps.joinToString()} ms"
@@ -442,8 +442,11 @@ class Crossfader(
         }
 
         // 3. The main player moves on to the next track and the two blend, equal power.
+        val nextBuffered = player.totalBufferedDuration - (player.duration - player.currentPosition)
         seekToNext()
-        awaitIncoming()
+        val waitStart = SystemClock.elapsedRealtime()
+        val incoming = awaitIncoming()
+        log("next ${player.currentMediaItem?.mediaId}: $nextBuffered ms buffered at the handoff, $incoming after ${SystemClock.elapsedRealtime() - waitStart} ms, tail ${tailLeft()} ms left")
         val tailState = fader.playbackState
         if (tailState != Player.STATE_READY && tailState != Player.STATE_ENDED) {
             log("outgoing tail stopped early (fader state $tailState, ${faderError ?: "no error"})")
@@ -497,6 +500,21 @@ class Crossfader(
         return sum / GAP_SAMPLES / 1_000
     }
 
+    /**
+     * The gap once its reading stops moving. A nudge reaches the output position only bit by bit, about a
+     * third of it by the next reading, so acting on that reading made every correction overshoot.
+     */
+    private suspend fun measureSteadyGap(offsetUs: Long, deadline: Long): Long? {
+        var last = measureGap(offsetUs) ?: return null
+        while (SystemClock.elapsedRealtime() < deadline) {
+            delay(STEADY_POLL_MS)
+            val gap = measureGap(offsetUs) ?: return null
+            if (abs(gap - last) <= STEADY_MS) return gap
+            last = gap
+        }
+        return last
+    }
+
     /** Until the fader has played long enough for its position to be real, or false past [deadline]. */
     private suspend fun awaitFaderSettled(deadline: Long): Boolean {
         while (true) {
@@ -520,16 +538,18 @@ class Crossfader(
      * buffering or playing its lead in silence. Gives up when the tail is about to run out, or when
      * the next track has played a while without getting louder than a whisper.
      */
-    private suspend fun awaitIncoming() {
+    private suspend fun awaitIncoming(): String {
         var playingSince = 0L
         while (tailLeft() > MIN_FADE_MS) {
             if (player.isPlaying && player.playbackState == Player.STATE_READY) {
                 val now = SystemClock.elapsedRealtime()
                 if (playingSince == 0L) playingSince = now
-                if (meter.fastLevel >= AUDIBLE_LEVEL || now - playingSince >= MAX_LEAD_IN_MS) return
+                if (meter.fastLevel >= AUDIBLE_LEVEL) return "heard"
+                if (now - playingSince >= MAX_LEAD_IN_MS) return "still silent"
             }
             delay(FINE_POLL_MS)
         }
+        return if (playingSince == 0L) "not playing yet" else "silent until the tail ran out"
     }
 
     /** False on timeout, or once the fader failed (its error listener stops it back to idle). */
@@ -601,6 +621,9 @@ class Crossfader(
          * the copies up on a position that kept moving. It also leaves enough audio for the match.
          */
         const val FADER_SETTLE_MS = 3_000L
+        /** How often the gap is read again while it settles, and how little it may move to count as settled. */
+        const val STEADY_POLL_MS = 250L
+        const val STEADY_MS = 6L
         const val GAP_SAMPLES = 5
         const val GAP_SAMPLE_MS = 10L
         const val MAX_GAP_MS = 10L
