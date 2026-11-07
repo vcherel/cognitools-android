@@ -234,8 +234,8 @@ fun NoteEditorScreen(
                                     val before = textFieldState.text.toString()
                                     val (after, removed) = withSolvedRemoved(before, solved.lines)
                                     if (removed > 0) state.saveContent(after)
-                                    claude.clearSolved(solved.files)
-                                    claude.upload(after)
+                                    claude.clearSolved(solved.files, after)
+                                    claudeRefreshing = false
                                     if (removed == 0) AppSnackbar.show("Nothing solved yet")
                                     else if (snackbarHostState.showUndoSnackbar("$removed line${plural(removed)} removed")) {
                                         state.saveContent(before)

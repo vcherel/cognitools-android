@@ -63,8 +63,18 @@ class ClaudeNoteSync(context: Context) {
         return Solved(lines, files.keys)
     }
 
-    suspend fun clearSolved(files: Set<String>) {
-        if (files.isNotEmpty()) appContext.mailRepository.deleteFiles(FOLDER, files)
+    /**
+     * Deletes the solved [files] from the mailbox and sends the note's new [content], in the
+     * background so the refresh reports as soon as the lines are gone. A failed delete is harmless:
+     * the next refresh finds the lines already removed.
+     */
+    fun clearSolved(files: Set<String>, content: String) {
+        scope.launch {
+            runCatching {
+                if (files.isNotEmpty()) appContext.mailRepository.deleteFiles(FOLDER, files)
+                upload(content)
+            }
+        }
     }
 
     private companion object {

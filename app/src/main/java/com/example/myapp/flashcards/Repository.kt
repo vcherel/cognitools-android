@@ -301,7 +301,23 @@ class FlashcardRepository(private val context: Context) {
             8 to "regionmap-02",
             8 to "regionmap-03",
             8 to "regionmap-04",
-            8 to "regionmap-06"
+            8 to "regionmap-06",
+            9 to "map-bq",
+            9 to "map-ck",
+            9 to "map-fm",
+            9 to "map-gs",
+            9 to "map-ki",
+            9 to "map-mh",
+            9 to "map-mp",
+            9 to "map-mu",
+            9 to "map-pf",
+            9 to "map-pn",
+            9 to "map-sb",
+            9 to "map-sc",
+            9 to "map-sh",
+            9 to "map-tf",
+            9 to "map-tk",
+            9 to "map-tv"
         )
         private const val BIRTHDAYS_LIST_ID = "builtin-birthdays-v1"
         private val birthdayFormat = DateTimeFormatter.ofPattern("d MMMM", Locale.FRENCH)

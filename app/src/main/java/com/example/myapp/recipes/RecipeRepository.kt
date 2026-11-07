@@ -13,6 +13,7 @@ import com.example.myapp.notesLists
 import com.example.myapp.userMessage
 import com.example.myapp.writeAtomically
 import java.io.File
+import java.time.LocalDate
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
@@ -30,6 +31,7 @@ import kotlinx.coroutines.flow.updateAndGet
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import org.json.JSONObject
 
 /**
  * The recipe the laptop's `/recipes` skill picked (~/Documents/Code/daily-journal), and what cooking it
@@ -44,6 +46,7 @@ class RecipeRepository(context: Context) {
     private val recipeFile = File(dir, "recipe.json")
     private val doneFile = File(dir, "done.txt")
     private val sentFile = File(dir, "sent.json")
+    private val commentsDir = File(dir, "comments").apply { mkdirs() }
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val uploadLock = Mutex()
     private val dao = AppDatabase.get(appContext).noteDao()
@@ -124,11 +127,36 @@ class RecipeRepository(context: Context) {
                     _recipe.value = recipe
                 }
                 snapshot(dao.getNotes())?.let { upload(it) }
+                sendComments()
             } catch (e: Exception) {
                 _error.value = userMessage(e)
             } finally {
                 _loading.value = false
             }
+        }
+    }
+
+    /**
+     * Sends what Valentin thought of [recipe] to the laptop, which the `/recipes` skill reads before
+     * proposing. Kept in `comments/` until the upload succeeds, retried on refresh.
+     */
+    fun comment(recipe: Recipe, text: String) {
+        val json = JSONObject()
+            .put("id", recipe.id)
+            .put("title", recipe.title)
+            .put("date", LocalDate.now().toString())
+            .put("comment", text.trim())
+            .toString()
+        scope.launch {
+            File(commentsDir, "cooked_${recipe.id}.json").writeAtomically(json)
+            runCatching { sendComments() }
+        }
+    }
+
+    private suspend fun sendComments() = uploadLock.withLock {
+        commentsDir.listFiles()?.sortedBy { it.name }?.forEach { file ->
+            appContext.mailRepository.putFile(FOLDER, file.name, file.readText())
+            file.delete()
         }
     }
 

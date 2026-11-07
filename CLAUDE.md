@@ -203,10 +203,10 @@ Root package (shared/misc):
 
 `recipes/` (the recipe the laptop's `/recipes` skill picked from the Ingrédients note, `~/Documents/Code/daily-journal`):
 - `RecipeModels.kt`: the recipe shape and the notes snapshot, mirroring that repo's `recipe.py`
-- `RecipeRepository.kt`: the singleton, created at app start; uploads the Ingrédients and Modèle courses snapshot to the Journal folder a few seconds after either changes, fetches the latest recipe on refresh (only one kept), the ticked steps, and the undoable edits to Ingrédients and Courses
+- `RecipeRepository.kt`: the singleton, created at app start; uploads the Ingrédients and Modèle courses snapshot to the Journal folder a few seconds after either changes, fetches the latest recipe on refresh (only one kept), the ticked steps, the undoable edits to Ingrédients and Courses, and the recipe comments sent as `cooked_<id>.json` (kept in `filesDir/recipes/comments` until uploaded, retried on refresh)
 - `RecipeNotes.kt`: the pure text side of those edits, on top of `notes/IngredientSync.kt`
 - `RecipeTimers.kt`: the cooking timers (`repo.timers`), each an exact alarm plus a countdown notification replaced by an insistent alarm stream one at the end, kept in `filesDir/recipes/timers.json`, RecipeTimerReceiver (end, Stop, reboot), and `stepDurations`, the durations a step's text names
-- `RecipeScreen.kt`: one scroll (ingredients with the missing ones marked live, Add missing to Courses, steps to tick with a timer chip per duration, screen kept on), the header timer button and the timer rows pinned under it, and the Cooked dialog (Comment, Delete and Groceries per ingredient, the comment in parentheses made of several preset choices and free text, Groceries implying Delete unless commented, more ingredients added from Ingrédients)
+- `RecipeScreen.kt`: one scroll (ingredients with the missing ones marked live, Add missing to Courses, steps to tick with a timer chip per duration, screen kept on), the header timer button and the timer rows pinned under it, and the Cooked dialog (Comment, Delete and Groceries per ingredient, the comment in parentheses made of several preset choices and free text, Groceries implying Delete unless commented, more ingredients added from Ingrédients, and the recipe comment sent to `/recipes`)
 
 `news/` (news reader, French and world headlines from RSS):
 - `NewsModels.kt`: NewsArticle, the NewsRead/NewsSaved/NewsProgress Room entities and NewsDao, plus the 7 day retention shared by the read marks and the reading positions

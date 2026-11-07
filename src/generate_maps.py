@@ -72,6 +72,8 @@ LENS = 280
 # The lens never spans less, so it holds a coast or a border and not a lone blob.
 LENS_MIN_KM = 220
 LENS_FILL = 0.55
+# Pieces this close to a kept one belong to the same archipelago, farther ones are other territories.
+ARCHIPELAGO_GAP_KM = 1600
 # Pixels across under which a target gets a circle around it, a Paris department the zoom inset.
 TINY_PX = 16
 PARIS_INSET_PX = 22
@@ -270,7 +272,16 @@ def target_pts(target, proj):
     origin = main_pts.mean(0)
     reach = max(800.0, 2 * np.hypot(*(main_pts - origin).T).max())
     pts = [proj.forward(ext.lonlat) for ext, _ in target]
-    return np.concatenate([p for p in pts if np.hypot(*(p.mean(0) - origin)) <= reach])
+    centers = np.array([p.mean(0) for p in pts])
+    kept = np.hypot(*(centers - origin).T) <= reach
+    # An archipelago chains on island by island, so Kiribati keeps its three groups.
+    while True:
+        gaps = np.hypot(*(centers[:, None] - centers[kept][None]).transpose(2, 0, 1)).min(1)
+        grown = kept | (gaps <= ARCHIPELAGO_GAP_KM)
+        if (grown == kept).all():
+            break
+        kept = grown
+    return np.concatenate([p for p, keep in zip(pts, kept, strict=True) if keep])
 
 
 def box_km(pts):
@@ -326,13 +337,21 @@ def draw_leaders(draw, a, ra, b, rb):
         )
 
 
-def render_lens(target, data):
+def lens_view(target):
     proj = Laea(*main_ring(target).latlon())
-    pts = target_pts(target, proj)
-    box = box_km(pts)
+    box = box_km(target_pts(target, proj))
     x0, y0, x1, y1 = box
     span = max(max(x1 - x0, y1 - y0) / LENS_FILL, LENS_MIN_KM)
-    view = View(proj, (x0 + x1) / 2, (y0 + y1) / 2, span / LENS, LENS, LENS)
+    return View(proj, (x0 + x1) / 2, (y0 + y1) / 2, span / LENS, LENS, LENS), box
+
+
+def lens_shows_shape(target, view):
+    """False for an atoll chain, which the lens would only draw as the same dots spread apart."""
+    shown = [view.px(ext) / SUPERSAMPLE for ext, _ in target if view.shows(ext)]
+    return len(shown) == 1 or any((pts.max(0) - pts.min(0)).max() >= 6 for pts in shown)
+
+
+def render_lens(target, data, view, box):
     img = draw_map(view, target, data["world"], data["lakes"]).resize((LENS, LENS), Image.LANCZOS)
     dot_specks(img, view, target)
     ring_circle(img, view, box)
@@ -377,7 +396,8 @@ def render_country(target, data):
     img = big.resize((W, H), Image.LANCZOS)
     x0, y0, x1, y1 = box_px(view, target_pts(target, view.proj))
     size = max(x1 - x0, y1 - y0)
-    if size >= READS_PX:
+    lens, lens_box = lens_view(target)
+    if size >= READS_PX or not lens_shows_shape(target, lens):
         dot_specks(img, view, target)
         return img
 
@@ -405,7 +425,7 @@ def render_country(target, data):
         (left - edge, top - edge, left + LENS + edge, top + LENS + edge),
         disc_mask(LENS + 2 * edge),
     )
-    img.paste(render_lens(target, data), (left, top), disc_mask(LENS))
+    img.paste(render_lens(target, data, lens, lens_box), (left, top), disc_mask(LENS))
     return img
 
 

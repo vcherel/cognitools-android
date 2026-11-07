@@ -235,11 +235,17 @@ fun RecipeScreen(onBack: () -> Unit) {
                 pantry = pantry.map { it.courseItemName() }.distinctBy { it.itemKey() },
                 currentComments = pantry.associate { it.courseItemName().itemKey() to ingredientComment(it) },
                 onDismiss = { cooking = false },
-                onApply = { delete, comments, groceries ->
+                onApply = { delete, comments, groceries, feedback ->
                     cooking = false
+                    if (feedback.isNotBlank()) repo.comment(shown, feedback)
                     scope.launch {
-                        val undo = repo.edit(delete, comments, groceries) ?: return@launch
+                        val undo = repo.edit(delete, comments, groceries)
+                        if (undo == null) {
+                            if (feedback.isNotBlank()) AppSnackbar.show("Comment sent")
+                            return@launch
+                        }
                         val parts = listOfNotNull(
+                            "comment sent".takeIf { feedback.isNotBlank() },
                             "${delete.size} removed".takeIf { delete.isNotEmpty() },
                             "${comments.size} commented".takeIf { comments.isNotEmpty() },
                             "${groceries.size} added to Courses".takeIf { groceries.isNotEmpty() }
@@ -369,7 +375,8 @@ private fun CommentDialog(name: String, initial: String, onDismiss: () -> Unit, 
 /**
  * One row per ingredient used, the recipe's own plus any added from Ingrédients: its name or Comment
  * opens the comment it gets in parentheses there, Delete takes it out, Groceries also puts it on
- * Courses (and implies Delete unless it is kept with a comment).
+ * Courses (and implies Delete unless it is kept with a comment). The recipe comment below goes to the
+ * laptop's `/recipes` skill.
  */
 @Composable
 private fun CookedDialog(
@@ -378,8 +385,9 @@ private fun CookedDialog(
     pantry: List<String>,
     currentComments: Map<String, String>,
     onDismiss: () -> Unit,
-    onApply: (delete: List<String>, comments: Map<String, String>, groceries: List<String>) -> Unit
+    onApply: (delete: List<String>, comments: Map<String, String>, groceries: List<String>, feedback: String) -> Unit
 ) {
+    var feedback by remember { mutableStateOf("") }
     val extras = remember { mutableStateListOf<String>() }
     val delete = remember { mutableStateMapOf<String, Boolean>() }
     val comments = remember { mutableStateMapOf<String, String>() }
@@ -432,6 +440,14 @@ private fun CookedDialog(
             val addable = pantry.filter { candidate -> rows.none { it.itemKey() == candidate.itemKey() } }
             if (addable.isNotEmpty()) AddItemRow(onClick = { picking = true }, label = "Add ingredient")
         }
+        Spacer(Modifier.height(8.dp))
+        OutlinedTextField(
+            value = feedback,
+            onValueChange = { feedback = it },
+            label = { Text("Recipe comment") },
+            maxLines = 4,
+            modifier = Modifier.fillMaxWidth()
+        )
         Spacer(Modifier.height(12.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
             TextButton(onClick = onDismiss) { Text("Cancel") }
@@ -439,7 +455,8 @@ private fun CookedDialog(
                 onApply(
                     rows.filter { delete[it] == true },
                     comments.filterKeys { it in rows },
-                    rows.filter { groceries[it] == true }
+                    rows.filter { groceries[it] == true },
+                    feedback.trim()
                 )
             }) { Text("Apply") }
         }

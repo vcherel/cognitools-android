@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.input.TextFieldLineLimits
@@ -29,6 +30,7 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.filled.Title
 import androidx.compose.material.icons.filled.VerticalAlignCenter
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -189,8 +191,14 @@ fun NoteEditorTopBar(
                 }
             }
             if (state.isClaudeNote) {
-                IconButton(onClick = actions.onRefreshClaudeNote, enabled = !state.claudeRefreshing) {
-                    Icon(Icons.Default.Sync, contentDescription = "Remove the solved lines")
+                if (state.claudeRefreshing) {
+                    Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(Modifier.size(22.dp), strokeWidth = 2.dp)
+                    }
+                } else {
+                    IconButton(onClick = actions.onRefreshClaudeNote) {
+                        Icon(Icons.Default.Sync, contentDescription = "Remove the solved lines")
+                    }
                 }
             }
             IconButton(onClick = actions.onToggleSearch) {
