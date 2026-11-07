@@ -434,7 +434,12 @@ private fun ItemRow(
                 color = if (item.done) muted else MaterialTheme.colorScheme.onSurface
             )
             val details = when {
-                daysLate != null -> listOfNotNull(pushedText(item), "$daysLate day${plural(daysLate)} late")
+                daysLate != null -> listOfNotNull(
+                    item.localTime()?.let(timeFormat::format),
+                    item.repeatText(),
+                    pushedText(item),
+                    "$daysLate day${plural(daysLate)} late"
+                )
                 item.kind == CalendarKind.BIRTHDAY -> emptyList()
                 else -> listOfNotNull(
                     timeOn(item, day),
