@@ -1,4 +1,5 @@
 # Pulls the Music tool's logs off the phone and groups the error and crossfade logs by kind of line.
+# Without a phone, reads the copy the Claude note brought (daily-journal's claude-note pull).
 import re
 import sys
 import tempfile
@@ -10,6 +11,7 @@ from phone import FILES_DIR, adb
 LINE = re.compile(r"(\d\d-\d\d) (\d\d:\d\d:\d\d) (\S+) ?(.*)")
 TRACK_ID = re.compile(r"\b\d{5,}\b")
 NUMBER = re.compile(r"-?\b\d+\b")
+MAILBOX_COPY = Path.home() / "Documents/Code/daily-journal/data/music_logs"
 
 
 def pull(out: Path) -> Path:
@@ -53,10 +55,14 @@ def summarize(errors: Path) -> None:
 
 
 def main() -> None:
-    out = Path(sys.argv[1]) if len(sys.argv) > 1 else Path(tempfile.mkdtemp(prefix="deezer_logs_"))
-    out.mkdir(parents=True, exist_ok=True)
-    files = pull(out)
-    print(f"logs in {files}", flush=True)
+    if adb("get-state").strip() == "device":
+        out = Path(sys.argv[1]) if len(sys.argv) > 1 else Path(tempfile.mkdtemp(prefix="deezer_logs_"))
+        out.mkdir(parents=True, exist_ok=True)
+        files = pull(out)
+        print(f"logs in {files}", flush=True)
+    else:
+        files = MAILBOX_COPY
+        print(f"no phone, reading the copy the Claude note brought in {files}", flush=True)
     for name in ("deezer_errors.txt", "deezer_crossfade_log.txt"):
         log = files / name
         print(f"\n== {name}")

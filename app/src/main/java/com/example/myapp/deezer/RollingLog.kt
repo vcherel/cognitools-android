@@ -15,7 +15,7 @@ import java.time.format.DateTimeFormatter
 class RollingLog(
     context: Context,
     private val tag: String,
-    fileName: String,
+    val fileName: String,
     private val maxBytes: Long,
     private val keepLines: Int
 ) {

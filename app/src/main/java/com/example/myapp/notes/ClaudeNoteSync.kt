@@ -1,6 +1,7 @@
 package com.example.myapp.notes
 
 import android.content.Context
+import com.example.myapp.deezerRepository
 import com.example.myapp.mailRepository
 import com.example.myapp.notesLists
 import com.example.myapp.writeAtomically
@@ -28,6 +29,7 @@ import org.json.JSONObject
 class ClaudeNoteSync(context: Context) {
     private val appContext = context.applicationContext
     private val sentFile = File(appContext.filesDir, "claude_note_sent.json")
+    private val logsSentFile = File(appContext.filesDir, "music_logs_sent.txt")
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val uploadLock = Mutex()
 
@@ -43,12 +45,26 @@ class ClaudeNoteSync(context: Context) {
         }
     }
 
-    /** Sends the note unless the mailbox already holds this exact text. */
+    /** Sends the note unless the mailbox already holds this exact text, and the music logs with it. */
     suspend fun upload(content: String) = uploadLock.withLock {
         val snapshot = JSONObject().put("content", content).toString()
         if (sentFile.exists() && sentFile.readText() == snapshot) return@withLock
         appContext.mailRepository.putFile(FOLDER, SNAPSHOT_NAME, snapshot)
         sentFile.writeAtomically(snapshot)
+        uploadMusicLogs()
+    }
+
+    /** The Music tool's error and crossfade logs, so the skill reads them without the phone plugged in. */
+    private suspend fun uploadMusicLogs() {
+        val repo = appContext.deezerRepository
+        val logs = JSONObject()
+            .put(repo.errorLog.fileName, repo.errorLog.readLines().joinToString("\n"))
+            .put(repo.crossfadeLog.fileName, repo.crossfadeLog.readLines().joinToString("\n"))
+            .toString()
+        val hash = logs.hashCode().toString()
+        if (logsSentFile.exists() && logsSentFile.readText() == hash) return
+        appContext.mailRepository.putFile(FOLDER, LOGS_NAME, logs)
+        logsSentFile.writeAtomically(hash)
     }
 
     /** The lines the laptop solved, oldest send first, and the files they came in. */
@@ -80,6 +96,7 @@ class ClaudeNoteSync(context: Context) {
     private companion object {
         const val FOLDER = "Journal"
         const val SNAPSHOT_NAME = "claude_note.json"
+        const val LOGS_NAME = "music_logs.json"
         const val SOLVED_PREFIX = "claude_solved_"
         const val UPLOAD_DELAY_MS = 5_000L
     }
