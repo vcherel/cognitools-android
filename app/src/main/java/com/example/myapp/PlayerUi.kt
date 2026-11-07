@@ -2,7 +2,9 @@ package com.example.myapp
 
 import androidx.compose.animation.core.animate
 import androidx.compose.foundation.background
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
@@ -88,6 +90,7 @@ fun formatPlaybackTime(ms: Long): String {
  * [isPlaying]), whatever the caller puts under it, and its trailing actions. Every list in the
  * Musique tool is built from this: playlists, followed podcasts, tracks and episodes.
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun MediaListRow(
     artworkUrl: String?,
@@ -95,6 +98,7 @@ fun MediaListRow(
     isPlaying: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    onLongClick: (() -> Unit)? = null,
     artworkSize: Dp = 48.dp,
     cornerSize: Dp = 6.dp,
     contentPadding: Dp = 6.dp,
@@ -109,7 +113,10 @@ fun MediaListRow(
             .fillMaxWidth()
             .clip(RoundedCornerShape(cornerSize))
             .background(if (isPlaying) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface)
-            .clickable(onClick = onClick)
+            .then(
+                if (onLongClick == null) Modifier.clickable(onClick = onClick)
+                else Modifier.combinedClickable(onClick = onClick, onLongClick = onLongClick)
+            )
             .padding(contentPadding),
         verticalAlignment = Alignment.CenterVertically
     ) {

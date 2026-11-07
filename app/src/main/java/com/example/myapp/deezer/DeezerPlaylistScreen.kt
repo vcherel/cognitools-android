@@ -145,6 +145,9 @@ fun DeezerTrackListScreen(
                                 }
                             },
                             onAddToPlaylist = { pickerTrack = track },
+                            onLongClick = addedAgoMessage(track)?.let { message ->
+                                { Toast.makeText(context, message, Toast.LENGTH_SHORT).show() }
+                            },
                             onOpenArtist = onOpenArtist?.let { cb -> { cb(track) } },
                             onRemoveFromPlaylist = playlistId?.let { pid ->
                                 {

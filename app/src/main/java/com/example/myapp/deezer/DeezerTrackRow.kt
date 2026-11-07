@@ -61,6 +61,7 @@ import com.example.myapp.MediaArt
 import com.example.myapp.MediaListRow
 import com.example.myapp.MediaRowSubtitle
 import com.example.myapp.deezerRepository
+import com.example.myapp.plural
 import com.example.myapp.runIgnoringErrors
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -89,7 +90,8 @@ fun TrackRow(
     onAddToPlaylist: (() -> Unit)? = null,
     onRemoveFromPlaylist: (() -> Unit)? = null,
     onOpenArtist: (() -> Unit)? = null,
-    onDismiss: (() -> Unit)? = null
+    onDismiss: (() -> Unit)? = null,
+    onLongClick: (() -> Unit)? = null
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
     // Read when the menu opens rather than per row: the whole point of the diamond is that a list of
@@ -107,6 +109,7 @@ fun TrackRow(
         title = track.title,
         isPlaying = isPlaying,
         onClick = onClick,
+        onLongClick = onLongClick,
         textAlpha = if (refused) 0.45f else 1f,
         below = {
             MediaRowSubtitle(track.artist)
@@ -240,6 +243,19 @@ private fun SwipeToQueue(onQueue: (() -> Unit)?, content: @Composable () -> Unit
                 .graphicsLayer { translationX = offset }
         ) { content() }
     }
+}
+
+/** "Added 3 months ago", from the track's DATE_ADD in its playlist or in the favorites; null without one. */
+fun addedAgoMessage(track: DeezerTrack, nowSec: Long = System.currentTimeMillis() / 1000): String? {
+    if (track.addedAtSec <= 0) return null
+    val days = ((nowSec - track.addedAtSec) / 86_400).coerceAtLeast(0).toInt()
+    val ago = when {
+        days == 0 -> return "Added today"
+        days < 30 -> "$days day${plural(days)}"
+        days < 365 -> (days / 30).let { "$it month${plural(it)}" }
+        else -> (days / 365).let { "$it year${plural(it)}" }
+    }
+    return "Added $ago ago"
 }
 
 /** Shared: runs the "add to queue" action and returns the toast to show. */

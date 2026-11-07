@@ -117,7 +117,7 @@ Root package (shared/misc):
 - `DeezerTrackSaver.kt`: `repo.saver`, the full player's download button; saves the track as an ID3 tagged MP3 320 in Download, "already saved" being the file there under its name
 - `DeezerQueueSheet.kt`: QueueSheet, the queue opened from the full player: jump to a track, drag to reorder, remove, each edit applied straight to the controller
 - `DeezerLibraryScreen.kt`: landing screen; favorites card, playlists rows, followed podcast rows, offline status
-- `DeezerTrackRow.kt`: TrackRow (the one tappable track line with its heart and menu, swipe right to queue), the playlist picker dialog, and the add-to-queue / Best pépites / add-to-playlist actions that return the toast to show, reused by every Deezer screen
+- `DeezerTrackRow.kt`: TrackRow (the one tappable track line with its heart and menu, swipe right to queue), `addedAgoMessage` (the long press toast saying when a playlist or favorites track was added), the playlist picker dialog, and the add-to-queue / Best pépites / add-to-playlist actions that return the toast to show, reused by every Deezer screen
 - `DeezerPlaylistScreen.kt`: reusable ordered track list (play, remove, like, add to pépites)
 - `DeezerSearchScreen.kt`: search screen, tracks and podcast shows
 - `DeezerArtistScreen.kt`: one artist: header, top tracks, discography grouped by release type
