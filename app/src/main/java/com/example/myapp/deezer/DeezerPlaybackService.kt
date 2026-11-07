@@ -571,7 +571,7 @@ class DeezerPlaybackService : MediaSessionService() {
         private const val TAG = "DeezerPlayback"
         private const val MAX_SKIPS = 5
         private const val QUEUE_FILL_WAIT_MS = 3_000L
-        /** Ahead of the crossfader buffering the tail (20 s), so a swap is done before any blend starts. */
+        /** Ahead of the crossfader buffering the tail (24 s), so a swap is done before any blend starts. */
         private const val LOOKAHEAD_MS = 35_000L
         private const val LOOKAHEAD_POLL_MS = 2_000L
         private const val FADE_IN_MS = 1_500L

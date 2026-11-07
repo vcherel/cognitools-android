@@ -372,7 +372,7 @@ class Crossfader(
                 val deadline = SystemClock.elapsedRealtime() + UNLIKE_SETUP_MS
                 if (faderItemId != item.mediaId) loadFader(item)
                 val failure = if (awaitReady(fader, UNLIKE_SETUP_MS)) {
-                    blend(FADE_MS, fitToTail = false, alignUntil = deadline)
+                    blend(UNLIKE_FADE_MS, fitToTail = false, alignUntil = deadline)
                 } else {
                     "fader not ready (${faderError ?: "timeout"})"
                 }
@@ -448,10 +448,14 @@ class Crossfader(
         if (tailState != Player.STATE_READY && tailState != Player.STATE_ENDED) {
             log("outgoing tail stopped early (fader state $tailState, ${faderError ?: "no error"})")
         }
+        // The incoming track rises to full before the outgoing one starts to fall, so the middle of
+        // the blend has both at full volume instead of two halves heard one after the other.
         val length = if (fitToTail) minOf(fadeMs, tailLeft()) else fadeMs
         ramp(length.coerceAtLeast(MIN_FADE_MS)) { t ->
-            fader.volume = cos(t * PI / 2).toFloat()
-            player.volume = sin(t * PI / 2).toFloat()
+            val rise = (t / FADE_SPAN).coerceAtMost(1f)
+            val fall = ((t - (1 - FADE_SPAN)) / FADE_SPAN).coerceAtLeast(0f)
+            fader.volume = cos(fall * PI / 2).toFloat()
+            player.volume = sin(rise * PI / 2).toFloat()
         }
         return null
     }
@@ -559,17 +563,20 @@ class Crossfader(
     }
 
     private companion object {
-        const val FADE_MS = 8_000L
-        const val MAX_FADE_MS = 12_000L
+        const val FADE_MS = 12_000L
+        const val MAX_FADE_MS = 16_000L
+        const val UNLIKE_FADE_MS = 8_000L
+        /** Share of the blend each track's ramp takes; the overlap at full volume is what is left in the middle. */
+        const val FADE_SPAN = 0.6f
         /** How long an unlike may spend buffering and aligning the fader before giving up on the blend. */
         const val UNLIKE_SETUP_MS = 10_000L
         /** Each half of the fade out, fade in an unlike falls back on without a blend. */
         const val FALLBACK_FADE_MS = 2_000L
         const val NEXT_START_TIMEOUT_MS = 5_000L
         /** How far before the end an outro or silence is looked for. */
-        const val SMART_WINDOW_MS = 16_000L
+        const val SMART_WINDOW_MS = 20_000L
         /** When the fader starts buffering the tail, a little ahead of that window. */
-        const val PREPARE_MS = 20_000L
+        const val PREPARE_MS = 24_000L
         const val MIN_TRACK_MS = 30_000L
         /**
          * Time the alignment tries, the handoff and the next track's lead in take, so the blend still
