@@ -24,6 +24,8 @@ class RecipeNotesTest {
         assertEquals("Carottes (entamé)\n\nLait (half left)\n\nPâtes", withCommentedIngredients(note, groups, comments))
         assertEquals("Carottes\n\nLait\n\nPâtes", withCommentedIngredients(note, groups, mapOf("Lait" to " ")))
         assertEquals("entamé", ingredientComment("Lait (entamé)"))
+        assertEquals("Lait (au congélateur)", "Lait (entamé)".withIngredientComment(" au congélateur"))
+        assertEquals("Lait", "Lait (entamé)".withIngredientComment(""))
     }
 
     @Test

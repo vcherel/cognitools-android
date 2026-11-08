@@ -46,7 +46,9 @@ private enum class ReconcileStep { Choose, Group, NewGroup, Existing }
  * (choosing which section, or a new named category at a chosen position in the existing
  * order), map it to an existing model entry (for a misspelling or variant spelling), or skip
  * it (`skipLabel` names that choice, which drops the item). Within the chosen section the
- * entry is placed alphabetically, so only the section needs picking.
+ * entry is placed alphabetically, so only the section needs picking. With [foodOnly] (an item
+ * from the Ingrédients note itself) the non food sections are left out of the picker: an item
+ * filed there never shows in Ingrédients.
  */
 @Composable
 fun IngredientReconcileDialog(
@@ -57,6 +59,7 @@ fun IngredientReconcileDialog(
     onMapExisting: (String) -> Unit,
     onSkip: () -> Unit,
     skipLabel: String = "Ignore",
+    foodOnly: Boolean = false,
     onDismiss: () -> Unit
 ) {
     var step by remember(itemName) { mutableStateOf(ReconcileStep.Choose) }
@@ -96,7 +99,7 @@ fun IngredientReconcileDialog(
                 )
                 Spacer(Modifier.height(12.dp))
                 LazyColumn(modifier = Modifier.heightIn(max = 360.dp)) {
-                    itemsIndexed(groups) { i, g ->
+                    items(groups.withIndex().filter { !foodOnly || it.value.food }) { (i, g) ->
                         PositionRow(g.label()) { onAddNew(i) }
                         HorizontalDivider()
                     }

@@ -338,9 +338,10 @@ private fun TimerDialog(onDismiss: () -> Unit, onStart: (minutes: Int) -> Unit) 
     }
 }
 
+/** The comment an ingredient gets in parentheses in Ingrédients; the Cooked dialog and that note both open it. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun CommentDialog(name: String, initial: String, onDismiss: () -> Unit, onSave: (String) -> Unit) {
+fun CommentDialog(name: String, initial: String, onDismiss: () -> Unit, onSave: (String) -> Unit) {
     var text by remember { mutableStateOf(initial) }
     AppDialog(onDismiss = onDismiss) {
         Text(name, style = MaterialTheme.typography.titleMedium)

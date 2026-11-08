@@ -4,6 +4,7 @@ import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import com.example.myapp.recipes.withIngredientComment
 import com.example.myapp.showUndoSnackbar
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -55,6 +56,11 @@ class NoteLineEdits(
         val line = lines[index]
         if (!line.isCheckboxLine()) return@editLines
         lines[index] = line.checkboxPrefix() + line.checkboxText().withoutDateSuffix()
+    }
+
+    /** Replaces an Ingrédients line's "(...)" comment, "Lait" becoming "Lait (entamé)"; blank drops it. */
+    fun commentIngredient(index: Int, comment: String) = editLines { lines ->
+        lines[index] = lines[index].withIngredientComment(comment)
     }
 
     /** Wraps a whole line's text in [marker], or removes it when the line is already wrapped. */

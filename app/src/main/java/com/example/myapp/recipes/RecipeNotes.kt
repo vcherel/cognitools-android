@@ -42,11 +42,14 @@ fun withCommentedIngredients(ingredientsNote: String, groups: List<CourseGroup>,
     if (comments.isEmpty()) return ingredientsNote
     val byKey = comments.mapKeys { it.key.itemKey() }
     val lines = presentIngredients(ingredientsNote).map { line ->
-        val comment = byKey[line.ingredientLineKey()]?.trim() ?: return@map line
-        if (comment.isEmpty()) line.courseItemName() else "${line.courseItemName()} ($comment)"
+        byKey[line.ingredientLineKey()]?.let { line.withIngredientComment(it) } ?: line
     }
     return renderIngredientsNote(lines, groups)
 }
+
+/** An Ingrédients line with its "(...)" comment replaced by [comment], or dropped when blank. */
+fun String.withIngredientComment(comment: String): String =
+    comment.trim().let { if (it.isEmpty()) courseItemName() else "${courseItemName()} ($it)" }
 
 /** The comment an Ingrédients line carries in parentheses, "entamé" for "Lait (entamé)". */
 fun ingredientComment(line: String): String = COMMENT.find(line)?.groupValues?.get(1)?.trim().orEmpty()

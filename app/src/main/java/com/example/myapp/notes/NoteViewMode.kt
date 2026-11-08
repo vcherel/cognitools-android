@@ -70,6 +70,9 @@ import androidx.compose.ui.zIndex
 import com.example.myapp.AddItemRow
 import com.example.myapp.LightCheckbox
 import com.example.myapp.LightIconButton
+import com.example.myapp.recipes.CommentDialog
+import com.example.myapp.recipes.ingredientComment
+import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
 
@@ -86,6 +89,7 @@ data class NoteLineActions(
     val onChangeQuantity: (index: Int, delta: Int) -> Unit,
     val onBumpEpisode: (index: Int, season: Boolean) -> Unit,
     val onRemoveDateSuffix: (Int) -> Unit,
+    val onCommentIngredient: (index: Int, comment: String) -> Unit,
     val onToggleLineMarker: (index: Int, marker: String) -> Unit,
     val onToggleTitleLine: (Int) -> Unit,
     val onEnterEditAt: (offset: Int) -> Unit,
@@ -342,6 +346,19 @@ private fun NoteLine(
     var textLayout by remember { mutableStateOf<TextLayoutResult?>(null) }
     // The line's own coordinates, to turn a pointer position into a window one for the auto scroll.
     var coords by remember { mutableStateOf<LayoutCoordinates?>(null) }
+    var commenting by remember { mutableStateOf(false) }
+    if (commenting) {
+        CommentDialog(
+            name = line.courseItemName(),
+            initial = ingredientComment(line),
+            onDismiss = { commenting = false },
+            onSave = { comment ->
+                commenting = false
+                actions.onCommentIngredient(lineIndex, comment)
+                onDeselect()
+            }
+        )
+    }
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -519,6 +536,7 @@ private fun NoteLine(
                                 actions.onMoveToCourses(lineIndex)
                                 onDeselect()
                             }
+                            LineIconButton(Icons.Outlined.ChatBubbleOutline, "Comment") { commenting = true }
                         }
                         LineIconButton(Icons.Default.Delete, "Delete the line") {
                             actions.onDeleteLine(lineIndex)

@@ -312,6 +312,7 @@ fun NoteEditorScreen(
                             onChangeQuantity = lineEdits::changeQuantity,
                             onBumpEpisode = lineEdits::bumpEpisode,
                             onRemoveDateSuffix = lineEdits::removeDateSuffix,
+                            onCommentIngredient = lineEdits::commentIngredient,
                             onToggleLineMarker = lineEdits::toggleLineMarker,
                             onToggleTitleLine = lineEdits::toggleTitleLine,
                             onEnterEditAt = { state.enterEditAt(it) },
@@ -429,6 +430,7 @@ private fun NoteEditorDialogs(
                 onMapExisting = { sync.reconcileMapExisting(it) },
                 onSkip = { sync.reconcileSkip() },
                 skipLabel = if (current.sourceLine != null) "Delete" else "Ignore",
+                foodOnly = batch.kind == SyncKind.INGREDIENT && current.sourceLine == null,
                 onDismiss = { sync.dismissBatch() }
             )
         }
