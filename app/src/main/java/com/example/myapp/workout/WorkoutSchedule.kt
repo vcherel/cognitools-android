@@ -30,8 +30,9 @@ fun nextSlotAfter(now: LocalDateTime, times: ReminderTimes): LocalDateTime {
     return if (today.isAfter(now)) today else slotOn(now.toLocalDate().plusDays(1), times)
 }
 
-fun reminderAfterSession(now: LocalDateTime, times: ReminderTimes): LocalDateTime =
-    slotOn(now.toLocalDate().plusDays(RECOVERY_DAYS + 1), times)
+/** A session given up earns one recovery day less. */
+fun reminderAfterSession(now: LocalDateTime, times: ReminderTimes, gaveUp: Boolean = false): LocalDateTime =
+    slotOn(now.toLocalDate().plusDays(RECOVERY_DAYS + 1 - if (gaveUp) 1 else 0), times)
 
 /** How long the "Dans 1 h" snooze puts the reminder off. */
 const val SNOOZE_MINUTES = 60L

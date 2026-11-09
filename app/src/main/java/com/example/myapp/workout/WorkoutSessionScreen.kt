@@ -187,7 +187,7 @@ fun WorkoutSessionScreen(onBack: () -> Unit) {
         val xp = current.loggedXp(shownProgram)
         val record = SessionRecord(now, now - current.startedAt, partialKey(current.programKey), current.exerciseSets(shownProgram))
         scope.launch {
-            WorkoutStore.finish(context, xp, record)
+            WorkoutStore.finish(context, xp, record, gaveUp = true)
             onBack()
             AppSnackbar.show("Session saved, +$xp XP")
         }

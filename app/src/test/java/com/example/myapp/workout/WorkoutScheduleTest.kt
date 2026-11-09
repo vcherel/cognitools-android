@@ -30,6 +30,7 @@ class WorkoutScheduleTest {
     @Test
     fun `a session on Monday leaves Tuesday and Wednesday off`() {
         assertEquals(at(29, 19, 30), reminderAfterSession(at(26, 20), times))
+        assertEquals(at(28, 19, 30), reminderAfterSession(at(26, 20), times, gaveUp = true))
         assertEquals(LocalDateTime.of(2026, 11, 1, 15, 0), reminderAfterSession(at(29, 20), times))
     }
 

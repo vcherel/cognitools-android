@@ -91,11 +91,11 @@ object WorkoutReminder {
 
     fun state(context: Context): Flow<WorkoutState> = context.workoutDataStore.data.map { it.toState() }
 
-    suspend fun markDone(context: Context) {
+    suspend fun markDone(context: Context, gaveUp: Boolean = false) {
         val now = LocalDateTime.now()
         update(context) {
             it.copy(
-                remindAt = reminderAfterSession(now, it.times).toMillis(),
+                remindAt = reminderAfterSession(now, it.times, gaveUp).toMillis(),
                 sessions = listOf(now.toMillis()) + it.sessions
             )
         }

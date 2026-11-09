@@ -31,14 +31,14 @@ object WorkoutStore {
 
     /**
      * Adds the session's XP and time, and logs it as done, which moves the reminder past the
-     * recovery days.
+     * recovery days (one less for a session given up).
      */
-    suspend fun finish(context: Context, xp: Int, record: SessionRecord) {
+    suspend fun finish(context: Context, xp: Int, record: SessionRecord, gaveUp: Boolean = false) {
         context.workoutDataStore.edit {
             it[XP] = (it[XP] ?: 0) + xp
             it[RECORDS] = recordsToJson(recordsFromJson(it[RECORDS]) + record)
         }
-        WorkoutReminder.markDone(context)
+        WorkoutReminder.markDone(context, gaveUp)
         clearSession(context)
     }
 
