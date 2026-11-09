@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Dialpad
 import androidx.compose.material.icons.filled.LocalFireDepartment
+import androidx.compose.material.icons.filled.RestartAlt
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -167,6 +168,12 @@ fun WorkoutSessionScreen(onBack: () -> Unit) {
         }
     }
 
+    fun restart() {
+        val before = current
+        update(SessionProgress(System.currentTimeMillis(), shownProgram.recordKey()))
+        AppSnackbar.show("Session restarted", "Undo") { update(before) }
+    }
+
     val finishedAt = current.finishedAt
     if (finishedAt != null) {
         val best = recordProgression(allRecords, current.programKey).firstOrNull()?.totalMs
@@ -200,6 +207,7 @@ fun WorkoutSessionScreen(onBack: () -> Unit) {
                     titleWeight = true
                 ) {
                     SessionClock(current.startedAt, now)
+                    IconButton(onClick = ::restart) { Icon(Icons.Default.RestartAlt, contentDescription = "Restart session") }
                     IconButton(onClick = ::quit) { Icon(Icons.Default.Close, contentDescription = "End session") }
                 }
                 Column(

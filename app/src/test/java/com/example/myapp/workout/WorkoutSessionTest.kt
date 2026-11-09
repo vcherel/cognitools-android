@@ -126,9 +126,10 @@ class WorkoutSessionTest {
         assertEquals(11, lastSet(records, pushUps, 2))
         assertEquals(12, bestSet(records, pushUps))
         assertNull(lastSet(records, program.exercises[2], 0))
-        assertEquals(listOf(10, 11, 12, 13), repSuggestions(11, "Max minus 2"))
-        assertEquals(listOf(14, 15, 16, 17), repSuggestions(null, "15 to 20"))
-        assertEquals(listOf(1, 2, 3), repSuggestions(1, ""))
+        assertEquals(listOf(9, 10, 11, 12), repSuggestions(11, "Max minus 2"))
+        assertEquals(listOf(13, 14, 15, 16), repSuggestions(null, "15 to 20"))
+        assertEquals(listOf(3, 4, 5, 6), repSuggestions(null, "Max minus 2"))
+        assertEquals(listOf(1, 2), repSuggestions(1, ""))
         assertEquals(records, recordsFromJson(recordsToJson(records)))
     }
 
