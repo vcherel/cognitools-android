@@ -126,12 +126,19 @@ fun bestSet(records: List<SessionRecord>, exercise: Exercise): Int? =
     exerciseHistory(records, exercise).flatMap { it.second }.maxOrNull()
 
 /**
- * The one tap counts offered for a reps exercise, the likely one third: last time, or the target's
- * first count (not the 2 of "Max minus 2"), or 5.
+ * The four one tap counts offered for a reps exercise, the likely one third: last time, or the
+ * target's count, or 5.
  */
 fun repSuggestions(last: Int?, target: String): List<Int> {
-    val base = last ?: Regex("(?<!minus )\\b\\d+").find(target)?.value?.toIntOrNull() ?: 5
-    return (base - 2..base + 1).filter { it >= 1 }
+    val base = last ?: targetCount(target) ?: 5
+    val first = (base - 2).coerceAtLeast(1)
+    return (first..first + 3).toList()
+}
+
+/** "8 to 12" counts 8, "2 pull ups, 3 slow negatives" counts 5, the 2 of "Max minus 2" counts nothing. */
+fun targetCount(target: String): Int? {
+    Regex("(\\d+) to \\d+").find(target)?.let { return it.groupValues[1].toInt() }
+    return Regex("(?<!minus )\\b\\d+").findAll(target).map { it.value.toInt() }.toList().takeIf { it.isNotEmpty() }?.sum()
 }
 
 fun SessionProgress.toJson(): String = JSONObject()
