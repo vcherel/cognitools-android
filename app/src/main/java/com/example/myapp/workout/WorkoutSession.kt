@@ -41,6 +41,13 @@ fun xpFor(round: Int, program: WorkoutProgram) = if (isBossRound(round, program)
 fun sessionXp(program: WorkoutProgram): Int =
     (0 until program.rounds).sumOf { xpFor(it, program) * program.exercises.size }
 
+/** The XP of the sets logged so far, what giving up earns. */
+fun SessionProgress.loggedXp(program: WorkoutProgram): Int =
+    sets.indices.sumOf { xpFor(it / program.exercises.size, program) }
+
+/** The record key of a session given up, which keeps its short time out of the program's records. */
+fun partialKey(key: String) = "partial:$key"
+
 /** [into] XP gathered toward the next level, out of [needed]. */
 data class Level(val level: Int, val into: Int, val needed: Int)
 

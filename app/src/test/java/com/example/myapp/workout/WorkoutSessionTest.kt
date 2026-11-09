@@ -39,6 +39,12 @@ class WorkoutSessionTest {
     }
 
     @Test
+    fun `giving up earns the XP of the sets logged, the boss ones doubled`() {
+        val sets = List(17) { 5 }
+        assertEquals(16 * 5 + 10, SessionProgress(0, "k", sets = sets).loggedXp(program))
+    }
+
+    @Test
     fun `levels take 100 more XP each`() {
         assertEquals(Level(1, 0, 200), levelOf(0))
         assertEquals(Level(2, 0, 300), levelOf(200))

@@ -21,11 +21,16 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Backspace
+import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Dialpad
+import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.LocalFireDepartment
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.RestartAlt
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -85,6 +90,7 @@ fun WorkoutSessionScreen(onBack: () -> Unit) {
     val xp by remember(context) { WorkoutStore.xp(context) }.collectAsState(initial = null)
     val records by remember(context) { WorkoutStore.records(context) }.collectAsState(initial = null)
     var progress by remember { mutableStateOf<SessionProgress?>(null) }
+    var logged by remember { mutableStateOf(listOf<SessionProgress>()) }
     var burst by remember { mutableStateOf<Burst?>(null) }
     val cues = remember(context) { Cues(context) }
     DisposableEffect(cues) { onDispose { cues.release() } }
@@ -156,29 +162,58 @@ fun WorkoutSessionScreen(onBack: () -> Unit) {
                 if (newBest) "New best" else "+${xpFor(step.round, shownProgram)} XP",
                 gold = newBest
             )
+            logged = logged + before
         }
         update(next)
+    }
+
+    fun undoSet() {
+        val before = logged.lastOrNull() ?: return
+        cues.tap()
+        logged = logged.dropLast(1)
+        update(before.copy(stepStartedAt = System.currentTimeMillis(), timerStartedAt = null))
     }
 
     fun quit() {
         scope.launch {
             WorkoutStore.clearSession(context)
             onBack()
-            AppSnackbar.show("Session ended", "Undo") { WorkoutStore.saveSession(context, current) }
+            AppSnackbar.show("Session quit", "Undo") { WorkoutStore.saveSession(context, current) }
+        }
+    }
+
+    fun giveUp() {
+        val now = System.currentTimeMillis()
+        val xp = current.loggedXp(shownProgram)
+        val record = SessionRecord(now, now - current.startedAt, partialKey(current.programKey), current.exerciseSets(shownProgram))
+        scope.launch {
+            WorkoutStore.finish(context, xp, record)
+            onBack()
+            AppSnackbar.show("Session saved, +$xp XP")
         }
     }
 
     fun restart() {
         val before = current
+        val beforeLogged = logged
+        logged = emptyList()
         update(SessionProgress(System.currentTimeMillis(), shownProgram.recordKey()))
-        AppSnackbar.show("Session restarted", "Undo") { update(before) }
+        AppSnackbar.show("Session restarted", "Undo") {
+            logged = beforeLogged
+            update(before)
+        }
     }
 
     val finishedAt = current.finishedAt
     if (finishedAt != null) {
         val best = recordProgression(allRecords, current.programKey).firstOrNull()?.totalMs
         val total = finishedAt - current.startedAt
-        VictoryContent(current, shownProgram, totalXp, cues, newRecord = best != null && total < best, onBack = onBack) {
+        VictoryContent(
+            current, shownProgram, totalXp, cues,
+            newRecord = best != null && total < best,
+            onBack = onBack,
+            onUndo = if (logged.isNotEmpty()) ::undoSet else null
+        ) {
             scope.launch {
                 WorkoutStore.finish(
                     context,
@@ -207,8 +242,32 @@ fun WorkoutSessionScreen(onBack: () -> Unit) {
                     titleWeight = true
                 ) {
                     SessionClock(current.startedAt, now)
-                    IconButton(onClick = ::restart) { Icon(Icons.Default.RestartAlt, contentDescription = "Restart session") }
-                    IconButton(onClick = ::quit) { Icon(Icons.Default.Close, contentDescription = "End session") }
+                    if (logged.isNotEmpty()) {
+                        IconButton(onClick = ::undoSet) { Icon(Icons.AutoMirrored.Filled.Undo, contentDescription = "Undo last set") }
+                    }
+                    Box {
+                        var menuOpen by remember { mutableStateOf(false) }
+                        IconButton(onClick = { menuOpen = true }) { Icon(Icons.Default.MoreVert, contentDescription = "More options") }
+                        DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                            if (current.sets.isNotEmpty()) {
+                                DropdownMenuItem(
+                                    text = { Text("Give up and rest") },
+                                    leadingIcon = { Icon(Icons.Default.Flag, contentDescription = null) },
+                                    onClick = { menuOpen = false; giveUp() }
+                                )
+                            }
+                            DropdownMenuItem(
+                                text = { Text("Restart session") },
+                                leadingIcon = { Icon(Icons.Default.RestartAlt, contentDescription = null) },
+                                onClick = { menuOpen = false; restart() }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Quit session") },
+                                leadingIcon = { Icon(Icons.Default.Close, contentDescription = null) },
+                                onClick = { menuOpen = false; quit() }
+                            )
+                        }
+                    }
                 }
                 Column(
                     Modifier.fillMaxSize().padding(horizontal = 20.dp).padding(top = 8.dp, bottom = 28.dp),
@@ -587,6 +646,7 @@ private fun VictoryContent(
     cues: Cues,
     newRecord: Boolean,
     onBack: () -> Unit,
+    onUndo: (() -> Unit)?,
     onFinish: () -> Unit
 ) {
     val gain = sessionXp(program)
@@ -605,7 +665,9 @@ private fun VictoryContent(
 
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
-            ScreenTopBar(title = "Workout", onBack = onBack)
+            ScreenTopBar(title = "Workout", onBack = onBack) {
+                onUndo?.let { IconButton(onClick = it) { Icon(Icons.AutoMirrored.Filled.Undo, contentDescription = "Undo last set") } }
+            }
             Column(
                 Modifier.fillMaxSize().padding(horizontal = 20.dp).padding(top = 8.dp, bottom = 28.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically)
