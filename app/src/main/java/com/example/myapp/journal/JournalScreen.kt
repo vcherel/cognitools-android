@@ -425,6 +425,9 @@ private fun JournalItemCard(
             if (expanded && item.image.isNotBlank()) {
                 ItemPicture(item.image, Modifier.padding(top = 8.dp, end = 8.dp).fillMaxWidth().heightIn(max = 240.dp))
             }
+            if (expanded && item.diagram.isNotBlank()) {
+                ItemPicture(item.diagram, Modifier.padding(top = 8.dp, end = 8.dp).fillMaxWidth(), ContentScale.FillWidth)
+            }
             if (expanded && item.body.isNotBlank()) {
                 Spacer(Modifier.height(8.dp))
                 Text(remember(item.body) { item.body.formatInline() }, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(end = 8.dp))
@@ -502,15 +505,15 @@ private fun JournalItemCard(
     }
 }
 
-/** An item's picture, cropped to [modifier]'s size, gone altogether when it fails to load. */
+/** An item's picture, cropped to [modifier]'s size unless [scale] says otherwise, gone altogether when it fails to load. */
 @Composable
-private fun ItemPicture(url: String, modifier: Modifier) {
+private fun ItemPicture(url: String, modifier: Modifier, scale: ContentScale = ContentScale.Crop) {
     var failed by remember(url) { mutableStateOf(false) }
     if (failed) return
     AsyncImage(
         model = url,
         contentDescription = null,
-        contentScale = ContentScale.Crop,
+        contentScale = scale,
         onError = { failed = true },
         modifier = modifier.clip(RoundedCornerShape(8.dp))
     )

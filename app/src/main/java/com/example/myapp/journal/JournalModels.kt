@@ -20,6 +20,8 @@ data class JournalItem(
     val subject: String,
     /** An https picture URL, blank when the item has none. */
     val image: String,
+    /** A schema the laptop drew for the item, as a PNG data URI, blank when it has none. */
+    val diagram: String,
     val sources: List<JournalSource>
 )
 
@@ -103,6 +105,7 @@ fun parseIssue(raw: String): JournalIssue {
                         todoLine = item.optString("todo_line"),
                         subject = item.optString("subject"),
                         image = item.optString("image"),
+                        diagram = item.optString("diagram"),
                         sources = item.getJSONArray("sources").objects().map {
                             JournalSource(it.optString("name"), it.getString("url"))
                         }
