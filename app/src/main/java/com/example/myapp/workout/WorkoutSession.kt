@@ -2,6 +2,8 @@ package com.example.myapp.workout
 
 import org.json.JSONArray
 import org.json.JSONObject
+import kotlin.math.roundToInt
+import kotlin.random.Random
 
 /** One screen of a session: an exercise card, or the rest before [next]. */
 sealed interface SessionStep {
@@ -38,12 +40,26 @@ const val XP_PER_EXERCISE = 5
 
 fun xpFor(round: Int, program: WorkoutProgram) = if (isBossRound(round, program)) XP_PER_EXERCISE * 2 else XP_PER_EXERCISE
 
-fun sessionXp(program: WorkoutProgram): Int =
-    (0 until program.rounds).sumOf { xpFor(it, program) * program.exercises.size }
+/** About one set in eight is a critical, worth double. */
+const val CRITICAL_ODDS = 8
 
-/** The XP of the sets logged so far, what giving up earns. */
-fun SessionProgress.loggedXp(program: WorkoutProgram): Int =
-    sets.indices.sumOf { xpFor(it / program.exercises.size, program) }
+data class SetXp(val xp: Int, val critical: Boolean)
+
+/**
+ * How [value] compares to [last] scales [base]: each percent above or below last time moves the XP
+ * two percents, kept between 0.4 and 1.6 times; then a random spread of 0.8 to 1.25 times, and the
+ * odd critical.
+ */
+fun setXp(base: Int, value: Int, last: Int?, random: Random = Random): SetXp {
+    val performance = if (last == null || last <= 0) 1.0 else (1 + 2.0 * (value - last) / last).coerceIn(0.4, 1.6)
+    val spread = 0.8 + random.nextDouble() * 0.45
+    val critical = random.nextInt(CRITICAL_ODDS) == 0
+    val xp = (base * performance * spread * if (critical) 2 else 1).roundToInt().coerceAtLeast(1)
+    return SetXp(xp, critical)
+}
+
+/** The XP of the sets logged so far: what giving up earns, and the whole session's once finished. */
+fun SessionProgress.loggedXp(): Int = xp.sum()
 
 /** The record key of a session given up, which keeps its short time out of the program's records. */
 fun partialKey(key: String) = "partial:$key"
@@ -78,8 +94,8 @@ fun bossName(level: Int) = BOSSES[(level - 1).mod(BOSSES.size)]
  * drives the rest countdown from the wall clock, [timerStartedAt] the timed exercise once its Start
  * is tapped; [extraRest] is what +15 s added to the current rest; [roundEnds] holds when each
  * finished round ended; [sets] holds what each finished exercise scored, in slot order (reps, or
- * the hold in ms for a timed one); [programKey] is the [recordKey] of the program it runs, so an
- * edited program starts a new session.
+ * the hold in ms for a timed one) and [xp] the XP each earned; [programKey] is the [recordKey] of
+ * the program it runs, so an edited program starts a new session.
  */
 data class SessionProgress(
     val startedAt: Long,
@@ -90,20 +106,23 @@ data class SessionProgress(
     val extraRest: Int = 0,
     val roundEnds: List<Long> = emptyList(),
     val sets: List<Int> = emptyList(),
+    val xp: List<Int> = emptyList(),
     val finishedAt: Long? = null
 )
 
-/** The progress once the current step is cleared at [now], an exercise scoring [value]: the next step, or the end. */
-fun SessionProgress.advance(steps: List<SessionStep>, now: Long, value: Int = 0): SessionProgress {
+/** The progress once the current step is cleared at [now], an exercise scoring [value] for [gained] XP: the next step, or the end. */
+fun SessionProgress.advance(steps: List<SessionStep>, now: Long, value: Int = 0, gained: Int = 0): SessionProgress {
     val current = steps[step]
     val next = step + 1
     val roundOver = next == steps.size || steps[next].round != current.round
     val ends = if (roundOver && current is SessionStep.Work) roundEnds + now else roundEnds
-    val scored = if (current is SessionStep.Work) sets + value else sets
+    val work = current is SessionStep.Work
+    val scored = if (work) sets + value else sets
+    val earned = if (work) xp + gained else xp
     return if (next == steps.size) {
-        copy(roundEnds = ends, sets = scored, finishedAt = now)
+        copy(roundEnds = ends, sets = scored, xp = earned, finishedAt = now)
     } else {
-        copy(step = next, stepStartedAt = now, timerStartedAt = null, extraRest = 0, roundEnds = ends, sets = scored)
+        copy(step = next, stepStartedAt = now, timerStartedAt = null, extraRest = 0, roundEnds = ends, sets = scored, xp = earned)
     }
 }
 
@@ -156,6 +175,7 @@ fun SessionProgress.toJson(): String = JSONObject()
     .put("extraRest", extraRest)
     .put("roundEnds", JSONArray(roundEnds))
     .put("sets", JSONArray(sets))
+    .put("xp", JSONArray(xp))
     .apply { timerStartedAt?.let { put("timerStartedAt", it) } }
     .apply { finishedAt?.let { put("finishedAt", it) } }
     .toString()
@@ -164,6 +184,7 @@ fun sessionFromJson(text: String): SessionProgress? = runCatching {
     val o = JSONObject(text)
     val ends = o.getJSONArray("roundEnds")
     val sets = o.optJSONArray("sets") ?: JSONArray()
+    val xp = o.optJSONArray("xp") ?: JSONArray()
     SessionProgress(
         startedAt = o.getLong("startedAt"),
         programKey = o.getString("programKey"),
@@ -173,6 +194,7 @@ fun sessionFromJson(text: String): SessionProgress? = runCatching {
         extraRest = o.getInt("extraRest"),
         roundEnds = (0 until ends.length()).map { ends.getLong(it) },
         sets = (0 until sets.length()).map { sets.getInt(it) },
+        xp = (0 until xp.length()).map { xp.getInt(it) },
         finishedAt = if (o.has("finishedAt")) o.getLong("finishedAt") else null
     )
 }.getOrNull()

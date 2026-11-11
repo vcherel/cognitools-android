@@ -4,6 +4,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import kotlin.random.Random
 
 class WorkoutSessionTest {
     private val program = WorkoutProgram.DEFAULT
@@ -34,14 +35,42 @@ class WorkoutSessionTest {
     }
 
     @Test
-    fun `a session is worth 160 XP with the boss doubled`() {
-        assertEquals(160, sessionXp(program))
+    fun `the boss round's sets are worth double`() {
+        assertEquals(listOf(5, 5, 10), (0..2).map { xpFor(it, program) })
     }
 
     @Test
-    fun `giving up earns the XP of the sets logged, the boss ones doubled`() {
-        val sets = List(17) { 5 }
-        assertEquals(16 * 5 + 10, SessionProgress(0, "k", sets = sets).loggedXp(program))
+    fun `a set's XP follows how it compares to last time`() {
+        fun average(value: Int, last: Int?): Double {
+            val random = Random(1)
+            return List(4000) { setXp(10, value, last, random).xp }.average()
+        }
+        val same = average(10, 10)
+        assertTrue(average(12, 10) > same * 1.3)
+        assertTrue(average(7, 10) < same * 0.6)
+        assertEquals(same, average(10, null), 0.5)
+        assertEquals(average(30, 10), average(16, 10), 0.5)
+    }
+
+    @Test
+    fun `set XP spreads, about one in eight is a critical, and never drops to zero`() {
+        val random = Random(2)
+        val rolls = List(8000) { setXp(5, 1, 10, random) }
+        assertTrue(rolls.all { it.xp >= 1 })
+        assertTrue(rolls.count { it.critical } in 800..1200)
+        val plain = List(2000) { setXp(10, 10, 10, random) }.filterNot { it.critical }.map { it.xp }
+        assertEquals((8..12).toSet(), plain.toSet())
+    }
+
+    @Test
+    fun `the logged XP is what each set earned`() {
+        var progress = SessionProgress(0, program.recordKey())
+        progress = progress.advance(steps, 1, 12, 7)
+        progress = progress.advance(steps, 2)
+        progress = progress.advance(steps, 3, 9, 4)
+        assertEquals(listOf(7, 4), progress.xp)
+        assertEquals(11, progress.loggedXp())
+        assertEquals(progress, sessionFromJson(progress.toJson()))
     }
 
     @Test

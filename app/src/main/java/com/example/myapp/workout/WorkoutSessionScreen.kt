@@ -146,24 +146,34 @@ fun WorkoutSessionScreen(onBack: () -> Unit) {
     fun advance(value: Int = 0) {
         val before = current
         val step = steps[before.step]
-        val next = before.advance(steps, System.currentTimeMillis(), value)
-        if (step is SessionStep.Work) {
-            val best = setContext(step).best
-            val newBest = best != null && value > best
-            val boss = isBossRound(step.round, shownProgram)
-            when {
-                newBest -> cues.best()
-                next.roundEnds.size > before.roundEnds.size -> cues.round()
-                boss -> cues.strike()
-                else -> cues.set()
-            }
-            burst = Burst(
-                System.nanoTime(),
-                if (newBest) "New best" else "+${xpFor(step.round, shownProgram)} XP",
-                gold = newBest
-            )
-            logged = logged + before
+        if (step !is SessionStep.Work) {
+            update(before.advance(steps, System.currentTimeMillis()))
+            return
         }
+        val set = setContext(step)
+        val gained = setXp(xpFor(step.round, shownProgram), value, set.last)
+        val next = before.advance(steps, System.currentTimeMillis(), value, gained.xp)
+        val newBest = set.best != null && value > set.best
+        val boss = isBossRound(step.round, shownProgram)
+        when {
+            gained.critical -> cues.critical()
+            newBest -> cues.best()
+            next.roundEnds.size > before.roundEnds.size -> cues.round()
+            boss -> cues.strike()
+            else -> cues.set()
+        }
+        val xpLine = "+${gained.xp} XP"
+        burst = Burst(
+            System.nanoTime(),
+            when {
+                newBest && gained.critical -> "New best\nCritical $xpLine"
+                newBest -> "New best\n$xpLine"
+                gained.critical -> "Critical\n$xpLine"
+                else -> xpLine
+            },
+            gold = newBest || gained.critical
+        )
+        logged = logged + before
         update(next)
     }
 
@@ -184,7 +194,7 @@ fun WorkoutSessionScreen(onBack: () -> Unit) {
 
     fun giveUp() {
         val now = System.currentTimeMillis()
-        val xp = current.loggedXp(shownProgram)
+        val xp = current.loggedXp()
         val record = SessionRecord(now, now - current.startedAt, partialKey(current.programKey), current.exerciseSets(shownProgram))
         scope.launch {
             WorkoutStore.finish(context, xp, record, gaveUp = true)
@@ -217,7 +227,7 @@ fun WorkoutSessionScreen(onBack: () -> Unit) {
             scope.launch {
                 WorkoutStore.finish(
                     context,
-                    sessionXp(shownProgram),
+                    current.loggedXp(),
                     SessionRecord(finishedAt, total, current.programKey, current.exerciseSets(shownProgram))
                 )
                 onBack()
@@ -478,7 +488,6 @@ private fun ColumnScope.WorkContent(
 
     if (padOpen) {
         NumberPadDialog(
-            initial = set.last,
             cues = cues,
             onDismiss = { padOpen = false },
             onConfirm = {
@@ -558,8 +567,8 @@ private fun Ring(fraction: Float, color: Color, label: String, sub: String?) {
 
 /** Any other count, typed on big digit keys. */
 @Composable
-private fun NumberPadDialog(initial: Int?, cues: Cues, onDismiss: () -> Unit, onConfirm: (Int) -> Unit) {
-    var digits by remember { mutableStateOf(initial?.toString().orEmpty()) }
+private fun NumberPadDialog(cues: Cues, onDismiss: () -> Unit, onConfirm: (Int) -> Unit) {
+    var digits by remember { mutableStateOf("") }
     val value = digits.toIntOrNull() ?: 0
     AppDialog(onDismiss = onDismiss) {
         Text(
@@ -649,7 +658,7 @@ private fun VictoryContent(
     onUndo: (() -> Unit)?,
     onFinish: () -> Unit
 ) {
-    val gain = sessionXp(program)
+    val gain = progress.loggedXp()
     val after = levelOf(totalXp + gain)
     val before = levelOf(totalXp)
     val levelUp = after.level > before.level

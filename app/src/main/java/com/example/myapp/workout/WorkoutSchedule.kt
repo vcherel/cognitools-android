@@ -1,5 +1,6 @@
 package com.example.myapp.workout
 
+import com.example.myapp.calendar.publicHolidays
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -19,10 +20,12 @@ const val RECOVERY_DAYS = 2L
 /** From this many days without a session, the reminder says how long it has been. */
 const val LONG_BREAK_DAYS = 4L
 
-fun LocalDate.isWeekend() = dayOfWeek == DayOfWeek.SATURDAY || dayOfWeek == DayOfWeek.SUNDAY
+/** A French public holiday reminds at the weekend time too. */
+fun LocalDate.isDayOff() =
+    dayOfWeek == DayOfWeek.SATURDAY || dayOfWeek == DayOfWeek.SUNDAY || this in publicHolidays(year)
 
 fun slotOn(date: LocalDate, times: ReminderTimes): LocalDateTime =
-    date.atTime(if (date.isWeekend()) times.weekend else times.weekday)
+    date.atTime(if (date.isDayOff()) times.weekend else times.weekday)
 
 /** Today's slot while it is still ahead, tomorrow's otherwise. */
 fun nextSlotAfter(now: LocalDateTime, times: ReminderTimes): LocalDateTime {

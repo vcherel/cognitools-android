@@ -22,6 +22,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.myapp.LocalToolAccent
@@ -67,6 +68,8 @@ internal fun BurstOverlay(burst: Burst) {
             fontSize = if (burst.gold) 40.sp else 32.sp,
             fontWeight = FontWeight.Black,
             color = if (burst.gold) Gold else accent,
+            textAlign = TextAlign.Center,
+            lineHeight = if (burst.gold) 44.sp else 36.sp,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .padding(bottom = 130.dp)

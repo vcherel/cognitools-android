@@ -63,7 +63,11 @@ private val GO = listOf(note(0, 160, G6, 0.4f))
 private val SET = listOf(note(0, 80, G5), note(70, 160, D6))
 private val BEST = listOf(note(0, 80, C6), note(65, 80, E6), note(130, 80, G6), note(195, 320, C7, 0.4f))
 private val STRIKE = listOf(Voice(0, 90, 0f, gain = 0.35f, noise = true), Voice(0, 180, 260f, 70f, 0.7f), note(60, 140, D6, 0.25f))
-private val ROUND = listOf(note(0, 120, C5), note(90, 120, E5), note(180, 120, G5), note(270, 420, C6))
+private val CRITICAL = listOf(
+    Voice(0, 90, 0f, gain = 0.35f, noise = true), Voice(0, 180, 260f, 70f, 0.7f),
+    note(80, 70, G6, 0.35f), note(140, 70, C7, 0.35f), note(200, 70, G6, 0.35f), note(260, 300, C7, 0.4f)
+)
+private val ROUND =listOf(note(0, 120, C5), note(90, 120, E5), note(180, 120, G5), note(270, 420, C6))
 private val END = listOf(note(0, 130, 880f), note(220, 260, 880f))
 private val VICTORY = listOf(
     note(0, 110, C5), note(100, 110, E5), note(200, 110, G5), note(300, 160, C6),
@@ -105,6 +109,7 @@ class Cues(context: Context) {
     private val setSound = track(SET)
     private val bestSound = track(BEST)
     private val strikeSound = track(STRIKE)
+    private val criticalSound = track(CRITICAL)
     private val roundSound = track(ROUND)
     private val endSound = track(END)
     private val victorySound = track(VICTORY)
@@ -150,6 +155,12 @@ class Cues(context: Context) {
     fun strike() {
         buzz(90)
         strikeSound.fire()
+    }
+
+    /** A set that rolled double XP. */
+    fun critical() {
+        buzz(90, 50, 40, 40, 40, 40, 160)
+        criticalSound.fire()
     }
 
     fun round() {
