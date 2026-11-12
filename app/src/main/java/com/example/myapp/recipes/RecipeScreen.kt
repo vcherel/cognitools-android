@@ -64,6 +64,7 @@ import com.example.myapp.AddItemRow
 import com.example.myapp.AppDialog
 import com.example.myapp.AppSnackbar
 import com.example.myapp.ErrorText
+import com.example.myapp.LightIconButton
 import com.example.myapp.MyButton
 import com.example.myapp.ScreenTopBar
 import com.example.myapp.deaccented
@@ -247,7 +248,8 @@ fun RecipeScreen(onBack: () -> Unit) {
                         val parts = listOfNotNull(
                             "comment sent".takeIf { feedback.isNotBlank() },
                             "${delete.size} removed".takeIf { delete.isNotEmpty() },
-                            "${comments.size} commented".takeIf { comments.isNotEmpty() },
+                            comments.count { it.value.isNotBlank() }.takeIf { it > 0 }?.let { "$it commented" },
+                            comments.count { it.value.isBlank() }.takeIf { it > 0 }?.let { "$it comment${plural(it)} removed" },
                             "${groceries.size} added to Courses".takeIf { groceries.isNotEmpty() }
                         )
                         AppSnackbar.show(parts.joinToString(", ").replaceFirstChar { it.uppercase() }, "Undo") { repo.undo(undo) }
@@ -375,7 +377,7 @@ fun CommentDialog(name: String, initial: String, onDismiss: () -> Unit, onSave: 
 
 /**
  * One row per ingredient used, the recipe's own plus any added from Ingrédients: its name or Comment
- * opens the comment it gets in parentheses there, Delete takes it out, Groceries also puts it on
+ * opens the comment it gets in parentheses there (shown under the name, its cross clearing it), Delete takes it out, Groceries also puts it on
  * Courses (and implies Delete unless it is kept with a comment). The recipe comment below goes to the
  * laptop's `/recipes` skill.
  */
@@ -396,6 +398,8 @@ private fun CookedDialog(
     var picking by remember { mutableStateOf(false) }
     var commenting by remember { mutableStateOf<String?>(null) }
     val rows = used + extras
+    fun commentOf(name: String) = comments[name] ?: currentComments[name.itemKey()].orEmpty()
+    fun keptWithComment(name: String) = !comments[name].isNullOrBlank()
     AppDialog(onDismiss = onDismiss) {
         Text("Cooked: ${recipe.title}", style = MaterialTheme.typography.titleMedium)
         Spacer(Modifier.height(12.dp))
@@ -407,16 +411,31 @@ private fun CookedDialog(
         }
         Column(Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState())) {
             rows.forEach { name ->
+                val comment = commentOf(name)
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f).clickable { commenting = name }.padding(vertical = 4.dp)) {
                         Text(name, style = MaterialTheme.typography.bodyLarge)
-                        comments[name]?.takeIf { it.isNotBlank() }?.let { comment ->
-                            Text("($comment)", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        if (comment.isNotBlank()) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    "($comment)",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.weight(1f, fill = false)
+                                )
+                                LightIconButton(
+                                    icon = Icons.Filled.Close,
+                                    contentDescription = "Remove comment",
+                                    size = 28.dp,
+                                    iconSize = 16.dp,
+                                    onClick = { comments[name] = "" }
+                                )
+                            }
                         }
                     }
                     Box(Modifier.width(COLUMN_WIDTH), contentAlignment = Alignment.Center) {
                         IconButton(onClick = { commenting = name }) {
-                            if (comments[name].isNullOrBlank()) {
+                            if (comment.isBlank()) {
                                 Icon(Icons.Outlined.ChatBubbleOutline, contentDescription = "Comment")
                             } else {
                                 Icon(Icons.Filled.ChatBubble, contentDescription = "Comment", tint = MaterialTheme.colorScheme.primary)
@@ -427,13 +446,13 @@ private fun CookedDialog(
                         Checkbox(checked = delete[name] == true, onCheckedChange = { checked ->
                             delete[name] = checked
                             if (checked) comments.remove(name)
-                            else if (name !in comments) groceries[name] = false
+                            else if (!keptWithComment(name)) groceries[name] = false
                         })
                     }
                     Box(Modifier.width(COLUMN_WIDTH), contentAlignment = Alignment.Center) {
                         Checkbox(checked = groceries[name] == true, onCheckedChange = { checked ->
                             groceries[name] = checked
-                            if (checked && name !in comments) delete[name] = true
+                            if (checked && !keptWithComment(name)) delete[name] = true
                         })
                     }
                 }
@@ -465,7 +484,7 @@ private fun CookedDialog(
     commenting?.let { name ->
         CommentDialog(
             name = name,
-            initial = comments[name] ?: currentComments[name.itemKey()].orEmpty(),
+            initial = commentOf(name),
             onDismiss = { commenting = null },
             onSave = { comment ->
                 commenting = null
