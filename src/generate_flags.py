@@ -17,6 +17,7 @@ SEED_PATH = ASSETS / "seed_flags.json"
 LIST_ID = "builtin-flags-v1"
 STATES_SEED_PATH = ASSETS / "seed_state_flags.json"
 STATES_LIST_ID = "builtin-state-flags-v1"
+GRID_DIR = Path("mockups/flag_grid")
 
 NOT_COUNTRIES = {"eu", "un"}
 # Australia's flag in a slightly different blue, so the duplicate check below misses it.
@@ -346,12 +347,52 @@ def sheet(codes):
     print(path, flush=True)
 
 
+def grid(codes):
+    """The w640 flags under a 20 px grid, labelled every 100 px, to read NAME_BOXES and NAME_RINGS off."""
+    GRID_DIR.mkdir(parents=True, exist_ok=True)
+    for i, code in enumerate(codes, 1):
+        image = flagcdn(code, 640).convert("RGB")
+        draw = ImageDraw.Draw(image)
+        for x in range(0, image.width, 20):
+            draw.line((x, 0, x, image.height), fill=(0, 255, 0) if x % 100 == 0 else (120, 255, 120))
+            if x % 100 == 0:
+                draw.text((x + 2, 2), str(x), fill="black")
+        for y in range(0, image.height, 20):
+            draw.line((0, y, image.width, y), fill=(0, 255, 0) if y % 100 == 0 else (120, 255, 120))
+            if y % 100 == 0:
+                draw.text((2, y + 2), str(y), fill="black")
+        path = GRID_DIR / f"{code}.png"
+        image.save(path)
+        print(f"{i}/{len(codes)} {path.resolve()} {image.width}x{image.height}", flush=True)
+
+
+def colors(code, points):
+    """The hex color of the w640 flag at each x,y point, the background and ink a name box needs."""
+    image = flagcdn(code, 640).convert("RGB")
+    for point in points:
+        x, y = (int(v) for v in point.split(","))
+        r, g, b = image.getpixel((x, y))
+        print(f"{code} {point} #{r:02x}{g:02x}{b:02x}", flush=True)
+
+
 def main():
     parser = argparse.ArgumentParser(description="Build the Drapeaux flashcards list from flagcdn.")
     parser.add_argument("--sheet", nargs="+", metavar="CODE", help="only render these flags side by side")
     parser.add_argument("--write", nargs="+", metavar="CODE", help="only write these flags' pictures")
     parser.add_argument("--states", action="store_true", help="only build the US state flags list")
+    parser.add_argument(
+        "--grid", nargs="+", metavar="CODE", help="only save these flags under a measuring grid"
+    )
+    parser.add_argument(
+        "--colors", nargs="+", metavar="ARG", help="only print the colors of a flag (first) at x,y points"
+    )
     args = parser.parse_args()
+    if args.grid:
+        grid(args.grid)
+        return
+    if args.colors:
+        colors(args.colors[0], args.colors[1:])
+        return
     if args.states:
         build_states()
         return
