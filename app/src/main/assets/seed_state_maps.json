@@ -1,0 +1,463 @@
+{
+ "version": 1,
+ "lists": [
+  {
+   "id": "builtin-state-maps-v1",
+   "name": "États-Unis (carte)",
+   "order": 8,
+   "fixedSide": true
+  }
+ ],
+ "cards": [
+  {
+   "id": "statemap-al",
+   "listId": "builtin-state-maps-v1",
+   "name": "",
+   "definition": "Alabama",
+   "image": "asset:maps/state-al.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "statemap-ak",
+   "listId": "builtin-state-maps-v1",
+   "name": "",
+   "definition": "Alaska",
+   "image": "asset:maps/state-ak.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "statemap-az",
+   "listId": "builtin-state-maps-v1",
+   "name": "",
+   "definition": "Arizona",
+   "image": "asset:maps/state-az.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "statemap-ar",
+   "listId": "builtin-state-maps-v1",
+   "name": "",
+   "definition": "Arkansas",
+   "image": "asset:maps/state-ar.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "statemap-ca",
+   "listId": "builtin-state-maps-v1",
+   "name": "",
+   "definition": "Californie",
+   "image": "asset:maps/state-ca.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "statemap-nc",
+   "listId": "builtin-state-maps-v1",
+   "name": "",
+   "definition": "Caroline du Nord",
+   "image": "asset:maps/state-nc.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "statemap-sc",
+   "listId": "builtin-state-maps-v1",
+   "name": "",
+   "definition": "Caroline du Sud",
+   "image": "asset:maps/state-sc.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "statemap-co",
+   "listId": "builtin-state-maps-v1",
+   "name": "",
+   "definition": "Colorado",
+   "image": "asset:maps/state-co.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "statemap-ct",
+   "listId": "builtin-state-maps-v1",
+   "name": "",
+   "definition": "Connecticut",
+   "image": "asset:maps/state-ct.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "statemap-nd",
+   "listId": "builtin-state-maps-v1",
+   "name": "",
+   "definition": "Dakota du Nord",
+   "image": "asset:maps/state-nd.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "statemap-sd",
+   "listId": "builtin-state-maps-v1",
+   "name": "",
+   "definition": "Dakota du Sud",
+   "image": "asset:maps/state-sd.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "statemap-de",
+   "listId": "builtin-state-maps-v1",
+   "name": "",
+   "definition": "Delaware",
+   "image": "asset:maps/state-de.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "statemap-fl",
+   "listId": "builtin-state-maps-v1",
+   "name": "",
+   "definition": "Floride",
+   "image": "asset:maps/state-fl.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "statemap-ga",
+   "listId": "builtin-state-maps-v1",
+   "name": "",
+   "definition": "Géorgie",
+   "image": "asset:maps/state-ga.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "statemap-hi",
+   "listId": "builtin-state-maps-v1",
+   "name": "",
+   "definition": "Hawaï",
+   "image": "asset:maps/state-hi.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "statemap-id",
+   "listId": "builtin-state-maps-v1",
+   "name": "",
+   "definition": "Idaho",
+   "image": "asset:maps/state-id.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "statemap-il",
+   "listId": "builtin-state-maps-v1",
+   "name": "",
+   "definition": "Illinois",
+   "image": "asset:maps/state-il.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "statemap-in",
+   "listId": "builtin-state-maps-v1",
+   "name": "",
+   "definition": "Indiana",
+   "image": "asset:maps/state-in.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "statemap-ia",
+   "listId": "builtin-state-maps-v1",
+   "name": "",
+   "definition": "Iowa",
+   "image": "asset:maps/state-ia.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "statemap-ks",
+   "listId": "builtin-state-maps-v1",
+   "name": "",
+   "definition": "Kansas",
+   "image": "asset:maps/state-ks.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "statemap-ky",
+   "listId": "builtin-state-maps-v1",
+   "name": "",
+   "definition": "Kentucky",
+   "image": "asset:maps/state-ky.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "statemap-la",
+   "listId": "builtin-state-maps-v1",
+   "name": "",
+   "definition": "Louisiane",
+   "image": "asset:maps/state-la.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "statemap-me",
+   "listId": "builtin-state-maps-v1",
+   "name": "",
+   "definition": "Maine",
+   "image": "asset:maps/state-me.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "statemap-md",
+   "listId": "builtin-state-maps-v1",
+   "name": "",
+   "definition": "Maryland",
+   "image": "asset:maps/state-md.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "statemap-ma",
+   "listId": "builtin-state-maps-v1",
+   "name": "",
+   "definition": "Massachusetts",
+   "image": "asset:maps/state-ma.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "statemap-mi",
+   "listId": "builtin-state-maps-v1",
+   "name": "",
+   "definition": "Michigan",
+   "image": "asset:maps/state-mi.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "statemap-mn",
+   "listId": "builtin-state-maps-v1",
+   "name": "",
+   "definition": "Minnesota",
+   "image": "asset:maps/state-mn.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "statemap-ms",
+   "listId": "builtin-state-maps-v1",
+   "name": "",
+   "definition": "Mississippi",
+   "image": "asset:maps/state-ms.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "statemap-mo",
+   "listId": "builtin-state-maps-v1",
+   "name": "",
+   "definition": "Missouri",
+   "image": "asset:maps/state-mo.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "statemap-mt",
+   "listId": "builtin-state-maps-v1",
+   "name": "",
+   "definition": "Montana",
+   "image": "asset:maps/state-mt.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "statemap-ne",
+   "listId": "builtin-state-maps-v1",
+   "name": "",
+   "definition": "Nebraska",
+   "image": "asset:maps/state-ne.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "statemap-nv",
+   "listId": "builtin-state-maps-v1",
+   "name": "",
+   "definition": "Nevada",
+   "image": "asset:maps/state-nv.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "statemap-nh",
+   "listId": "builtin-state-maps-v1",
+   "name": "",
+   "definition": "New Hampshire",
+   "image": "asset:maps/state-nh.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "statemap-nj",
+   "listId": "builtin-state-maps-v1",
+   "name": "",
+   "definition": "New Jersey",
+   "image": "asset:maps/state-nj.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "statemap-nm",
+   "listId": "builtin-state-maps-v1",
+   "name": "",
+   "definition": "Nouveau-Mexique",
+   "image": "asset:maps/state-nm.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "statemap-oh",
+   "listId": "builtin-state-maps-v1",
+   "name": "",
+   "definition": "Ohio",
+   "image": "asset:maps/state-oh.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "statemap-ok",
+   "listId": "builtin-state-maps-v1",
+   "name": "",
+   "definition": "Oklahoma",
+   "image": "asset:maps/state-ok.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "statemap-or",
+   "listId": "builtin-state-maps-v1",
+   "name": "",
+   "definition": "Oregon",
+   "image": "asset:maps/state-or.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "statemap-pa",
+   "listId": "builtin-state-maps-v1",
+   "name": "",
+   "definition": "Pennsylvanie",
+   "image": "asset:maps/state-pa.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "statemap-ri",
+   "listId": "builtin-state-maps-v1",
+   "name": "",
+   "definition": "Rhode Island",
+   "image": "asset:maps/state-ri.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "statemap-tn",
+   "listId": "builtin-state-maps-v1",
+   "name": "",
+   "definition": "Tennessee",
+   "image": "asset:maps/state-tn.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "statemap-tx",
+   "listId": "builtin-state-maps-v1",
+   "name": "",
+   "definition": "Texas",
+   "image": "asset:maps/state-tx.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "statemap-ut",
+   "listId": "builtin-state-maps-v1",
+   "name": "",
+   "definition": "Utah",
+   "image": "asset:maps/state-ut.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "statemap-vt",
+   "listId": "builtin-state-maps-v1",
+   "name": "",
+   "definition": "Vermont",
+   "image": "asset:maps/state-vt.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "statemap-va",
+   "listId": "builtin-state-maps-v1",
+   "name": "",
+   "definition": "Virginie",
+   "image": "asset:maps/state-va.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "statemap-wv",
+   "listId": "builtin-state-maps-v1",
+   "name": "",
+   "definition": "Virginie-Occidentale",
+   "image": "asset:maps/state-wv.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "statemap-wa",
+   "listId": "builtin-state-maps-v1",
+   "name": "",
+   "definition": "Washington",
+   "image": "asset:maps/state-wa.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "statemap-wi",
+   "listId": "builtin-state-maps-v1",
+   "name": "",
+   "definition": "Wisconsin",
+   "image": "asset:maps/state-wi.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "statemap-wy",
+   "listId": "builtin-state-maps-v1",
+   "name": "",
+   "definition": "Wyoming",
+   "image": "asset:maps/state-wy.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "statemap-ny",
+   "listId": "builtin-state-maps-v1",
+   "name": "",
+   "definition": "État de New York",
+   "image": "asset:maps/state-ny.webp",
+   "lastReview": 0,
+   "randomSide": false
+  }
+ ]
+}

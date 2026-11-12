@@ -23,11 +23,13 @@ COUNTRY_SEED = ASSETS / "seed_maps.json"
 DEPT_SEED = ASSETS / "seed_dept_maps.json"
 REGION_SEED = ASSETS / "seed_region_maps.json"
 ARRONDISSEMENT_SEED = ASSETS / "seed_arrondissement_maps.json"
+STATE_SEED = ASSETS / "seed_state_maps.json"
 DATA = Path("data/maps")
 SHEET_PATH = Path("mockups/maps_sheet.png")
 SOURCES = {
     "ne_10m_admin_0_map_units.zip": "https://naciscdn.org/naturalearth/10m/cultural/ne_10m_admin_0_map_units.zip",
     "ne_50m_lakes.zip": "https://naciscdn.org/naturalearth/50m/physical/ne_50m_lakes.zip",
+    "ne_50m_admin_1_states_provinces_lakes.zip": "https://naciscdn.org/naturalearth/50m/cultural/ne_50m_admin_1_states_provinces_lakes.zip",
     "departements.geojson": "https://raw.githubusercontent.com/gregoiredavid/france-geojson/master/departements-avec-outre-mer.geojson",
     "regions.geojson": "https://raw.githubusercontent.com/gregoiredavid/france-geojson/master/regions-avec-outre-mer.geojson",
     "arrondissements.geojson": "https://opendata.paris.fr/api/explore/v2.1/catalog/datasets/arrondissements/exports/geojson",
@@ -104,6 +106,9 @@ NAMES = {"af": "Afghanistan", "bq": "Pays-Bas caribéens"}
 SKIPPED_FLAGS = {"af-taliban"}
 OVERSEAS_DEPTS = {"971": "gp", "972": "mq", "973": "gf", "974": "re", "976": "yt"}
 OVERSEAS_REGIONS = {"01": "gp", "02": "mq", "03": "gf", "04": "re", "06": "yt"}
+US_DC = "us-dc"
+# Too far from the other states to share their map: shown on their atlas page, like a country.
+OWN_MAP_STATES = {"us-ak", "us-hi"}
 PARIS = (2.35, 48.86)
 PARIS_HEIGHT = 540
 
@@ -181,6 +186,15 @@ def load_french(name):
     return {
         f["properties"]["code"]: (f["properties"]["nom"], polygons(shape(f["geometry"])))
         for f in data["features"]
+    }
+
+
+def load_states():
+    """{code: (name, polygons)} of the US states and DC, coded as flagcdn does (us-ca)."""
+    return {
+        f"us-{rec['postal'].lower()}": (rec["name_fr"], polygons(geom))
+        for rec, geom in read_shapes("ne_50m_admin_1_states_provinces_lakes.zip")
+        if rec["iso_a2"] == "US"
     }
 
 
@@ -442,6 +456,32 @@ def metro_view(depts):
     return View(proj, (x0 + x1) / 2, (y0 + y1) / 2, s)
 
 
+def mainland_states(states):
+    return {code: polys for code, (_, polys) in states.items() if code not in OWN_MAP_STATES}
+
+
+def mainland_view(states):
+    proj = Laea(39, -96)
+    pts = np.concatenate(
+        [proj.forward(ext.lonlat) for polys in mainland_states(states).values() for ext, _ in polys]
+    )
+    (x0, y0), (x1, y1) = pts.min(0), pts.max(0)
+    s = max((x1 - x0) / (0.96 * W), (y1 - y0) / (0.96 * H))
+    return View(proj, (x0 + x1) / 2, (y0 + y1) / 2, s)
+
+
+def render_state(code, data):
+    """A state on the map of the 48 mainland states, Alaska and Hawaii on their atlas page."""
+    target = data["states"][code][1]
+    if code in OWN_MAP_STATES:
+        return render_country(target, data)
+    view = mainland_view(data["states"])
+    layer = mainland_states(data["states"])
+    img = draw_map(view, target, data["world"], data["lakes"], [layer]).resize((W, H), Image.LANCZOS)
+    ring_circle(img, view, box_km(target_pts(target, view.proj)))
+    return img
+
+
 def paris_view(outline_polys):
     """Paris large enough to read its arrondissements, the departments around it cut by the frame."""
     proj = Laea(PARIS[1], PARIS[0])
@@ -544,6 +584,7 @@ def load_data():
         "arrondissements": arrondissements,
         "paris": paris,
         "paris_water": load_paris_water(),
+        "states": load_states(),
     }
 
 
@@ -561,11 +602,26 @@ def is_arrondissement(code):
     return code[:1] == "a" and code[1:].isdigit()
 
 
+def is_state(code):
+    """A US state is asked for in flagcdn's form (us-ca)."""
+    return code.startswith("us-")
+
+
 def arrondissement_name(number):
     return "1er" if number == 1 else f"{number}e"
 
 
+def card_key(code):
+    if is_region(code) or is_arrondissement(code):
+        return code[1:]
+    if is_state(code):
+        return code[3:]
+    return code.lower()
+
+
 def render(code, data):
+    if is_state(code):
+        return render_state(code, data)
     if is_arrondissement(code):
         return render_arrondissement(int(code[1:]), data)
     if is_dept(code):
@@ -582,6 +638,8 @@ def image_name(code):
         return f"reg-{code[1:]}"
     if is_arrondissement(code):
         return f"arr-{code[1:]}"
+    if is_state(code):
+        return f"state-{code[3:]}"
     return code
 
 
@@ -599,15 +657,19 @@ def save(img, code):
 def list_changed(data):
     """The cards whose fresh render differs from the shipped picture, the ids RESETS needs."""
     codes = [code for codes in list_codes(data) for code in codes]
-    prefixes = (("deptmap", is_dept), ("regionmap", is_region), ("arrmap", is_arrondissement))
+    prefixes = (
+        ("deptmap", is_dept),
+        ("regionmap", is_region),
+        ("arrmap", is_arrondissement),
+        ("statemap", is_state),
+    )
     changed = []
     for i, code in enumerate(codes, 1):
         shipped = MAPS_DIR / f"{image_name(code)}.webp"
         differs = not shipped.exists() or shipped.read_bytes() != encode(render(code, data))
         if differs:
             prefix = next((p for p, test in prefixes if test(code)), "map")
-            key = code[1:] if is_region(code) or is_arrondissement(code) else code.lower()
-            changed.append(f"{prefix}-{key}")
+            changed.append(f"{prefix}-{card_key(code)}")
         print(f"{i}/{len(codes)} {code}{' changed' if differs else ''}", flush=True)
     print(" ".join(changed) or "nothing changed", flush=True)
 
@@ -651,9 +713,8 @@ def list_pages(data):
 
 
 def card(prefix, list_id, code, name):
-    key = code[1:] if is_region(code) or is_arrondissement(code) else code.lower()
     return {
-        "id": f"{prefix}-{key}",
+        "id": f"{prefix}-{card_key(code)}",
         "listId": list_id,
         "name": "",
         "definition": name,
@@ -673,7 +734,7 @@ def write_seed(path, list_id, list_name, order, cards):
 
 
 def list_codes(data):
-    """The codes of the countries, departments, regions and arrondissements, in their lists' order."""
+    """The codes of every map list (countries, departments, regions, arrondissements, US states), in order."""
     names = country_names()
     missing = sorted(code for code in names if code not in data["world"])
     if missing:
@@ -682,7 +743,8 @@ def list_codes(data):
     depts = sorted(data["depts"])
     regions = [f"r{c}" for c in sorted(data["regions"], key=lambda c: data["regions"][c][0])]
     arrondissements = [f"a{n}" for n in sorted(data["arrondissements"])]
-    return codes, depts, regions, arrondissements
+    states = sorted((c for c in data["states"] if c != US_DC), key=lambda c: data["states"][c][0])
+    return codes, depts, regions, arrondissements, states
 
 
 def build_all(data):
@@ -692,7 +754,7 @@ def build_all(data):
 
 def write_seeds(data):
     names = country_names()
-    codes, depts, regions, arrondissements = list_codes(data)
+    codes, depts, regions, arrondissements, states = list_codes(data)
     country_cards = sorted(
         (card("map", "builtin-maps-v1", c, names[c]) for c in codes), key=lambda c: c["definition"]
     )
@@ -704,6 +766,7 @@ def write_seeds(data):
         card("arrmap", "builtin-arrondissement-maps-v1", c, arrondissement_name(int(c[1:])))
         for c in arrondissements
     ]
+    state_cards = [card("statemap", "builtin-state-maps-v1", c, data["states"][c][0]) for c in states]
     write_seed(COUNTRY_SEED, "builtin-maps-v1", "Pays (carte)", 4, country_cards)
     write_seed(DEPT_SEED, "builtin-dept-maps-v1", "Départements (carte)", 5, dept_cards)
     write_seed(REGION_SEED, "builtin-region-maps-v1", "Régions (carte)", 6, region_cards)
@@ -714,9 +777,11 @@ def write_seeds(data):
         7,
         arrondissement_cards,
     )
+    write_seed(STATE_SEED, "builtin-state-maps-v1", "États-Unis (carte)", 8, state_cards)
     counts = (
         f"{len(country_cards)} countries, {len(dept_cards)} departments, "
-        f"{len(region_cards)} regions, {len(arrondissement_cards)} arrondissements"
+        f"{len(region_cards)} regions, {len(arrondissement_cards)} arrondissements, "
+        f"{len(state_cards)} states"
     )
     print(f"{counts} written", flush=True)
 

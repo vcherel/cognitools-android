@@ -1,0 +1,463 @@
+{
+ "version": 1,
+ "lists": [
+  {
+   "id": "builtin-state-flags-v1",
+   "name": "Drapeaux (États-Unis)",
+   "order": 9,
+   "fixedSide": true
+  }
+ ],
+ "cards": [
+  {
+   "id": "flag-us-al",
+   "listId": "builtin-state-flags-v1",
+   "name": "",
+   "definition": "Alabama",
+   "image": "asset:flags/us-al.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-us-ak",
+   "listId": "builtin-state-flags-v1",
+   "name": "",
+   "definition": "Alaska",
+   "image": "asset:flags/us-ak.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-us-az",
+   "listId": "builtin-state-flags-v1",
+   "name": "",
+   "definition": "Arizona",
+   "image": "asset:flags/us-az.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-us-ar",
+   "listId": "builtin-state-flags-v1",
+   "name": "",
+   "definition": "Arkansas",
+   "image": "asset:flags/us-ar.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-us-ca",
+   "listId": "builtin-state-flags-v1",
+   "name": "",
+   "definition": "Californie",
+   "image": "asset:flags/us-ca.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-us-nc",
+   "listId": "builtin-state-flags-v1",
+   "name": "",
+   "definition": "Caroline du Nord",
+   "image": "asset:flags/us-nc.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-us-sc",
+   "listId": "builtin-state-flags-v1",
+   "name": "",
+   "definition": "Caroline du Sud",
+   "image": "asset:flags/us-sc.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-us-co",
+   "listId": "builtin-state-flags-v1",
+   "name": "",
+   "definition": "Colorado",
+   "image": "asset:flags/us-co.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-us-ct",
+   "listId": "builtin-state-flags-v1",
+   "name": "",
+   "definition": "Connecticut",
+   "image": "asset:flags/us-ct.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-us-nd",
+   "listId": "builtin-state-flags-v1",
+   "name": "",
+   "definition": "Dakota du Nord",
+   "image": "asset:flags/us-nd.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-us-sd",
+   "listId": "builtin-state-flags-v1",
+   "name": "",
+   "definition": "Dakota du Sud",
+   "image": "asset:flags/us-sd.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-us-de",
+   "listId": "builtin-state-flags-v1",
+   "name": "",
+   "definition": "Delaware",
+   "image": "asset:flags/us-de.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-us-fl",
+   "listId": "builtin-state-flags-v1",
+   "name": "",
+   "definition": "Floride",
+   "image": "asset:flags/us-fl.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-us-ga",
+   "listId": "builtin-state-flags-v1",
+   "name": "",
+   "definition": "Géorgie",
+   "image": "asset:flags/us-ga.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-us-hi",
+   "listId": "builtin-state-flags-v1",
+   "name": "",
+   "definition": "Hawaï",
+   "image": "asset:flags/us-hi.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-us-id",
+   "listId": "builtin-state-flags-v1",
+   "name": "",
+   "definition": "Idaho",
+   "image": "asset:flags/us-id.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-us-il",
+   "listId": "builtin-state-flags-v1",
+   "name": "",
+   "definition": "Illinois",
+   "image": "asset:flags/us-il.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-us-in",
+   "listId": "builtin-state-flags-v1",
+   "name": "",
+   "definition": "Indiana",
+   "image": "asset:flags/us-in.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-us-ia",
+   "listId": "builtin-state-flags-v1",
+   "name": "",
+   "definition": "Iowa",
+   "image": "asset:flags/us-ia.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-us-ks",
+   "listId": "builtin-state-flags-v1",
+   "name": "",
+   "definition": "Kansas",
+   "image": "asset:flags/us-ks.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-us-ky",
+   "listId": "builtin-state-flags-v1",
+   "name": "",
+   "definition": "Kentucky",
+   "image": "asset:flags/us-ky.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-us-la",
+   "listId": "builtin-state-flags-v1",
+   "name": "",
+   "definition": "Louisiane",
+   "image": "asset:flags/us-la.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-us-me",
+   "listId": "builtin-state-flags-v1",
+   "name": "",
+   "definition": "Maine",
+   "image": "asset:flags/us-me.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-us-md",
+   "listId": "builtin-state-flags-v1",
+   "name": "",
+   "definition": "Maryland",
+   "image": "asset:flags/us-md.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-us-ma",
+   "listId": "builtin-state-flags-v1",
+   "name": "",
+   "definition": "Massachusetts",
+   "image": "asset:flags/us-ma.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-us-mi",
+   "listId": "builtin-state-flags-v1",
+   "name": "",
+   "definition": "Michigan",
+   "image": "asset:flags/us-mi.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-us-mn",
+   "listId": "builtin-state-flags-v1",
+   "name": "",
+   "definition": "Minnesota",
+   "image": "asset:flags/us-mn.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-us-ms",
+   "listId": "builtin-state-flags-v1",
+   "name": "",
+   "definition": "Mississippi",
+   "image": "asset:flags/us-ms.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-us-mo",
+   "listId": "builtin-state-flags-v1",
+   "name": "",
+   "definition": "Missouri",
+   "image": "asset:flags/us-mo.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-us-mt",
+   "listId": "builtin-state-flags-v1",
+   "name": "",
+   "definition": "Montana",
+   "image": "asset:flags/us-mt.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-us-ne",
+   "listId": "builtin-state-flags-v1",
+   "name": "",
+   "definition": "Nebraska",
+   "image": "asset:flags/us-ne.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-us-nv",
+   "listId": "builtin-state-flags-v1",
+   "name": "",
+   "definition": "Nevada",
+   "image": "asset:flags/us-nv.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-us-nh",
+   "listId": "builtin-state-flags-v1",
+   "name": "",
+   "definition": "New Hampshire",
+   "image": "asset:flags/us-nh.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-us-nj",
+   "listId": "builtin-state-flags-v1",
+   "name": "",
+   "definition": "New Jersey",
+   "image": "asset:flags/us-nj.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-us-ny",
+   "listId": "builtin-state-flags-v1",
+   "name": "",
+   "definition": "New York",
+   "image": "asset:flags/us-ny.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-us-nm",
+   "listId": "builtin-state-flags-v1",
+   "name": "",
+   "definition": "Nouveau-Mexique",
+   "image": "asset:flags/us-nm.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-us-oh",
+   "listId": "builtin-state-flags-v1",
+   "name": "",
+   "definition": "Ohio",
+   "image": "asset:flags/us-oh.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-us-ok",
+   "listId": "builtin-state-flags-v1",
+   "name": "",
+   "definition": "Oklahoma",
+   "image": "asset:flags/us-ok.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-us-or",
+   "listId": "builtin-state-flags-v1",
+   "name": "",
+   "definition": "Oregon",
+   "image": "asset:flags/us-or.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-us-pa",
+   "listId": "builtin-state-flags-v1",
+   "name": "",
+   "definition": "Pennsylvanie",
+   "image": "asset:flags/us-pa.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-us-ri",
+   "listId": "builtin-state-flags-v1",
+   "name": "",
+   "definition": "Rhode Island",
+   "image": "asset:flags/us-ri.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-us-tn",
+   "listId": "builtin-state-flags-v1",
+   "name": "",
+   "definition": "Tennessee",
+   "image": "asset:flags/us-tn.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-us-tx",
+   "listId": "builtin-state-flags-v1",
+   "name": "",
+   "definition": "Texas",
+   "image": "asset:flags/us-tx.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-us-ut",
+   "listId": "builtin-state-flags-v1",
+   "name": "",
+   "definition": "Utah",
+   "image": "asset:flags/us-ut.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-us-vt",
+   "listId": "builtin-state-flags-v1",
+   "name": "",
+   "definition": "Vermont",
+   "image": "asset:flags/us-vt.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-us-va",
+   "listId": "builtin-state-flags-v1",
+   "name": "",
+   "definition": "Virginie",
+   "image": "asset:flags/us-va.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-us-wv",
+   "listId": "builtin-state-flags-v1",
+   "name": "",
+   "definition": "Virginie-Occidentale",
+   "image": "asset:flags/us-wv.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-us-wa",
+   "listId": "builtin-state-flags-v1",
+   "name": "",
+   "definition": "Washington",
+   "image": "asset:flags/us-wa.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-us-wi",
+   "listId": "builtin-state-flags-v1",
+   "name": "",
+   "definition": "Wisconsin",
+   "image": "asset:flags/us-wi.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "flag-us-wy",
+   "listId": "builtin-state-flags-v1",
+   "name": "",
+   "definition": "Wyoming",
+   "image": "asset:flags/us-wy.webp",
+   "lastReview": 0,
+   "randomSide": false
+  }
+ ]
+}

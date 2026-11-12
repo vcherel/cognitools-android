@@ -15,6 +15,8 @@ ASSETS = Path("app/src/main/assets")
 FLAGS_DIR = ASSETS / "flags"
 SEED_PATH = ASSETS / "seed_flags.json"
 LIST_ID = "builtin-flags-v1"
+STATES_SEED_PATH = ASSETS / "seed_state_flags.json"
+STATES_LIST_ID = "builtin-state-flags-v1"
 
 NOT_COUNTRIES = {"eu", "un"}
 # Australia's flag in a slightly different blue, so the duplicate check below misses it.
@@ -47,14 +49,42 @@ NAME_BOXES = {
         ((283, 159, 314, 182), "#94dbfc", "#bd0728", 12),
         ((323, 159, 358, 182), "#94dbfc", "#bd0728", 12),
     ],
+    "us-ar": [((198, 176, 442, 218), "white", "#002868", 32)],
+    "us-ca": [((100, 288, 540, 336), "white", "#5b3c11", 40)],
+    "us-ia": [((255, 316, 385, 360), "white", "#d80025", 36)],
+    "us-ks": [((155, 300, 485, 372), "#002569", "#fcd100", 56)],
+    "us-mt": [((75, 52, 570, 118), "#002a86", "#ffd90f", 52)],
+    "us-ok": [((162, 330, 475, 380), "#0073cf", "white", 42)],
+    "us-or": [((75, 40, 565, 120), "#01017f", "#ffd90f", 40)],
+    "us-wi": [((148, 20, 492, 85), "#002986", "white", 52)],
+    "us-il": [((238, 318, 400, 346), "white", "#00205b", 22)],
+    "us-me": [((268, 348, 372, 372), "#b5d9ef", "#002664", 16)],
+    "us-nv": [((98, 140, 178, 166), "#0033ab", "#ffb81c", 12)],
+    "us-id": [((225, 380, 415, 415), "#ef1439", "#fcd100", 20)],
+    "us-wv": [((225, 60, 410, 92), "#bf0c3e", "black", 14)],
 }
 # Same for names written around a seal: center, inner and outer radius of the ring, background, ink,
 # letter height, and the arcs the text ran along (from and to angle, in degrees clockwise from
 # 3 o'clock; read clockwise the letters stand outward, read anticlockwise they stand inward).
+# A flag can carry several rings.
 NAME_RINGS = {
-    "ni": ((319.5, 213), 54.5, 67, "white", "#cfb022", 7, [(180, 375), (150, 35)]),
-    "py": ((319.5, 176), 28.6, 36.4, "white", "black", 5, [(145, 395)]),
-    "sv": ((319, 216), 57, 69, "white", "#ffc900", 9, [(112, 428)]),
+    "ni": [((319.5, 213), 54.5, 67, "white", "#cfb022", 7, [(180, 375), (150, 35)])],
+    "py": [((319.5, 176), 28.6, 36.4, "white", "black", 5, [(145, 395)])],
+    "sv": [((319, 216), 57, 69, "white", "#ffc900", 9, [(112, 428)])],
+    "us-in": [((320, 126), 50, 66, "#000f5d", "#ffc72c", 14, [(215, 325)])],
+    "us-sd": [
+        ((320, 200), 118, 152, "#0074a8", "#f8c300", 20, [(212, 332), (200, -20)]),
+        ((320, 198), 74, 92, "white", "#003a70", 9, [(215, 330)]),
+    ],
+    "us-wa": [((320, 190), 95, 120, "#ffd520", "black", 18, [(130, 410)])],
+    "us-ky": [((320, 158), 82, 102, "#000066", "#ffd100", 14, [(186, 354)])],
+    "us-ne": [((320, 190), 114, 140, "#002a86", "#c0a421", 20, [(150, 392)])],
+    "us-nh": [((320, 210), 92, 110, "#002a86", "#e2a614", 14, [(135, 405)])],
+    "us-id": [((320, 237), 74, 94, "#fcd100", "black", 16, [(200, 340), (178, 2)])],
+    "us-va": [((320, 212), 90, 112, "white", "#7a2a1d", 18, [(235, 305)])],
+    "us-wy": [((300, 188), 48, 62, "white", "#1a2a6c", 8, [(95, 445)])],
+    "us-fl": [((320, 212), 82, 100, "#ee950a", "#b1172f", 14, [(148, 392)])],
+    "us-nd": [((320, 250), 172, 208, "#a6192e", "white", 24, [(140, 50)])],
 }
 FONT = "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf"
 # Drawn this many times bigger, then scaled down, so the small letters keep smooth edges.
@@ -99,10 +129,10 @@ def extra_flag(url):
     return image
 
 
-def card(code, name):
+def card(code, name, list_id=LIST_ID):
     return {
         "id": f"flag-{code}",
-        "listId": LIST_ID,
+        "listId": list_id,
         "name": "",
         "definition": name,
         "image": f"asset:flags/{code}.webp",
@@ -162,8 +192,7 @@ def hide_name(image, code):
         text = gibberish(rng, font, 0.92 * (box[2] - box[0]) * SUPERSAMPLE, spaced=False)
         middle = (SUPERSAMPLE * (box[0] + box[2]) / 2, SUPERSAMPLE * (box[1] + box[3]) / 2 + cap / 2)
         ImageDraw.Draw(layer).text(middle, text, font=font, fill=ink, anchor="ms")
-    if code in NAME_RINGS:
-        (cx, cy), inner, outer, fill, ink, height, arcs = NAME_RINGS[code]
+    for (cx, cy), inner, outer, fill, ink, height, arcs in NAME_RINGS.get(code, []):
         mask = Image.new("L", layer.size, 0)
         draw = ImageDraw.Draw(mask)
         for start, end in arcs:
@@ -297,7 +326,7 @@ def save(image, code):
 
 def sheet(codes):
     """Shipped picture on the left, a fresh render on the right; nothing written to the assets."""
-    tile_w, tile_h = 660, 470
+    tile_w, tile_h = 660, 540
     out = Image.new("RGB", (tile_w * 2, tile_h * len(codes)), "#888888")
     draw = ImageDraw.Draw(out)
     for i, code in enumerate(codes):
@@ -310,7 +339,7 @@ def sheet(codes):
                 draw.text((x + 12, y + 12), f"{code}: no shipped picture", fill="black")
                 continue
             out.paste(image.convert("RGB"), (x + 10, y + 10))
-            draw.text((x + 12, y + 450), f"{code} {label} {image.width}x{image.height}", fill="black")
+            draw.text((x + 12, y + 520), f"{code} {label} {image.width}x{image.height}", fill="black")
         print(f"{i + 1}/{len(codes)} {code}", flush=True)
     path = Path(tempfile.mkdtemp(prefix="flags_sheet_")) / "sheet.png"
     out.save(path)
@@ -321,7 +350,11 @@ def main():
     parser = argparse.ArgumentParser(description="Build the Drapeaux flashcards list from flagcdn.")
     parser.add_argument("--sheet", nargs="+", metavar="CODE", help="only render these flags side by side")
     parser.add_argument("--write", nargs="+", metavar="CODE", help="only write these flags' pictures")
+    parser.add_argument("--states", action="store_true", help="only build the US state flags list")
     args = parser.parse_args()
+    if args.states:
+        build_states()
+        return
     if args.sheet:
         sheet(args.sheet)
         return
@@ -354,13 +387,29 @@ def main():
         cards.append(card(code, name))
         print(f"{code} {name}", flush=True)
 
+    write_seed(SEED_PATH, LIST_ID, "Drapeaux", 3, cards)
+
+
+def build_states():
+    """The Drapeaux (États-Unis) list, flagcdn's us-xx flags, apart from the countries."""
+    names = json.loads(fetch("https://flagcdn.com/fr/codes.json"))
+    codes = sorted(c for c in names if c.startswith("us-"))
+    cards = []
+    for i, code in enumerate(codes, 1):
+        save(render(code, flagcdn(code, 640)), code)
+        cards.append(card(code, names[code], STATES_LIST_ID))
+        print(f"{i}/{len(codes)} {code} {names[code]}", flush=True)
+    write_seed(STATES_SEED_PATH, STATES_LIST_ID, "Drapeaux (États-Unis)", 9, cards)
+
+
+def write_seed(path, list_id, list_name, order, cards):
     cards.sort(key=lambda c: c["definition"])
     bundle = {
         "version": 1,
-        "lists": [{"id": LIST_ID, "name": "Drapeaux", "order": 3, "fixedSide": True}],
+        "lists": [{"id": list_id, "name": list_name, "order": order, "fixedSide": True}],
         "cards": cards,
     }
-    SEED_PATH.write_text(json.dumps(bundle, ensure_ascii=False, indent=1) + "\n")
+    path.write_text(json.dumps(bundle, ensure_ascii=False, indent=1) + "\n")
     print(f"{len(cards)} flags written", flush=True)
 
 
