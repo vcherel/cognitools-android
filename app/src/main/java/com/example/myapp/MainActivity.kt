@@ -151,6 +151,13 @@ class MainActivity : ComponentActivity() {
         galleryRoute?.second?.let { AppSnackbar.show(it) }
     }
 
+    // Swiping the app out of recents kills the process before a pending upload's delay ends.
+    override fun onStop() {
+        super.onStop()
+        claudeNoteSync.sendNow()
+        recipeRepository.sendNow()
+    }
+
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         outState.putBoolean(STATE_LOCKED_SESSION, lockedSession)

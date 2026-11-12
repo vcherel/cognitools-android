@@ -2,6 +2,7 @@ package com.example.myapp.journal
 
 import android.content.Context
 import com.example.myapp.mailRepository
+import com.example.myapp.retryUntilSent
 import com.example.myapp.userMessage
 import com.example.myapp.writeAtomically
 import java.io.File
@@ -192,7 +193,7 @@ class JournalRepository(context: Context) {
         pushJob?.cancel()
         pushJob = scope.launch {
             delay(PUSH_DELAY_MS)
-            runCatching { push() }
+            retryUntilSent { push() }
         }
     }
 

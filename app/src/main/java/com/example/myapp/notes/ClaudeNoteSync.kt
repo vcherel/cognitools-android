@@ -1,16 +1,18 @@
 package com.example.myapp.notes
 
 import android.content.Context
+import com.example.myapp.BACKGROUND_SEND_DELAY_MS
 import com.example.myapp.deezerRepository
 import com.example.myapp.mailRepository
 import com.example.myapp.notesLists
+import com.example.myapp.retryUntilSent
 import com.example.myapp.writeAtomically
 import java.io.File
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.map
@@ -21,17 +23,18 @@ import org.json.JSONObject
 
 /**
  * The Claude note's round trip with the laptop's `/claude-note` skill (~/Documents/Code/daily-journal).
- * The note goes to the mailbox's Journal folder a few seconds after it changes; the skill answers
+ * The note goes to the mailbox's Journal folder a few seconds after it changes (retried until it
+ * goes through, and sent at once when the app goes to the background); the skill answers
  * with the lines it solved, one `claude_solved_<time>.json` per send, which the note's refresh
  * button removes from the note and then deletes from the mailbox.
  */
-@OptIn(FlowPreview::class)
 class ClaudeNoteSync(context: Context) {
     private val appContext = context.applicationContext
     private val sentFile = File(appContext.filesDir, "claude_note_sent.json")
     private val logsSentFile = File(appContext.filesDir, "music_logs_sent.txt")
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val uploadLock = Mutex()
+    @Volatile private var latest: String? = null
 
     init {
         scope.launch {
@@ -40,8 +43,19 @@ class ClaudeNoteSync(context: Context) {
                 .filterNotNull()
                 .map { it.content }
                 .distinctUntilChanged()
-                .debounce(UPLOAD_DELAY_MS)
-                .collect { runCatching { upload(it) } }
+                .collectLatest { content ->
+                    latest = content
+                    delay(UPLOAD_DELAY_MS)
+                    retryUntilSent { upload(content) }
+                }
+        }
+    }
+
+    /** Sends the note now, as the app goes to the background: the process may die before the delay ends. */
+    fun sendNow() {
+        scope.launch {
+            delay(BACKGROUND_SEND_DELAY_MS)
+            latest?.let { runCatching { upload(it) } }
         }
     }
 

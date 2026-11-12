@@ -1,6 +1,7 @@
 package com.example.myapp.recipes
 
 import android.content.Context
+import com.example.myapp.BACKGROUND_SEND_DELAY_MS
 import com.example.myapp.flashcards.AppDatabase
 import com.example.myapp.mailRepository
 import com.example.myapp.notes.COURSES_MODEL_TITLE
@@ -10,19 +11,20 @@ import com.example.myapp.notes.Note
 import com.example.myapp.notes.parseCourseGroups
 import com.example.myapp.notes.presentIngredients
 import com.example.myapp.notesLists
+import com.example.myapp.retryUntilSent
 import com.example.myapp.userMessage
 import com.example.myapp.writeAtomically
 import java.io.File
 import java.time.LocalDate
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.map
@@ -36,10 +38,9 @@ import org.json.JSONObject
 /**
  * The recipe the laptop's `/recipes` skill picked (~/Documents/Code/daily-journal), and what cooking it
  * does to the notes. The laptop proposes from a snapshot of the Ingrédients and Modèle courses notes,
- * uploaded to the mailbox's Journal folder a few seconds after either changes; one that failed offline
- * goes out with the next change or refresh. Only the latest recipe is kept, fetched on refresh.
+ * uploaded to the mailbox's Journal folder a few seconds after either changes, retried until it goes
+ * through and sent at once when the app goes to the background. Only the latest recipe is kept, fetched on refresh.
  */
-@OptIn(FlowPreview::class)
 class RecipeRepository(context: Context) {
     private val appContext = context.applicationContext
     private val dir = File(appContext.filesDir, "recipes").apply { mkdirs() }
@@ -49,6 +50,7 @@ class RecipeRepository(context: Context) {
     private val commentsDir = File(dir, "comments").apply { mkdirs() }
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val uploadLock = Mutex()
+    @Volatile private var latestSnapshot: String? = null
     private val dao = AppDatabase.get(appContext).noteDao()
 
     private val _recipe = MutableStateFlow<Recipe?>(null)
@@ -87,8 +89,19 @@ class RecipeRepository(context: Context) {
                 .map(::snapshot)
                 .filterNotNull()
                 .distinctUntilChanged()
-                .debounce(UPLOAD_DELAY_MS)
-                .collect { runCatching { upload(it) } }
+                .collectLatest { snapshot ->
+                    latestSnapshot = snapshot
+                    delay(UPLOAD_DELAY_MS)
+                    retryUntilSent { upload(snapshot) }
+                }
+        }
+    }
+
+    /** Sends the snapshot now, as the app goes to the background: the process may die before the delay ends. */
+    fun sendNow() {
+        scope.launch {
+            delay(BACKGROUND_SEND_DELAY_MS)
+            latestSnapshot?.let { runCatching { upload(it) } }
         }
     }
 
