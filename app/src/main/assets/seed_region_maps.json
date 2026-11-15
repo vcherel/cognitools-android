@@ -64,56 +64,11 @@
    "randomSide": false
   },
   {
-   "id": "regionmap-01",
-   "listId": "builtin-region-maps-v1",
-   "name": "",
-   "definition": "Guadeloupe",
-   "image": "asset:maps/reg-01.webp",
-   "lastReview": 0,
-   "randomSide": false
-  },
-  {
-   "id": "regionmap-03",
-   "listId": "builtin-region-maps-v1",
-   "name": "",
-   "definition": "Guyane",
-   "image": "asset:maps/reg-03.webp",
-   "lastReview": 0,
-   "randomSide": false
-  },
-  {
    "id": "regionmap-32",
    "listId": "builtin-region-maps-v1",
    "name": "",
    "definition": "Hauts-de-France",
    "image": "asset:maps/reg-32.webp",
-   "lastReview": 0,
-   "randomSide": false
-  },
-  {
-   "id": "regionmap-04",
-   "listId": "builtin-region-maps-v1",
-   "name": "",
-   "definition": "La Réunion",
-   "image": "asset:maps/reg-04.webp",
-   "lastReview": 0,
-   "randomSide": false
-  },
-  {
-   "id": "regionmap-02",
-   "listId": "builtin-region-maps-v1",
-   "name": "",
-   "definition": "Martinique",
-   "image": "asset:maps/reg-02.webp",
-   "lastReview": 0,
-   "randomSide": false
-  },
-  {
-   "id": "regionmap-06",
-   "listId": "builtin-region-maps-v1",
-   "name": "",
-   "definition": "Mayotte",
-   "image": "asset:maps/reg-06.webp",
    "lastReview": 0,
    "randomSide": false
   },

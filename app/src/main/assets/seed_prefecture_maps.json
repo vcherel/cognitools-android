@@ -1,0 +1,922 @@
+{
+ "version": 1,
+ "lists": [
+  {
+   "id": "builtin-prefecture-maps-v1",
+   "name": "Préfectures (carte)",
+   "order": 10,
+   "fixedSide": true
+  }
+ ],
+ "cards": [
+  {
+   "id": "prefmap-47",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Agen",
+   "image": "asset:maps/pref-47.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-2a",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Ajaccio",
+   "image": "asset:maps/pref-2a.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-81",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Albi",
+   "image": "asset:maps/pref-81.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-61",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Alençon",
+   "image": "asset:maps/pref-61.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-80",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Amiens",
+   "image": "asset:maps/pref-80.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-49",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Angers",
+   "image": "asset:maps/pref-49.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-16",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Angoulême",
+   "image": "asset:maps/pref-16.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-74",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Annecy",
+   "image": "asset:maps/pref-74.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-62",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Arras",
+   "image": "asset:maps/pref-62.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-32",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Auch",
+   "image": "asset:maps/pref-32.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-15",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Aurillac",
+   "image": "asset:maps/pref-15.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-89",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Auxerre",
+   "image": "asset:maps/pref-89.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-84",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Avignon",
+   "image": "asset:maps/pref-84.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-55",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Bar-le-Duc",
+   "image": "asset:maps/pref-55.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-971",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Basse-Terre",
+   "image": "asset:maps/pref-971.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-2b",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Bastia",
+   "image": "asset:maps/pref-2b.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-60",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Beauvais",
+   "image": "asset:maps/pref-60.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-90",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Belfort",
+   "image": "asset:maps/pref-90.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-25",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Besançon",
+   "image": "asset:maps/pref-25.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-41",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Blois",
+   "image": "asset:maps/pref-41.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-93",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Bobigny",
+   "image": "asset:maps/pref-93.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-33",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Bordeaux",
+   "image": "asset:maps/pref-33.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-01",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Bourg-en-Bresse",
+   "image": "asset:maps/pref-01.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-18",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Bourges",
+   "image": "asset:maps/pref-18.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-14",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Caen",
+   "image": "asset:maps/pref-14.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-46",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Cahors",
+   "image": "asset:maps/pref-46.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-11",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Carcassonne",
+   "image": "asset:maps/pref-11.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-973",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Cayenne",
+   "image": "asset:maps/pref-973.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-95",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Cergy",
+   "image": "asset:maps/pref-95.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-51",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Châlons-en-Champagne",
+   "image": "asset:maps/pref-51.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-73",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Chambéry",
+   "image": "asset:maps/pref-73.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-08",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Charleville-Mézières",
+   "image": "asset:maps/pref-08.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-28",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Chartres",
+   "image": "asset:maps/pref-28.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-36",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Châteauroux",
+   "image": "asset:maps/pref-36.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-52",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Chaumont",
+   "image": "asset:maps/pref-52.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-63",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Clermont-Ferrand",
+   "image": "asset:maps/pref-63.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-68",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Colmar",
+   "image": "asset:maps/pref-68.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-94",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Créteil",
+   "image": "asset:maps/pref-94.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-04",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Digne-les-Bains",
+   "image": "asset:maps/pref-04.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-21",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Dijon",
+   "image": "asset:maps/pref-21.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-88",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Épinal",
+   "image": "asset:maps/pref-88.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-27",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Évreux",
+   "image": "asset:maps/pref-27.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-91",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Évry-Courcouronnes",
+   "image": "asset:maps/pref-91.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-09",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Foix",
+   "image": "asset:maps/pref-09.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-972",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Fort-de-France",
+   "image": "asset:maps/pref-972.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-05",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Gap",
+   "image": "asset:maps/pref-05.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-38",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Grenoble",
+   "image": "asset:maps/pref-38.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-23",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Guéret",
+   "image": "asset:maps/pref-23.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-85",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "La Roche-sur-Yon",
+   "image": "asset:maps/pref-85.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-17",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "La Rochelle",
+   "image": "asset:maps/pref-17.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-02",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Laon",
+   "image": "asset:maps/pref-02.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-53",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Laval",
+   "image": "asset:maps/pref-53.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-72",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Le Mans",
+   "image": "asset:maps/pref-72.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-43",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Le Puy-en-Velay",
+   "image": "asset:maps/pref-43.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-59",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Lille",
+   "image": "asset:maps/pref-59.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-87",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Limoges",
+   "image": "asset:maps/pref-87.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-39",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Lons-le-Saunier",
+   "image": "asset:maps/pref-39.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-69",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Lyon",
+   "image": "asset:maps/pref-69.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-71",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Mâcon",
+   "image": "asset:maps/pref-71.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-976",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Mamoudzou",
+   "image": "asset:maps/pref-976.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-13",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Marseille",
+   "image": "asset:maps/pref-13.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-77",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Melun",
+   "image": "asset:maps/pref-77.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-48",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Mende",
+   "image": "asset:maps/pref-48.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-57",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Metz",
+   "image": "asset:maps/pref-57.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-40",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Mont-de-Marsan",
+   "image": "asset:maps/pref-40.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-82",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Montauban",
+   "image": "asset:maps/pref-82.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-34",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Montpellier",
+   "image": "asset:maps/pref-34.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-03",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Moulins",
+   "image": "asset:maps/pref-03.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-54",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Nancy",
+   "image": "asset:maps/pref-54.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-92",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Nanterre",
+   "image": "asset:maps/pref-92.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-44",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Nantes",
+   "image": "asset:maps/pref-44.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-58",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Nevers",
+   "image": "asset:maps/pref-58.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-06",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Nice",
+   "image": "asset:maps/pref-06.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-30",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Nîmes",
+   "image": "asset:maps/pref-30.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-79",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Niort",
+   "image": "asset:maps/pref-79.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-45",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Orléans",
+   "image": "asset:maps/pref-45.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-75",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Paris",
+   "image": "asset:maps/pref-75.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-64",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Pau",
+   "image": "asset:maps/pref-64.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-24",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Périgueux",
+   "image": "asset:maps/pref-24.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-66",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Perpignan",
+   "image": "asset:maps/pref-66.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-86",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Poitiers",
+   "image": "asset:maps/pref-86.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-07",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Privas",
+   "image": "asset:maps/pref-07.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-29",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Quimper",
+   "image": "asset:maps/pref-29.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-35",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Rennes",
+   "image": "asset:maps/pref-35.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-12",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Rodez",
+   "image": "asset:maps/pref-12.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-76",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Rouen",
+   "image": "asset:maps/pref-76.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-22",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Saint-Brieuc",
+   "image": "asset:maps/pref-22.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-974",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Saint-Denis",
+   "image": "asset:maps/pref-974.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-42",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Saint-Étienne",
+   "image": "asset:maps/pref-42.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-50",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Saint-Lô",
+   "image": "asset:maps/pref-50.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-67",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Strasbourg",
+   "image": "asset:maps/pref-67.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-65",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Tarbes",
+   "image": "asset:maps/pref-65.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-83",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Toulon",
+   "image": "asset:maps/pref-83.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-31",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Toulouse",
+   "image": "asset:maps/pref-31.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-37",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Tours",
+   "image": "asset:maps/pref-37.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-10",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Troyes",
+   "image": "asset:maps/pref-10.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-19",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Tulle",
+   "image": "asset:maps/pref-19.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-26",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Valence",
+   "image": "asset:maps/pref-26.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-56",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Vannes",
+   "image": "asset:maps/pref-56.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-78",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Versailles",
+   "image": "asset:maps/pref-78.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "prefmap-70",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Vesoul",
+   "image": "asset:maps/pref-70.webp",
+   "lastReview": 0,
+   "randomSide": false
+  }
+ ]
+}

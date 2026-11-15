@@ -8,6 +8,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -167,7 +168,7 @@ fun FlashcardDetailScreen(
 
     LaunchedEffect(listId) {
         isLoading = true
-        val flow = if (isAllLists) repository.observeAllElements()
+        val flow = if (isAllLists) repository.observeVisibleElements()
         else repository.observeElements(listId)
 
         flow.collect { list ->
@@ -401,15 +402,27 @@ fun FlashcardDetailScreen(
     }
 }
 
-/** How a single card has scored so far, opened by tapping it in the list. */
+/** The card's picture at full width and how it has scored so far, opened by tapping it in the list. */
 @Composable
 private fun ElementScoreDialog(element: FlashcardElement, onDismiss: () -> Unit) {
     ShowAlertDialog(
         onDismiss = onDismiss,
         title = element.label,
         textContent = {
-            Box(Modifier.padding(vertical = 8.dp)) {
-                CardStats(element, greenColor = Color(0xFF37A13B), redColor = Color(0xFFC4362D))
+            Column {
+                element.image?.let { image ->
+                    FullSizeCardImage(
+                        image = image,
+                        modifier = if (isMapImage(image)) {
+                            Modifier.fillMaxWidth().aspectRatio(1f)
+                        } else {
+                            Modifier.fillMaxWidth().height(180.dp)
+                        }
+                    )
+                }
+                Box(Modifier.padding(vertical = 8.dp)) {
+                    CardStats(element, greenColor = Color(0xFF37A13B), redColor = Color(0xFFC4362D))
+                }
             }
         },
         confirmText = "Close",

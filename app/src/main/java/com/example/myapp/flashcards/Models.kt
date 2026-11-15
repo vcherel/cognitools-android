@@ -157,6 +157,42 @@ fun dueForecast(
     return counts.toList()
 }
 
+/**
+ * How long the cards wait before they are due again: [median] and [longest] over every card (a due
+ * one counting 0), [meanWaiting] over the cards not due yet only, and [buckets] the count per range.
+ */
+data class WaitStats(
+    val median: Long,
+    val meanWaiting: Long,
+    val longest: Long,
+    val buckets: List<Pair<String, Int>>
+)
+
+private val WAIT_RANGES = listOf(
+    "Due" to 0L,
+    "< 1 d" to DAY_MS,
+    "1 to 7 d" to 7 * DAY_MS,
+    "1 to 4 w" to 28 * DAY_MS,
+    "1 to 3 mo" to 90 * DAY_MS,
+    "3 to 6 mo" to 180 * DAY_MS,
+    "> 6 mo" to Long.MAX_VALUE
+)
+
+private const val DAY_MS = 24 * 60 * 60_000L
+
+fun waitStats(cards: List<FlashcardElement>, now: Long): WaitStats {
+    val waits = cards.map { maxOf(0L, it.nextReviewAt - now) }.sorted()
+    val waiting = waits.filter { it > 0 }
+    val counts = IntArray(WAIT_RANGES.size)
+    waits.forEach { wait -> counts[WAIT_RANGES.indexOfFirst { (_, upTo) -> wait <= upTo }]++ }
+    return WaitStats(
+        median = if (waits.isEmpty()) -1 else waits[waits.size / 2],
+        meanWaiting = if (waiting.isEmpty()) -1 else waiting.average().toLong(),
+        longest = waits.lastOrNull() ?: -1,
+        buckets = WAIT_RANGES.mapIndexed { i, (label, _) -> label to counts[i] }
+    )
+}
+
 fun FlashcardList.toJson(): JSONObject = JSONObject().also {
     it.put("id", id)
     it.put("name", name)
@@ -194,7 +230,8 @@ data class FlashcardStats(
     val meanTimeUntilNextReviewMs: Long,
     val maturity: Map<Maturity, Int>,
     /** See [dueForecast]. */
-    val forecast: List<Int>
+    val forecast: List<Int>,
+    val waits: WaitStats
 ) {
     val winRate: Float get() =
         if (totalWins + totalLosses > 0) totalWins.toFloat() / (totalWins + totalLosses) else -1f

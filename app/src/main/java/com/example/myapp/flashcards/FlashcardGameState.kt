@@ -88,7 +88,7 @@ class FlashcardGameState(
 
     suspend fun load() {
         if (isAllListsMode) listNames = repository.getListNames()
-        cards = if (isAllListsMode) repository.getAllElements() else repository.getElements(listId)
+        cards = if (isAllListsMode) repository.getPlayAllElements() else repository.getElements(listId)
         refillWorkingSet()
         pickIfIdle()
     }

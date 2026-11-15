@@ -2,6 +2,7 @@ package com.example.myapp.flashcards
 
 import android.content.Context
 import android.util.Log
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
@@ -39,8 +40,10 @@ class FlashcardRepository(private val context: Context) {
         return combine(
             dao.observeLists(),
             dao.observeTotalCounts(),
-            dao.observeDueCounts(now)
-        ) { lists, totals, dues ->
+            dao.observeDueCounts(now),
+            hidePersonal
+        ) { all, totals, dues, hide ->
+            val lists = if (hide) all.filter { !isPersonalList(it.id) } else all
             val totalById = totals.associate { it.listId to it.c }
             val dueById = dues.associate { it.listId to it.c }
             val counts = lists.associate { list ->
@@ -68,8 +71,12 @@ class FlashcardRepository(private val context: Context) {
         dao.upsertList(list.copy(order = nextOrder))
     }
 
+    /** [newOrder] may leave out the hidden lists, which keep their slots. */
     suspend fun reorderLists(newOrder: List<FlashcardList>) {
-        dao.upsertLists(newOrder.mapIndexed { index, list -> list.copy(order = index) })
+        val ids = newOrder.map { it.id }.toSet()
+        val dragged = newOrder.iterator()
+        val merged = dao.getLists().map { if (it.id in ids) dragged.next() else it }
+        dao.upsertLists(merged.mapIndexed { index, list -> list.copy(order = index) })
     }
 
     suspend fun updateList(listId: String, newName: String) {
@@ -95,8 +102,6 @@ class FlashcardRepository(private val context: Context) {
 
     suspend fun getElements(listId: String): List<FlashcardElement> = dao.getElements(listId)
 
-    suspend fun getAllElements(): List<FlashcardElement> = dao.getAllElements()
-
     suspend fun getListNames(): Map<String, String> = dao.getLists().associate { it.id to it.name }
 
     suspend fun addElement(listId: String, element: FlashcardElement) = addElements(listId, listOf(element))
@@ -116,10 +121,8 @@ class FlashcardRepository(private val context: Context) {
 
     suspend fun deleteElement(elementId: String) = dao.deleteElement(elementId)
 
-    fun observeAllElements(): Flow<List<FlashcardElement>> = dao.observeAllElements()
-
     suspend fun getStats(listId: String? = null): FlashcardStats {
-        val elements = if (listId != null) dao.getElements(listId) else dao.getAllElements()
+        val elements = if (listId != null) dao.getElements(listId) else getVisibleElements()
         val now = System.currentTimeMillis()
         val waitTimes = elements.map { maxOf(0L, it.nextReviewAt - now) }
         return FlashcardStats(
@@ -132,7 +135,8 @@ class FlashcardRepository(private val context: Context) {
             },
             meanTimeUntilNextReviewMs = if (waitTimes.isEmpty()) -1L else waitTimes.average().toLong(),
             maturity = elements.groupingBy { it.maturity }.eachCount(),
-            forecast = dueForecast(elements, now)
+            forecast = dueForecast(elements, now),
+            waits = waitStats(elements, now)
         )
     }
 
@@ -186,7 +190,7 @@ class FlashcardRepository(private val context: Context) {
         val today = LocalDate.now().toString()
         if (context.flashcardDataStore.data.first()[lotteryDayKey] == today) return null
         context.flashcardDataStore.edit { it[lotteryDayKey] = today }
-        val card = dao.getAllElements().filter { it.nextReviewAt - now > DAY_MS }.randomOrNull() ?: return null
+        val card = getVisibleElements().filter { it.nextReviewAt - now > DAY_MS }.randomOrNull() ?: return null
         val halved = halveRemainingWait(card, now)
         dao.upsertElement(halved)
         return DailyLottery(halved, card.nextReviewAt - now, halved.nextReviewAt - now)
@@ -201,14 +205,17 @@ class FlashcardRepository(private val context: Context) {
         val seeded = context.flashcardDataStore.data.first()[seedVersionKey] ?: 0
         if (seeded < SEEDS.last().first) {
             SEEDS.filter { (version, _) -> version > seeded }.forEach { (_, file) -> seedAssets(file) }
+            renameBuiltinLists()
             context.flashcardDataStore.edit { it[seedVersionKey] = SEEDS.last().first }
         }
         val reset = context.flashcardDataStore.data.first()[resetVersionKey] ?: 0
         if (reset < RESETS.last().first) {
             val ids = RESETS.filter { (version, _) -> version > reset }.map { it.second }.toSet()
-            val shipped = SEEDS.flatMap { (_, file) -> seedCards(file) }
-                .filter { it.id in ids || it.listId in ids }
+            val allShipped = SEEDS.flatMap { (_, file) -> seedCards(file) }
+            val shipped = allShipped.filter { it.id in ids || it.listId in ids }
             dao.upsertElements(shipped)
+            val shippedIds = allShipped.map { it.id }.toSet()
+            ids.filter { it !in shippedIds && it !in builtinListIds }.forEach { dao.deleteElement(it) }
             context.flashcardDataStore.edit { it[resetVersionKey] = RESETS.last().first }
         }
         dao.purgeMasteredCards(MASTERED_MINUTES, builtinListIds)
@@ -258,9 +265,62 @@ class FlashcardRepository(private val context: Context) {
         }
     }
 
-    private fun seedCards(filename: String): List<FlashcardElement> {
-        val json = context.assets.open(filename).bufferedReader().readText()
-        return FlashcardElement.listFromJsonString(JSONObject(json).getJSONArray("cards").toString())
+    private fun seedJson(filename: String): JSONObject =
+        JSONObject(context.assets.open(filename).bufferedReader().readText())
+
+    private fun seedCards(filename: String): List<FlashcardElement> =
+        FlashcardElement.listFromJsonString(seedJson(filename).getJSONArray("cards").toString())
+
+    // A seed bump also gives every builtin list its shipped name back, keeping the order it was dragged to.
+    private suspend fun renameBuiltinLists() {
+        val shipped = SEEDS.flatMap { (_, file) ->
+            FlashcardList.listFromJsonString(seedJson(file).getJSONArray("lists").toString())
+        }.associate { it.id to it.name }
+        val renamed = dao.getLists().mapNotNull { list ->
+            shipped[list.id]?.takeIf { it != list.name }?.let { list.copy(name = it) }
+        }
+        if (renamed.isNotEmpty()) dao.upsertLists(renamed)
+    }
+
+    val hidePersonal: Flow<Boolean> =
+        context.flashcardDataStore.data.map { it[hidePersonalKey] == true }.distinctUntilChanged()
+
+    suspend fun setHidePersonal(hide: Boolean) {
+        context.flashcardDataStore.edit { it[hidePersonalKey] = hide }
+    }
+
+    private suspend fun hiddenFilter(): (String) -> Boolean {
+        val hide = hidePersonal.first()
+        return { listId -> hide && isPersonalList(listId) }
+    }
+
+    /** Every card, minus the personal lists while they are hidden: what Search everything and the stats see. */
+    suspend fun getVisibleElements(): List<FlashcardElement> {
+        val hidden = hiddenFilter()
+        return dao.getAllElements().filter { !hidden(it.listId) }
+    }
+
+    fun observeVisibleElements(): Flow<List<FlashcardElement>> =
+        combine(dao.observeAllElements(), hidePersonal) { cards, hide ->
+            if (hide) cards.filter { !isPersonalList(it.listId) } else cards
+        }
+
+    /**
+     * The cards Play all draws from: the visible ones, minus the builtin lists not unlocked yet. The
+     * builtin lists open one at a time in [UNLOCK_ORDER], the next one once every card of the last
+     * one opened has been played at least once, and stay open for good.
+     */
+    suspend fun getPlayAllElements(): List<FlashcardElement> {
+        val cards = getVisibleElements()
+        val byList = cards.groupBy { it.listId }
+        var unlocked = context.flashcardDataStore.data.first()[unlockedListsKey] ?: 1
+        val before = unlocked
+        while (unlocked < UNLOCK_ORDER.size &&
+            byList[UNLOCK_ORDER[unlocked - 1]].orEmpty().all { it.totalWins + it.totalLosses > 0 }
+        ) unlocked++
+        if (unlocked != before) context.flashcardDataStore.edit { it[unlockedListsKey] = unlocked }
+        val locked = UNLOCK_ORDER.drop(unlocked).toSet()
+        return cards.filter { it.listId !in locked }
     }
 
     companion object {
@@ -277,7 +337,34 @@ class FlashcardRepository(private val context: Context) {
             7 to "seed_region_maps.json",
             8 to "seed_arrondissement_maps.json",
             9 to "seed_state_maps.json",
-            9 to "seed_state_flags.json"
+            9 to "seed_state_flags.json",
+            10 to "seed_prefecture_maps.json",
+            10 to "seed_capital_maps.json",
+            10 to "seed_state_capitals.json",
+            10 to "seed_state_capital_maps.json",
+            10 to "seed_city_maps_fr.json",
+            10 to "seed_city_maps_world.json"
+        )
+        private val hidePersonalKey = booleanPreferencesKey("hide_personal")
+        private val unlockedListsKey = intPreferencesKey("unlocked_lists")
+        // The builtin lists from the most to the least worth learning, the order Play all opens them in.
+        private val UNLOCK_ORDER = listOf(
+            "builtin-capitals-v1",
+            "builtin-flags-v1",
+            "builtin-maps-v1",
+            "builtin-dept-maps-v1",
+            "builtin-prefectures-v1",
+            "builtin-region-maps-v1",
+            "builtin-capital-maps-v1",
+            "builtin-prefecture-maps-v1",
+            "builtin-cities-fr-v1",
+            "builtin-cities-world-v1",
+            "builtin-dept-numbers-v1",
+            "builtin-state-maps-v1",
+            "builtin-state-capitals-v1",
+            "builtin-state-capital-maps-v1",
+            "builtin-arrondissement-maps-v1",
+            "builtin-state-flags-v1"
         )
         private val lotteryDayKey = stringPreferencesKey("lottery_day")
         private const val DAY_MS = 24 * 60 * 60_000L
@@ -320,15 +407,30 @@ class FlashcardRepository(private val context: Context) {
             9 to "map-tf",
             9 to "map-tk",
             9 to "map-tv"
-        )
+        ) + listOf(
+            // Smaller island specks, and arrondissements drawn without the lines between the others.
+            "map-ad", "map-ai", "map-aq", "map-ag", "map-aw", "map-au", "map-bs", "map-bb", "map-bm",
+            "map-bq", "map-br", "map-cv", "map-cl", "map-co", "map-km", "map-kr", "map-cr", "map-dk",
+            "map-es", "map-fj", "map-gi", "map-gd", "map-gu", "map-gg", "map-gq", "map-gs", "map-hn",
+            "map-hk", "map-id", "map-it", "map-jp", "map-je", "map-ki", "map-li", "map-mo", "map-mv",
+            "map-mt", "map-mu", "map-yt", "map-fm", "map-mc", "map-ms", "map-nr", "map-nu", "map-nc",
+            "map-nz", "map-pw", "map-pg", "map-ph", "map-pf", "map-pr", "map-pt", "map-gb", "map-re",
+            "map-bl", "map-kn", "map-sm", "map-sx", "map-pm", "map-vc", "map-sh", "map-ws", "map-as",
+            "map-sc", "map-sg", "map-st", "map-tw", "map-tf", "map-io", "map-tk", "map-to", "map-tv",
+            "map-vu", "map-va", "map-ve", "map-wf", "map-ax", "map-us", "map-cx", "map-nf", "map-im",
+            "map-ky", "map-cc", "map-ck", "map-mp", "map-mh", "map-pn", "map-sb", "map-tc", "map-vg",
+            "builtin-arrondissement-maps-v1", "statemap-ak", "statemap-hi",
+            // The overseas places already asked in Pays (carte), deleted from these two lists.
+            "deptmap-971", "deptmap-972", "deptmap-973", "deptmap-974", "deptmap-976",
+            "regionmap-01", "regionmap-02", "regionmap-03", "regionmap-04", "regionmap-06"
+        ).map { 10 to it }
         private const val BIRTHDAYS_LIST_ID = "builtin-birthdays-v1"
         private val birthdayFormat = DateTimeFormatter.ofPattern("d MMMM", Locale.FRENCH)
-        private val builtinListIds = listOf(
-            "builtin-capitals-v1", "builtin-prefectures-v1", "builtin-dept-numbers-v1",
-            "builtin-flags-v1", "builtin-maps-v1", "builtin-dept-maps-v1", "builtin-region-maps-v1",
-            "builtin-arrondissement-maps-v1", "builtin-state-maps-v1", "builtin-state-flags-v1",
-            BIRTHDAYS_LIST_ID
-        )
+        private val builtinListIds = UNLOCK_ORDER + BIRTHDAYS_LIST_ID
+
+        /** A list the header's eye hides when someone plays along: Birthdays and every list made by hand. */
+        fun isPersonalList(listId: String): Boolean =
+            listId == BIRTHDAYS_LIST_ID || listId !in builtinListIds
     }
 }
 

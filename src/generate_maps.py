@@ -29,6 +29,8 @@ SHEET_PATH = Path("mockups/maps_sheet.png")
 SOURCES = {
     "ne_10m_admin_0_map_units.zip": "https://naciscdn.org/naturalearth/10m/cultural/ne_10m_admin_0_map_units.zip",
     "ne_50m_lakes.zip": "https://naciscdn.org/naturalearth/50m/physical/ne_50m_lakes.zip",
+    "ne_10m_populated_places.zip": "https://naciscdn.org/naturalearth/10m/cultural/ne_10m_populated_places.zip",
+    "communes.json": "https://geo.api.gouv.fr/communes?fields=nom,code,codeDepartement,population,centre&format=json",
     "ne_50m_admin_1_states_provinces_lakes.zip": "https://naciscdn.org/naturalearth/50m/cultural/ne_50m_admin_1_states_provinces_lakes.zip",
     "departements.geojson": "https://raw.githubusercontent.com/gregoiredavid/france-geojson/master/departements-avec-outre-mer.geojson",
     "regions.geojson": "https://raw.githubusercontent.com/gregoiredavid/france-geojson/master/regions-avec-outre-mer.geojson",
@@ -80,6 +82,10 @@ ARCHIPELAGO_MAX_ISLAND_KM = 300
 # Pixels across under which a target gets a circle around it, a Paris department the zoom inset.
 TINY_PX = 16
 PARIS_INSET_PX = 22
+# The radius of the dot on an island too small to draw, kept near the island's true size.
+SPECK = 2.5
+CITY_DOT = 8
+LENS_CITY_DOT = 7
 
 # Map units not drawn as anyone's: disputed spots, bases, reefs. They stay plain land.
 PLAIN_UNITS = {
@@ -368,8 +374,12 @@ def lens_shows_shape(target, view):
     return len(shown) == 1 or any((pts.max(0) - pts.min(0)).max() >= 6 for pts in shown)
 
 
-def render_lens(target, data, view, box):
-    img = draw_map(view, target, data["world"], data["lakes"]).resize((LENS, LENS), Image.LANCZOS)
+def render_lens(target, data, view, box, point=None):
+    red = [] if point is not None else target
+    img = draw_map(view, red, data["world"], data["lakes"]).resize((LENS, LENS), Image.LANCZOS)
+    if point is not None:
+        city_dot(img, view, point, LENS_CITY_DOT)
+        return img
     dot_specks(img, view, target)
     ring_circle(img, view, box)
     return img
@@ -403,19 +413,34 @@ def dot_specks(img, view, target):
         x, y = pts.mean(0)
         if any(lo[0] <= x <= hi[0] and lo[1] <= y <= hi[1] for lo, hi in big):
             continue
-        draw.ellipse((x - 3.5, y - 3.5, x + 3.5, y + 3.5), fill=TARGET, outline=TARGET_EDGE)
+        draw.ellipse((x - SPECK, y - SPECK, x + SPECK, y + SPECK), fill=TARGET, outline=TARGET_EDGE)
 
 
-def render_country(target, data):
-    """The target on its page of the atlas, with a lens on it when it is too small to read there."""
+def city_dot(img, view, lonlat, radius=CITY_DOT):
+    """A red dot on the city at (lon, lat)."""
+    ((x, y),) = view.km_to_px(view.proj.forward(np.array([lonlat]))) / SUPERSAMPLE
+    ImageDraw.Draw(img).ellipse(
+        (x - radius, y - radius, x + radius, y + radius), fill=TARGET, outline=TARGET_EDGE, width=3
+    )
+
+
+def render_country(target, data, point=None):
+    """
+    The target on its page of the atlas, with a lens on it when it is too small to read there. With a
+    [point], the target stays plain land and a city dot marks the point instead.
+    """
+    red = [] if point is not None else target
     view = page_view(target)
-    big = draw_map(view, target, data["world"], data["lakes"], border=SUPERSAMPLE)
+    big = draw_map(view, red, data["world"], data["lakes"], border=SUPERSAMPLE)
     img = big.resize((W, H), Image.LANCZOS)
     x0, y0, x1, y1 = box_px(view, target_pts(target, view.proj))
     size = max(x1 - x0, y1 - y0)
     lens, lens_box = lens_view(target)
-    if size >= READS_PX or not lens_shows_shape(target, lens):
-        dot_specks(img, view, target)
+    if size >= READS_PX or (point is None and not lens_shows_shape(target, lens)):
+        if point is None:
+            dot_specks(img, view, target)
+        else:
+            city_dot(img, view, point)
         return img
 
     center = ((x0 + x1) / 2, (y0 + y1) / 2)
@@ -433,7 +458,8 @@ def render_country(target, data):
         width=SUPERSAMPLE,
     )
     img = big.resize((W, H), Image.LANCZOS)
-    dot_specks(img, view, target)
+    if point is None:
+        dot_specks(img, view, target)
 
     left, top = x - LENS // 2, y - LENS // 2
     edge = 5
@@ -442,7 +468,7 @@ def render_country(target, data):
         (left - edge, top - edge, left + LENS + edge, top + LENS + edge),
         disc_mask(LENS + 2 * edge),
     )
-    img.paste(render_lens(target, data, lens, lens_box), (left, top), disc_mask(LENS))
+    img.paste(render_lens(target, data, lens, lens_box, point), (left, top), disc_mask(LENS))
     return img
 
 
@@ -508,10 +534,8 @@ def render_arrondissement(number, data):
             for ext, _ in polys:
                 outline(draw, ext, view.px(ext), PARIS_BORDER, 5)
     fill(draw, view, paris, LAND)
+    # No line between the other arrondissements, which could be counted from the edge.
     fill(draw, view, target, TARGET)
-    for polys in features.values():
-        for ext, _ in polys:
-            outline(draw, ext, view.px(ext), PARIS_BORDER, 5)
     for ext, _ in paris:
         outline(draw, ext, view.px(ext), PARIS_EDGE, 10)
     for ext, _ in target:
@@ -535,18 +559,28 @@ def render_french(code, features, overseas, data):
     view = metro_view(data["depts"])
     img = draw_map(view, target, data["world"], data["lakes"], [metro]).resize((W, H), Image.LANCZOS)
 
-    paris = view.proj.forward(np.array([PARIS]))[0]
     tx0, ty0, tx1, ty1 = box_px(view, target_pts(target, view.proj))
-    ((px, py),) = view.km_to_px(np.array([paris])) / SUPERSAMPLE
-    if (
-        max(tx1 - tx0, ty1 - ty0) >= PARIS_INSET_PX
-        or math.hypot((tx0 + tx1) / 2 - px, (ty0 + ty1) / 2 - py) > 50
+    if max(tx1 - tx0, ty1 - ty0) >= PARIS_INSET_PX or not near_paris(
+        view, ((tx0 + tx1) / 2, (ty0 + ty1) / 2)
     ):
         return img
+    return paris_inset(img, view, target, metro, data)
+
+
+def near_paris(view, xy):
+    ((px, py),) = view.km_to_px(view.proj.forward(np.array([PARIS]))) / SUPERSAMPLE
+    return math.hypot(xy[0] - px, xy[1] - py) <= 50
+
+
+def paris_inset(img, view, target, metro, data, point=None):
+    """A zoom on Paris in the corner of the France map, with the city dot when given a [point]."""
+    paris = view.proj.forward(np.array([PARIS]))[0]
     zoom = View(view.proj, paris[0], paris[1], 0.95, 170, 170)
     inset = draw_map(zoom, target, data["world"], data["lakes"], [metro]).resize(
         (zoom.w, zoom.h), Image.LANCZOS
     )
+    if point is not None:
+        city_dot(inset, zoom, point, 6)
     half = zoom.w * zoom.s / 2
     (ax, ay), (bx, by) = (
         view.km_to_px(np.array([[paris[0] - half, paris[1] + half], [paris[0] + half, paris[1] - half]]))
@@ -740,8 +774,13 @@ def list_codes(data):
     if missing:
         print(f"no shape for {', '.join(missing)}", flush=True)
     codes = [c for c in names if c in data["world"]]
-    depts = sorted(data["depts"])
-    regions = [f"r{c}" for c in sorted(data["regions"], key=lambda c: data["regions"][c][0])]
+    # An overseas place is asked once, in the first list holding it: Pays, then Départements.
+    depts = sorted(c for c in data["depts"] if OVERSEAS_DEPTS.get(c) not in codes)
+    regions = [
+        f"r{c}"
+        for c in sorted(data["regions"], key=lambda c: data["regions"][c][0])
+        if c not in OVERSEAS_REGIONS
+    ]
     arrondissements = [f"a{n}" for n in sorted(data["arrondissements"])]
     states = sorted((c for c in data["states"] if c != US_DC), key=lambda c: data["states"][c][0])
     return codes, depts, regions, arrondissements, states

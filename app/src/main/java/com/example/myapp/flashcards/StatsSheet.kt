@@ -101,6 +101,11 @@ fun StatsSheet(
                     Text("Maturity", style = MaterialTheme.typography.titleSmall)
                     Spacer(Modifier.height(8.dp))
                     MaturityBar(s.maturity)
+
+                    Spacer(Modifier.height(24.dp))
+                    Text("Waiting time", style = MaterialTheme.typography.titleSmall)
+                    Spacer(Modifier.height(8.dp))
+                    WaitSection(s.waits)
                 }
 
                 Spacer(Modifier.height(24.dp))
@@ -265,6 +270,52 @@ private fun MaturityBar(counts: Map<Maturity, Int>) {
                     fontWeight = FontWeight.SemiBold
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun WaitSection(waits: WaitStats) {
+    fun shown(ms: Long) = if (ms < 0) "-" else formatDuration(ms)
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceEvenly
+    ) {
+        StatSummaryItem("Median", shown(waits.median))
+        StatSummaryItem("Not due, mean", shown(waits.meanWaiting))
+        StatSummaryItem("Longest", shown(waits.longest))
+    }
+    Spacer(Modifier.height(12.dp))
+    val maxCount = waits.buckets.maxOf { it.second }.coerceAtLeast(1)
+    val barColor = Color(0xFF2F86EB)
+    waits.buckets.forEach { (label, count) ->
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 3.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                label,
+                modifier = Modifier.width(72.dp),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Box(modifier = Modifier.weight(1f).height(14.dp)) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .fillMaxWidth(count.toFloat() / maxCount)
+                        .background(barColor.copy(alpha = 0.75f), RoundedCornerShape(7.dp))
+                )
+            }
+            Text(
+                "$count",
+                modifier = Modifier.width(36.dp),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }

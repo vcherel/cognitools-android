@@ -342,11 +342,18 @@ class DeezerPlaybackService : MediaSessionService() {
             // release of the same song right away.
             if (error.isTrackUnavailable()) retriedCurrent = true
 
+            // A frame the MP3 decoder rejects is in the file Deezer serves: a refetched copy failed at
+            // the same second (Nov 2026). Resuming there fails again, so the retry jumps past it.
+            val resumeAt = if (error.errorCode == PlaybackException.ERROR_CODE_DECODING_FAILED) {
+                player.currentPosition + DECODE_SKIP_MS
+            } else null
+
             // A paused player stays paused: the audio route changing under it (a speaker dropping)
             // can fail the renderer, and resuming here would carry on through the phone speaker.
             if (!player.playWhenReady) {
                 if (!retriedCurrent) {
                     retriedCurrent = true
+                    resumeAt?.let { player.seekTo(it) }
                     player.prepare()
                 }
                 return
@@ -354,7 +361,8 @@ class DeezerPlaybackService : MediaSessionService() {
 
             if (!retriedCurrent) {
                 retriedCurrent = true
-                player.prepare() // resumes the same item at the position it died at
+                resumeAt?.let { player.seekTo(it) }
+                player.prepare() // resumes the same item where it died, or past a bad frame
                 player.play()
                 return
             }
@@ -572,6 +580,8 @@ class DeezerPlaybackService : MediaSessionService() {
     companion object {
         private const val TAG = "DeezerPlayback"
         private const val MAX_SKIPS = 5
+// Past the decoder's read ahead, so the retry lands after the frame it rejected.
+private const val DECODE_SKIP_MS = 3_000L
         private const val QUEUE_FILL_WAIT_MS = 3_000L
         /** Ahead of the crossfader buffering the tail (24 s), so a swap is done before any blend starts. */
         private const val LOOKAHEAD_MS = 35_000L

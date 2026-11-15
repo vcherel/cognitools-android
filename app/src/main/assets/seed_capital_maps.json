@@ -1,0 +1,1786 @@
+{
+ "version": 1,
+ "lists": [
+  {
+   "id": "builtin-capital-maps-v1",
+   "name": "Capitales (carte)",
+   "order": 11,
+   "fixedSide": true
+  }
+ ],
+ "cards": [
+  {
+   "id": "capmap-ae",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Abou Dabi",
+   "image": "asset:maps/cap-ae.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-ng",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Abuja",
+   "image": "asset:maps/cap-ng.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-gh",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Accra",
+   "image": "asset:maps/cap-gh.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-tm",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Achgabat",
+   "image": "asset:maps/cap-tm.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-et",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Addis-Abeba",
+   "image": "asset:maps/cap-et.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-dz",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Alger",
+   "image": "asset:maps/cap-dz.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-jo",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Amman",
+   "image": "asset:maps/cap-jo.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-nl",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Amsterdam",
+   "image": "asset:maps/cap-nl.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-ad",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Andorre-la-Vieille",
+   "image": "asset:maps/cap-ad.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-tr",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Ankara",
+   "image": "asset:maps/cap-tr.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-mg",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Antananarivo",
+   "image": "asset:maps/cap-mg.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-ws",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Apia",
+   "image": "asset:maps/cap-ws.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-er",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Asmara",
+   "image": "asset:maps/cap-er.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-kz",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Astana",
+   "image": "asset:maps/cap-kz.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-py",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Asunción",
+   "image": "asset:maps/cap-py.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-gr",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Athènes",
+   "image": "asset:maps/cap-gr.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-iq",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Bagdad",
+   "image": "asset:maps/cap-iq.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-az",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Bakou",
+   "image": "asset:maps/cap-az.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-ml",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Bamako",
+   "image": "asset:maps/cap-ml.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-bn",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Bandar Seri Begawan",
+   "image": "asset:maps/cap-bn.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-th",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Bangkok",
+   "image": "asset:maps/cap-th.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-cf",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Bangui",
+   "image": "asset:maps/cap-cf.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-gm",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Banjul",
+   "image": "asset:maps/cap-gm.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-kn",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Basseterre",
+   "image": "asset:maps/cap-kn.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-rs",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Belgrade",
+   "image": "asset:maps/cap-rs.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-bz",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Belmopan",
+   "image": "asset:maps/cap-bz.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-de",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Berlin",
+   "image": "asset:maps/cap-de.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-ch",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Berne",
+   "image": "asset:maps/cap-ch.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-lb",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Beyrouth",
+   "image": "asset:maps/cap-lb.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-kg",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Bichkek",
+   "image": "asset:maps/cap-kg.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-gw",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Bissau",
+   "image": "asset:maps/cap-gw.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-co",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Bogotá",
+   "image": "asset:maps/cap-co.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-br",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Brasilia",
+   "image": "asset:maps/cap-br.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-sk",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Bratislava",
+   "image": "asset:maps/cap-sk.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-cg",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Brazzaville",
+   "image": "asset:maps/cap-cg.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-bb",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Bridgetown",
+   "image": "asset:maps/cap-bb.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-be",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Bruxelles",
+   "image": "asset:maps/cap-be.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-ro",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Bucarest",
+   "image": "asset:maps/cap-ro.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-hu",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Budapest",
+   "image": "asset:maps/cap-hu.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-ar",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Buenos Aires",
+   "image": "asset:maps/cap-ar.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-au",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Canberra",
+   "image": "asset:maps/cap-au.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-ve",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Caracas",
+   "image": "asset:maps/cap-ve.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-lc",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Castries",
+   "image": "asset:maps/cap-lc.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-md",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Chișinău",
+   "image": "asset:maps/cap-md.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-va",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Cité du Vatican",
+   "image": "asset:maps/cap-va.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-gq",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Ciudad de la Paz",
+   "image": "asset:maps/cap-gq.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-gn",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Conakry",
+   "image": "asset:maps/cap-gn.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-dk",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Copenhague",
+   "image": "asset:maps/cap-dk.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-bd",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Dacca",
+   "image": "asset:maps/cap-bd.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-sn",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Dakar",
+   "image": "asset:maps/cap-sn.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-sy",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Damas",
+   "image": "asset:maps/cap-sy.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-tl",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Dili",
+   "image": "asset:maps/cap-tl.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-dj",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Djibouti",
+   "image": "asset:maps/cap-dj.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-ss",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Djouba",
+   "image": "asset:maps/cap-ss.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-tz",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Dodoma",
+   "image": "asset:maps/cap-tz.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-qa",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Doha",
+   "image": "asset:maps/cap-qa.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-tj",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Douchanbé",
+   "image": "asset:maps/cap-tj.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-ie",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Dublin",
+   "image": "asset:maps/cap-ie.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-am",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Erevan",
+   "image": "asset:maps/cap-am.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-sl",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Freetown",
+   "image": "asset:maps/cap-sl.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-tv",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Funafuti",
+   "image": "asset:maps/cap-tv.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-bw",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Gaborone",
+   "image": "asset:maps/cap-bw.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-gy",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Georgetown",
+   "image": "asset:maps/cap-gy.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-bi",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Gitega",
+   "image": "asset:maps/cap-bi.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-gt",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Guatemala City",
+   "image": "asset:maps/cap-gt.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-vn",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Hanoï",
+   "image": "asset:maps/cap-vn.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-zw",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Harare",
+   "image": "asset:maps/cap-zw.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-fi",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Helsinki",
+   "image": "asset:maps/cap-fi.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-sb",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Honiara",
+   "image": "asset:maps/cap-sb.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-pk",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Islamabad",
+   "image": "asset:maps/cap-pk.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-id",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Jakarta",
+   "image": "asset:maps/cap-id.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-il",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Jérusalem",
+   "image": "asset:maps/cap-il.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-af",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Kaboul",
+   "image": "asset:maps/cap-af.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-ug",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Kampala",
+   "image": "asset:maps/cap-ug.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-np",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Katmandou",
+   "image": "asset:maps/cap-np.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-sd",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Khartoum",
+   "image": "asset:maps/cap-sd.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-ua",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Kiev",
+   "image": "asset:maps/cap-ua.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-rw",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Kigali",
+   "image": "asset:maps/cap-rw.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-jm",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Kingston",
+   "image": "asset:maps/cap-jm.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-vc",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Kingstown",
+   "image": "asset:maps/cap-vc.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-cd",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Kinshasa",
+   "image": "asset:maps/cap-cd.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-kw",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Koweït City",
+   "image": "asset:maps/cap-kw.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-my",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Kuala Lumpur",
+   "image": "asset:maps/cap-my.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-cu",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "La Havane",
+   "image": "asset:maps/cap-cu.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-mt",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "La Valette",
+   "image": "asset:maps/cap-mt.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-eg",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Le Caire",
+   "image": "asset:maps/cap-eg.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-ga",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Libreville",
+   "image": "asset:maps/cap-ga.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-mw",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Lilongwe",
+   "image": "asset:maps/cap-mw.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-pe",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Lima",
+   "image": "asset:maps/cap-pe.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-pt",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Lisbonne",
+   "image": "asset:maps/cap-pt.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-si",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Ljubljana",
+   "image": "asset:maps/cap-si.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-tg",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Lomé",
+   "image": "asset:maps/cap-tg.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-gb",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Londres",
+   "image": "asset:maps/cap-gb.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-ao",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Luanda",
+   "image": "asset:maps/cap-ao.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-zm",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Lusaka",
+   "image": "asset:maps/cap-zm.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-lu",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Luxembourg",
+   "image": "asset:maps/cap-lu.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-es",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Madrid",
+   "image": "asset:maps/cap-es.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-mh",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Majuro",
+   "image": "asset:maps/cap-mh.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-mv",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Malé",
+   "image": "asset:maps/cap-mv.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-ni",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Managua",
+   "image": "asset:maps/cap-ni.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-bh",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Manama",
+   "image": "asset:maps/cap-bh.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-ph",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Manille",
+   "image": "asset:maps/cap-ph.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-mz",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Maputo",
+   "image": "asset:maps/cap-mz.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-om",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Mascate",
+   "image": "asset:maps/cap-om.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-ls",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Maseru",
+   "image": "asset:maps/cap-ls.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-sz",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Mbabane",
+   "image": "asset:maps/cap-sz.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-mx",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Mexico",
+   "image": "asset:maps/cap-mx.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-by",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Minsk",
+   "image": "asset:maps/cap-by.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-so",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Mogadiscio",
+   "image": "asset:maps/cap-so.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-mc",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Monaco",
+   "image": "asset:maps/cap-mc.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-lr",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Monrovia",
+   "image": "asset:maps/cap-lr.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-uy",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Montevideo",
+   "image": "asset:maps/cap-uy.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-km",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Moroni",
+   "image": "asset:maps/cap-km.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-ru",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Moscou",
+   "image": "asset:maps/cap-ru.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-td",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "N'Djamena",
+   "image": "asset:maps/cap-td.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-ke",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Nairobi",
+   "image": "asset:maps/cap-ke.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-bs",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Nassau",
+   "image": "asset:maps/cap-bs.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-mm",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Naypyidaw",
+   "image": "asset:maps/cap-mm.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-in",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "New Delhi",
+   "image": "asset:maps/cap-in.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-pw",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Ngerulmud",
+   "image": "asset:maps/cap-pw.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-ne",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Niamey",
+   "image": "asset:maps/cap-ne.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-cy",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Nicosie",
+   "image": "asset:maps/cap-cy.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-mr",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Nouakchott",
+   "image": "asset:maps/cap-mr.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-to",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Nuku'alofa",
+   "image": "asset:maps/cap-to.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-no",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Oslo",
+   "image": "asset:maps/cap-no.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-ca",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Ottawa",
+   "image": "asset:maps/cap-ca.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-bf",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Ouagadougou",
+   "image": "asset:maps/cap-bf.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-mn",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Oulan-Bator",
+   "image": "asset:maps/cap-mn.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-fm",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Palikir",
+   "image": "asset:maps/cap-fm.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-pa",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Panama City",
+   "image": "asset:maps/cap-pa.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-sr",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Paramaribo",
+   "image": "asset:maps/cap-sr.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-fr",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Paris",
+   "image": "asset:maps/cap-fr.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-cn",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Pékin",
+   "image": "asset:maps/cap-cn.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-kh",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Phnom Penh",
+   "image": "asset:maps/cap-kh.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-me",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Podgorica",
+   "image": "asset:maps/cap-me.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-ht",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Port-au-Prince",
+   "image": "asset:maps/cap-ht.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-tt",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Port-d'Espagne",
+   "image": "asset:maps/cap-tt.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-mu",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Port-Louis",
+   "image": "asset:maps/cap-mu.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-pg",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Port Moresby",
+   "image": "asset:maps/cap-pg.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-vu",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Port-Vila",
+   "image": "asset:maps/cap-vu.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-bj",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Porto-Novo",
+   "image": "asset:maps/cap-bj.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-cz",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Prague",
+   "image": "asset:maps/cap-cz.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-cv",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Praia",
+   "image": "asset:maps/cap-cv.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-za",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Pretoria",
+   "image": "asset:maps/cap-za.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-xk",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Pristina",
+   "image": "asset:maps/cap-xk.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-kp",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Pyongyang",
+   "image": "asset:maps/cap-kp.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-ec",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Quito",
+   "image": "asset:maps/cap-ec.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-ma",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Rabat",
+   "image": "asset:maps/cap-ma.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-ps",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Ramallah",
+   "image": "asset:maps/cap-ps.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-is",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Reykjavik",
+   "image": "asset:maps/cap-is.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-lv",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Riga",
+   "image": "asset:maps/cap-lv.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-sa",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Riyad",
+   "image": "asset:maps/cap-sa.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-it",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Rome",
+   "image": "asset:maps/cap-it.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-dm",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Roseau",
+   "image": "asset:maps/cap-dm.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-do",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Saint-Domingue",
+   "image": "asset:maps/cap-do.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-gd",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Saint-Georges",
+   "image": "asset:maps/cap-gd.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-ag",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Saint John's",
+   "image": "asset:maps/cap-ag.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-sm",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Saint-Marin",
+   "image": "asset:maps/cap-sm.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-cr",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "San José",
+   "image": "asset:maps/cap-cr.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-sv",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "San Salvador",
+   "image": "asset:maps/cap-sv.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-ye",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Sanaa",
+   "image": "asset:maps/cap-ye.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-cl",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Santiago",
+   "image": "asset:maps/cap-cl.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-st",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "São Tomé",
+   "image": "asset:maps/cap-st.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-ba",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Sarajevo",
+   "image": "asset:maps/cap-ba.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-kr",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Séoul",
+   "image": "asset:maps/cap-kr.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-sg",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Singapour",
+   "image": "asset:maps/cap-sg.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-mk",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Skopje",
+   "image": "asset:maps/cap-mk.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-bg",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Sofia",
+   "image": "asset:maps/cap-bg.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-lk",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Sri Jayawardenepura Kotte",
+   "image": "asset:maps/cap-lk.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-se",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Stockholm",
+   "image": "asset:maps/cap-se.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-bo",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Sucre",
+   "image": "asset:maps/cap-bo.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-fj",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Suva",
+   "image": "asset:maps/cap-fj.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-uz",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Tachkent",
+   "image": "asset:maps/cap-uz.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-tw",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Taipei",
+   "image": "asset:maps/cap-tw.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-ee",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Tallinn",
+   "image": "asset:maps/cap-ee.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-ki",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Tarawa-Sud",
+   "image": "asset:maps/cap-ki.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-ge",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Tbilissi",
+   "image": "asset:maps/cap-ge.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-hn",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Tegucigalpa",
+   "image": "asset:maps/cap-hn.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-ir",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Téhéran",
+   "image": "asset:maps/cap-ir.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-bt",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Thimphou",
+   "image": "asset:maps/cap-bt.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-al",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Tirana",
+   "image": "asset:maps/cap-al.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-jp",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Tokyo",
+   "image": "asset:maps/cap-jp.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-ly",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Tripoli",
+   "image": "asset:maps/cap-ly.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-tn",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Tunis",
+   "image": "asset:maps/cap-tn.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-li",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Vaduz",
+   "image": "asset:maps/cap-li.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-pl",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Varsovie",
+   "image": "asset:maps/cap-pl.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-sc",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Victoria",
+   "image": "asset:maps/cap-sc.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-at",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Vienne",
+   "image": "asset:maps/cap-at.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-la",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Vientiane",
+   "image": "asset:maps/cap-la.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-lt",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Vilnius",
+   "image": "asset:maps/cap-lt.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-us",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Washington D.C.",
+   "image": "asset:maps/cap-us.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-nz",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Wellington",
+   "image": "asset:maps/cap-nz.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-na",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Windhoek",
+   "image": "asset:maps/cap-na.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-ci",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Yamoussoukro",
+   "image": "asset:maps/cap-ci.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-cm",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Yaoundé",
+   "image": "asset:maps/cap-cm.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-nr",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Yaren",
+   "image": "asset:maps/cap-nr.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "capmap-hr",
+   "listId": "builtin-capital-maps-v1",
+   "name": "",
+   "definition": "Zagreb",
+   "image": "asset:maps/cap-hr.webp",
+   "lastReview": 0,
+   "randomSide": false
+  }
+ ]
+}

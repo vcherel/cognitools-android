@@ -1,0 +1,373 @@
+{
+ "version": 1,
+ "lists": [
+  {
+   "id": "builtin-cities-fr-v1",
+   "name": "Villes importantes (France)",
+   "order": 14,
+   "fixedSide": true
+  }
+ ],
+ "cards": [
+  {
+   "id": "cityfrmap-13001",
+   "listId": "builtin-cities-fr-v1",
+   "name": "",
+   "definition": "Aix-en-Provence",
+   "image": "asset:maps/cityfr-13001.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "cityfrmap-30007",
+   "listId": "builtin-cities-fr-v1",
+   "name": "",
+   "definition": "Alès",
+   "image": "asset:maps/cityfr-30007.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "cityfrmap-74012",
+   "listId": "builtin-cities-fr-v1",
+   "name": "",
+   "definition": "Annemasse",
+   "image": "asset:maps/cityfr-74012.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "cityfrmap-13004",
+   "listId": "builtin-cities-fr-v1",
+   "name": "",
+   "definition": "Arles",
+   "image": "asset:maps/cityfr-13004.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "cityfrmap-64102",
+   "listId": "builtin-cities-fr-v1",
+   "name": "",
+   "definition": "Bayonne",
+   "image": "asset:maps/cityfr-64102.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "cityfrmap-34032",
+   "listId": "builtin-cities-fr-v1",
+   "name": "",
+   "definition": "Béziers",
+   "image": "asset:maps/cityfr-34032.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "cityfrmap-62160",
+   "listId": "builtin-cities-fr-v1",
+   "name": "",
+   "definition": "Boulogne-sur-Mer",
+   "image": "asset:maps/cityfr-62160.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "cityfrmap-29019",
+   "listId": "builtin-cities-fr-v1",
+   "name": "",
+   "definition": "Brest",
+   "image": "asset:maps/cityfr-29019.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "cityfrmap-62193",
+   "listId": "builtin-cities-fr-v1",
+   "name": "",
+   "definition": "Calais",
+   "image": "asset:maps/cityfr-62193.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "cityfrmap-06029",
+   "listId": "builtin-cities-fr-v1",
+   "name": "",
+   "definition": "Cannes",
+   "image": "asset:maps/cityfr-06029.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "cityfrmap-81065",
+   "listId": "builtin-cities-fr-v1",
+   "name": "",
+   "definition": "Castres",
+   "image": "asset:maps/cityfr-81065.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "cityfrmap-71076",
+   "listId": "builtin-cities-fr-v1",
+   "name": "",
+   "definition": "Chalon-sur-Saône",
+   "image": "asset:maps/cityfr-71076.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "cityfrmap-50129",
+   "listId": "builtin-cities-fr-v1",
+   "name": "",
+   "definition": "Cherbourg-en-Cotentin",
+   "image": "asset:maps/cityfr-50129.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "cityfrmap-49099",
+   "listId": "builtin-cities-fr-v1",
+   "name": "",
+   "definition": "Cholet",
+   "image": "asset:maps/cityfr-49099.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "cityfrmap-60159",
+   "listId": "builtin-cities-fr-v1",
+   "name": "",
+   "definition": "Compiègne",
+   "image": "asset:maps/cityfr-60159.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "cityfrmap-60175",
+   "listId": "builtin-cities-fr-v1",
+   "name": "",
+   "definition": "Creil",
+   "image": "asset:maps/cityfr-60175.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "cityfrmap-59178",
+   "listId": "builtin-cities-fr-v1",
+   "name": "",
+   "definition": "Douai",
+   "image": "asset:maps/cityfr-59178.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "cityfrmap-83050",
+   "listId": "builtin-cities-fr-v1",
+   "name": "",
+   "definition": "Draguignan",
+   "image": "asset:maps/cityfr-83050.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "cityfrmap-59183",
+   "listId": "builtin-cities-fr-v1",
+   "name": "",
+   "definition": "Dunkerque",
+   "image": "asset:maps/cityfr-59183.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "cityfrmap-67180",
+   "listId": "builtin-cities-fr-v1",
+   "name": "",
+   "definition": "Haguenau",
+   "image": "asset:maps/cityfr-67180.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "cityfrmap-76351",
+   "listId": "builtin-cities-fr-v1",
+   "name": "",
+   "definition": "Le Havre",
+   "image": "asset:maps/cityfr-76351.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "cityfrmap-85194",
+   "listId": "builtin-cities-fr-v1",
+   "name": "",
+   "definition": "Les Sables-d'Olonne",
+   "image": "asset:maps/cityfr-85194.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "cityfrmap-56121",
+   "listId": "builtin-cities-fr-v1",
+   "name": "",
+   "definition": "Lorient",
+   "image": "asset:maps/cityfr-56121.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "cityfrmap-78361",
+   "listId": "builtin-cities-fr-v1",
+   "name": "",
+   "definition": "Mantes-la-Jolie",
+   "image": "asset:maps/cityfr-78361.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "cityfrmap-13056",
+   "listId": "builtin-cities-fr-v1",
+   "name": "",
+   "definition": "Martigues",
+   "image": "asset:maps/cityfr-13056.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "cityfrmap-77284",
+   "listId": "builtin-cities-fr-v1",
+   "name": "",
+   "definition": "Meaux",
+   "image": "asset:maps/cityfr-77284.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "cityfrmap-03185",
+   "listId": "builtin-cities-fr-v1",
+   "name": "",
+   "definition": "Montluçon",
+   "image": "asset:maps/cityfr-03185.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "cityfrmap-68224",
+   "listId": "builtin-cities-fr-v1",
+   "name": "",
+   "definition": "Mulhouse",
+   "image": "asset:maps/cityfr-68224.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "cityfrmap-11262",
+   "listId": "builtin-cities-fr-v1",
+   "name": "",
+   "definition": "Narbonne",
+   "image": "asset:maps/cityfr-11262.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "cityfrmap-51454",
+   "listId": "builtin-cities-fr-v1",
+   "name": "",
+   "definition": "Reims",
+   "image": "asset:maps/cityfr-51454.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "cityfrmap-42187",
+   "listId": "builtin-cities-fr-v1",
+   "name": "",
+   "definition": "Roanne",
+   "image": "asset:maps/cityfr-42187.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "cityfrmap-35288",
+   "listId": "builtin-cities-fr-v1",
+   "name": "",
+   "definition": "Saint-Malo",
+   "image": "asset:maps/cityfr-35288.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "cityfrmap-44184",
+   "listId": "builtin-cities-fr-v1",
+   "name": "",
+   "definition": "Saint-Nazaire",
+   "image": "asset:maps/cityfr-44184.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "cityfrmap-02691",
+   "listId": "builtin-cities-fr-v1",
+   "name": "",
+   "definition": "Saint-Quentin",
+   "image": "asset:maps/cityfr-02691.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "cityfrmap-13103",
+   "listId": "builtin-cities-fr-v1",
+   "name": "",
+   "definition": "Salon-de-Provence",
+   "image": "asset:maps/cityfr-13103.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "cityfrmap-34301",
+   "listId": "builtin-cities-fr-v1",
+   "name": "",
+   "definition": "Sète",
+   "image": "asset:maps/cityfr-34301.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "cityfrmap-57672",
+   "listId": "builtin-cities-fr-v1",
+   "name": "",
+   "definition": "Thionville",
+   "image": "asset:maps/cityfr-57672.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "cityfrmap-74281",
+   "listId": "builtin-cities-fr-v1",
+   "name": "",
+   "definition": "Thonon-les-Bains",
+   "image": "asset:maps/cityfr-74281.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "cityfrmap-59606",
+   "listId": "builtin-cities-fr-v1",
+   "name": "",
+   "definition": "Valenciennes",
+   "image": "asset:maps/cityfr-59606.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "cityfrmap-69264",
+   "listId": "builtin-cities-fr-v1",
+   "name": "",
+   "definition": "Villefranche-sur-Saône",
+   "image": "asset:maps/cityfr-69264.webp",
+   "lastReview": 0,
+   "randomSide": false
+  }
+ ]
+}

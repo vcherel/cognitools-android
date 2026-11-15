@@ -1,0 +1,413 @@
+{
+ "version": 1,
+ "lists": [
+  {
+   "id": "builtin-state-capitals-v1",
+   "name": "Préfectures US",
+   "order": 12,
+   "fixedSide": false
+  }
+ ],
+ "cards": [
+  {
+   "id": "uscap-al",
+   "listId": "builtin-state-capitals-v1",
+   "name": "Alabama",
+   "definition": "Montgomery",
+   "lastReview": 0,
+   "randomSide": true
+  },
+  {
+   "id": "uscap-ak",
+   "listId": "builtin-state-capitals-v1",
+   "name": "Alaska",
+   "definition": "Juneau",
+   "lastReview": 0,
+   "randomSide": true
+  },
+  {
+   "id": "uscap-az",
+   "listId": "builtin-state-capitals-v1",
+   "name": "Arizona",
+   "definition": "Phoenix",
+   "lastReview": 0,
+   "randomSide": true
+  },
+  {
+   "id": "uscap-ar",
+   "listId": "builtin-state-capitals-v1",
+   "name": "Arkansas",
+   "definition": "Little Rock",
+   "lastReview": 0,
+   "randomSide": true
+  },
+  {
+   "id": "uscap-ca",
+   "listId": "builtin-state-capitals-v1",
+   "name": "Californie",
+   "definition": "Sacramento",
+   "lastReview": 0,
+   "randomSide": true
+  },
+  {
+   "id": "uscap-nc",
+   "listId": "builtin-state-capitals-v1",
+   "name": "Caroline du Nord",
+   "definition": "Raleigh",
+   "lastReview": 0,
+   "randomSide": true
+  },
+  {
+   "id": "uscap-sc",
+   "listId": "builtin-state-capitals-v1",
+   "name": "Caroline du Sud",
+   "definition": "Columbia",
+   "lastReview": 0,
+   "randomSide": true
+  },
+  {
+   "id": "uscap-co",
+   "listId": "builtin-state-capitals-v1",
+   "name": "Colorado",
+   "definition": "Denver",
+   "lastReview": 0,
+   "randomSide": true
+  },
+  {
+   "id": "uscap-ct",
+   "listId": "builtin-state-capitals-v1",
+   "name": "Connecticut",
+   "definition": "Hartford",
+   "lastReview": 0,
+   "randomSide": true
+  },
+  {
+   "id": "uscap-nd",
+   "listId": "builtin-state-capitals-v1",
+   "name": "Dakota du Nord",
+   "definition": "Bismarck",
+   "lastReview": 0,
+   "randomSide": true
+  },
+  {
+   "id": "uscap-sd",
+   "listId": "builtin-state-capitals-v1",
+   "name": "Dakota du Sud",
+   "definition": "Pierre",
+   "lastReview": 0,
+   "randomSide": true
+  },
+  {
+   "id": "uscap-de",
+   "listId": "builtin-state-capitals-v1",
+   "name": "Delaware",
+   "definition": "Dover",
+   "lastReview": 0,
+   "randomSide": true
+  },
+  {
+   "id": "uscap-ny",
+   "listId": "builtin-state-capitals-v1",
+   "name": "État de New York",
+   "definition": "Albany",
+   "lastReview": 0,
+   "randomSide": true
+  },
+  {
+   "id": "uscap-fl",
+   "listId": "builtin-state-capitals-v1",
+   "name": "Floride",
+   "definition": "Tallahassee",
+   "lastReview": 0,
+   "randomSide": true
+  },
+  {
+   "id": "uscap-ga",
+   "listId": "builtin-state-capitals-v1",
+   "name": "Géorgie",
+   "definition": "Atlanta",
+   "lastReview": 0,
+   "randomSide": true
+  },
+  {
+   "id": "uscap-hi",
+   "listId": "builtin-state-capitals-v1",
+   "name": "Hawaï",
+   "definition": "Honolulu",
+   "lastReview": 0,
+   "randomSide": true
+  },
+  {
+   "id": "uscap-id",
+   "listId": "builtin-state-capitals-v1",
+   "name": "Idaho",
+   "definition": "Boise",
+   "lastReview": 0,
+   "randomSide": true
+  },
+  {
+   "id": "uscap-il",
+   "listId": "builtin-state-capitals-v1",
+   "name": "Illinois",
+   "definition": "Springfield",
+   "lastReview": 0,
+   "randomSide": true
+  },
+  {
+   "id": "uscap-in",
+   "listId": "builtin-state-capitals-v1",
+   "name": "Indiana",
+   "definition": "Indianapolis",
+   "lastReview": 0,
+   "randomSide": true
+  },
+  {
+   "id": "uscap-ia",
+   "listId": "builtin-state-capitals-v1",
+   "name": "Iowa",
+   "definition": "Des Moines",
+   "lastReview": 0,
+   "randomSide": true
+  },
+  {
+   "id": "uscap-ks",
+   "listId": "builtin-state-capitals-v1",
+   "name": "Kansas",
+   "definition": "Topeka",
+   "lastReview": 0,
+   "randomSide": true
+  },
+  {
+   "id": "uscap-ky",
+   "listId": "builtin-state-capitals-v1",
+   "name": "Kentucky",
+   "definition": "Frankfort",
+   "lastReview": 0,
+   "randomSide": true
+  },
+  {
+   "id": "uscap-la",
+   "listId": "builtin-state-capitals-v1",
+   "name": "Louisiane",
+   "definition": "Baton Rouge",
+   "lastReview": 0,
+   "randomSide": true
+  },
+  {
+   "id": "uscap-me",
+   "listId": "builtin-state-capitals-v1",
+   "name": "Maine",
+   "definition": "Augusta",
+   "lastReview": 0,
+   "randomSide": true
+  },
+  {
+   "id": "uscap-md",
+   "listId": "builtin-state-capitals-v1",
+   "name": "Maryland",
+   "definition": "Annapolis",
+   "lastReview": 0,
+   "randomSide": true
+  },
+  {
+   "id": "uscap-ma",
+   "listId": "builtin-state-capitals-v1",
+   "name": "Massachusetts",
+   "definition": "Boston",
+   "lastReview": 0,
+   "randomSide": true
+  },
+  {
+   "id": "uscap-mi",
+   "listId": "builtin-state-capitals-v1",
+   "name": "Michigan",
+   "definition": "Lansing",
+   "lastReview": 0,
+   "randomSide": true
+  },
+  {
+   "id": "uscap-mn",
+   "listId": "builtin-state-capitals-v1",
+   "name": "Minnesota",
+   "definition": "Saint Paul",
+   "lastReview": 0,
+   "randomSide": true
+  },
+  {
+   "id": "uscap-ms",
+   "listId": "builtin-state-capitals-v1",
+   "name": "Mississippi",
+   "definition": "Jackson",
+   "lastReview": 0,
+   "randomSide": true
+  },
+  {
+   "id": "uscap-mo",
+   "listId": "builtin-state-capitals-v1",
+   "name": "Missouri",
+   "definition": "Jefferson City",
+   "lastReview": 0,
+   "randomSide": true
+  },
+  {
+   "id": "uscap-mt",
+   "listId": "builtin-state-capitals-v1",
+   "name": "Montana",
+   "definition": "Helena",
+   "lastReview": 0,
+   "randomSide": true
+  },
+  {
+   "id": "uscap-ne",
+   "listId": "builtin-state-capitals-v1",
+   "name": "Nebraska",
+   "definition": "Lincoln",
+   "lastReview": 0,
+   "randomSide": true
+  },
+  {
+   "id": "uscap-nv",
+   "listId": "builtin-state-capitals-v1",
+   "name": "Nevada",
+   "definition": "Carson City",
+   "lastReview": 0,
+   "randomSide": true
+  },
+  {
+   "id": "uscap-nh",
+   "listId": "builtin-state-capitals-v1",
+   "name": "New Hampshire",
+   "definition": "Concord",
+   "lastReview": 0,
+   "randomSide": true
+  },
+  {
+   "id": "uscap-nj",
+   "listId": "builtin-state-capitals-v1",
+   "name": "New Jersey",
+   "definition": "Trenton",
+   "lastReview": 0,
+   "randomSide": true
+  },
+  {
+   "id": "uscap-nm",
+   "listId": "builtin-state-capitals-v1",
+   "name": "Nouveau-Mexique",
+   "definition": "Santa Fe",
+   "lastReview": 0,
+   "randomSide": true
+  },
+  {
+   "id": "uscap-oh",
+   "listId": "builtin-state-capitals-v1",
+   "name": "Ohio",
+   "definition": "Columbus",
+   "lastReview": 0,
+   "randomSide": true
+  },
+  {
+   "id": "uscap-ok",
+   "listId": "builtin-state-capitals-v1",
+   "name": "Oklahoma",
+   "definition": "Oklahoma City",
+   "lastReview": 0,
+   "randomSide": true
+  },
+  {
+   "id": "uscap-or",
+   "listId": "builtin-state-capitals-v1",
+   "name": "Oregon",
+   "definition": "Salem",
+   "lastReview": 0,
+   "randomSide": true
+  },
+  {
+   "id": "uscap-pa",
+   "listId": "builtin-state-capitals-v1",
+   "name": "Pennsylvanie",
+   "definition": "Harrisburg",
+   "lastReview": 0,
+   "randomSide": true
+  },
+  {
+   "id": "uscap-ri",
+   "listId": "builtin-state-capitals-v1",
+   "name": "Rhode Island",
+   "definition": "Providence",
+   "lastReview": 0,
+   "randomSide": true
+  },
+  {
+   "id": "uscap-tn",
+   "listId": "builtin-state-capitals-v1",
+   "name": "Tennessee",
+   "definition": "Nashville",
+   "lastReview": 0,
+   "randomSide": true
+  },
+  {
+   "id": "uscap-tx",
+   "listId": "builtin-state-capitals-v1",
+   "name": "Texas",
+   "definition": "Austin",
+   "lastReview": 0,
+   "randomSide": true
+  },
+  {
+   "id": "uscap-ut",
+   "listId": "builtin-state-capitals-v1",
+   "name": "Utah",
+   "definition": "Salt Lake City",
+   "lastReview": 0,
+   "randomSide": true
+  },
+  {
+   "id": "uscap-vt",
+   "listId": "builtin-state-capitals-v1",
+   "name": "Vermont",
+   "definition": "Montpelier",
+   "lastReview": 0,
+   "randomSide": true
+  },
+  {
+   "id": "uscap-va",
+   "listId": "builtin-state-capitals-v1",
+   "name": "Virginie",
+   "definition": "Richmond",
+   "lastReview": 0,
+   "randomSide": true
+  },
+  {
+   "id": "uscap-wv",
+   "listId": "builtin-state-capitals-v1",
+   "name": "Virginie-Occidentale",
+   "definition": "Charleston",
+   "lastReview": 0,
+   "randomSide": true
+  },
+  {
+   "id": "uscap-wa",
+   "listId": "builtin-state-capitals-v1",
+   "name": "Washington",
+   "definition": "Olympia",
+   "lastReview": 0,
+   "randomSide": true
+  },
+  {
+   "id": "uscap-wi",
+   "listId": "builtin-state-capitals-v1",
+   "name": "Wisconsin",
+   "definition": "Madison",
+   "lastReview": 0,
+   "randomSide": true
+  },
+  {
+   "id": "uscap-wy",
+   "listId": "builtin-state-capitals-v1",
+   "name": "Wyoming",
+   "definition": "Cheyenne",
+   "lastReview": 0,
+   "randomSide": true
+  }
+ ]
+}

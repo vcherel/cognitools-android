@@ -872,51 +872,6 @@
    "image": "asset:maps/dep-95.webp",
    "lastReview": 0,
    "randomSide": false
-  },
-  {
-   "id": "deptmap-971",
-   "listId": "builtin-dept-maps-v1",
-   "name": "",
-   "definition": "Guadeloupe",
-   "image": "asset:maps/dep-971.webp",
-   "lastReview": 0,
-   "randomSide": false
-  },
-  {
-   "id": "deptmap-972",
-   "listId": "builtin-dept-maps-v1",
-   "name": "",
-   "definition": "Martinique",
-   "image": "asset:maps/dep-972.webp",
-   "lastReview": 0,
-   "randomSide": false
-  },
-  {
-   "id": "deptmap-973",
-   "listId": "builtin-dept-maps-v1",
-   "name": "",
-   "definition": "Guyane",
-   "image": "asset:maps/dep-973.webp",
-   "lastReview": 0,
-   "randomSide": false
-  },
-  {
-   "id": "deptmap-974",
-   "listId": "builtin-dept-maps-v1",
-   "name": "",
-   "definition": "La Réunion",
-   "image": "asset:maps/dep-974.webp",
-   "lastReview": 0,
-   "randomSide": false
-  },
-  {
-   "id": "deptmap-976",
-   "listId": "builtin-dept-maps-v1",
-   "name": "",
-   "definition": "Mayotte",
-   "image": "asset:maps/dep-976.webp",
-   "lastReview": 0,
-   "randomSide": false
   }
  ]
 }
