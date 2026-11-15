@@ -28,9 +28,6 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
-import androidx.compose.runtime.collectAsState
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -92,7 +89,6 @@ fun FlashcardListsScreen(navController: NavController) {
         mutableStateOf(repository.lastListsWithCounts ?: Pair(emptyList<FlashcardList>(), emptyMap<String, Pair<Int, Int>>()))
     }
     var hasLoaded by remember { mutableStateOf(repository.lastListsWithCounts != null) }
-    val hidePersonal by repository.hidePersonal.collectAsState(initial = false)
 
     LaunchedEffect(repository) {
         repository.observeListsWithCounts().collect { pair ->
@@ -162,14 +158,6 @@ fun FlashcardListsScreen(navController: NavController) {
                 }
 
                 Row {
-                    IconButton(onClick = { scope.launch { repository.setHidePersonal(!hidePersonal) } }) {
-                        Icon(
-                            if (hidePersonal) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                            contentDescription = if (hidePersonal) "Show personal lists" else "Hide personal lists",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-
                     IconButton(onClick = {
                         navController.navigate("elements/all")
                     }) {

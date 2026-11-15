@@ -15,6 +15,7 @@ import com.example.myapp.flashcardRepository
 import com.example.myapp.formatDuration
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlin.random.Random
 
@@ -75,9 +76,17 @@ class FlashcardGameState(
     // Bumped when a waiting card comes due, so the due list (which reads the clock) recomputes
     private var dueTick by mutableIntStateOf(0)
 
+    // Play all only: the personal lists left out, switched from the game's header
+    var hidePersonal by mutableStateOf(false)
+        private set
+
+    private fun playable(): List<FlashcardElement> =
+        if (hidePersonal) cards.orEmpty().filter { !FlashcardRepository.isPersonalList(it.listId) }
+        else cards.orEmpty()
+
     private val dueState by derivedStateOf {
         dueTick
-        val due = cards.orEmpty().filter { isDue(it) }
+        val due = playable().filter { isDue(it) }
         // Difficult cards only enter play through the working set
         val difficult = due.filter { it.score < 2 && it.id in activeDifficultCards }
         val easy = due.filter { it.score >= 2 }
@@ -87,7 +96,10 @@ class FlashcardGameState(
     val dueCount: Int get() = dueState.totalCount
 
     suspend fun load() {
-        if (isAllListsMode) listNames = repository.getListNames()
+        if (isAllListsMode) {
+            listNames = repository.getListNames()
+            hidePersonal = repository.hidePersonal.first()
+        }
         cards = if (isAllListsMode) repository.getPlayAllElements() else repository.getElements(listId)
         refillWorkingSet()
         pickIfIdle()
@@ -114,7 +126,7 @@ class FlashcardGameState(
     // A member leaves the working set as soon as it graduates or stops being due (a win schedules
     // it minutes away), so a waiting card never holds a slot another due difficult card could use.
     private fun refillWorkingSet() {
-        val difficultDue = cards.orEmpty().filter { it.score < 2 && isDue(it) }
+        val difficultDue = playable().filter { it.score < 2 && isDue(it) }
         val kept = difficultDue.filter { it.id in activeDifficultCards }.map { it.id }
         val added = difficultDue
             .filter { it.id !in activeDifficultCards }
@@ -168,6 +180,22 @@ class FlashcardGameState(
             val availableCards = dueState.cards.filter { it.id != card.id }.ifEmpty { dueState.cards }
 
             draw(availableCards.firstOrNull { it.id == upcoming?.id } ?: availableCards.randomOrNull(sessionRandom))
+        }
+    }
+
+    /** The card on screen is swapped out at once when its list just got hidden. */
+    fun toggleHidePersonal() {
+        hidePersonal = !hidePersonal
+        scope.launch { repository.setHidePersonal(hidePersonal) }
+        refillWorkingSet()
+        val card = currentCard
+        if (hidePersonal && card != null && FlashcardRepository.isPersonalList(card.listId)) {
+            showDefinition = false
+            canUndo = false
+            lastCard = null
+            draw(dueState.cards.randomOrNull(sessionRandom))
+        } else {
+            pickIfIdle()
         }
     }
 

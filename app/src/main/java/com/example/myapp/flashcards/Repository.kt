@@ -40,10 +40,8 @@ class FlashcardRepository(private val context: Context) {
         return combine(
             dao.observeLists(),
             dao.observeTotalCounts(),
-            dao.observeDueCounts(now),
-            hidePersonal
-        ) { all, totals, dues, hide ->
-            val lists = if (hide) all.filter { !isPersonalList(it.id) } else all
+            dao.observeDueCounts(now)
+        ) { lists, totals, dues ->
             val totalById = totals.associate { it.listId to it.c }
             val dueById = dues.associate { it.listId to it.c }
             val counts = lists.associate { list ->
@@ -71,12 +69,8 @@ class FlashcardRepository(private val context: Context) {
         dao.upsertList(list.copy(order = nextOrder))
     }
 
-    /** [newOrder] may leave out the hidden lists, which keep their slots. */
     suspend fun reorderLists(newOrder: List<FlashcardList>) {
-        val ids = newOrder.map { it.id }.toSet()
-        val dragged = newOrder.iterator()
-        val merged = dao.getLists().map { if (it.id in ids) dragged.next() else it }
-        dao.upsertLists(merged.mapIndexed { index, list -> list.copy(order = index) })
+        dao.upsertLists(newOrder.mapIndexed { index, list -> list.copy(order = index) })
     }
 
     suspend fun updateList(listId: String, newName: String) {
@@ -122,7 +116,7 @@ class FlashcardRepository(private val context: Context) {
     suspend fun deleteElement(elementId: String) = dao.deleteElement(elementId)
 
     suspend fun getStats(listId: String? = null): FlashcardStats {
-        val elements = if (listId != null) dao.getElements(listId) else getVisibleElements()
+        val elements = if (listId != null) dao.getElements(listId) else dao.getAllElements()
         val now = System.currentTimeMillis()
         val waitTimes = elements.map { maxOf(0L, it.nextReviewAt - now) }
         return FlashcardStats(
@@ -190,7 +184,7 @@ class FlashcardRepository(private val context: Context) {
         val today = LocalDate.now().toString()
         if (context.flashcardDataStore.data.first()[lotteryDayKey] == today) return null
         context.flashcardDataStore.edit { it[lotteryDayKey] = today }
-        val card = getVisibleElements().filter { it.nextReviewAt - now > DAY_MS }.randomOrNull() ?: return null
+        val card = dao.getAllElements().filter { it.nextReviewAt - now > DAY_MS }.randomOrNull() ?: return null
         val halved = halveRemainingWait(card, now)
         dao.upsertElement(halved)
         return DailyLottery(halved, card.nextReviewAt - now, halved.nextReviewAt - now)
@@ -289,29 +283,16 @@ class FlashcardRepository(private val context: Context) {
         context.flashcardDataStore.edit { it[hidePersonalKey] = hide }
     }
 
-    private suspend fun hiddenFilter(): (String) -> Boolean {
-        val hide = hidePersonal.first()
-        return { listId -> hide && isPersonalList(listId) }
-    }
-
-    /** Every card, minus the personal lists while they are hidden: what Search everything and the stats see. */
-    suspend fun getVisibleElements(): List<FlashcardElement> {
-        val hidden = hiddenFilter()
-        return dao.getAllElements().filter { !hidden(it.listId) }
-    }
-
-    fun observeVisibleElements(): Flow<List<FlashcardElement>> =
-        combine(dao.observeAllElements(), hidePersonal) { cards, hide ->
-            if (hide) cards.filter { !isPersonalList(it.listId) } else cards
-        }
+    fun observeAllElements(): Flow<List<FlashcardElement>> = dao.observeAllElements()
 
     /**
-     * The cards Play all draws from: the visible ones, minus the builtin lists not unlocked yet. The
+     * The cards Play all draws from: every card, minus the builtin lists not unlocked yet. The
      * builtin lists open one at a time in [UNLOCK_ORDER], the next one once every card of the last
-     * one opened has been played at least once, and stay open for good.
+     * one opened has been played at least once, and stay open for good. The game itself leaves out
+     * the personal lists while [hidePersonal] is on.
      */
     suspend fun getPlayAllElements(): List<FlashcardElement> {
-        val cards = getVisibleElements()
+        val cards = dao.getAllElements()
         val byList = cards.groupBy { it.listId }
         var unlocked = context.flashcardDataStore.data.first()[unlockedListsKey] ?: 1
         val before = unlocked

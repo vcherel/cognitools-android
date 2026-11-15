@@ -168,7 +168,7 @@ fun FlashcardDetailScreen(
 
     LaunchedEffect(listId) {
         isLoading = true
-        val flow = if (isAllLists) repository.observeVisibleElements()
+        val flow = if (isAllLists) repository.observeAllElements()
         else repository.observeElements(listId)
 
         flow.collect { list ->

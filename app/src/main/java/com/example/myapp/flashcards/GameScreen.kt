@@ -26,6 +26,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -137,6 +139,16 @@ fun FlashcardGameScreen(listId: String, navController: NavController) {
                         text = "Cards to review: ${game.dueCount}",
                         style = MaterialTheme.typography.titleMedium
                     )
+
+                    if (game.isAllListsMode) {
+                        IconButton(onClick = { if (!isSliding) game.toggleHidePersonal() }) {
+                            Icon(
+                                if (game.hidePersonal) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                contentDescription = if (game.hidePersonal) "Show personal lists" else "Hide personal lists",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
 
                     IconButton(
                         onClick = { if (!isSliding) game.undo() },
