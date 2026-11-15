@@ -39,24 +39,23 @@ import kotlinx.coroutines.withContext
 import java.text.NumberFormat
 import java.util.Locale
 
-val Context.randomDataStore by preferencesDataStore("random_generator_prefs")
+private val Context.randomDataStore by preferencesDataStore("random_generator_prefs")
 
 private val MIN_KEY = intPreferencesKey("min_value")
 private val MAX_KEY = intPreferencesKey("max_value")
 
-suspend fun Context.saveMinMax(min: Int, max: Int) {
+private suspend fun Context.saveMinMax(min: Int, max: Int) {
     randomDataStore.edit { prefs ->
         prefs[MIN_KEY] = min
         prefs[MAX_KEY] = max
     }
 }
 
-fun Context.readMinMax() = randomDataStore.data.map { prefs ->
+private fun Context.readMinMax() = randomDataStore.data.map { prefs ->
     val min = prefs[MIN_KEY] ?: 1
     val max = prefs[MAX_KEY] ?: 100
     min to max
 }
-
 
 @Composable
 fun RandomGeneratorScreen(onBack: () -> Unit, context: Context = LocalContext.current) {
@@ -110,18 +109,7 @@ fun RandomGeneratorScreen(onBack: () -> Unit, context: Context = LocalContext.cu
                 }
             }
 
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(80.dp)
-                    .background(MaterialTheme.colorScheme.surfaceVariant, shape = RoundedCornerShape(20.dp)),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = intResult?.let { NumberFormat.getNumberInstance(Locale.US).format(it) } ?: "",
-                    fontSize = 32.sp
-                )
-            }
+            ResultBox(intResult?.let { NumberFormat.getNumberInstance(Locale.US).format(it) }.orEmpty())
         }
 
         Spacer(Modifier.height(32.dp))
@@ -133,15 +121,20 @@ fun RandomGeneratorScreen(onBack: () -> Unit, context: Context = LocalContext.cu
                 if (words.isNotEmpty()) wordResult = words.random()
             }
 
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(80.dp)
-                    .background(MaterialTheme.colorScheme.surfaceVariant, shape = RoundedCornerShape(20.dp)),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(text = wordResult ?: "", fontSize = 32.sp)
-            }
+            ResultBox(wordResult.orEmpty())
         }
+    }
+}
+
+@Composable
+private fun ResultBox(text: String) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(80.dp)
+            .background(MaterialTheme.colorScheme.surfaceVariant, shape = RoundedCornerShape(20.dp)),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(text = text, fontSize = 32.sp)
     }
 }

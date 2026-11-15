@@ -130,7 +130,12 @@ fun FilesScreen(onBack: () -> Unit, onOpenMedia: (Long) -> Unit, onOpenPdf: (Fil
     // Another app can drop a file here while this screen sits in the background (a WhatsApp save),
     // so the folder is read again on every return, quietly, without the loading state.
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
-        if (hasAccess) scope.launch { entries = withContext(Dispatchers.IO) { listFolder(currentDir) } }
+        if (!hasAccess) return@LifecycleEventEffect
+        val dir = currentDir
+        scope.launch {
+            val listed = withContext(Dispatchers.IO) { listFolder(dir) }
+            if (dir == currentDir) entries = listed
+        }
     }
 
     /** Pictures, videos and PDFs open in the app; anything else, or a media file MediaStore refuses, goes to another app. */

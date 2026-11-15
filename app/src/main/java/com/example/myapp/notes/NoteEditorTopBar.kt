@@ -294,18 +294,14 @@ fun NoteEditorTopBar(
                         )
                     }
                 }
-                if (state.isCoursesNote) {
+                if (state.isCoursesNote || state.isIngredientsNote) {
                     DropdownMenuItem(
                         text = { Text("Update from the template") },
                         leadingIcon = { Icon(Icons.AutoMirrored.Filled.Sort, contentDescription = null) },
-                        onClick = { showMoreMenu = false; actions.onResortCourses() }
-                    )
-                }
-                if (state.isIngredientsNote) {
-                    DropdownMenuItem(
-                        text = { Text("Update from the template") },
-                        leadingIcon = { Icon(Icons.AutoMirrored.Filled.Sort, contentDescription = null) },
-                        onClick = { showMoreMenu = false; actions.onResortIngredients() }
+                        onClick = {
+                            showMoreMenu = false
+                            if (state.isCoursesNote) actions.onResortCourses() else actions.onResortIngredients()
+                        }
                     )
                 }
                 if (state.isCoursesModelNote) {

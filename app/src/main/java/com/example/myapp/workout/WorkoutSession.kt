@@ -114,9 +114,9 @@ data class SessionProgress(
 fun SessionProgress.advance(steps: List<SessionStep>, now: Long, value: Int = 0, gained: Int = 0): SessionProgress {
     val current = steps[step]
     val next = step + 1
-    val roundOver = next == steps.size || steps[next].round != current.round
-    val ends = if (roundOver && current is SessionStep.Work) roundEnds + now else roundEnds
     val work = current is SessionStep.Work
+    val roundOver = next == steps.size || steps[next].round != current.round
+    val ends = if (roundOver && work) roundEnds + now else roundEnds
     val scored = if (work) sets + value else sets
     val earned = if (work) xp + gained else xp
     return if (next == steps.size) {

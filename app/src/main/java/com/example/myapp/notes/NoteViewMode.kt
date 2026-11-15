@@ -36,7 +36,6 @@ import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.Title
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -101,6 +100,7 @@ data class NoteLineActions(
 // A checkbox is 48.dp tall with its box centered, an action button 36.dp: these
 // offsets line both up with the first line of the text they belong to.
 private val FIRST_LINE_TOP_PADDING = 12.dp
+private val ICON_TOP_PADDING = 6.dp
 
 // How close to the top/bottom edge a reorder drag has to be held for the note to scroll under it,
 // and how far one frame of that scroll goes at the very edge.
@@ -110,7 +110,6 @@ private val AUTO_SCROLL_MAX_STEP = 8.dp
 // A pointer position inside a line turned into a window coordinate, for that edge test.
 private fun windowY(coords: LayoutCoordinates?, position: Offset): Float =
     coords?.takeIf { it.isAttached }?.localToWindow(position)?.y ?: position.y
-private val ICON_TOP_PADDING = 6.dp
 
 // The read-only rendering of a note: each line drawn as a checkbox, separator, or plain text,
 // with long-press drag to reorder, double-tap to edit, and per-line action buttons.
