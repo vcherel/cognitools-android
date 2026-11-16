@@ -19,6 +19,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Cake
 import androidx.compose.material.icons.filled.ChevronLeft
@@ -234,6 +235,7 @@ private fun MonthGrid(
     val start = remember(month) { gridStart(month) }
     val end = remember(start) { start.plusDays(GRID_DAYS.toLong()) }
     val publicDays = remember(month) { (month.year - 1..month.year + 1).flatMap { publicHolidays(it).keys }.toSet() }
+    val (spans, laneCount) = remember(items, start) { spanLanes(items, start, end) }
     val marks = remember(items, start, today) {
         val byDay = HashMap<LocalDate, MutableSet<ItemTone>>()
         fun mark(day: LocalDate, tone: ItemTone) {
@@ -243,14 +245,8 @@ private fun MonthGrid(
             when {
                 item.kind == CalendarKind.BIRTHDAY -> (start.year..end.year).forEach { mark(item.birthdayIn(it), item.tone()) }
                 item.isOverdue(today) -> mark(today, item.tone())
-                else -> {
-                    var day = maxOf(item.localDate(), start)
-                    val last = minOf(item.lastDate(), end)
-                    while (!day.isAfter(last)) {
-                        mark(day, item.tone())
-                        day = day.plusDays(1)
-                    }
-                }
+                item.isMultiDay() -> Unit
+                else -> mark(item.localDate(), item.tone())
             }
         }
         byDay
@@ -268,6 +264,11 @@ private fun MonthGrid(
                         isPublicHoliday = day in publicDays,
                         inSchoolHoliday = schoolHolidays.any { it.contains(day) },
                         tones = marks[day].orEmpty(),
+                        bars = List(laneCount) { lane ->
+                            spans.firstOrNull { it.lane == lane && it.covers(day) }?.let { span ->
+                                SpanBar(span.item.tone(), day == span.first, day == span.last)
+                            }
+                        },
                         onClick = { onSelect(day) },
                         modifier = Modifier.weight(1f)
                     )
@@ -276,6 +277,34 @@ private fun MonthGrid(
         }
     }
 }
+
+private fun CalendarItem.isMultiDay() = lastDate().isAfter(localDate())
+
+private class Span(val item: CalendarItem, val first: LocalDate, val last: LocalDate, val lane: Int) {
+    fun covers(day: LocalDate) = !day.isBefore(first) && !day.isAfter(last)
+}
+
+/** The multi day items seen in [start, end), each on the first lane free on all its days, and how many lanes they need. */
+private fun spanLanes(items: List<CalendarItem>, start: LocalDate, end: LocalDate): Pair<List<Span>, Int> {
+    val laneEnds = mutableListOf<LocalDate>()
+    val spans = items
+        .filter { it.kind != CalendarKind.BIRTHDAY && it.isMultiDay() && it.localDate().isBefore(end) && !it.lastDate().isBefore(start) }
+        .sortedWith(compareBy<CalendarItem>({ it.localDate() }, { it.localDate().toEpochDay() - it.lastDate().toEpochDay() }))
+        .map { item ->
+            var lane = laneEnds.indexOfFirst { it.isBefore(item.localDate()) }
+            if (lane < 0) {
+                lane = laneEnds.size
+                laneEnds += item.lastDate()
+            } else {
+                laneEnds[lane] = item.lastDate()
+            }
+            Span(item, item.localDate(), item.lastDate(), lane)
+        }
+    return spans to laneEnds.size
+}
+
+/** One day's piece of a multi day item's bar, rounded where the item starts and ends. */
+private class SpanBar(val tone: ItemTone, val isFirst: Boolean, val isLast: Boolean)
 
 @Composable
 private fun DayCell(
@@ -286,6 +315,7 @@ private fun DayCell(
     isPublicHoliday: Boolean,
     inSchoolHoliday: Boolean,
     tones: Set<ItemTone>,
+    bars: List<SpanBar?>,
     onClick: () -> Unit,
     modifier: Modifier
 ) {
@@ -298,7 +328,7 @@ private fun DayCell(
     }
     Box(
         modifier = modifier
-            .height(48.dp)
+            .height(48.dp + 6.dp * bars.size)
             .background(if (inSchoolHoliday) colors.primary.copy(alpha = 0.07f) else Color.Transparent)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.TopCenter
@@ -336,6 +366,28 @@ private fun DayCell(
                             .background(tone.color.copy(alpha = if (inMonth) 1f else 0.4f), CircleShape)
                     )
                 }
+            }
+            bars.forEach { bar ->
+                Box(
+                    Modifier
+                        .padding(top = 2.dp)
+                        .fillMaxWidth()
+                        .height(4.dp)
+                        .then(
+                            if (bar == null) Modifier
+                            else Modifier
+                                .padding(start = if (bar.isFirst) 4.dp else 0.dp, end = if (bar.isLast) 4.dp else 0.dp)
+                                .background(
+                                    bar.tone.color.copy(alpha = if (inMonth) 1f else 0.4f),
+                                    RoundedCornerShape(
+                                        topStart = if (bar.isFirst) 2.dp else 0.dp,
+                                        bottomStart = if (bar.isFirst) 2.dp else 0.dp,
+                                        topEnd = if (bar.isLast) 2.dp else 0.dp,
+                                        bottomEnd = if (bar.isLast) 2.dp else 0.dp
+                                    )
+                                )
+                        )
+                )
             }
         }
     }
