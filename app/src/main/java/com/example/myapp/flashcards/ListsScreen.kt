@@ -3,6 +3,7 @@ package com.example.myapp.flashcards
 import android.content.ClipboardManager
 import android.content.Context
 import android.widget.Toast
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import com.example.myapp.rememberHeldPressed
@@ -54,6 +55,8 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -66,6 +69,7 @@ import com.example.myapp.BottomFadeOverlay
 import com.example.myapp.MyButton
 import com.example.myapp.ToolChip
 import com.example.myapp.ShowAlertDialog
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
@@ -157,7 +161,7 @@ fun FlashcardListsScreen(navController: NavController) {
                     )
                 }
 
-                Row {
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     IconButton(onClick = {
                         navController.navigate("elements/all")
                     }) {
@@ -169,6 +173,33 @@ fun FlashcardListsScreen(navController: NavController) {
                     }) {
                         Icon(Icons.Default.PlayArrow, contentDescription = "Play all")
                     }
+
+                    Box(
+                        modifier = Modifier
+                            .height(24.dp)
+                            .width(1.dp)
+                            .background(Color.Gray)
+                    )
+
+                    Spacer(Modifier.width(12.dp))
+
+                    Text(
+                        "${countsMap.values.sumOf { it.second }} to review",
+                        style = MaterialTheme.typography.bodyMedium,
+                        maxLines = 1,
+                        modifier = Modifier.clickable {
+                            scope.launch {
+                                val elements = repository.observeAllElements().first()
+                                val message = if (elements.isEmpty()) "No cards to review" else {
+                                    val now = System.currentTimeMillis()
+                                    val avgMillis = elements.map { maxOf(0L, it.nextReviewAt - now) }
+                                        .average().toLong()
+                                    "Average wait: ${formatDuration(avgMillis, detailed = true)}"
+                                }
+                                Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    )
                 }
             }
 
@@ -384,7 +415,13 @@ private fun FlashcardListItem(
                     Text(
                         flashcardList.name,
                         style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        autoSize = TextAutoSize.StepBased(
+                            minFontSize = 12.sp,
+                            maxFontSize = MaterialTheme.typography.titleLarge.fontSize
+                        )
                     )
                     Spacer(Modifier.height(4.dp))
                     Text(
