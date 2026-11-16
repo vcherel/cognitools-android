@@ -130,7 +130,7 @@ class RecipeRepository(context: Context) {
         _error.value = null
         scope.launch {
             try {
-                val known = _recipe.value?.let { setOf("recipe_${it.id}.json") }.orEmpty()
+                val known = _recipe.value?.let { mapOf("recipe_${it.id}.json" to recipeFile.lastModified()) }.orEmpty()
                 val fresh = appContext.mailRepository.readFiles(FOLDER, "recipe_", known)
                 fresh.maxByOrNull { it.key }?.let { (_, json) ->
                     val recipe = parseRecipe(json)

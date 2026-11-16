@@ -102,14 +102,14 @@ class JournalRepository(context: Context) {
         _error.value = null
     }
 
-    /** Fetches the issues not on the phone yet, then sends whatever feedback is still waiting. */
+    /** Fetches the issues not on the phone yet or updated since, then sends whatever feedback is still waiting. */
     fun refresh() {
         if (_loading.value) return
         _loading.value = true
         _error.value = null
         scope.launch {
             try {
-                val known = _issues.value.map { "journal_${it.date}.json" }.toSet()
+                val known = _issues.value.associate { "journal_${it.date}.json" to issueFile(it.date).lastModified() }
                 val fresh = appContext.mailRepository.readFiles(FOLDER, "journal_", known)
                 fresh.forEach { (name, json) -> File(dir, name).writeAtomically(json) }
                 if (fresh.isNotEmpty()) loadLocal()

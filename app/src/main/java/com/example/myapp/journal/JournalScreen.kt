@@ -1,6 +1,9 @@
 package com.example.myapp.journal
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.rememberTransformableState
+import androidx.compose.foundation.gestures.transformable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -49,6 +52,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -58,6 +62,9 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontStyle
@@ -65,6 +72,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import coil3.compose.AsyncImage
 import com.example.myapp.AppDialog
 import com.example.myapp.AppSnackbar
@@ -396,6 +405,8 @@ private fun JournalItemCard(
     onSaveTodo: () -> Unit,
     onOpenSource: (JournalSource) -> Unit
 ) {
+    var fullPicture by remember { mutableStateOf<String?>(null) }
+    fullPicture?.let { FullPicture(it, onDismiss = { fullPicture = null }) }
     Surface(
         color = MaterialTheme.colorScheme.surfaceVariant,
         shape = RoundedCornerShape(12.dp),
@@ -423,10 +434,17 @@ private fun JournalItemCard(
             Spacer(Modifier.height(6.dp))
             Text(item.summary, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(end = 8.dp))
             if (expanded && item.image.isNotBlank()) {
-                ItemPicture(item.image, Modifier.padding(top = 8.dp, end = 8.dp).fillMaxWidth().heightIn(max = 240.dp))
+                ItemPicture(
+                    item.image,
+                    Modifier.padding(top = 8.dp, end = 8.dp).fillMaxWidth().heightIn(max = 240.dp).clickable { fullPicture = item.image }
+                )
             }
             if (expanded && item.diagram.isNotBlank()) {
-                ItemPicture(item.diagram, Modifier.padding(top = 8.dp, end = 8.dp).fillMaxWidth(), ContentScale.FillWidth)
+                ItemPicture(
+                    item.diagram,
+                    Modifier.padding(top = 8.dp, end = 8.dp).fillMaxWidth().clickable { fullPicture = item.diagram },
+                    ContentScale.FillWidth
+                )
             }
             if (expanded && item.body.isNotBlank()) {
                 Spacer(Modifier.height(8.dp))
@@ -517,6 +535,32 @@ private fun ItemPicture(url: String, modifier: Modifier, scale: ContentScale = C
         onError = { failed = true },
         modifier = modifier.clip(RoundedCornerShape(8.dp))
     )
+}
+
+/** A picture shown whole over a black screen, pinch to zoom, a tap closes it. */
+@Composable
+private fun FullPicture(url: String, onDismiss: () -> Unit) {
+    var scale by remember { mutableFloatStateOf(1f) }
+    var offset by remember { mutableStateOf(Offset.Zero) }
+    val zoom = rememberTransformableState { change, pan, _ ->
+        scale = (scale * change).coerceIn(1f, 5f)
+        offset = if (scale == 1f) Offset.Zero else offset + pan
+    }
+    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        Box(
+            Modifier.fillMaxSize().background(Color.Black).transformable(zoom).clickable(onClick = onDismiss),
+            contentAlignment = Alignment.Center
+        ) {
+            AsyncImage(
+                model = url,
+                contentDescription = null,
+                contentScale = ContentScale.Fit,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer(scaleX = scale, scaleY = scale, translationX = offset.x, translationY = offset.y)
+            )
+        }
+    }
 }
 
 @Composable

@@ -191,10 +191,11 @@ class MailRepository(context: Context) {
     }
 
     /**
-     * The files attached to the mails of [folderName] named [prefix]..., by name, skipping the names
-     * in [known] so only new ones are downloaded. A mail's subject is its file's name.
+     * The files attached to the mails of [folderName] named [prefix]..., by name. [known] maps the
+     * names already on the phone to when their copy was written: those are downloaded again only
+     * when their mail is newer. A mail's subject is its file's name.
      */
-    suspend fun readFiles(folderName: String, prefix: String, known: Set<String>): Map<String, String> =
+    suspend fun readFiles(folderName: String, prefix: String, known: Map<String, Long>): Map<String, String> =
         withContext(Dispatchers.IO) {
             withAccount { store, _ ->
                 val folder = store.getFolder(folderName)
@@ -202,7 +203,11 @@ class MailRepository(context: Context) {
                 folder.open(Folder.READ_ONLY)
                 val messages = folder.messages
                 folder.fetch(messages, FetchProfile().apply { add(FetchProfile.Item.ENVELOPE) })
-                messages.filter { val name = it.subject.orEmpty(); name.startsWith(prefix) && name !in known }
+                messages.filter {
+                    val name = it.subject.orEmpty()
+                    val local = known[name]
+                    name.startsWith(prefix) && (local == null || (it.receivedDate?.time ?: 0L) > local)
+                }
                     .mapNotNull { message -> attachment(message, message.subject)?.let { message.subject to it } }
                     .toMap()
             }

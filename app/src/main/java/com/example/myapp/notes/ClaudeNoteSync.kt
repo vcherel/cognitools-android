@@ -85,7 +85,7 @@ class ClaudeNoteSync(context: Context) {
     class Solved(val lines: List<String>, val files: Set<String>)
 
     suspend fun fetchSolved(): Solved {
-        val files = appContext.mailRepository.readFiles(FOLDER, SOLVED_PREFIX, emptySet())
+        val files = appContext.mailRepository.readFiles(FOLDER, SOLVED_PREFIX, emptyMap())
         val lines = files.toSortedMap().values.flatMap { json ->
             val array = JSONObject(json).getJSONArray("lines")
             List(array.length()) { array.getString(it) }
