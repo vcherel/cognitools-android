@@ -454,7 +454,8 @@ private fun DetailTopBar(
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
-            BackIconButton(onBack = onBack)
+            BackIconButton(onBack = onBack, modifier = Modifier.size(36.dp))
+            Spacer(Modifier.width(4.dp))
             Text(
                 listName,
                 style = MaterialTheme.typography.headlineSmall,
@@ -474,7 +475,7 @@ private fun DetailTopBar(
         ) {
             // "All" spans every list, so there is no single list to fix a side on.
             if (!isAllLists) {
-                IconButton(onClick = onToggleFixedSide) {
+                IconButton(onClick = onToggleFixedSide, modifier = Modifier.size(36.dp)) {
                     Icon(
                         if (listFixedSide) Icons.Default.LooksOne else Icons.Default.Flip,
                         contentDescription = if (listFixedSide) "One side" else "Two sides",
@@ -485,7 +486,7 @@ private fun DetailTopBar(
             }
 
             Box {
-                IconButton(onClick = { onSetSortMenu(true) }) {
+                IconButton(onClick = { onSetSortMenu(true) }, modifier = Modifier.size(36.dp)) {
                     Icon(Icons.Default.SwapVert, contentDescription = "Sort")
                 }
                 DropdownMenu(expanded = showSortMenu, onDismissRequest = { onSetSortMenu(false) }) {
@@ -503,7 +504,8 @@ private fun DetailTopBar(
                 }
             }
 
-            // The sort button already pads its glyph by 12.dp, so the line only needs space after it.
+            Spacer(Modifier.width(6.dp))
+
             Box(
                 modifier = Modifier
                     .height(24.dp)

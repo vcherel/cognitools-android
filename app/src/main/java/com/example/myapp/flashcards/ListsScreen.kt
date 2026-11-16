@@ -150,29 +150,35 @@ fun FlashcardListsScreen(navController: NavController) {
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.weight(1f)
                 ) {
-                    BackIconButton(onBack = { backToMenu() })
+                    BackIconButton(onBack = { backToMenu() }, modifier = Modifier.size(36.dp))
                     ToolChip(size = 32.dp)
                     Text(
                         "Lists",
                         style = MaterialTheme.typography.headlineSmall,
+                        maxLines = 1,
+                        softWrap = false,
                         modifier = Modifier
-                            .padding(start = 12.dp, end = 12.dp)
+                            .padding(start = 8.dp, end = 4.dp)
                             .clickable { showGlobalStats = true }
                     )
                 }
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = {
-                        navController.navigate("elements/all")
-                    }) {
+                    IconButton(
+                        onClick = { navController.navigate("elements/all") },
+                        modifier = Modifier.size(36.dp)
+                    ) {
                         Icon(Icons.Default.Search, contentDescription = "Search everything")
                     }
 
-                    IconButton(onClick = {
-                        navController.navigate("game/all")
-                    }) {
+                    IconButton(
+                        onClick = { navController.navigate("game/all") },
+                        modifier = Modifier.size(36.dp)
+                    ) {
                         Icon(Icons.Default.PlayArrow, contentDescription = "Play all")
                     }
+
+                    Spacer(Modifier.width(6.dp))
 
                     Box(
                         modifier = Modifier
