@@ -1,7 +1,9 @@
 package com.example.myapp.notes
 
 import android.content.Context
+import com.example.myapp.deaccented
 import com.example.myapp.flashcards.AppDatabase
+import java.time.LocalDate
 
 /** The named sections the Todo list always carries, in order, after its active block. */
 val TODO_SECTIONS = listOf(WAITING_SECTION, WEEKEND_SECTION)
@@ -77,25 +79,62 @@ internal fun withoutEmptyCheckboxes(text: String): String {
 
 private fun String.isEmptyUncheckedLine() = isCheckboxLine() && !isCheckedLine() && checkboxText().isBlank()
 
+private val FRENCH_MONTHS = listOf(
+    "janvier", "fevrier", "mars", "avril", "mai", "juin",
+    "juillet", "aout", "septembre", "octobre", "novembre", "decembre"
+)
+
+private val FRENCH_DATE = Regex("""\b(\d{1,2})(?:er)?\s+(${FRENCH_MONTHS.joinToString("|")})\b(?:\s+(\d{4}))?""")
+
 /**
- * Adds "[ ] [text]" as the last item of the Todo list's active block (above its first separator),
- * which is what the pinned widget shows, or of the section named [section]. Creates the note and its
- * sections if they don't exist yet, and leaves it alone when an item with that text is already there,
- * checked or not. Returns true when the note changed.
+ * The last French date an item names ("jusqu'au 2 janvier 2028", "le 14 novembre"), its end date. A
+ * date without a year is taken this year, or next year when that falls more than two months before
+ * [today].
+ */
+internal fun itemEndDate(text: String, today: LocalDate): LocalDate? {
+    val match = FRENCH_DATE.findAll(text.deaccented()).lastOrNull() ?: return null
+    val (day, month, year) = match.destructured
+    val monthNumber = FRENCH_MONTHS.indexOf(month) + 1
+    fun at(y: Int) = runCatching { LocalDate.of(y, monthNumber, day.toInt()) }.getOrNull()
+    if (year.isNotEmpty()) return at(year.toInt())
+    val thisYear = at(today.year) ?: return null
+    return if (thisYear.isBefore(today.minusMonths(2))) at(today.year + 1) else thisYear
+}
+
+/**
+ * The Todo list with "[ ] [item]" added as the last item of its active block, or of the section named
+ * [section]. In the Week-end section an item with an end date goes before the first one ending later.
+ * Null when an item with that text is already there, checked or not.
+ */
+internal fun withTodoItem(content: String, item: String, section: String?, today: LocalDate): String? {
+    val lines = withTodoSections(content).split("\n").toMutableList()
+    if (lines.any { it.isCheckboxLine() && it.checkboxText().trim().equals(item, ignoreCase = true) }) return null
+
+    val from = section?.let { name ->
+        lines.indexOfFirst { it.isSeparatorLine() && it.separatorName().equals(name, ignoreCase = true) } + 1
+    } ?: 0
+    val ends = if (section.equals(WEEKEND_SECTION, ignoreCase = true)) itemEndDate(item, today) else null
+    val later = ends?.let { date ->
+        (from until blockEnd(lines, from)).firstOrNull { i ->
+            lines[i].isCheckboxLine() && itemEndDate(lines[i].checkboxText(), today)?.isAfter(date) == true
+        }
+    }
+    lines.add(later ?: blockAppendIndex(lines, from), UNCHECKED_PREFIX + item)
+    return lines.joinToString("\n")
+}
+
+/**
+ * Adds [text] to the Todo list through [withTodoItem]: the active block, which is what the pinned
+ * widget shows, or the section named [section]. Creates the note and its sections if they don't exist
+ * yet. Returns true when the note changed.
  */
 suspend fun addToTodoNote(context: Context, text: String, section: String? = null): Boolean {
     val item = text.trim()
     if (item.isEmpty()) return false
     val dao = AppDatabase.get(context).noteDao()
     val note = findTodoNote(dao) ?: Note(title = TODO_LIST_TITLE)
-    val lines = withTodoSections(note.content).split("\n").toMutableList()
-    if (lines.any { it.isCheckboxLine() && it.checkboxText().trim().equals(item, ignoreCase = true) }) return false
-
-    val from = section?.let { name ->
-        lines.indexOfFirst { it.isSeparatorLine() && it.separatorName().equals(name, ignoreCase = true) } + 1
-    } ?: 0
-    lines.add(blockAppendIndex(lines, from), UNCHECKED_PREFIX + item)
-    dao.upsertNote(note.copy(content = lines.joinToString("\n"), updatedAt = System.currentTimeMillis()))
+    val content = withTodoItem(note.content, item, section, LocalDate.now()) ?: return false
+    dao.upsertNote(note.copy(content = content, updatedAt = System.currentTimeMillis()))
     return true
 }
 

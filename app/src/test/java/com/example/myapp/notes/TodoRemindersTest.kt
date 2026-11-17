@@ -5,6 +5,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.Duration
+import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
 import kotlin.random.Random
@@ -63,6 +64,29 @@ class TodoRemindersTest {
         )
         val complete = "[ ] A\n--- Attente\n--- Week-end\n[ ] D"
         assertEquals(complete, withTodoSections(complete))
+    }
+
+    @Test
+    fun weekendItemsAreSortedByEndDate() {
+        val today = LocalDate.of(2026, 11, 17)
+        assertEquals(LocalDate.of(2027, 1, 2), itemEndDate("Expo, Cité jusqu'au 2 janvier (~10€)", today))
+        assertEquals(LocalDate.of(2026, 11, 14), itemEndDate("Off Session, Terminus le 14 novembre", today))
+        assertEquals(LocalDate.of(2028, 2, 1), itemEndDate("Expo, Archives jusqu'au 1er février 2028", today))
+
+        val note = "[ ] A\n--- Attente\n--- Week-end\n[ ] Expo X jusqu'au 2 janvier\n[ ] Balade\n[ ] Expo Y jusqu'au 1er mars"
+        assertEquals(
+            "[ ] A\n--- Attente\n--- Week-end\n[ ] Fête le 20 décembre\n[ ] Expo X jusqu'au 2 janvier\n[ ] Balade\n[ ] Expo Y jusqu'au 1er mars",
+            withTodoItem(note, "Fête le 20 décembre", WEEKEND_SECTION, today)
+        )
+        assertEquals(
+            "[ ] A\n--- Attente\n--- Week-end\n[ ] Expo X jusqu'au 2 janvier\n[ ] Balade\n[ ] Expo Z jusqu'au 9 février\n[ ] Expo Y jusqu'au 1er mars",
+            withTodoItem(note, "Expo Z jusqu'au 9 février", WEEKEND_SECTION, today)
+        )
+        assertEquals(
+            "[ ] A\n--- Attente\n--- Week-end\n[ ] Expo X jusqu'au 2 janvier\n[ ] Balade\n[ ] Expo Y jusqu'au 1er mars\n[ ] Cinéma",
+            withTodoItem(note, "Cinéma", WEEKEND_SECTION, today)
+        )
+        assertEquals(null, withTodoItem(note, "balade", WEEKEND_SECTION, today))
     }
 
     @Test
