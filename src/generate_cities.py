@@ -283,7 +283,7 @@ def catalog(data):
             for dept, (name, point) in prefs.items()
         },
         "cap": {
-            code: (name, lambda p=point, c=code: render_country(world[c], data, p))
+            code: (name, lambda p=point, c=code: render_country(world[c], data, p, borders=False))
             for code, (name, point) in caps.items()
         },
         "uscap": {
@@ -382,10 +382,13 @@ def main():
     parser.add_argument("--sheet", nargs="+", metavar="KIND:KEY", help="only render these cards side by side")
     parser.add_argument("--list", action="store_true", help="only print every card key and answer")
     parser.add_argument("--seeds", action="store_true", help="only write the seed files")
+    parser.add_argument("--only", choices=list(LISTS), help="only write the pictures of this list")
     args = parser.parse_args()
     data = load_data()
     cards, us = catalog(data)
-    if args.list:
+    if args.only:
+        write_maps([(args.only, key, render) for key, (_, render) in cards[args.only].items()])
+    elif args.list:
         for kind, entries in cards.items():
             print(kind, " ".join(f"{k}={a}" for k, (a, _) in entries.items()), flush=True)
     elif args.sheet:

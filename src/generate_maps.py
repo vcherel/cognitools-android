@@ -245,11 +245,15 @@ def outline(draw, ring, pts, color, width):
         start = i + 1
 
 
-def draw_map(view, target, world, lakes, layers=(), border=2 * SUPERSAMPLE):
-    """The view supersampled, every land gray, [target] red."""
+def draw_map(view, target, world, lakes, layers=(), border=2 * SUPERSAMPLE, borders=True):
+    """
+    The view supersampled, every land gray, [target] red. Without [borders], only the coasts are
+    drawn: the land is filled again over the edges, which leaves their sea side alone.
+    """
     img = Image.new("RGB", (view.w * SUPERSAMPLE, view.h * SUPERSAMPLE), SEA)
     draw = ImageDraw.Draw(img)
     edges = []
+    fills = []
     for features in [world, *layers]:
         for polys in features.values():
             for ext, holes in polys:
@@ -258,15 +262,22 @@ def draw_map(view, target, world, lakes, layers=(), border=2 * SUPERSAMPLE):
                 pts = view.px(ext)
                 if not view.on_canvas(pts):
                     continue
-                draw.polygon(pts.ravel().tolist(), fill=LAND)
+                fills.append(pts)
                 edges.append((ext, pts))
                 edges += [(h, view.px(h)) for h in holes if view.shows(h)]
     lake_pts = [view.px(lake) for lake in lakes if view.shows(lake)]
     lake_pts = [pts for pts in lake_pts if view.on_canvas(pts)]
+    for pts in fills:
+        draw.polygon(pts.ravel().tolist(), fill=LAND)
     for pts in lake_pts:
         draw.polygon(pts.ravel().tolist(), fill=SEA)
     for ring, pts in edges:
-        outline(draw, ring, pts, BORDER, border)
+        outline(draw, ring, pts, BORDER, border if borders else 2 * border)
+    if not borders:
+        for pts in fills:
+            draw.polygon(pts.ravel().tolist(), fill=LAND)
+        for pts in lake_pts:
+            draw.polygon(pts.ravel().tolist(), fill=SEA)
 
     mask = Image.new("L", img.size, 0)
     mask_draw = ImageDraw.Draw(mask)
@@ -374,9 +385,11 @@ def lens_shows_shape(target, view):
     return len(shown) == 1 or any((pts.max(0) - pts.min(0)).max() >= 6 for pts in shown)
 
 
-def render_lens(target, data, view, box, point=None):
+def render_lens(target, data, view, box, point=None, borders=True):
     red = [] if point is not None else target
-    img = draw_map(view, red, data["world"], data["lakes"]).resize((LENS, LENS), Image.LANCZOS)
+    img = draw_map(view, red, data["world"], data["lakes"], borders=borders).resize(
+        (LENS, LENS), Image.LANCZOS
+    )
     if point is not None:
         city_dot(img, view, point, LENS_CITY_DOT)
         return img
@@ -424,19 +437,19 @@ def city_dot(img, view, lonlat, radius=CITY_DOT):
     )
 
 
-def render_country(target, data, point=None):
+def render_country(target, data, point=None, borders=True):
     """
     The target on its page of the atlas, with a lens on it when it is too small to read there. With a
     [point], the target stays plain land and a city dot marks the point instead.
     """
     red = [] if point is not None else target
     view = page_view(target)
-    big = draw_map(view, red, data["world"], data["lakes"], border=SUPERSAMPLE)
+    big = draw_map(view, red, data["world"], data["lakes"], border=SUPERSAMPLE, borders=borders)
     img = big.resize((W, H), Image.LANCZOS)
     x0, y0, x1, y1 = box_px(view, target_pts(target, view.proj))
     size = max(x1 - x0, y1 - y0)
     lens, lens_box = lens_view(target)
-    if size >= READS_PX or (point is None and not lens_shows_shape(target, lens)):
+    if not borders or size >= READS_PX or (point is None and not lens_shows_shape(target, lens)):
         if point is None:
             dot_specks(img, view, target)
         else:
@@ -468,7 +481,7 @@ def render_country(target, data, point=None):
         (left - edge, top - edge, left + LENS + edge, top + LENS + edge),
         disc_mask(LENS + 2 * edge),
     )
-    img.paste(render_lens(target, data, lens, lens_box, point), (left, top), disc_mask(LENS))
+    img.paste(render_lens(target, data, lens, lens_box, point, borders), (left, top), disc_mask(LENS))
     return img
 
 
