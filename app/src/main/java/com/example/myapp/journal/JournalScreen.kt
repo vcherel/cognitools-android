@@ -436,7 +436,8 @@ private fun JournalItemCard(
             if (expanded && item.image.isNotBlank()) {
                 ItemPicture(
                     item.image,
-                    Modifier.padding(top = 8.dp, end = 8.dp).fillMaxWidth().heightIn(max = 240.dp).clickable { fullPicture = item.image }
+                    Modifier.padding(top = 8.dp, end = 8.dp).fillMaxWidth().heightIn(max = 400.dp).clickable { fullPicture = item.image },
+                    ContentScale.Fit
                 )
             }
             if (expanded && item.diagram.isNotBlank()) {
