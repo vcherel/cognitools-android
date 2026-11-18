@@ -324,7 +324,8 @@ class FlashcardRepository(private val context: Context) {
             10 to "seed_state_capitals.json",
             10 to "seed_state_capital_maps.json",
             10 to "seed_city_maps_fr.json",
-            10 to "seed_city_maps_world.json"
+            10 to "seed_city_maps_world.json",
+            11 to "seed_elements.json"
         )
         private val hidePersonalKey = booleanPreferencesKey("hide_personal")
         private val unlockedListsKey = intPreferencesKey("unlocked_lists")
@@ -345,7 +346,8 @@ class FlashcardRepository(private val context: Context) {
             "builtin-state-capitals-v1",
             "builtin-state-capital-maps-v1",
             "builtin-arrondissement-maps-v1",
-            "builtin-state-flags-v1"
+            "builtin-state-flags-v1",
+            "builtin-elements-v1"
         )
         private val lotteryDayKey = stringPreferencesKey("lottery_day")
         private const val DAY_MS = 24 * 60 * 60_000L
