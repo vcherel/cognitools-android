@@ -378,16 +378,34 @@ def write_maps(items):
         print(f"{i}/{len(items)} {kind}:{key}", flush=True)
 
 
+def list_changed(cards):
+    """The cards whose fresh render differs from the shipped picture, the ids RESETS needs."""
+    items = [(kind, key, render) for kind, entries in cards.items() for key, (_, render) in entries.items()]
+    changed = []
+    for i, (kind, key, render) in enumerate(items, 1):
+        shipped = MAPS_DIR / f"{image_name(kind, key)}.webp"
+        differs = not shipped.exists() or shipped.read_bytes() != encode(render())
+        if differs:
+            changed.append(f"{kind}map-{key}")
+        print(f"{i}/{len(items)} {kind}:{key}{' changed' if differs else ''}", flush=True)
+    print(" ".join(changed) or "nothing changed", flush=True)
+
+
 def main():
     parser = argparse.ArgumentParser(description="Build the city flashcard lists.")
     parser.add_argument("--sheet", nargs="+", metavar="KIND:KEY", help="only render these cards side by side")
     parser.add_argument("--list", action="store_true", help="only print every card key and answer")
     parser.add_argument("--seeds", action="store_true", help="only write the seed files")
     parser.add_argument("--only", choices=list(LISTS), help="only write the pictures of this list")
+    parser.add_argument(
+        "--changed", action="store_true", help="only list the cards whose picture would change"
+    )
     args = parser.parse_args()
     data = load_data()
     cards, us = catalog(data)
-    if args.only:
+    if args.changed:
+        list_changed(cards)
+    elif args.only:
         write_maps([(args.only, key, render) for key, (_, render) in cards[args.only].items()])
     elif args.list:
         for kind, entries in cards.items():
