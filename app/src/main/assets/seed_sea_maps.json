@@ -1,0 +1,625 @@
+{
+ "version": 1,
+ "lists": [
+  {
+   "id": "builtin-sea-maps-v1",
+   "name": "Mers et océans (carte)",
+   "order": 17,
+   "fixedSide": true
+  }
+ ],
+ "cards": [
+  {
+   "id": "seamap-hudson-bay",
+   "listId": "builtin-sea-maps-v1",
+   "name": "",
+   "definition": "Baie d'Hudson",
+   "image": "asset:maps/sea-hudson-bay.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "seamap-mozambique-channel",
+   "listId": "builtin-sea-maps-v1",
+   "name": "",
+   "definition": "Canal du Mozambique",
+   "image": "asset:maps/sea-mozambique-channel.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "seamap-persian-gulf",
+   "listId": "builtin-sea-maps-v1",
+   "name": "",
+   "definition": "Golfe Persique",
+   "image": "asset:maps/sea-persian-gulf.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "seamap-gulf-of-aden",
+   "listId": "builtin-sea-maps-v1",
+   "name": "",
+   "definition": "Golfe d'Aden",
+   "image": "asset:maps/sea-gulf-of-aden.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "seamap-gulf-of-alaska",
+   "listId": "builtin-sea-maps-v1",
+   "name": "",
+   "definition": "Golfe d'Alaska",
+   "image": "asset:maps/sea-gulf-of-alaska.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "seamap-gulf-of-bothnia",
+   "listId": "builtin-sea-maps-v1",
+   "name": "",
+   "definition": "Golfe de Botnie",
+   "image": "asset:maps/sea-gulf-of-bothnia.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "seamap-bay-of-biscay",
+   "listId": "builtin-sea-maps-v1",
+   "name": "",
+   "definition": "Golfe de Gascogne",
+   "image": "asset:maps/sea-bay-of-biscay.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "seamap-gulf-of-guinea",
+   "listId": "builtin-sea-maps-v1",
+   "name": "",
+   "definition": "Golfe de Guinée",
+   "image": "asset:maps/sea-gulf-of-guinea.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "seamap-gulf-of-thailand",
+   "listId": "builtin-sea-maps-v1",
+   "name": "",
+   "definition": "Golfe de Thaïlande",
+   "image": "asset:maps/sea-gulf-of-thailand.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "seamap-bay-of-bengal",
+   "listId": "builtin-sea-maps-v1",
+   "name": "",
+   "definition": "Golfe du Bengale",
+   "image": "asset:maps/sea-bay-of-bengal.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "seamap-gulf-of-mexico",
+   "listId": "builtin-sea-maps-v1",
+   "name": "",
+   "definition": "Golfe du Mexique",
+   "image": "asset:maps/sea-gulf-of-mexico.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "seamap-english-channel",
+   "listId": "builtin-sea-maps-v1",
+   "name": "",
+   "definition": "Manche",
+   "image": "asset:maps/sea-english-channel.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "seamap-adriatic-sea",
+   "listId": "builtin-sea-maps-v1",
+   "name": "",
+   "definition": "Mer Adriatique",
+   "image": "asset:maps/sea-adriatic-sea.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "seamap-baltic-sea",
+   "listId": "builtin-sea-maps-v1",
+   "name": "",
+   "definition": "Mer Baltique",
+   "image": "asset:maps/sea-baltic-sea.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "seamap-white-sea",
+   "listId": "builtin-sea-maps-v1",
+   "name": "",
+   "definition": "Mer Blanche",
+   "image": "asset:maps/sea-white-sea.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "seamap-caspian-sea",
+   "listId": "builtin-sea-maps-v1",
+   "name": "",
+   "definition": "Mer Caspienne",
+   "image": "asset:maps/sea-caspian-sea.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "seamap-ionian-sea",
+   "listId": "builtin-sea-maps-v1",
+   "name": "",
+   "definition": "Mer Ionienne",
+   "image": "asset:maps/sea-ionian-sea.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "seamap-yellow-sea",
+   "listId": "builtin-sea-maps-v1",
+   "name": "",
+   "definition": "Mer Jaune",
+   "image": "asset:maps/sea-yellow-sea.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "seamap-mediterranean-sea",
+   "listId": "builtin-sea-maps-v1",
+   "name": "",
+   "definition": "Mer Méditerranée",
+   "image": "asset:maps/sea-mediterranean-sea.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "seamap-black-sea",
+   "listId": "builtin-sea-maps-v1",
+   "name": "",
+   "definition": "Mer Noire",
+   "image": "asset:maps/sea-black-sea.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "seamap-red-sea",
+   "listId": "builtin-sea-maps-v1",
+   "name": "",
+   "definition": "Mer Rouge",
+   "image": "asset:maps/sea-red-sea.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "seamap-tyrrhenian-sea",
+   "listId": "builtin-sea-maps-v1",
+   "name": "",
+   "definition": "Mer Tyrrhénienne",
+   "image": "asset:maps/sea-tyrrhenian-sea.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "seamap-amundsen-sea",
+   "listId": "builtin-sea-maps-v1",
+   "name": "",
+   "definition": "Mer d'Amundsen",
+   "image": "asset:maps/sea-amundsen-sea.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "seamap-andaman-sea",
+   "listId": "builtin-sea-maps-v1",
+   "name": "",
+   "definition": "Mer d'Andaman",
+   "image": "asset:maps/sea-andaman-sea.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "seamap-arabian-sea",
+   "listId": "builtin-sea-maps-v1",
+   "name": "",
+   "definition": "Mer d'Arabie",
+   "image": "asset:maps/sea-arabian-sea.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "seamap-arafura-sea",
+   "listId": "builtin-sea-maps-v1",
+   "name": "",
+   "definition": "Mer d'Arafura",
+   "image": "asset:maps/sea-arafura-sea.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "seamap-irish-sea",
+   "listId": "builtin-sea-maps-v1",
+   "name": "",
+   "definition": "Mer d'Irlande",
+   "image": "asset:maps/sea-irish-sea.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "seamap-sea-of-okhotsk",
+   "listId": "builtin-sea-maps-v1",
+   "name": "",
+   "definition": "Mer d'Okhotsk",
+   "image": "asset:maps/sea-sea-of-okhotsk.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "seamap-baffin-bay",
+   "listId": "builtin-sea-maps-v1",
+   "name": "",
+   "definition": "Mer de Baffin",
+   "image": "asset:maps/sea-baffin-bay.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "seamap-banda-sea",
+   "listId": "builtin-sea-maps-v1",
+   "name": "",
+   "definition": "Mer de Banda",
+   "image": "asset:maps/sea-banda-sea.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "seamap-barents-sea",
+   "listId": "builtin-sea-maps-v1",
+   "name": "",
+   "definition": "Mer de Barents",
+   "image": "asset:maps/sea-barents-sea.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "seamap-beaufort-sea",
+   "listId": "builtin-sea-maps-v1",
+   "name": "",
+   "definition": "Mer de Beaufort",
+   "image": "asset:maps/sea-beaufort-sea.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "seamap-bellingshausen-sea",
+   "listId": "builtin-sea-maps-v1",
+   "name": "",
+   "definition": "Mer de Bellingshausen",
+   "image": "asset:maps/sea-bellingshausen-sea.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "seamap-bismarck-sea",
+   "listId": "builtin-sea-maps-v1",
+   "name": "",
+   "definition": "Mer de Bismarck",
+   "image": "asset:maps/sea-bismarck-sea.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "seamap-bo-hai",
+   "listId": "builtin-sea-maps-v1",
+   "name": "",
+   "definition": "Mer de Bohai",
+   "image": "asset:maps/sea-bo-hai.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "seamap-bering-sea",
+   "listId": "builtin-sea-maps-v1",
+   "name": "",
+   "definition": "Mer de Béring",
+   "image": "asset:maps/sea-bering-sea.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "seamap-south-china-sea",
+   "listId": "builtin-sea-maps-v1",
+   "name": "",
+   "definition": "Mer de Chine méridionale",
+   "image": "asset:maps/sea-south-china-sea.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "seamap-east-china-sea",
+   "listId": "builtin-sea-maps-v1",
+   "name": "",
+   "definition": "Mer de Chine orientale",
+   "image": "asset:maps/sea-east-china-sea.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "seamap-coral-sea",
+   "listId": "builtin-sea-maps-v1",
+   "name": "",
+   "definition": "Mer de Corail",
+   "image": "asset:maps/sea-coral-sea.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "seamap-celebes-sea",
+   "listId": "builtin-sea-maps-v1",
+   "name": "",
+   "definition": "Mer de Célèbes",
+   "image": "asset:maps/sea-celebes-sea.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "seamap-java-sea",
+   "listId": "builtin-sea-maps-v1",
+   "name": "",
+   "definition": "Mer de Java",
+   "image": "asset:maps/sea-java-sea.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "seamap-kara-sea",
+   "listId": "builtin-sea-maps-v1",
+   "name": "",
+   "definition": "Mer de Kara",
+   "image": "asset:maps/sea-kara-sea.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "seamap-laptev-sea",
+   "listId": "builtin-sea-maps-v1",
+   "name": "",
+   "definition": "Mer de Laptev",
+   "image": "asset:maps/sea-laptev-sea.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "seamap-norwegian-sea",
+   "listId": "builtin-sea-maps-v1",
+   "name": "",
+   "definition": "Mer de Norvège",
+   "image": "asset:maps/sea-norwegian-sea.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "seamap-ross-sea",
+   "listId": "builtin-sea-maps-v1",
+   "name": "",
+   "definition": "Mer de Ross",
+   "image": "asset:maps/sea-ross-sea.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "seamap-ceram-sea",
+   "listId": "builtin-sea-maps-v1",
+   "name": "",
+   "definition": "Mer de Seram",
+   "image": "asset:maps/sea-ceram-sea.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "seamap-sulu-sea",
+   "listId": "builtin-sea-maps-v1",
+   "name": "",
+   "definition": "Mer de Sulu",
+   "image": "asset:maps/sea-sulu-sea.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "seamap-tasman-sea",
+   "listId": "builtin-sea-maps-v1",
+   "name": "",
+   "definition": "Mer de Tasman",
+   "image": "asset:maps/sea-tasman-sea.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "seamap-timor-sea",
+   "listId": "builtin-sea-maps-v1",
+   "name": "",
+   "definition": "Mer de Timor",
+   "image": "asset:maps/sea-timor-sea.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "seamap-weddell-sea",
+   "listId": "builtin-sea-maps-v1",
+   "name": "",
+   "definition": "Mer de Weddell",
+   "image": "asset:maps/sea-weddell-sea.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "seamap-scotia-sea",
+   "listId": "builtin-sea-maps-v1",
+   "name": "",
+   "definition": "Mer de la Scotia",
+   "image": "asset:maps/sea-scotia-sea.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "seamap-balearic-sea",
+   "listId": "builtin-sea-maps-v1",
+   "name": "",
+   "definition": "Mer des Baléares",
+   "image": "asset:maps/sea-balearic-sea.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "seamap-caribbean-sea",
+   "listId": "builtin-sea-maps-v1",
+   "name": "",
+   "definition": "Mer des Caraïbes",
+   "image": "asset:maps/sea-caribbean-sea.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "seamap-laccadive-sea",
+   "listId": "builtin-sea-maps-v1",
+   "name": "",
+   "definition": "Mer des Laquedives",
+   "image": "asset:maps/sea-laccadive-sea.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "seamap-molucca-sea",
+   "listId": "builtin-sea-maps-v1",
+   "name": "",
+   "definition": "Mer des Moluques",
+   "image": "asset:maps/sea-molucca-sea.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "seamap-philippine-sea",
+   "listId": "builtin-sea-maps-v1",
+   "name": "",
+   "definition": "Mer des Philippines",
+   "image": "asset:maps/sea-philippine-sea.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "seamap-solomon-sea",
+   "listId": "builtin-sea-maps-v1",
+   "name": "",
+   "definition": "Mer des Salomon",
+   "image": "asset:maps/sea-solomon-sea.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "seamap-chukchi-sea",
+   "listId": "builtin-sea-maps-v1",
+   "name": "",
+   "definition": "Mer des Tchouktches",
+   "image": "asset:maps/sea-chukchi-sea.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "seamap-greenland-sea",
+   "listId": "builtin-sea-maps-v1",
+   "name": "",
+   "definition": "Mer du Groenland",
+   "image": "asset:maps/sea-greenland-sea.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "seamap-sea-of-japan",
+   "listId": "builtin-sea-maps-v1",
+   "name": "",
+   "definition": "Mer du Japon",
+   "image": "asset:maps/sea-sea-of-japan.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "seamap-labrador-sea",
+   "listId": "builtin-sea-maps-v1",
+   "name": "",
+   "definition": "Mer du Labrador",
+   "image": "asset:maps/sea-labrador-sea.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "seamap-north-sea",
+   "listId": "builtin-sea-maps-v1",
+   "name": "",
+   "definition": "Mer du Nord",
+   "image": "asset:maps/sea-north-sea.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "seamap-aegean-sea",
+   "listId": "builtin-sea-maps-v1",
+   "name": "",
+   "definition": "Mer Égée",
+   "image": "asset:maps/sea-aegean-sea.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "seamap-arctique",
+   "listId": "builtin-sea-maps-v1",
+   "name": "",
+   "definition": "Océan Arctique",
+   "image": "asset:maps/sea-arctique.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "seamap-atlantique",
+   "listId": "builtin-sea-maps-v1",
+   "name": "",
+   "definition": "Océan Atlantique",
+   "image": "asset:maps/sea-atlantique.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "seamap-austral",
+   "listId": "builtin-sea-maps-v1",
+   "name": "",
+   "definition": "Océan Austral",
+   "image": "asset:maps/sea-austral.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "seamap-indien",
+   "listId": "builtin-sea-maps-v1",
+   "name": "",
+   "definition": "Océan Indien",
+   "image": "asset:maps/sea-indien.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "seamap-pacifique",
+   "listId": "builtin-sea-maps-v1",
+   "name": "",
+   "definition": "Océan Pacifique",
+   "image": "asset:maps/sea-pacifique.webp",
+   "lastReview": 0,
+   "randomSide": false
+  }
+ ]
+}

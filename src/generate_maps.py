@@ -29,6 +29,8 @@ SHEET_PATH = Path("mockups/maps_sheet.png")
 SOURCES = {
     "ne_10m_admin_0_map_units.zip": "https://naciscdn.org/naturalearth/10m/cultural/ne_10m_admin_0_map_units.zip",
     "ne_50m_lakes.zip": "https://naciscdn.org/naturalearth/50m/physical/ne_50m_lakes.zip",
+    "ne_10m_rivers_lake_centerlines.zip": "https://naciscdn.org/naturalearth/10m/physical/ne_10m_rivers_lake_centerlines.zip",
+    "ne_10m_geography_marine_polys.zip": "https://naciscdn.org/naturalearth/10m/physical/ne_10m_geography_marine_polys.zip",
     "ne_10m_populated_places.zip": "https://naciscdn.org/naturalearth/10m/cultural/ne_10m_populated_places.zip",
     "communes.json": "https://geo.api.gouv.fr/communes?fields=nom,code,codeDepartement,population,centre&format=json",
     "ne_50m_admin_1_states_provinces_lakes.zip": "https://naciscdn.org/naturalearth/50m/cultural/ne_50m_admin_1_states_provinces_lakes.zip",
@@ -67,6 +69,9 @@ FRAMES = (
     (-42, -45, 8000),  # South Atlantic
     (-10, -178, 12000),  # Pacific
 )
+# A place whose middle lies farther than this share of the page from its center gets the page
+# shifted onto it, at the same scale.
+CENTER_SLACK = 0.3
 # A place no page holds gets its own map, its extent filling this share of it, never narrower.
 MAX_FILL = 0.7
 OWN_FRAME_MIN_KM = 3000
@@ -86,6 +91,10 @@ PARIS_INSET_PX = 22
 SPECK = 2.5
 CITY_DOT = 8
 LENS_CITY_DOT = 7
+# The span of the lens around a world city, wide enough to hold a coast or a river bend.
+CITY_LENS_KM = 700
+# The rivers drawn in it, Natural Earth's scalerank up to this.
+RIVER_RANK = 8
 
 # Map units not drawn as anyone's: disputed spots, bases, reefs. They stay plain land.
 PLAIN_UNITS = {
@@ -183,6 +192,16 @@ def load_world():
 def load_lakes():
     return [
         Ring(p.exterior.coords) for _, g in read_shapes("ne_50m_lakes.zip") for p in getattr(g, "geoms", [g])
+    ]
+
+
+def load_rivers():
+    return [
+        Ring(line.coords)
+        for rec, g in read_shapes("ne_10m_rivers_lake_centerlines.zip")
+        if rec["scalerank"] <= RIVER_RANK
+        for line in getattr(g, "geoms", [g])
+        if len(line.coords) > 1
     ]
 
 
@@ -328,16 +347,42 @@ def box_px(view, pts):
     return (*px.min(0), *px.max(0))
 
 
-def page_view(target):
-    """The first page of the atlas holding the target, else a map of its own."""
-    for lat, lon, width in FRAMES:
+def page_frame(target):
+    """The first page of the atlas holding the target, and whether its main piece is too far off center."""
+    for frame in FRAMES:
+        lat, lon, width = frame
         proj = Laea(lat, lon)
         if np.abs(target_pts(target, proj)).max() <= width * 0.47:
-            return View(proj, 0, 0, width / W)
+            x0, y0, x1, y1 = box_km(proj.forward(main_ring(target).lonlat))
+            return frame, math.hypot((x0 + x1) / 2, (y0 + y1) / 2) > CENTER_SLACK * width
+    return None, False
+
+
+def centered_view(target, s):
+    """
+    The map at [s] km per pixel centered on the target's main piece, or on all of it when its far
+    islands would then fall off the edge.
+    """
     proj = Laea(*main_ring(target).latlon())
-    x0, y0, x1, y1 = box_km(target_pts(target, proj))
-    s = max((x1 - x0) / (MAX_FILL * W), (y1 - y0) / (MAX_FILL * H), OWN_FRAME_MIN_KM / W)
-    return View(proj, (x0 + x1) / 2, (y0 + y1) / 2, s)
+    pts = target_pts(target, proj)
+    for x0, y0, x1, y1 in (box_km(proj.forward(main_ring(target).lonlat)), box_km(pts)):
+        cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
+        if (np.abs(pts - (cx, cy)) <= (0.47 * W * s, 0.47 * H * s)).all():
+            break
+    return View(proj, cx, cy, s)
+
+
+def page_view(target):
+    """The target's page of the atlas, shifted onto it when it sits near an edge, else a map of its own."""
+    frame, off_center = page_frame(target)
+    if frame is None:
+        proj = Laea(*main_ring(target).latlon())
+        x0, y0, x1, y1 = box_km(target_pts(target, proj))
+        return centered_view(
+            target, max((x1 - x0) / (MAX_FILL * W), (y1 - y0) / (MAX_FILL * H), OWN_FRAME_MIN_KM / W)
+        )
+    lat, lon, width = frame
+    return centered_view(target, width / W) if off_center else View(Laea(lat, lon), 0, 0, width / W)
 
 
 def lens_spot(img, center, radius):
@@ -385,11 +430,9 @@ def lens_shows_shape(target, view):
     return len(shown) == 1 or any((pts.max(0) - pts.min(0)).max() >= 6 for pts in shown)
 
 
-def render_lens(target, data, view, box, point=None, borders=True):
+def render_lens(target, data, view, box, point=None):
     red = [] if point is not None else target
-    img = draw_map(view, red, data["world"], data["lakes"], borders=borders).resize(
-        (LENS, LENS), Image.LANCZOS
-    )
+    img = draw_map(view, red, data["world"], data["lakes"]).resize((LENS, LENS), Image.LANCZOS)
     if point is not None:
         city_dot(img, view, point, LENS_CITY_DOT)
         return img
@@ -437,19 +480,19 @@ def city_dot(img, view, lonlat, radius=CITY_DOT):
     )
 
 
-def render_country(target, data, point=None, borders=True):
+def render_country(target, data, point=None):
     """
     The target on its page of the atlas, with a lens on it when it is too small to read there. With a
     [point], the target stays plain land and a city dot marks the point instead.
     """
     red = [] if point is not None else target
     view = page_view(target)
-    big = draw_map(view, red, data["world"], data["lakes"], border=SUPERSAMPLE, borders=borders)
+    big = draw_map(view, red, data["world"], data["lakes"], border=SUPERSAMPLE)
     img = big.resize((W, H), Image.LANCZOS)
     x0, y0, x1, y1 = box_px(view, target_pts(target, view.proj))
     size = max(x1 - x0, y1 - y0)
     lens, lens_box = lens_view(target)
-    if not borders or size >= READS_PX or (point is None and not lens_shows_shape(target, lens)):
+    if size >= READS_PX or (point is None and not lens_shows_shape(target, lens)):
         if point is None:
             dot_specks(img, view, target)
         else:
@@ -457,8 +500,21 @@ def render_country(target, data, point=None, borders=True):
         return img
 
     center = ((x0 + x1) / 2, (y0 + y1) / 2)
-    radius = size / 2 + 11
-    x, y = lens_spot(img, center, radius)
+    return attach_lens(
+        big,
+        center,
+        size / 2 + 11,
+        render_lens(target, data, lens, lens_box, point),
+        (lambda img: dot_specks(img, view, target)) if point is None else None,
+    )
+
+
+def attach_lens(big, center, radius, lens_img, mark=None):
+    """
+    The supersampled map [big] scaled down with [lens_img] in a free corner, a circle of [radius]
+    around [center] and leaders joining the two. [mark] draws on the scaled map before the lens goes on.
+    """
+    x, y = lens_spot(big.resize((W, H), Image.LANCZOS), center, radius)
     draw = ImageDraw.Draw(big)
     scaled = (center[0] * SUPERSAMPLE, center[1] * SUPERSAMPLE)
     draw_leaders(
@@ -471,8 +527,8 @@ def render_country(target, data, point=None, borders=True):
         width=SUPERSAMPLE,
     )
     img = big.resize((W, H), Image.LANCZOS)
-    if point is None:
-        dot_specks(img, view, target)
+    if mark is not None:
+        mark(img)
 
     left, top = x - LENS // 2, y - LENS // 2
     edge = 5
@@ -481,8 +537,33 @@ def render_country(target, data, point=None, borders=True):
         (left - edge, top - edge, left + LENS + edge, top + LENS + edge),
         disc_mask(LENS + 2 * edge),
     )
-    img.paste(render_lens(target, data, lens, lens_box, point, borders), (left, top), disc_mask(LENS))
+    img.paste(lens_img, (left, top), disc_mask(LENS))
     return img
+
+
+def draw_rivers(img, view, rivers):
+    draw = ImageDraw.Draw(img)
+    for ring in rivers:
+        if view.shows(ring):
+            draw.line(view.px(ring).ravel().tolist(), fill=RIVER, width=2 * SUPERSAMPLE, joint="curve")
+
+
+def render_city(target, data, point, borders=True):
+    """
+    The city's dot on the country's page, with a lens on the land around it, its rivers and coasts,
+    since a dot alone on a continent is hard to place.
+    """
+    view = page_view(target)
+    big = draw_map(view, [], data["world"], data["lakes"], border=SUPERSAMPLE, borders=borders)
+    proj = Laea(point[1], point[0])
+    lens = View(proj, 0, 0, CITY_LENS_KM / LENS, LENS, LENS)
+    zoom = draw_map(lens, [], data["world"], data["lakes"], borders=borders)
+    draw_rivers(zoom, lens, data["rivers"])
+    zoom = zoom.resize((LENS, LENS), Image.LANCZOS)
+    city_dot(zoom, lens, point, LENS_CITY_DOT)
+    ((x, y),) = view.km_to_px(view.proj.forward(np.array([point]))) / SUPERSAMPLE
+    radius = max(CITY_LENS_KM / 2 / view.s, 14)
+    return attach_lens(big, (x, y), radius, zoom, lambda img: city_dot(img, view, point, CITY_DOT * 0.6))
 
 
 def metro_view(depts):
@@ -626,6 +707,7 @@ def load_data():
     return {
         "world": world,
         "lakes": load_lakes(),
+        "rivers": load_rivers(),
         "depts": load_french("departements.geojson"),
         "regions": load_french("regions.geojson"),
         "arrondissements": arrondissements,
@@ -743,7 +825,10 @@ def sheet(codes, data):
 
 
 def list_pages(data):
-    """Every country by the page it lands on, in capitals when it reads there without a lens."""
+    """
+    Every country by the page it lands on, in capitals when it reads there without a lens, with a *
+    when the page is shifted onto it.
+    """
     pages = {}
     for code in country_names():
         target = data["world"].get(code)
@@ -752,9 +837,9 @@ def list_pages(data):
         view = page_view(target)
         x0, y0, x1, y1 = box_px(view, target_pts(target, view.proj))
         label = code.upper() if max(x1 - x0, y1 - y0) >= READS_PX else code
-        is_page = any((view.proj.lat, view.proj.lon) == frame[:2] for frame in FRAMES)
-        key = f"{view.proj.lat:.0f},{view.proj.lon:.0f}" if is_page else "own map"
-        pages.setdefault(key, []).append(label)
+        frame, off_center = page_frame(target)
+        key = f"{frame[0]},{frame[1]}" if frame else "own map"
+        pages.setdefault(key, []).append(label + ("*" if off_center else ""))
     for key, codes in pages.items():
         print(f"{key}: {len(codes)}: {' '.join(codes)}", flush=True)
 

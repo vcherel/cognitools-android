@@ -97,7 +97,7 @@ The Pays (carte), Départements (carte), Régions (carte) and Arrondissements (c
 uv run --only-group maps src/generate_maps.py
 ```
 
-`--sheet <codes>` renders those maps (ISO codes, department numbers like `35` or `2A`, region codes after an `r` like `r53`, or arrondissements after an `a` like `a7`) into `mockups/maps_sheet.png`, `--write <codes>` writes only their pictures, `--seeds` only the seed files, and `--pages` lists the atlas page each country lands on.
+`--sheet <codes>` renders those maps (ISO codes, department numbers like `35` or `2A`, region codes after an `r` like `r53`, or arrondissements after an `a` like `a7`) into `mockups/maps_sheet.png`, `--write <codes>` writes only their pictures, `--seeds` only the seed files, and `--pages` lists the atlas page each country lands on (a `*` when the page is shifted to center it).
 
 The city lists (Préfectures (carte), Capitales (carte), Préfectures US and its map list, Villes importantes (France) and (monde)), a red dot on each city, from Natural Earth's populated places and the geo.api.gouv.fr communes:
 
@@ -105,7 +105,15 @@ The city lists (Préfectures (carte), Capitales (carte), Préfectures US and its
 uv run --only-group maps src/generate_cities.py
 ```
 
-`--list` prints every card, `--sheet pref:75 cap:lu uscap:tx` renders those into `mockups/cities_sheet.png`, `--seeds` only writes the seed files.
+`--list` prints every card, `--sheet pref:75 cap:lu uscap:tx` renders those into `mockups/cities_sheet.png`, `--seeds` only writes the seed files. The capitals and the world cities also get a lens on the land around the city with its rivers, from Natural Earth's river centerlines; the capitals are drawn without borders.
+
+The Mers et océans (carte) list, one ocean, sea or gulf in blue on a map of coasts, from Natural Earth's marine polygons; each ocean takes in the seas that open onto it:
+
+```bash
+uv run --only-group maps src/generate_seas.py
+```
+
+`--list` prints every card, `--sheet atlantique north-sea` renders those into `mockups/seas_sheet.png`.
 
 ## Development
 

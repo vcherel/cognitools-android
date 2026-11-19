@@ -325,7 +325,8 @@ class FlashcardRepository(private val context: Context) {
             10 to "seed_state_capital_maps.json",
             10 to "seed_city_maps_fr.json",
             10 to "seed_city_maps_world.json",
-            11 to "seed_elements.json"
+            11 to "seed_elements.json",
+            12 to "seed_sea_maps.json"
         )
         private val hidePersonalKey = booleanPreferencesKey("hide_personal")
         private val unlockedListsKey = intPreferencesKey("unlocked_lists")
@@ -341,6 +342,7 @@ class FlashcardRepository(private val context: Context) {
             "builtin-prefecture-maps-v1",
             "builtin-cities-fr-v1",
             "builtin-cities-world-v1",
+            "builtin-sea-maps-v1",
             "builtin-dept-numbers-v1",
             "builtin-state-maps-v1",
             "builtin-state-capitals-v1",
@@ -406,7 +408,22 @@ class FlashcardRepository(private val context: Context) {
             // The overseas places already asked in Pays (carte), deleted from these two lists.
             "deptmap-971", "deptmap-972", "deptmap-973", "deptmap-974", "deptmap-976",
             "regionmap-01", "regionmap-02", "regionmap-03", "regionmap-04", "regionmap-06"
-        ).map { 10 to it }
+        ).map { 10 to it } + listOf(
+            // The capitals and world cities drawn with a lens, and the places shifted to the middle of their page.
+            "builtin-capital-maps-v1", "builtin-cities-world-v1",
+            "map-af", "map-al", "map-aq", "map-au", "map-bb", "map-bg", "map-bm", "map-bz", "map-cc",
+            "map-co", "map-cv", "map-cx", "map-dj", "map-dz", "map-ec", "map-eg", "map-eh", "map-er",
+            "map-es", "map-fi", "map-fk", "map-gd", "map-gf", "map-gi", "map-gl", "map-gm", "map-gn",
+            "map-gr", "map-gt", "map-gu", "map-gw", "map-gy", "map-is", "map-jp", "map-kg", "map-km",
+            "map-kp", "map-kz", "map-lc", "map-lr", "map-ls", "map-ma", "map-md", "map-me", "map-mg",
+            "map-mk", "map-ml", "map-mm", "map-mn", "map-mp", "map-mq", "map-mr", "map-mt", "map-mu",
+            "map-mv", "map-mx", "map-nz", "map-pg", "map-pk", "map-pm", "map-pn", "map-pt", "map-pw",
+            "map-re", "map-ro", "map-ru", "map-sc", "map-sh", "map-sl", "map-sn", "map-so", "map-sr",
+            "map-sv", "map-sz", "map-tf", "map-tj", "map-tl", "map-tn", "map-tt", "map-ua", "map-vc",
+            "map-ve", "map-xk", "map-ye", "map-yt", "map-za",
+            "prefmap-972", "prefmap-973", "prefmap-974", "prefmap-976",
+            "statemap-ak", "statemap-hi", "uscapmap-ak", "uscapmap-hi"
+        ).map { 12 to it }
         private const val BIRTHDAYS_LIST_ID = "builtin-birthdays-v1"
         private val birthdayFormat = DateTimeFormatter.ofPattern("d MMMM", Locale.FRENCH)
         private val builtinListIds = UNLOCK_ORDER + BIRTHDAYS_LIST_ID

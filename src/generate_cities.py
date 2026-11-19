@@ -26,6 +26,7 @@ from generate_maps import (
     near_paris,
     paris_inset,
     read_shapes,
+    render_city,
     render_country,
     source,
 )
@@ -283,7 +284,7 @@ def catalog(data):
             for dept, (name, point) in prefs.items()
         },
         "cap": {
-            code: (name, lambda p=point, c=code: render_country(world[c], data, p, borders=False))
+            code: (name, lambda p=point, c=code: render_city(world[c], data, p, borders=False))
             for code, (name, point) in caps.items()
         },
         "uscap": {
@@ -295,7 +296,7 @@ def catalog(data):
             for insee, (name, point) in france_cities(communes, prefs).items()
         },
         "cityw": {
-            key: (name, lambda p=point, c=code: render_country(world[c], data, p))
+            key: (name, lambda p=point, c=code: render_city(world[c], data, p))
             for key, (name, code, point) in world_cities(places, world).items()
         },
     }
