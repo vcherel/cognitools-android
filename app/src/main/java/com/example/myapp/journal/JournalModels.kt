@@ -22,6 +22,8 @@ data class JournalItem(
     val image: String,
     /** A schema the laptop drew for the item, as a PNG data URI, blank when it has none. */
     val diagram: String,
+    /** The body's tables the laptop drew, as PNG data URIs, each placed by a `[table N]` line of [body]. */
+    val tables: List<String>,
     /** Set on security items: what the laptop's `/journal` skill offers to check, not shown here. */
     val check: String,
     val sources: List<JournalSource>
@@ -108,6 +110,7 @@ fun parseIssue(raw: String): JournalIssue {
                         subject = item.optString("subject"),
                         image = item.optString("image"),
                         diagram = item.optString("diagram"),
+                        tables = (item.optJSONArray("tables") ?: JSONArray()).let { a -> (0 until a.length()).map(a::getString) },
                         check = item.optString("check"),
                         sources = item.getJSONArray("sources").objects().map {
                             JournalSource(it.optString("name"), it.getString("url"))
@@ -156,6 +159,55 @@ fun parseFeedback(raw: String): JournalFeedback {
         todo = (obj.optJSONArray("todo") ?: JSONArray()).strings(),
         general = obj.optString("general")
     )
+}
+
+sealed interface BodyBlock {
+    data class Text(val text: String) : BodyBlock
+    data class Picture(val uri: String) : BodyBlock
+    /** A Markdown table the laptop left as text, header row first. */
+    data class Table(val rows: List<List<String>>) : BodyBlock
+}
+
+private val TABLE_MARK = Regex("""^\[table (\d+)]$""")
+private val TABLE_SEPARATOR = Regex("""^\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)*\|?$""")
+
+private fun tableCells(line: String): List<String> =
+    line.trim().removePrefix("|").removeSuffix("|").split("|").map { it.replace("**", "").replace("`", "").trim() }
+
+/** The body cut into text, the drawn tables at their `[table N]` lines (any never placed at the end)
+ *  and the Markdown tables left as text. */
+fun bodyBlocks(body: String, tables: List<String>): List<BodyBlock> {
+    val lines = body.lines()
+    val blocks = mutableListOf<BodyBlock>()
+    val text = mutableListOf<String>()
+    val placed = mutableSetOf<Int>()
+    fun flush() {
+        text.joinToString("\n").trim('\n').takeIf { it.isNotBlank() }?.let { blocks += BodyBlock.Text(it) }
+        text.clear()
+    }
+    var i = 0
+    while (i < lines.size) {
+        val line = lines[i].trim()
+        val mark = TABLE_MARK.matchEntire(line)?.groupValues?.get(1)?.toInt()?.minus(1)
+        if (mark != null && mark in tables.indices) {
+            flush()
+            blocks += BodyBlock.Picture(tables[mark])
+            placed += mark
+            i++
+        } else if (line.startsWith("|") && i + 1 < lines.size && TABLE_SEPARATOR.matches(lines[i + 1].trim())) {
+            flush()
+            var end = i + 2
+            while (end < lines.size && lines[end].trim().startsWith("|")) end++
+            blocks += BodyBlock.Table(listOf(tableCells(line)) + (i + 2 until end).map { tableCells(lines[it]) })
+            i = end
+        } else {
+            text += lines[i]
+            i++
+        }
+    }
+    flush()
+    tables.indices.filter { it !in placed }.forEach { blocks += BodyBlock.Picture(tables[it]) }
+    return blocks
 }
 
 private fun JSONArray.objects(): List<JSONObject> = (0 until length()).map(::getJSONObject)

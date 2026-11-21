@@ -2,12 +2,15 @@ package com.example.myapp.journal
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.gestures.rememberTransformableState
 import androidx.compose.foundation.gestures.transformable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -392,6 +395,36 @@ private fun SectionHeader(section: JournalSection) {
     )
 }
 
+/** A table the laptop left as text: one column per cell position, scrolled sideways when too wide. */
+@Composable
+private fun BodyTable(rows: List<List<String>>) {
+    val columns = rows.maxOf { it.size }
+    Row(
+        Modifier
+            .padding(end = 8.dp)
+            .clip(RoundedCornerShape(8.dp))
+            .background(MaterialTheme.colorScheme.surface)
+            .horizontalScroll(rememberScrollState())
+    ) {
+        for (c in 0 until columns) {
+            Column(Modifier.width(IntrinsicSize.Max)) {
+                rows.forEachIndexed { r, row ->
+                    Text(
+                        row.getOrElse(c) { "" },
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = if (r == 0) FontWeight.SemiBold else null,
+                        maxLines = 1,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(if (r == 0) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent)
+                            .padding(horizontal = 10.dp, vertical = 6.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
 @Composable
 private fun JournalItemCard(
     item: JournalItem,
@@ -448,8 +481,22 @@ private fun JournalItemCard(
                 )
             }
             if (expanded && item.body.isNotBlank()) {
-                Spacer(Modifier.height(8.dp))
-                Text(remember(item.body) { item.body.formatInline() }, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(end = 8.dp))
+                remember(item.body, item.tables) { bodyBlocks(item.body, item.tables) }.forEach { block ->
+                    Spacer(Modifier.height(8.dp))
+                    when (block) {
+                        is BodyBlock.Text -> Text(
+                            remember(block) { block.text.formatInline() },
+                            style = MaterialTheme.typography.bodyLarge,
+                            modifier = Modifier.padding(end = 8.dp)
+                        )
+                        is BodyBlock.Picture -> ItemPicture(
+                            block.uri,
+                            Modifier.padding(end = 8.dp).fillMaxWidth().clickable { fullPicture = block.uri },
+                            ContentScale.FillWidth
+                        )
+                        is BodyBlock.Table -> BodyTable(block.rows)
+                    }
+                }
             }
             Spacer(Modifier.height(8.dp))
             FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
