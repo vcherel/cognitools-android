@@ -3,6 +3,8 @@ import gzip
 import io
 import json
 import math
+import time
+import urllib.error
 import urllib.parse
 import urllib.request
 import zipfile
@@ -128,10 +130,19 @@ PARIS = (2.35, 48.86)
 PARIS_HEIGHT = 540
 
 
-def fetch(url):
+def fetch(url, attempts=3):
     request = urllib.request.Request(url, headers={"User-Agent": "cognitools-maps"})
-    with urllib.request.urlopen(request) as response:
-        body = response.read()
+    for attempt in range(attempts):
+        try:
+            with urllib.request.urlopen(request) as response:
+                body = response.read()
+            break
+        except urllib.error.HTTPError as e:
+            # Overpass answers 502 and 504 when busy, and a retry a little later usually goes through.
+            if e.code not in (429, 502, 503, 504) or attempt == attempts - 1:
+                raise
+            print(f"HTTP {e.code}, retrying in {10 * (attempt + 1)} s", flush=True)
+            time.sleep(10 * (attempt + 1))
     # Paris open data gzips its export even to a client that never asked for it.
     return gzip.decompress(body) if body[:2] == b"\x1f\x8b" else body
 
