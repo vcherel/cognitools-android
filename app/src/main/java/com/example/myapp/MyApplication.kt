@@ -27,6 +27,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
 
 class MyApplication : Application(), SingletonImageLoader.Factory {
@@ -75,11 +76,20 @@ class MyApplication : Application(), SingletonImageLoader.Factory {
     }
 
     // Lets Coil (used by the gallery tool) decode a video's first frame as its thumbnail,
-    // the same way it decodes an image.
+    // the same way it decodes an image. Remote images (Deezer covers, journal pictures) go out
+    // with the app's User-Agent: Wikimedia refuses OkHttp's default one with a 403.
     override fun newImageLoader(context: PlatformContext): ImageLoader =
         ImageLoader.Builder(context)
             .components {
-                add(OkHttpNetworkFetcherFactory()) // load remote https images (Deezer cover art)
+                add(
+                    OkHttpNetworkFetcherFactory(callFactory = {
+                        OkHttpClient.Builder()
+                            .addInterceptor { chain ->
+                                chain.proceed(chain.request().newBuilder().header("User-Agent", USER_AGENT).build())
+                            }
+                            .build()
+                    }),
+                )
                 add(VideoFrameDecoder.Factory())
             }
             .build()
