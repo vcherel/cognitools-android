@@ -1,6 +1,6 @@
-# Builds the city lists on top of generate_maps.py: Préfectures (carte), Capitales (carte),
-# Préfectures US and its map list, and the Villes importantes (France) and (monde) lists, each map
-# card a dot on the city.
+# Builds the city lists on top of generate_maps.py: Préfectures (carte), Villes du monde (carte)
+# (the capitals and the big cities together, so a country does not give its capital away),
+# Préfectures US and its map list, and Villes importantes (France), each map card a dot on the city.
 import argparse
 import json
 import math
@@ -15,6 +15,7 @@ from generate_maps import (
     OVERSEAS_DEPTS,
     SUPERSAMPLE,
     H,
+    Laea,
     W,
     city_dot,
     draw_map,
@@ -29,6 +30,7 @@ from generate_maps import (
     render_city,
     render_country,
     source,
+    target_pts,
 )
 
 FLAGS_SEED = ASSETS / "seed_flags.json"
@@ -122,14 +124,90 @@ WORLD_CITIES = [
     ("Melbourne", "au"),
     ("Perth", "au"),
     ("Auckland", "nz"),
+    ("Dallas", "us"),
+    ("San Diego", "us"),
+    ("Calgary", "ca"),
+    ("Québec", "ca"),
+    ("Tijuana", "mx"),
+    ("Belo Horizonte", "br"),
+    ("Recife", "br"),
+    ("Porto Alegre", "br"),
+    ("Fortaleza", "br"),
+    ("Cali", "co"),
+    ("Cartagena", "co"),
+    ("Maracaibo", "ve"),
+    ("La Paz", "bo"),
+    ("Santa Cruz", "bo"),
+    ("Cusco", "pe"),
+    ("Rosario", "ar"),
+    ("Mendoza", "ar"),
+    ("Birmingham", "gb"),
+    ("Glasgow", "gb"),
+    ("Stuttgart", "de"),
+    ("Düsseldorf", "de"),
+    ("Turin", "it"),
+    ("Palermo", "it"),
+    ("Bologna", "it"),
+    ("Bilbao", "es"),
+    ("Málaga", "es"),
+    ("Gdańsk", "pl"),
+    ("Wrocław", "pl"),
+    ("Göteborg", "se"),
+    ("Bergen", "no"),
+    ("Basel", "ch"),
+    ("Kharkiv", "ua"),
+    ("Lviv", "ua"),
+    ("Yekaterinburg", "ru"),
+    ("Kazan", "ru"),
+    ("İzmir", "tr"),
+    ("Antalya", "tr"),
+    ("Tangier", "ma"),
+    ("Fez", "ma"),
+    ("Oran", "dz"),
+    ("Banghazi", "ly"),
+    ("Kano", "ng"),
+    ("Douala", "cm"),
+    ("Cotonou", "bj"),
+    ("Dar es Salaam", "tz"),
+    ("Lubumbashi", "cd"),
+    ("Tel Aviv", "il"),
+    ("Makkah", "sa"),
+    ("Basra", "iq"),
+    ("Isfahan", "ir"),
+    ("Mashhad", "ir"),
+    ("Samarkand", "uz"),
+    ("Lahore", "pk"),
+    ("Hyderabad", "in"),
+    ("Ahmedabad", "in"),
+    ("Chattogram", "bd"),
+    ("Colombo", "lk"),
+    ("Yangon", "mm"),
+    ("Chiang Mai", "th"),
+    ("Da Nang", "vn"),
+    ("Surabaya", "id"),
+    ("Denpasar", "id"),
+    ("Cebu", "ph"),
+    ("Shenzhen", "cn"),
+    ("Chongqing", "cn"),
+    ("Wuhan", "cn"),
+    ("Xian", "cn"),
+    ("Harbin", "cn"),
+    ("Kyoto", "jp"),
+    ("Sapporo", "jp"),
+    ("Hiroshima", "jp"),
+    ("Brisbane", "au"),
+    ("Adelaide", "au"),
 ]
+# A capital whose whole country lies this close to it would show the same thing as its Pays card.
+TINY_COUNTRY_KM = 100
+WORLD_LIST = ("seed_capital_maps.json", "builtin-capital-maps-v1", "Villes du monde (carte)", 11)
 
 LISTS = {
     "pref": ("seed_prefecture_maps.json", "builtin-prefecture-maps-v1", "Préfectures (carte)", 10),
-    "cap": ("seed_capital_maps.json", "builtin-capital-maps-v1", "Capitales (carte)", 11),
+    "cap": WORLD_LIST,
     "uscap": ("seed_state_capital_maps.json", "builtin-state-capital-maps-v1", "Préfectures US (carte)", 13),
     "cityfr": ("seed_city_maps_fr.json", "builtin-cities-fr-v1", "Villes importantes (France)", 14),
-    "cityw": ("seed_city_maps_world.json", "builtin-cities-world-v1", "Villes importantes (monde)", 15),
+    "cityw": WORLD_LIST,
 }
 STATE_CAPITALS = ("seed_state_capitals.json", "builtin-state-capitals-v1", "Préfectures US", 12)
 
@@ -284,8 +362,9 @@ def catalog(data):
             for dept, (name, point) in prefs.items()
         },
         "cap": {
-            code: (name, lambda p=point, c=code: render_city(world[c], data, p, borders=False))
+            code: (name, lambda p=point, c=code: render_city(world[c], data, p))
             for code, (name, point) in caps.items()
+            if np.hypot(*target_pts(world[code], Laea(point[1], point[0])).T).max() >= TINY_COUNTRY_KM
         },
         "uscap": {
             code[3:]: (capital, lambda p=point, c=code: render_us(c, p, data))
@@ -317,12 +396,12 @@ def write_bundle(filename, list_id, name, order, cards, fixed_side=True):
 
 
 def write_seeds(cards, us):
+    seeds = {}
     for kind, entries in cards.items():
-        filename, list_id, name, order = LISTS[kind]
-        seed = [
+        seeds.setdefault(LISTS[kind], []).extend(
             {
                 "id": f"{kind}map-{key}",
-                "listId": list_id,
+                "listId": LISTS[kind][1],
                 "name": "",
                 "definition": answer,
                 "image": f"asset:maps/{image_name(kind, key)}.webp",
@@ -330,7 +409,8 @@ def write_seeds(cards, us):
                 "randomSide": False,
             }
             for key, (answer, _) in entries.items()
-        ]
+        )
+    for (filename, list_id, name, order), seed in seeds.items():
         write_bundle(filename, list_id, name, order, sorted(seed, key=lambda c: fold(c["definition"])))
     filename, list_id, name, order = STATE_CAPITALS
     text = [

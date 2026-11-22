@@ -196,6 +196,9 @@ class FlashcardRepository(private val context: Context) {
      * card points at any more.
      */
     suspend fun seedAndPurge() {
+        val moved = dao.getElements(OLD_WORLD_CITIES_LIST_ID)
+        if (moved.isNotEmpty()) dao.upsertElements(moved.map { it.copy(listId = WORLD_CITIES_LIST_ID) })
+        if (dao.getList(OLD_WORLD_CITIES_LIST_ID) != null) dao.deleteList(OLD_WORLD_CITIES_LIST_ID)
         val seeded = context.flashcardDataStore.data.first()[seedVersionKey] ?: 0
         if (seeded < SEEDS.last().first) {
             SEEDS.filter { (version, _) -> version > seeded }.forEach { (_, file) -> seedAssets(file) }
@@ -324,12 +327,13 @@ class FlashcardRepository(private val context: Context) {
             10 to "seed_state_capitals.json",
             10 to "seed_state_capital_maps.json",
             10 to "seed_city_maps_fr.json",
-            10 to "seed_city_maps_world.json",
             11 to "seed_elements.json",
-            12 to "seed_sea_maps.json"
+            12 to "seed_sea_maps.json",
+            13 to "seed_transit_lines.json"
         )
         private val hidePersonalKey = booleanPreferencesKey("hide_personal")
-        private val unlockedListsKey = intPreferencesKey("unlocked_lists")
+        // Renamed whenever UNLOCK_ORDER is reordered, so Play all opens the lists again from the first.
+        private val unlockedListsKey = intPreferencesKey("unlocked_lists_v2")
         // The builtin lists from the most to the least worth learning, the order Play all opens them in.
         private val UNLOCK_ORDER = listOf(
             "builtin-capitals-v1",
@@ -338,19 +342,22 @@ class FlashcardRepository(private val context: Context) {
             "builtin-dept-maps-v1",
             "builtin-prefectures-v1",
             "builtin-region-maps-v1",
-            "builtin-capital-maps-v1",
+            "builtin-arrondissement-maps-v1",
+            "builtin-transit-lines-v1",
+            "builtin-sea-maps-v1",
             "builtin-prefecture-maps-v1",
             "builtin-cities-fr-v1",
-            "builtin-cities-world-v1",
-            "builtin-sea-maps-v1",
             "builtin-dept-numbers-v1",
             "builtin-state-maps-v1",
             "builtin-state-capitals-v1",
+            "builtin-capital-maps-v1",
             "builtin-state-capital-maps-v1",
-            "builtin-arrondissement-maps-v1",
             "builtin-state-flags-v1",
             "builtin-elements-v1"
         )
+        // The world cities list, merged into the capitals one (WORLD_CITIES_LIST_ID) with its progress.
+        private const val OLD_WORLD_CITIES_LIST_ID = "builtin-cities-world-v1"
+        private const val WORLD_CITIES_LIST_ID = "builtin-capital-maps-v1"
         private val lotteryDayKey = stringPreferencesKey("lottery_day")
         private const val DAY_MS = 24 * 60 * 60_000L
         private val resetVersionKey = intPreferencesKey("reset_version")
@@ -423,7 +430,37 @@ class FlashcardRepository(private val context: Context) {
             "map-ve", "map-xk", "map-ye", "map-yt", "map-za",
             "prefmap-972", "prefmap-973", "prefmap-974", "prefmap-976",
             "statemap-ak", "statemap-hi", "uscapmap-ak", "uscapmap-hi"
-        ).map { 12 to it }
+        ).map { 12 to it } + listOf(
+            // The capitals drawn with their borders again, the tiny countries' ones deleted.
+            "ae", "af", "al", "am", "ao", "ar", "at", "au", "az", "ba", "bd", "be", "bf", "bg", "bi", "bj",
+            "bn", "bo", "br", "bs", "bt", "bw", "by", "bz", "ca", "cd", "cf", "cg", "ch", "ci", "cl", "cm",
+            "cn", "co", "cr", "cu", "cv", "cy", "cz", "de", "dj", "dk", "do", "dz", "ec", "ee", "eg", "er",
+            "es", "et", "fi", "fj", "fm", "fr", "ga", "gb", "ge", "gh", "gm", "gn", "gq", "gr", "gt", "gw",
+            "gy", "hn", "hr", "ht", "hu", "id", "ie", "il", "in", "iq", "ir", "is", "it", "jm", "jo", "jp",
+            "ke", "kg", "kh", "ki", "km", "kp", "kr", "kw", "kz", "la", "lb", "lk", "lr", "ls", "lt", "lv",
+            "ly", "ma", "md", "me", "mg", "mh", "mk", "ml", "mm", "mn", "mr", "mu", "mv", "mw", "mx", "my",
+            "mz", "na", "ne", "ng", "ni", "nl", "no", "np", "nz", "om", "pa", "pe", "pg", "ph", "pk", "pl",
+            "ps", "pt", "pw", "py", "qa", "ro", "rs", "ru", "rw", "sa", "sb", "sc", "sd", "se", "si", "sk",
+            "sl", "sn", "so", "sr", "ss", "st", "sv", "sy", "sz", "td", "tg", "th", "tj", "tl", "tm", "tn",
+            "to", "tr", "tt", "tv", "tw", "tz", "ua", "ug", "us", "uy", "uz", "ve", "vn", "vu", "ws", "xk",
+            "ye", "za", "zm", "zw", "ad", "ag", "bb", "bh", "dm", "gd", "kn", "lc", "li", "lu", "mc", "mt",
+            "nr", "sg", "sm", "va", "vc"
+        ).map { 13 to "capmap-$it" } + listOf(
+            // The big cities added to the merged list.
+            "1159133777", "1159135709", "1159139051", "1159139461", "1159140545", "1159146875",
+            "1159146905", "1159146949", "1159147717", "1159148063", "1159148253", "1159149323",
+            "1159149333", "1159149351", "1159149365", "1159149367", "1159149371", "1159149407",
+            "1159149435", "1159149707", "1159149967", "1159150127", "1159150193", "1159150303",
+            "1159150569", "1159150591", "1159150611", "1159150643", "1159150669", "1159150701",
+            "1159150705", "1159150719", "1159150721", "1159150751", "1159150805", "1159150857",
+            "1159150903", "1159150953", "1159150971", "1159151035", "1159151065", "1159151093",
+            "1159151133", "1159151135", "1159151137", "1159151141", "1159151165", "1159151169",
+            "1159151215", "1159151227", "1159151235", "1159151237", "1159151279", "1159151285",
+            "1159151297", "1159151305", "1159151327", "1159151339", "1159151345", "1159151363",
+            "1159151367", "1159151389", "1159151397", "1159151399", "1159151407", "1159151417",
+            "1159151421", "1159151433", "1159151447", "1159151451", "1159151461", "1159151473",
+            "1159151477"
+        ).map { 13 to "citywmap-$it" }
         private const val BIRTHDAYS_LIST_ID = "builtin-birthdays-v1"
         private val birthdayFormat = DateTimeFormatter.ofPattern("d MMMM", Locale.FRENCH)
         private val builtinListIds = UNLOCK_ORDER + BIRTHDAYS_LIST_ID

@@ -1,0 +1,418 @@
+{
+ "version": 1,
+ "lists": [
+  {
+   "id": "builtin-transit-lines-v1",
+   "name": "Transports (Île-de-France)",
+   "order": 18,
+   "fixedSide": true
+  }
+ ],
+ "cards": [
+  {
+   "id": "metro-1",
+   "listId": "builtin-transit-lines-v1",
+   "name": "",
+   "definition": "Métro 1",
+   "image": "asset:maps/metro-1.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "metro-2",
+   "listId": "builtin-transit-lines-v1",
+   "name": "",
+   "definition": "Métro 2",
+   "image": "asset:maps/metro-2.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "metro-3",
+   "listId": "builtin-transit-lines-v1",
+   "name": "",
+   "definition": "Métro 3",
+   "image": "asset:maps/metro-3.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "metro-3bis",
+   "listId": "builtin-transit-lines-v1",
+   "name": "",
+   "definition": "Métro 3bis",
+   "image": "asset:maps/metro-3bis.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "metro-4",
+   "listId": "builtin-transit-lines-v1",
+   "name": "",
+   "definition": "Métro 4",
+   "image": "asset:maps/metro-4.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "metro-5",
+   "listId": "builtin-transit-lines-v1",
+   "name": "",
+   "definition": "Métro 5",
+   "image": "asset:maps/metro-5.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "metro-6",
+   "listId": "builtin-transit-lines-v1",
+   "name": "",
+   "definition": "Métro 6",
+   "image": "asset:maps/metro-6.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "metro-7",
+   "listId": "builtin-transit-lines-v1",
+   "name": "",
+   "definition": "Métro 7",
+   "image": "asset:maps/metro-7.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "metro-7bis",
+   "listId": "builtin-transit-lines-v1",
+   "name": "",
+   "definition": "Métro 7bis",
+   "image": "asset:maps/metro-7bis.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "metro-8",
+   "listId": "builtin-transit-lines-v1",
+   "name": "",
+   "definition": "Métro 8",
+   "image": "asset:maps/metro-8.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "metro-9",
+   "listId": "builtin-transit-lines-v1",
+   "name": "",
+   "definition": "Métro 9",
+   "image": "asset:maps/metro-9.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "metro-10",
+   "listId": "builtin-transit-lines-v1",
+   "name": "",
+   "definition": "Métro 10",
+   "image": "asset:maps/metro-10.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "metro-11",
+   "listId": "builtin-transit-lines-v1",
+   "name": "",
+   "definition": "Métro 11",
+   "image": "asset:maps/metro-11.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "metro-12",
+   "listId": "builtin-transit-lines-v1",
+   "name": "",
+   "definition": "Métro 12",
+   "image": "asset:maps/metro-12.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "metro-13",
+   "listId": "builtin-transit-lines-v1",
+   "name": "",
+   "definition": "Métro 13",
+   "image": "asset:maps/metro-13.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "metro-14",
+   "listId": "builtin-transit-lines-v1",
+   "name": "",
+   "definition": "Métro 14",
+   "image": "asset:maps/metro-14.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "rer-a",
+   "listId": "builtin-transit-lines-v1",
+   "name": "",
+   "definition": "RER A",
+   "image": "asset:maps/rer-a.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "rer-b",
+   "listId": "builtin-transit-lines-v1",
+   "name": "",
+   "definition": "RER B",
+   "image": "asset:maps/rer-b.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "rer-c",
+   "listId": "builtin-transit-lines-v1",
+   "name": "",
+   "definition": "RER C",
+   "image": "asset:maps/rer-c.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "rer-d",
+   "listId": "builtin-transit-lines-v1",
+   "name": "",
+   "definition": "RER D",
+   "image": "asset:maps/rer-d.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "rer-e",
+   "listId": "builtin-transit-lines-v1",
+   "name": "",
+   "definition": "RER E",
+   "image": "asset:maps/rer-e.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "transilien-h",
+   "listId": "builtin-transit-lines-v1",
+   "name": "",
+   "definition": "Ligne H",
+   "image": "asset:maps/transilien-h.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "transilien-j",
+   "listId": "builtin-transit-lines-v1",
+   "name": "",
+   "definition": "Ligne J",
+   "image": "asset:maps/transilien-j.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "transilien-k",
+   "listId": "builtin-transit-lines-v1",
+   "name": "",
+   "definition": "Ligne K",
+   "image": "asset:maps/transilien-k.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "transilien-l",
+   "listId": "builtin-transit-lines-v1",
+   "name": "",
+   "definition": "Ligne L",
+   "image": "asset:maps/transilien-l.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "transilien-n",
+   "listId": "builtin-transit-lines-v1",
+   "name": "",
+   "definition": "Ligne N",
+   "image": "asset:maps/transilien-n.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "transilien-p",
+   "listId": "builtin-transit-lines-v1",
+   "name": "",
+   "definition": "Ligne P",
+   "image": "asset:maps/transilien-p.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "transilien-r",
+   "listId": "builtin-transit-lines-v1",
+   "name": "",
+   "definition": "Ligne R",
+   "image": "asset:maps/transilien-r.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "transilien-u",
+   "listId": "builtin-transit-lines-v1",
+   "name": "",
+   "definition": "Ligne U",
+   "image": "asset:maps/transilien-u.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "transilien-v",
+   "listId": "builtin-transit-lines-v1",
+   "name": "",
+   "definition": "Ligne V",
+   "image": "asset:maps/transilien-v.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "tram-t1",
+   "listId": "builtin-transit-lines-v1",
+   "name": "",
+   "definition": "T1",
+   "image": "asset:maps/tram-t1.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "tram-t2",
+   "listId": "builtin-transit-lines-v1",
+   "name": "",
+   "definition": "T2",
+   "image": "asset:maps/tram-t2.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "tram-t3a",
+   "listId": "builtin-transit-lines-v1",
+   "name": "",
+   "definition": "T3a",
+   "image": "asset:maps/tram-t3a.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "tram-t3b",
+   "listId": "builtin-transit-lines-v1",
+   "name": "",
+   "definition": "T3b",
+   "image": "asset:maps/tram-t3b.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "tram-t4",
+   "listId": "builtin-transit-lines-v1",
+   "name": "",
+   "definition": "T4",
+   "image": "asset:maps/tram-t4.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "tram-t5",
+   "listId": "builtin-transit-lines-v1",
+   "name": "",
+   "definition": "T5",
+   "image": "asset:maps/tram-t5.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "tram-t6",
+   "listId": "builtin-transit-lines-v1",
+   "name": "",
+   "definition": "T6",
+   "image": "asset:maps/tram-t6.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "tram-t7",
+   "listId": "builtin-transit-lines-v1",
+   "name": "",
+   "definition": "T7",
+   "image": "asset:maps/tram-t7.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "tram-t8",
+   "listId": "builtin-transit-lines-v1",
+   "name": "",
+   "definition": "T8",
+   "image": "asset:maps/tram-t8.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "tram-t9",
+   "listId": "builtin-transit-lines-v1",
+   "name": "",
+   "definition": "T9",
+   "image": "asset:maps/tram-t9.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "tram-t10",
+   "listId": "builtin-transit-lines-v1",
+   "name": "",
+   "definition": "T10",
+   "image": "asset:maps/tram-t10.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "tram-t11",
+   "listId": "builtin-transit-lines-v1",
+   "name": "",
+   "definition": "T11",
+   "image": "asset:maps/tram-t11.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "tram-t12",
+   "listId": "builtin-transit-lines-v1",
+   "name": "",
+   "definition": "T12",
+   "image": "asset:maps/tram-t12.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "tram-t13",
+   "listId": "builtin-transit-lines-v1",
+   "name": "",
+   "definition": "T13",
+   "image": "asset:maps/tram-t13.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "tram-t14",
+   "listId": "builtin-transit-lines-v1",
+   "name": "",
+   "definition": "T14",
+   "image": "asset:maps/tram-t14.webp",
+   "lastReview": 0,
+   "randomSide": false
+  }
+ ]
+}
