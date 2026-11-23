@@ -17,6 +17,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlin.math.pow
 import kotlin.random.Random
 
 private const val MAX_DIFFICULT_CARDS = 5
@@ -80,6 +81,17 @@ class FlashcardGameState(
     var hidePersonal by mutableStateOf(false)
         private set
 
+    // Play all only: each list's draw weight from its priority, see FlashcardRepository.getPlayAll
+    private var listWeights: Map<String, Double> = emptyMap()
+
+    private fun weight(card: FlashcardElement): Double = listWeights[card.listId] ?: 1.0
+
+    private fun List<FlashcardElement>.weightedRandom(): FlashcardElement? {
+        if (isEmpty()) return null
+        var roll = sessionRandom.nextDouble() * sumOf { weight(it) }
+        return firstOrNull { roll -= weight(it); roll < 0 } ?: last()
+    }
+
     private fun playable(): List<FlashcardElement> =
         if (hidePersonal) cards.orEmpty().filter { !FlashcardRepository.isPersonalList(it.listId) }
         else cards.orEmpty()
@@ -100,7 +112,11 @@ class FlashcardGameState(
             listNames = repository.getListNames()
             hidePersonal = repository.hidePersonal.first()
         }
-        cards = if (isAllListsMode) repository.getPlayAllElements() else repository.getElements(listId)
+        cards = if (isAllListsMode) {
+            repository.getPlayAll().also { listWeights = it.weights }.cards
+        } else {
+            repository.getElements(listId)
+        }
         refillWorkingSet()
         pickIfIdle()
     }
@@ -130,7 +146,7 @@ class FlashcardGameState(
         val kept = difficultDue.filter { it.id in activeDifficultCards }.map { it.id }
         val added = difficultDue
             .filter { it.id !in activeDifficultCards }
-            .shuffled(sessionRandom)
+            .sortedByDescending { sessionRandom.nextDouble().pow(1 / weight(it)) }
             .take((MAX_DIFFICULT_CARDS - kept.size).coerceAtLeast(0))
             .map { it.id }
         activeDifficultCards = (kept + added).toSet()
@@ -143,13 +159,13 @@ class FlashcardGameState(
         if (card == null) return
         showFront = preset?.showFront ?: randomFrontSide(card, sessionRandom)
         isGolden = preset?.golden ?: (sessionRandom.nextInt(GOLDEN_ODDS) == 0)
-        val next = dueState.cards.filter { it.id != card.id }.randomOrNull(sessionRandom) ?: return
+        val next = dueState.cards.filter { it.id != card.id }.weightedRandom() ?: return
         upcoming = Upcoming(next.id, randomFrontSide(next, sessionRandom), sessionRandom.nextInt(GOLDEN_ODDS) == 0)
         next.image?.let { prefetchCardImage(context, it) }
     }
 
     private fun pickIfIdle() {
-        if (currentCard == null && dueState.cards.isNotEmpty()) draw(dueState.cards.random(sessionRandom))
+        if (currentCard == null && dueState.cards.isNotEmpty()) draw(dueState.cards.weightedRandom())
     }
 
     fun answer(wasCorrect: Boolean) {
@@ -179,7 +195,7 @@ class FlashcardGameState(
             // The card just answered only comes straight back when it is the last one still due
             val availableCards = dueState.cards.filter { it.id != card.id }.ifEmpty { dueState.cards }
 
-            draw(availableCards.firstOrNull { it.id == upcoming?.id } ?: availableCards.randomOrNull(sessionRandom))
+            draw(availableCards.firstOrNull { it.id == upcoming?.id } ?: availableCards.weightedRandom())
         }
     }
 
@@ -193,7 +209,7 @@ class FlashcardGameState(
             showDefinition = false
             canUndo = false
             lastCard = null
-            draw(dueState.cards.randomOrNull(sessionRandom))
+            draw(dueState.cards.weightedRandom())
         } else {
             pickIfIdle()
         }

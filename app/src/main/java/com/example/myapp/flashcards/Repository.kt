@@ -63,10 +63,23 @@ class FlashcardRepository(private val context: Context) {
     fun observeDueCount(now: Long): Flow<Int> =
         dao.observeDueCounts(now).map { rows -> rows.sumOf { it.c } }.onEach { lastDueCount = it }
 
-    suspend fun addList(list: FlashcardList) {
-        val current = dao.getLists()
-        val nextOrder = (current.maxOfOrNull { it.order } ?: 0) + 1
-        dao.upsertList(list.copy(order = nextOrder))
+    suspend fun addList(list: FlashcardList) = placeLists(listOf(list))
+
+    /**
+     * Upserts lists keeping the place each already has. A new personal list goes under the personal
+     * ones, above the builtin lists; a new builtin list goes last, the lowest priority.
+     */
+    private suspend fun placeLists(incoming: List<FlashcardList>) {
+        val current = dao.getLists().toMutableList()
+        for (list in incoming) {
+            val at = current.indexOfFirst { it.id == list.id }
+            when {
+                at >= 0 -> current[at] = list
+                isPersonalList(list.id) -> current.add(current.indexOfLast { isPersonalList(it.id) } + 1, list)
+                else -> current.add(list)
+            }
+        }
+        reorderLists(current)
     }
 
     suspend fun reorderLists(newOrder: List<FlashcardList>) {
@@ -166,7 +179,7 @@ class FlashcardRepository(private val context: Context) {
             if (data.isNotEmpty()) context.restoreUserImage(json.optString("image"), data)
         }
         val validListIds = lists.map { it.id }.toSet()
-        if (lists.isNotEmpty()) dao.upsertLists(lists)
+        if (lists.isNotEmpty()) placeLists(lists)
         val validCards = cards.filter { it.listId in validListIds }
         if (validCards.isNotEmpty()) dao.upsertElements(validCards)
     }
@@ -214,6 +227,11 @@ class FlashcardRepository(private val context: Context) {
             val shippedIds = allShipped.map { it.id }.toSet()
             ids.filter { it !in shippedIds && it !in builtinListIds }.forEach { dao.deleteElement(it) }
             context.flashcardDataStore.edit { it[resetVersionKey] = RESETS.last().first }
+        }
+        if (context.flashcardDataStore.data.first()[priorityOrderKey] != true) {
+            val (personal, builtin) = dao.getLists().partition { isPersonalList(it.id) }
+            reorderLists(personal + builtin.sortedBy { DEFAULT_PRIORITY.indexOf(it.id) })
+            context.flashcardDataStore.edit { it[priorityOrderKey] = true }
         }
         dao.purgeMasteredCards(MASTERED_MINUTES, builtinListIds)
         context.sweepCardImages(dao.getImages())
@@ -289,22 +307,28 @@ class FlashcardRepository(private val context: Context) {
     fun observeAllElements(): Flow<List<FlashcardElement>> = dao.observeAllElements()
 
     /**
-     * The cards Play all draws from: every card, minus the builtin lists not unlocked yet. The
-     * builtin lists open one at a time in [UNLOCK_ORDER], the next one once every card of the last
-     * one opened has been played at least once, and stay open for good. The game itself leaves out
-     * the personal lists while [hidePersonal] is on.
+     * The cards Play all draws from, with each list's draw weight. The lists screen order is the
+     * priority: walking down it, the personal lists are always open, and the builtin ones open up to
+     * and including the first holding a card never played, so a list dragged below that one closes
+     * and one dragged above it becomes the next to learn. A list weighs 1 / (its rank among the open
+     * ones + 1). The game itself leaves out the personal lists while [hidePersonal] is on.
      */
-    suspend fun getPlayAllElements(): List<FlashcardElement> {
-        val cards = dao.getAllElements()
-        val byList = cards.groupBy { it.listId }
-        var unlocked = context.flashcardDataStore.data.first()[unlockedListsKey] ?: 1
-        val before = unlocked
-        while (unlocked < UNLOCK_ORDER.size &&
-            byList[UNLOCK_ORDER[unlocked - 1]].orEmpty().all { it.totalWins + it.totalLosses > 0 }
-        ) unlocked++
-        if (unlocked != before) context.flashcardDataStore.edit { it[unlockedListsKey] = unlocked }
-        val locked = UNLOCK_ORDER.drop(unlocked).toSet()
-        return cards.filter { it.listId !in locked }
+    suspend fun getPlayAll(): PlayAll {
+        val byList = dao.getAllElements().groupBy { it.listId }
+        val open = mutableListOf<String>()
+        var frontierReached = false
+        for (list in dao.getLists()) {
+            if (isPersonalList(list.id)) {
+                open += list.id
+            } else if (!frontierReached) {
+                open += list.id
+                frontierReached = byList[list.id].orEmpty().any { it.totalWins + it.totalLosses == 0 }
+            }
+        }
+        return PlayAll(
+            cards = open.flatMap { byList[it].orEmpty() },
+            weights = open.withIndex().associate { (rank, id) -> id to 1.0 / (rank + 1) }
+        )
     }
 
     companion object {
@@ -332,10 +356,10 @@ class FlashcardRepository(private val context: Context) {
             13 to "seed_transit_lines.json"
         )
         private val hidePersonalKey = booleanPreferencesKey("hide_personal")
-        // Renamed whenever UNLOCK_ORDER is reordered, so Play all opens the lists again from the first.
-        private val unlockedListsKey = intPreferencesKey("unlocked_lists_v2")
-        // The builtin lists from the most to the least worth learning, the order Play all opens them in.
-        private val UNLOCK_ORDER = listOf(
+        // Set once the lists were sorted into DEFAULT_PRIORITY; from then on the dragged order rules.
+        private val priorityOrderKey = booleanPreferencesKey("priority_order_v1")
+        // The builtin lists from the most to the least worth learning, the order they are first sorted in.
+        private val DEFAULT_PRIORITY = listOf(
             "builtin-capitals-v1",
             "builtin-flags-v1",
             "builtin-maps-v1",
@@ -463,13 +487,15 @@ class FlashcardRepository(private val context: Context) {
         ).map { 13 to "citywmap-$it" }
         private const val BIRTHDAYS_LIST_ID = "builtin-birthdays-v1"
         private val birthdayFormat = DateTimeFormatter.ofPattern("d MMMM", Locale.FRENCH)
-        private val builtinListIds = UNLOCK_ORDER + BIRTHDAYS_LIST_ID
+        private val builtinListIds = DEFAULT_PRIORITY + BIRTHDAYS_LIST_ID
 
         /** A list the header's eye hides when someone plays along: Birthdays and every list made by hand. */
         fun isPersonalList(listId: String): Boolean =
             listId == BIRTHDAYS_LIST_ID || listId !in builtinListIds
     }
 }
+
+data class PlayAll(val cards: List<FlashcardElement>, val weights: Map<String, Double>)
 
 data class DailyLottery(val card: FlashcardElement, val waitBeforeMs: Long, val waitAfterMs: Long)
 
