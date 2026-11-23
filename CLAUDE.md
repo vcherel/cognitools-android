@@ -25,7 +25,7 @@ A layout complaint starts with `adb exec-out screencap -p`, never with the code.
 JSON state is written with `org.json` by hand (or kotlinx `JsonElement` navigation, as in `deezer/`): the build has no kotlinx serialization compiler plugin, so `@Serializable` and `serializer()` do not compile.
 
 ## Deploy method
-At /wrapup, check `adb devices` first. With the phone plugged in, do everything: run `uv run --no-project src/deploy.py` in the background, which builds the release APK, installs it and compiles it (`--no-build` reuses the last build). Without the phone, build no APK: `./gradlew compileReleaseKotlin` plus the pre-push tests are enough, and the deploy waits for the next wrapup with the phone. The script runs these steps:
+At /wrapup, check `adb devices` first. With the phone plugged in, do everything: run `uv run --no-project src/deploy.py` in the background, which builds the release APK, installs it and compiles it (`--no-build` reuses the last build; `--clean` builds HEAD in a temporary worktree, for when another session's uncommitted edits sit in the tree, and is a cold build, so slower). Without the phone, build no APK: `./gradlew compileReleaseKotlin` plus the pre-push tests are enough, and the deploy waits for the next wrapup with the phone. The script runs these steps:
 
 ```
 ./gradlew assembleRelease
