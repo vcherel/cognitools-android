@@ -16,7 +16,7 @@ data class JournalItem(
     val meta: String,
     /** Set on events and exhibitions: the line the Todo list gets, blank to build it from the title and meta. */
     val todoLine: String,
-    /** Set on the exploration items: the subject being tried. */
+    /** Set on the exploration and Sujets à l'essai items: the subject being tried. */
     val subject: String,
     /** An https picture URL, blank when the item has none. */
     val image: String,

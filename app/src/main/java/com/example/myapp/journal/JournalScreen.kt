@@ -244,7 +244,6 @@ fun JournalScreen(onBack: () -> Unit, onOpenArticle: (String) -> Unit, onOpenNew
                 items(section.items, key = { "${issue.date}-${it.id}" }) { item ->
                     JournalItemCard(
                         item = item,
-                        explore = section.kind == SectionKind.EXPLORE,
                         expanded = item.id in expanded,
                         onToggle = { toggle(item.id) },
                         rating = feedback.ratings[item.id] ?: 0,
@@ -428,7 +427,6 @@ private fun BodyTable(rows: List<List<String>>) {
 @Composable
 private fun JournalItemCard(
     item: JournalItem,
-    explore: Boolean,
     expanded: Boolean,
     onToggle: () -> Unit,
     rating: Int,
@@ -446,7 +444,7 @@ private fun JournalItemCard(
         modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp)
     ) {
         Column(Modifier.clickable(onClick = onToggle).padding(start = 14.dp, end = 6.dp, top = 12.dp, bottom = 4.dp)) {
-            if (explore && item.subject.isNotBlank()) {
+            if (item.subject.isNotBlank()) {
                 Text(
                     "Experiment · ${item.subject}",
                     style = MaterialTheme.typography.labelMedium,
