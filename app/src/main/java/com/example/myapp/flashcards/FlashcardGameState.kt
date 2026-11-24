@@ -14,6 +14,7 @@ import androidx.compose.ui.platform.LocalContext
 import com.example.myapp.flashcardRepository
 import com.example.myapp.formatDuration
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -134,9 +135,22 @@ class FlashcardGameState(
         }
     }
 
-    private fun store(card: FlashcardElement) {
+    private fun store(card: FlashcardElement): Job {
         cards = cards?.map { if (it.id == card.id) card else it }
-        scope.launch { repository.updateElement(card) }
+        return scope.launch { repository.updateElement(card) }
+    }
+
+    // Play all: the first play of a builtin card may have played the frontier list's last new one,
+    // opening the next list, whose cards join the game at once. The cards already held stay as they are.
+    private suspend fun openNewLists() {
+        val playAll = repository.getPlayAll()
+        val held = cards.orEmpty().mapTo(HashSet()) { it.id }
+        val added = playAll.cards.filter { it.id !in held }
+        if (added.isEmpty()) return
+        listWeights = playAll.weights
+        cards = cards.orEmpty() + added
+        refillWorkingSet()
+        pickIfIdle()
     }
 
     // A member leaves the working set as soon as it graduates or stops being due (a win schedules
@@ -146,9 +160,11 @@ class FlashcardGameState(
         val kept = difficultDue.filter { it.id in activeDifficultCards }.map { it.id }
         val added = difficultDue
             .filter { it.id !in activeDifficultCards }
-            .sortedByDescending { sessionRandom.nextDouble().pow(1 / weight(it)) }
+            // Each card's key is drawn once: a key redrawn per comparison breaks TimSort's contract and crashes
+            .map { it.id to sessionRandom.nextDouble().pow(1 / weight(it)) }
+            .sortedByDescending { it.second }
             .take((MAX_DIFFICULT_CARDS - kept.size).coerceAtLeast(0))
-            .map { it.id }
+            .map { it.first }
         activeDifficultCards = (kept + added).toSet()
     }
 
@@ -186,7 +202,10 @@ class FlashcardGameState(
                 Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
             }
 
-            store(updatedCard)
+            val saved = store(updatedCard)
+            if (isAllListsMode && card.totalWins + card.totalLosses == 0 && !FlashcardRepository.isPersonalList(card.listId)) {
+                scope.launch { saved.join(); openNewLists() }
+            }
             canUndo = true
 
             refillWorkingSet()
