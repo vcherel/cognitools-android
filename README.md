@@ -99,7 +99,7 @@ uv run --only-group maps src/generate_maps.py
 
 `--sheet <codes>` renders those maps (ISO codes, department numbers like `35` or `2A`, region codes after an `r` like `r53`, or arrondissements after an `a` like `a7`) into `mockups/maps_sheet.png`, `--write <codes>` writes only their pictures, `--seeds` only the seed files, and `--pages` lists the atlas page each country lands on (a `*` when the page is shifted to center it).
 
-The city lists (Préfectures (carte), Préfectures US and its map list, Villes importantes (France), Villes du monde (carte), the capitals and the big cities mixed), a red dot on each city, from Natural Earth's populated places and the geo.api.gouv.fr communes:
+The city lists (Villes de France (carte), the prefectures and the big French cities mixed, Villes du monde (carte), the capitals, the US state capitals and the big cities mixed, and the Préfectures US text list), a red dot on each city, from Natural Earth's populated places and the geo.api.gouv.fr communes:
 
 ```bash
 uv run --only-group maps src/generate_cities.py

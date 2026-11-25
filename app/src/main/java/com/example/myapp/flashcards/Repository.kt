@@ -209,9 +209,7 @@ class FlashcardRepository(private val context: Context) {
      * card points at any more.
      */
     suspend fun seedAndPurge() {
-        val moved = dao.getElements(OLD_WORLD_CITIES_LIST_ID)
-        if (moved.isNotEmpty()) dao.upsertElements(moved.map { it.copy(listId = WORLD_CITIES_LIST_ID) })
-        if (dao.getList(OLD_WORLD_CITIES_LIST_ID) != null) dao.deleteList(OLD_WORLD_CITIES_LIST_ID)
+        mergeLists()
         val seeded = context.flashcardDataStore.data.first()[seedVersionKey] ?: 0
         if (seeded < SEEDS.last().first) {
             SEEDS.filter { (version, _) -> version > seeded }.forEach { (_, file) -> seedAssets(file) }
@@ -269,6 +267,20 @@ class FlashcardRepository(private val context: Context) {
         if (changed.isNotEmpty()) dao.upsertElements(changed)
         val wantedIds = wanted.map { it.id }.toSet()
         existing.keys.filter { it !in wantedIds }.forEach { dao.deleteElement(it) }
+    }
+
+    // Moves the cards of each list in MERGED_LISTS into the one it was merged into, progress kept.
+    private suspend fun mergeLists() {
+        var merged = false
+        for ((old, into) in MERGED_LISTS) {
+            val moved = dao.getElements(old)
+            if (moved.isNotEmpty()) dao.upsertElements(moved.map { it.copy(listId = into) })
+            if (dao.getList(old) != null) {
+                dao.deleteList(old)
+                merged = true
+            }
+        }
+        if (merged) renameBuiltinLists()
     }
 
     private suspend fun seedAssets(filename: String) {
@@ -349,8 +361,6 @@ class FlashcardRepository(private val context: Context) {
             10 to "seed_prefecture_maps.json",
             10 to "seed_capital_maps.json",
             10 to "seed_state_capitals.json",
-            10 to "seed_state_capital_maps.json",
-            10 to "seed_city_maps_fr.json",
             11 to "seed_elements.json",
             12 to "seed_sea_maps.json",
             13 to "seed_transit_lines.json"
@@ -370,18 +380,19 @@ class FlashcardRepository(private val context: Context) {
             "builtin-transit-lines-v1",
             "builtin-sea-maps-v1",
             "builtin-prefecture-maps-v1",
-            "builtin-cities-fr-v1",
             "builtin-dept-numbers-v1",
             "builtin-state-maps-v1",
             "builtin-state-capitals-v1",
             "builtin-capital-maps-v1",
-            "builtin-state-capital-maps-v1",
             "builtin-state-flags-v1",
             "builtin-elements-v1"
         )
-        // The world cities list, merged into the capitals one (WORLD_CITIES_LIST_ID) with its progress.
-        private const val OLD_WORLD_CITIES_LIST_ID = "builtin-cities-world-v1"
-        private const val WORLD_CITIES_LIST_ID = "builtin-capital-maps-v1"
+        // Lists merged into another, so a list's name never tells which kind of city a card shows.
+        private val MERGED_LISTS = listOf(
+            "builtin-cities-world-v1" to "builtin-capital-maps-v1",
+            "builtin-state-capital-maps-v1" to "builtin-capital-maps-v1",
+            "builtin-cities-fr-v1" to "builtin-prefecture-maps-v1"
+        )
         private val lotteryDayKey = stringPreferencesKey("lottery_day")
         private const val DAY_MS = 24 * 60 * 60_000L
         private val resetVersionKey = intPreferencesKey("reset_version")

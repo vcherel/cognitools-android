@@ -1,6 +1,7 @@
-# Builds the city lists on top of generate_maps.py: Préfectures (carte), Villes du monde (carte)
-# (the capitals and the big cities together, so a country does not give its capital away),
-# Préfectures US and its map list, and Villes importantes (France), each map card a dot on the city.
+# Builds the city lists on top of generate_maps.py, each map card a dot on the city: Villes de France
+# (carte) (the prefectures and the big French cities) and Villes du monde (carte) (the capitals, the
+# US state capitals and the big cities), mixed so a list's name never gives a city away, plus the
+# Préfectures US text list.
 import argparse
 import json
 import math
@@ -200,13 +201,14 @@ WORLD_CITIES = [
 ]
 # A capital whose whole country lies this close to it would show the same thing as its Pays card.
 TINY_COUNTRY_KM = 100
+FRANCE_LIST = ("seed_prefecture_maps.json", "builtin-prefecture-maps-v1", "Villes de France (carte)", 10)
 WORLD_LIST = ("seed_capital_maps.json", "builtin-capital-maps-v1", "Villes du monde (carte)", 11)
 
 LISTS = {
-    "pref": ("seed_prefecture_maps.json", "builtin-prefecture-maps-v1", "Préfectures (carte)", 10),
+    "pref": FRANCE_LIST,
     "cap": WORLD_LIST,
-    "uscap": ("seed_state_capital_maps.json", "builtin-state-capital-maps-v1", "Préfectures US (carte)", 13),
-    "cityfr": ("seed_city_maps_fr.json", "builtin-cities-fr-v1", "Villes importantes (France)", 14),
+    "uscap": WORLD_LIST,
+    "cityfr": FRANCE_LIST,
     "cityw": WORLD_LIST,
 }
 STATE_CAPITALS = ("seed_state_capitals.json", "builtin-state-capitals-v1", "Préfectures US", 12)

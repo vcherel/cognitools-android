@@ -3,7 +3,7 @@
  "lists": [
   {
    "id": "builtin-prefecture-maps-v1",
-   "name": "Préfectures (carte)",
+   "name": "Villes de France (carte)",
    "order": 10,
    "fixedSide": true
   }
@@ -15,6 +15,15 @@
    "name": "",
    "definition": "Agen",
    "image": "asset:maps/pref-47.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "cityfrmap-13001",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Aix-en-Provence",
+   "image": "asset:maps/cityfr-13001.webp",
    "lastReview": 0,
    "randomSide": false
   },
@@ -42,6 +51,15 @@
    "name": "",
    "definition": "Alençon",
    "image": "asset:maps/pref-61.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "cityfrmap-30007",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Alès",
+   "image": "asset:maps/cityfr-30007.webp",
    "lastReview": 0,
    "randomSide": false
   },
@@ -78,6 +96,24 @@
    "name": "",
    "definition": "Annecy",
    "image": "asset:maps/pref-74.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "cityfrmap-74012",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Annemasse",
+   "image": "asset:maps/cityfr-74012.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "cityfrmap-13004",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Arles",
+   "image": "asset:maps/cityfr-13004.webp",
    "lastReview": 0,
    "randomSide": false
   },
@@ -154,6 +190,15 @@
    "randomSide": false
   },
   {
+   "id": "cityfrmap-64102",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Bayonne",
+   "image": "asset:maps/cityfr-64102.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
    "id": "prefmap-60",
    "listId": "builtin-prefecture-maps-v1",
    "name": "",
@@ -177,6 +222,15 @@
    "name": "",
    "definition": "Besançon",
    "image": "asset:maps/pref-25.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "cityfrmap-34032",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Béziers",
+   "image": "asset:maps/cityfr-34032.webp",
    "lastReview": 0,
    "randomSide": false
   },
@@ -208,6 +262,15 @@
    "randomSide": false
   },
   {
+   "id": "cityfrmap-62160",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Boulogne-sur-Mer",
+   "image": "asset:maps/cityfr-62160.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
    "id": "prefmap-01",
    "listId": "builtin-prefecture-maps-v1",
    "name": "",
@@ -222,6 +285,15 @@
    "name": "",
    "definition": "Bourges",
    "image": "asset:maps/pref-18.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "cityfrmap-29019",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Brest",
+   "image": "asset:maps/cityfr-29019.webp",
    "lastReview": 0,
    "randomSide": false
   },
@@ -244,11 +316,38 @@
    "randomSide": false
   },
   {
+   "id": "cityfrmap-62193",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Calais",
+   "image": "asset:maps/cityfr-62193.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "cityfrmap-06029",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Cannes",
+   "image": "asset:maps/cityfr-06029.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
    "id": "prefmap-11",
    "listId": "builtin-prefecture-maps-v1",
    "name": "",
    "definition": "Carcassonne",
    "image": "asset:maps/pref-11.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "cityfrmap-81065",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Castres",
+   "image": "asset:maps/cityfr-81065.webp",
    "lastReview": 0,
    "randomSide": false
   },
@@ -267,6 +366,15 @@
    "name": "",
    "definition": "Cergy",
    "image": "asset:maps/pref-95.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "cityfrmap-71076",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Chalon-sur-Saône",
+   "image": "asset:maps/cityfr-71076.webp",
    "lastReview": 0,
    "randomSide": false
   },
@@ -325,6 +433,24 @@
    "randomSide": false
   },
   {
+   "id": "cityfrmap-50129",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Cherbourg-en-Cotentin",
+   "image": "asset:maps/cityfr-50129.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "cityfrmap-49099",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Cholet",
+   "image": "asset:maps/cityfr-49099.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
    "id": "prefmap-63",
    "listId": "builtin-prefecture-maps-v1",
    "name": "",
@@ -339,6 +465,24 @@
    "name": "",
    "definition": "Colmar",
    "image": "asset:maps/pref-68.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "cityfrmap-60159",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Compiègne",
+   "image": "asset:maps/cityfr-60159.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "cityfrmap-60175",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Creil",
+   "image": "asset:maps/cityfr-60175.webp",
    "lastReview": 0,
    "randomSide": false
   },
@@ -366,6 +510,33 @@
    "name": "",
    "definition": "Dijon",
    "image": "asset:maps/pref-21.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "cityfrmap-59178",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Douai",
+   "image": "asset:maps/cityfr-59178.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "cityfrmap-83050",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Draguignan",
+   "image": "asset:maps/cityfr-83050.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "cityfrmap-59183",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Dunkerque",
+   "image": "asset:maps/cityfr-59183.webp",
    "lastReview": 0,
    "randomSide": false
   },
@@ -442,6 +613,15 @@
    "randomSide": false
   },
   {
+   "id": "cityfrmap-67180",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Haguenau",
+   "image": "asset:maps/cityfr-67180.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
    "id": "prefmap-85",
    "listId": "builtin-prefecture-maps-v1",
    "name": "",
@@ -478,6 +658,15 @@
    "randomSide": false
   },
   {
+   "id": "cityfrmap-76351",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Le Havre",
+   "image": "asset:maps/cityfr-76351.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
    "id": "prefmap-72",
    "listId": "builtin-prefecture-maps-v1",
    "name": "",
@@ -492,6 +681,15 @@
    "name": "",
    "definition": "Le Puy-en-Velay",
    "image": "asset:maps/pref-43.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "cityfrmap-85194",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Les Sables-d'Olonne",
+   "image": "asset:maps/cityfr-85194.webp",
    "lastReview": 0,
    "randomSide": false
   },
@@ -523,6 +721,15 @@
    "randomSide": false
   },
   {
+   "id": "cityfrmap-56121",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Lorient",
+   "image": "asset:maps/cityfr-56121.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
    "id": "prefmap-69",
    "listId": "builtin-prefecture-maps-v1",
    "name": "",
@@ -550,11 +757,38 @@
    "randomSide": false
   },
   {
+   "id": "cityfrmap-78361",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Mantes-la-Jolie",
+   "image": "asset:maps/cityfr-78361.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
    "id": "prefmap-13",
    "listId": "builtin-prefecture-maps-v1",
    "name": "",
    "definition": "Marseille",
    "image": "asset:maps/pref-13.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "cityfrmap-13056",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Martigues",
+   "image": "asset:maps/cityfr-13056.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "cityfrmap-77284",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Meaux",
+   "image": "asset:maps/cityfr-77284.webp",
    "lastReview": 0,
    "randomSide": false
   },
@@ -604,6 +838,15 @@
    "randomSide": false
   },
   {
+   "id": "cityfrmap-03185",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Montluçon",
+   "image": "asset:maps/cityfr-03185.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
    "id": "prefmap-34",
    "listId": "builtin-prefecture-maps-v1",
    "name": "",
@@ -618,6 +861,15 @@
    "name": "",
    "definition": "Moulins",
    "image": "asset:maps/pref-03.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "cityfrmap-68224",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Mulhouse",
+   "image": "asset:maps/cityfr-68224.webp",
    "lastReview": 0,
    "randomSide": false
   },
@@ -645,6 +897,15 @@
    "name": "",
    "definition": "Nantes",
    "image": "asset:maps/pref-44.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "cityfrmap-11262",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Narbonne",
+   "image": "asset:maps/cityfr-11262.webp",
    "lastReview": 0,
    "randomSide": false
   },
@@ -757,11 +1018,29 @@
    "randomSide": false
   },
   {
+   "id": "cityfrmap-51454",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Reims",
+   "image": "asset:maps/cityfr-51454.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
    "id": "prefmap-35",
    "listId": "builtin-prefecture-maps-v1",
    "name": "",
    "definition": "Rennes",
    "image": "asset:maps/pref-35.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "cityfrmap-42187",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Roanne",
+   "image": "asset:maps/cityfr-42187.webp",
    "lastReview": 0,
    "randomSide": false
   },
@@ -820,6 +1099,51 @@
    "randomSide": false
   },
   {
+   "id": "cityfrmap-35288",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Saint-Malo",
+   "image": "asset:maps/cityfr-35288.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "cityfrmap-44184",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Saint-Nazaire",
+   "image": "asset:maps/cityfr-44184.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "cityfrmap-02691",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Saint-Quentin",
+   "image": "asset:maps/cityfr-02691.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "cityfrmap-13103",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Salon-de-Provence",
+   "image": "asset:maps/cityfr-13103.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "cityfrmap-34301",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Sète",
+   "image": "asset:maps/cityfr-34301.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
    "id": "prefmap-67",
    "listId": "builtin-prefecture-maps-v1",
    "name": "",
@@ -834,6 +1158,24 @@
    "name": "",
    "definition": "Tarbes",
    "image": "asset:maps/pref-65.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "cityfrmap-57672",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Thionville",
+   "image": "asset:maps/cityfr-57672.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "cityfrmap-74281",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Thonon-les-Bains",
+   "image": "asset:maps/cityfr-74281.webp",
    "lastReview": 0,
    "randomSide": false
   },
@@ -892,6 +1234,15 @@
    "randomSide": false
   },
   {
+   "id": "cityfrmap-59606",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Valenciennes",
+   "image": "asset:maps/cityfr-59606.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
    "id": "prefmap-56",
    "listId": "builtin-prefecture-maps-v1",
    "name": "",
@@ -915,6 +1266,15 @@
    "name": "",
    "definition": "Vesoul",
    "image": "asset:maps/pref-70.webp",
+   "lastReview": 0,
+   "randomSide": false
+  },
+  {
+   "id": "cityfrmap-69264",
+   "listId": "builtin-prefecture-maps-v1",
+   "name": "",
+   "definition": "Villefranche-sur-Saône",
+   "image": "asset:maps/cityfr-69264.webp",
    "lastReview": 0,
    "randomSide": false
   }
