@@ -176,6 +176,8 @@ class JournalRepository(context: Context) {
         edit(date) { it.copy(todo = it.todo + itemId) }
     }
 
+    fun unmarkTodo(date: String, itemId: String) = edit(date) { it.copy(todo = it.todo - itemId) }
+
     fun setGeneral(date: String, text: String) = edit(date) { it.copy(general = text.trim()) }
 
     private fun edit(date: String, change: (JournalFeedback) -> JournalFeedback) {

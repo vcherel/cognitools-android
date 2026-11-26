@@ -138,6 +138,25 @@ suspend fun addToTodoNote(context: Context, text: String, section: String? = nul
     return true
 }
 
+/** The Todo list without its unchecked "[ ] [item]" line, or null when there is none. */
+internal fun withoutTodoItem(content: String, item: String): String? {
+    val lines = content.split("\n").toMutableList()
+    val at = lines.indexOfFirst {
+        it.isCheckboxLine() && !it.isCheckedLine() && it.checkboxText().trim().equals(item, ignoreCase = true)
+    }
+    if (at == -1) return null
+    lines.removeAt(at)
+    return lines.joinToString("\n")
+}
+
+/** Takes [text] back out of the Todo list, the undo of [addToTodoNote]. */
+suspend fun removeFromTodoNote(context: Context, text: String) {
+    val dao = AppDatabase.get(context).noteDao()
+    val note = findTodoNote(dao) ?: return
+    val content = withoutTodoItem(note.content, text.trim()) ?: return
+    dao.upsertNote(note.copy(content = content, updatedAt = System.currentTimeMillis()))
+}
+
 /** Adds the sections the Todo list lacks, at app start, so the note always shows them. */
 suspend fun ensureTodoSections(context: Context) {
     val dao = AppDatabase.get(context).noteDao()

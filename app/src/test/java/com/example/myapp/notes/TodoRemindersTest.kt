@@ -90,6 +90,15 @@ class TodoRemindersTest {
     }
 
     @Test
+    fun undoTakesTheAddedItemBackOut() {
+        val today = LocalDate.of(2026, 11, 17)
+        val note = "[ ] A\n--- Attente\n--- Week-end\n[ ] Balade"
+        val added = withTodoItem(note, "Cinéma", WEEKEND_SECTION, today)!!
+        assertEquals(note, withoutTodoItem(added, "Cinéma"))
+        assertEquals(null, withoutTodoItem("[x] Cinéma", "Cinéma"))
+    }
+
+    @Test
     fun drawStaysWithinHalfToOneAndAHalfMeanDuringTheDay() {
         val after = LocalDateTime.of(2026, 11, 2, 9, 0)
         repeat(200) {

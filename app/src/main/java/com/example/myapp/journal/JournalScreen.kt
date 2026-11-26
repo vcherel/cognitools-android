@@ -90,6 +90,7 @@ import com.example.myapp.news.NewsArticle
 import com.example.myapp.newsRepository
 import com.example.myapp.notes.WEEKEND_SECTION
 import com.example.myapp.notes.addToTodoNote
+import com.example.myapp.notes.removeFromTodoNote
 import com.example.myapp.userMessage
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -356,8 +357,14 @@ fun JournalScreen(onBack: () -> Unit, onOpenArticle: (String) -> Unit, onOpenNew
                         return@launch
                     }
                     repo.markTodo(date, target.itemId)
-                    val where = section ?: "Todo list"
-                    AppSnackbar.show(if (added) "Added to $where" else "Already in the Todo list")
+                    if (!added) {
+                        AppSnackbar.show("Already in the Todo list")
+                        return@launch
+                    }
+                    AppSnackbar.show("Added to ${section ?: "Todo list"}", actionLabel = "Undo") {
+                        removeFromTodoNote(context, target.text)
+                        repo.unmarkTodo(date, target.itemId)
+                    }
                 }
             }
         )
